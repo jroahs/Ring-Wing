@@ -6,9 +6,9 @@ import Chatbot from './Chatbot';
 import InventorySystem from './InventorySystem';
 import OrderSystem from './OrderSystem';
 import Sidebar from './Sidebar';
-import MenuManagement from './MenuManagement'; // Add this import
+import MenuManagement from './MenuManagement';
+import ExpenseTracker from './ExpenseDisbursement'; // Only new addition
 
-// Define your color scheme (adjust as needed)
 const colors = {
   primary: '#2e0304',
   background: '#fefdfd',
@@ -19,7 +19,6 @@ const colors = {
   activeBorder: '#f1670f',
   hoverBg: '#f1670f10'
 };
-
 
 const MainLayout = () => {
   return (
@@ -37,18 +36,14 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<Login />} />
-        {/* Routes with Sidebar */}
         <Route element={<MainLayout />}>
           <Route path="/dashboard" element={<Dashboard colors={colors} />} />
           <Route path="/orders" element={<OrderSystem />} />
           <Route path="/inventory" element={<InventorySystem />} />
-          {/* Add Menu Management route */}
-          <Route 
-            path="/menu" 
-            element={<MenuManagement colors={colors} />} 
-          />
+          <Route path="/menu" element={<MenuManagement colors={colors} />} />
+          {/* Only new route added */}
+          <Route path="/expenses" element={<ExpenseTracker colors={colors} />} />
         </Route>
-        {/* Chatbot route without sidebar */}
         <Route path="/chatbot" element={<Chatbot />} />
       </Routes>
     </Router>

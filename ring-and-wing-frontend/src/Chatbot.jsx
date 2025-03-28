@@ -65,10 +65,17 @@ function ChatbotPage() {
   const getMenuContext = () => {
     if (!menuData.length) return "No menu items available";
     
-    return menuData.map(item => 
-      `- ${item.name}: ${item.description || 'No description'}. Price: ${item.pricing ? '₱' + Object.values(item.pricing)[0] : 'Not available'}. Category: ${item.category || 'Uncategorized'}`
-    ).join('\n');
+    return menuData.map(menuItem => {
+      const prices = menuItem.pricing 
+        ? Object.entries(menuItem.pricing)
+            .map(([size, price]) => `${size}: ₱${price}`)
+            .join(', ')
+        : 'Price not available';
+      
+      return `- ${menuItem.name}: ${menuItem.description || 'No description'}. Prices: ${prices}. Category: ${menuItem.category || 'Uncategorized'}`;
+    }).join('\n');
   };
+
 
   // Corrected sanitizeAIResponse function with all logic inside
   const sanitizeAIResponse = (text) => {
@@ -123,13 +130,15 @@ function ChatbotPage() {
       content: `You are Ring & Wing Café's helpful assistant. Rules:
 1. Menu items (never invent new ones):
 ${getMenuContext()}
-
 2. refrain from using bold letters as the chatbot doesn't support boldfaces.
 3. using asterisk is probihited *.
 3. Keep responses friendly but professional,
 4. Never mention competitors
 5. If the customer initiates a fun or playful interaction, the AI can engage in a lighthearted and friendly way while maintaining professionalism.
-6. For recommendations, suggest 1 specific item first`
+6. If asked about something not in the menu, respond: "I'm sorry, that item isn't available. Would you like me to suggest something from our menu?"
+7. Format prices exactly as: "Small: ₱99 | Medium: ₱120
+8. For recommendations, suggest 1 specific item first`
+
     };
 
     const payload = {
@@ -233,36 +242,74 @@ ${getMenuContext()}
         timestamp: new Date()
       }]);
 
-      const coffeeItems = menuData.filter(item => 
-        item.category === 'Beverages' && item.subCategory === 'Coffee'
-      ).map(item => ({
-        name: item.name,
-        price: item.pricing ? "₱" + Object.values(item.pricing)[0] : "",
-        description: item.description || "",
-        image: item.image || ""
-      }));
-      
-      setMessages(prev => [...prev, {
-        id: Date.now() + 1,
-        text: "",
-        sender: 'bot',
-        type: 'menu-items',
-        items: coffeeItems,
-        timestamp: new Date()
-      }]);
-      setIsTyping(false);
-      return;
-    }
+      // Handle coffee requests
+if (input.includes('coffee')) {
+  const coffeeItems = menuData
+    .filter(menuItem => 
+      menuItem.category === 'Beverages' && 
+      menuItem.subCategory === 'Coffee'
+    )
+    .map(menuItem => ({
+      name: menuItem.name,
+      prices: menuItem.pricing ? 
+        Object.entries(menuItem.pricing).map(([size, price]) => ({
+          size,
+          price: `₱${price}`
+        })) : [],
+      description: menuItem.description || "",
+      image: menuItem.image || ""
+    }));
 
-    // Handle recommendations
-    if (input.includes('special') || input.includes('recommend')) {
-      const aiText = await getAIResponse(userMessage.text, chatHistory);
-      setMessages(prev => [...prev, {
-        id: Date.now(),
-        text: aiText,
-        sender: 'bot',
-        timestamp: new Date()
-      }]);
+  if (coffeeItems.length === 0) {
+    // If no coffee items found in database
+    setMessages(prev => [...prev, {
+      id: Date.now(),
+      text: "We currently don't have coffee items available. Please check back later!",
+      sender: 'bot',
+      timestamp: new Date()
+    }]);
+    setIsTyping(false);
+    return;
+  }
+
+  // First send AI response
+  const aiText = await getAIResponse(userMessage.text, chatHistory);
+  
+  // Then send actual database items
+  setMessages(prev => [
+    ...prev,
+    {
+      id: Date.now(),
+      text: aiText,
+      sender: 'bot',
+      timestamp: new Date()
+    },
+    {
+      id: Date.now() + 1,
+      text: "",
+      sender: 'bot',
+      type: 'menu-items',
+      items: coffeeItems,
+      timestamp: new Date()
+    }
+  ]);
+  setIsTyping(false);
+  return;
+}
+    
+    // In the JSX rendering, update the price display:
+    <div className="flex justify-between items-start">
+      <h3 className="font-semibold" style={{ color: colors.primary }}>
+        {item.name}
+      </h3>
+      <div className="flex flex-col items-end">
+        {item.prices.map((priceInfo, idx) => (
+          <span key={idx} className="font-medium" style={{ color: colors.accent }}>
+            {priceInfo.size}: {priceInfo.price}
+          </span>
+        ))}
+      </div>
+    </div>
 
       const popularItems = menuData.slice(0, 3).map(item => ({
         name: item.name,

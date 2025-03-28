@@ -4,14 +4,12 @@ const menuItemSchema = new mongoose.Schema({
   name: { type: String, required: true },
   category: { type: String, required: true },
   subCategory: { type: String },
-  pricing: { type: Map, of: Number, required: true },
+  pricing: { type: Map, of: Number, required: true }, // Maintain pricing structure for sizes
   description: { type: String },
   image: { type: String },
   modifiers: [{
-    name: { type: String },
-    price: { type: Number },
-    type: { type: String },
-    options: [{ type: String }]
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'AddOn'
   }],
   preparationTime: { type: Number, default: 15 },
   isAvailable: { type: Boolean, default: true },

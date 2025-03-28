@@ -9,14 +9,15 @@ import {
   FiBox,
   FiUsers,
   FiMessageSquare,
-  FiBookOpen // Added Menu Management icon
+  FiBookOpen,
+  FiDollarSign // Added for Expense Tracking
 } from 'react-icons/fi';
 
 const Sidebar = ({ colors }) => {
   const location = useLocation();
 
-  // Updated allowed routes to include menu management
-  const allowedRoutes = ['/dashboard', '/orders', '/inventory', '/staff', '/chatbot', '/menu'];
+  // Updated allowed routes to include expenses
+  const allowedRoutes = ['/dashboard', '/orders', '/inventory', '/staff', '/chatbot', '/menu', '/expenses'];
   const shouldRender = allowedRoutes.some(route => location.pathname.startsWith(route));
   if (!shouldRender) return null;
 
@@ -98,9 +99,9 @@ const Sidebar = ({ colors }) => {
             { path: '/dashboard', icon: <FiGrid size={20} />, label: 'Dashboard' },
             { path: '/orders', icon: <FiShoppingBag size={20} />, label: 'Orders' },
             { path: '/inventory', icon: <FiBox size={20} />, label: 'Inventory' },
-            // Added Menu Management link
             { path: '/menu', icon: <FiBookOpen size={20} />, label: 'Menu Management' },
             { path: '/staff', icon: <FiUsers size={20} />, label: 'Staff' },
+            { path: '/expenses', icon: <FiDollarSign size={20} />, label: 'Expense Tracking' }, // Added link
             { path: '/chatbot', icon: <FiMessageSquare size={20} />, label: 'AI Assistant' }
           ].map((item) => (
             <Link 
