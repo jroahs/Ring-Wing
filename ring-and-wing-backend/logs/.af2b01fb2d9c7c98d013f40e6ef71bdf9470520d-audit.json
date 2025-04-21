@@ -1,0 +1,20 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "C:\\Users\\kliean\\Music\\Ring-Wing-version2\\ring-and-wing-backend\\logs\\.af2b01fb2d9c7c98d013f40e6ef71bdf9470520d-audit.json",
+    "files": [
+        {
+            "date": 1744923515456,
+            "name": "C:\\Users\\kliean\\Music\\Ring-Wing-version2\\ring-and-wing-backend\\logs\\error-2025-04-18.log",
+            "hash": "28c66588559663e02ba3b54e72d2c5894a424533c5866f1925fe1b8fed610555"
+        },
+        {
+            "date": 1745001324235,
+            "name": "C:\\Users\\kliean\\Music\\Ring-Wing-version2\\ring-and-wing-backend\\logs\\error-2025-04-19.log",
+            "hash": "ebfec9064ccc0ff1721c2f79138bd52f1bdb7825c23b8cd95ddef800f742bad5"
+        }
+    ],
+    "hashType": "sha256"
+}
