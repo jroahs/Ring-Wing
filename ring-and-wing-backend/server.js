@@ -1,4 +1,4 @@
-const mongoose = require('mongoose'); // Add this line at the very top
+const mongoose = require('mongoose');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -11,17 +11,12 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const http = require('http');
-
+const axios = require('axios');
 
 dotenv.config();
 
-
-
-
-
-
-// Validate environment variables
-const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET'];
+// Validate environment variables (added OPENROUTER_API_KEY)
+const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET', 'OPENROUTER_API_KEY'];
 requiredEnvVars.forEach(varName => {
   if (!process.env[varName]) {
     throw new Error(`${varName} environment variable is required`);
@@ -34,7 +29,7 @@ const PORT = process.env.PORT || 5000;
 // Connect to MongoDB
 connectDB();
 
-// Enhanced security middleware
+// Existing security middleware remains unchanged
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -48,7 +43,7 @@ app.use(
 );
 app.use(compression());
 
-// Rate limiting
+// Existing rate limiting remains unchanged
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
@@ -56,11 +51,10 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
-// Configure upload directories
+// Existing directory setup remains unchanged
 const publicDir = path.join(__dirname, 'public');
 const uploadsDir = path.join(publicDir, 'uploads');
 
-// Create directories if they don't exist
 [publicDir, uploadsDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -68,7 +62,7 @@ const uploadsDir = path.join(publicDir, 'uploads');
   }
 });
 
-// CORS configuration
+// Existing CORS config remains unchanged
 const corsOptions = {
   origin: [
     'http://localhost:5173',
@@ -81,14 +75,14 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// Body parsers
+// Existing body parsers remain unchanged
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Request logging
+// Existing logging remains unchanged
 app.use(morgan('combined'));
 
-// Enhanced static files configuration
+// Existing static files config remains unchanged
 app.use('/public', express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
     const ext = path.extname(filePath).toLowerCase();
@@ -114,13 +108,11 @@ app.use('/public', express.static(path.join(__dirname, 'public'), {
   }
 }));
 
-
+// Existing routes remain unchanged
 const expenseRoutes = require('./routes/expenseRoutes')
 const staffRoutes = require('./routes/staffRoutes');
 const payrollRoutes = require('./routes/payrollRoutes');
 
-
-// Add this before routes
 app.use((req, res, next) => {
   if (mongoose.connection.readyState !== 1) {
     return res.status(500).json({
@@ -131,8 +123,7 @@ app.use((req, res, next) => {
   next();
 });
 
-
-// Routes
+// Existing route imports remain unchanged
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/expenses', require('./routes/expenseRoutes'));
@@ -144,7 +135,32 @@ app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/items', require('./routes/itemRoutes'));
 app.use('/api/vendors', require('./routes/vendorRoutes'));
 
-// Health check
+// Add new proxy route here
+app.post('/api/chat', async (req, res) => {
+  try {
+    const response = await axios.post(
+      'https://openrouter.ai/api/v1/chat/completions',
+      req.body,
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://ring-wing-cafe.com',
+          'X-Title': 'Ring & Wing Café Assistant'
+        }
+      }
+    );
+    res.json(response.data);
+  } catch (error) {
+    console.error('Chat proxy error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Chat service temporarily unavailable' 
+    });
+  }
+});
+
+// Existing health check remains unchanged
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
@@ -154,7 +170,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Error handling
+// Existing error handling remains unchanged
 app.use((err, req, res, next) => {
   console.error(`[${new Date().toISOString()}] Error:`, err.stack);
 
@@ -172,7 +188,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
+// Existing 404 handler remains unchanged
 app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
@@ -180,10 +196,9 @@ app.use('*', (req, res) => {
   });
 });
 
-// Create HTTP server
+// Existing server setup remains unchanged
 const server = http.createServer(app);
 
-// Start server
 server.listen(PORT, () => {
   console.log(`
   Server running in ${process.env.NODE_ENV || 'development'} mode
@@ -192,7 +207,6 @@ server.listen(PORT, () => {
   `);
 });
 
-// Handle unhandled rejections
 process.on('unhandledRejection', (err) => {
   console.error(`Unhandled Rejection: ${err.message}`);
   server.close(() => process.exit(1));

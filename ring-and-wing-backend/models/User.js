@@ -1,78 +1,110 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
-    required: true,
+    required: [true, 'Username is required'],
     unique: true,
+    trim: true,
+    lowercase: true,
+    minlength: [3, 'Username must be at least 3 characters'],
+    maxlength: [30, 'Username cannot exceed 30 characters'],
+    match: [/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores']
   },
   email: {
     type: String,
-    required: true,
+    required: [true, 'Email is required'],
     unique: true,
+    trim: true,
+    lowercase: true,
+    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email address']
   },
   password: {
     type: String,
-    required: true,
+    required: [true, 'Password is required'],
+    minlength: [8, 'Password must be at least 8 characters'],
+    select: false
   },
-});
-
-// Hash password before saving
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
-});
-
-// Compare passwords
-userSchema.methods.comparePassword = async function (candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
-};
-
-module.exports = mongoose.model('User', userSchema);
-
-const handleSubmit = async (event) => {
-  event.preventDefault();
-  setError('');
-  setIsLoading(true);
-
-  try {
-    const response = await fetch('http://localhost:5000/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
+  role: {
+    type: String,
+    enum: {
+      values: ['staff', 'manager'],
+      message: 'Invalid user role'
+    },
+    required: [true, 'User role is required'],
+    default: 'staff'
+  },
+  reportsTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    validate: {
+      validator: async function(value) {
+        if (this.role === 'staff') {
+          const manager = await mongoose.model('User').findById(value);
+          return manager?.role === 'manager';
+        }
+        return true;
       },
-      body: JSON.stringify({
-        username,
-        password
-      })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Login failed');
+      message: 'Staff must report to a valid manager'
+    },
+    required: function() {
+      return this.role === 'staff';
     }
-
-    // Store the authentication token
-    localStorage.setItem('authToken', data.token);
-    navigate('/dashboard');
-  } catch (err) {
-    setError(err.message || 'Invalid credentials. Please try again.');
-  } finally {
-    setIsLoading(false);
   }
+}, {
+  timestamps: true,
+  toJSON: {
+    virtuals: true,
+    transform: function(doc, ret) {
+      delete ret.password;
+      delete ret.__v;
+      return ret;
+    }
+  }
+});
+
+// Password hashing middleware
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+  
+  try {
+    const salt = await bcrypt.genSalt(12);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Password comparison method
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
 };
 
-
-const jwt = require('jsonwebtoken');
-
+// JWT generation method
 userSchema.methods.generateAuthToken = function() {
   return jwt.sign(
-    { _id: this._id, username: this.username },
+    {
+      _id: this._id,
+      role: this.role,
+      username: this.username
+    },
     process.env.JWT_SECRET,
-    { expiresIn: '8h' }
+    {
+      expiresIn: process.env.JWT_EXPIRES_IN || '8h',
+      issuer: process.env.JWT_ISSUER || 'ring-wing-cafe'
+    }
   );
 };
+
+// Virtual relationship
+userSchema.virtual('subordinates', {
+  ref: 'User',
+  localField: '_id',
+  foreignField: 'reportsTo',
+  justOne: false
+});
+
+module.exports = mongoose.model('User', userSchema);

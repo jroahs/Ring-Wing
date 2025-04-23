@@ -10,35 +10,54 @@ function Login() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
     setIsLoading(true);
-  
+
     try {
+      // Basic validation
+      if (!username.trim() || !password.trim()) {
+        throw new Error('Please fill in all fields');
+      }
+
       const response = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        headers: { 
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({
+          username: username.toLowerCase(), // Case-insensitive handling
+          password
+        })
       });
-  
+
       const data = await response.json();
-  
+
       if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
+        throw new Error(data.message || 'Login failed. Please try again.');
       }
-  
-      // Store user data and token
+
+      // Store authentication data
       localStorage.setItem('authToken', data.token);
       localStorage.setItem('userData', JSON.stringify({
         id: data._id,
         username: data.username,
-        email: data.email
+        email: data.email,
+        role: data.role,
+        reportsTo: data.reportsTo
       }));
-  
-      navigate('/dashboard');
+
+      // Redirect based on role
+      navigate(data.role === 'manager' ? '/dashboard' : '/pos');
+
     } catch (err) {
-      setError(err.message || 'Invalid credentials. Please try again.');
+      console.error('Login error:', err);
+      const errorMessage = err.message.includes('Failed to fetch') 
+        ? 'Network error - check your connection'
+        : err.message || 'Invalid credentials. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -51,22 +70,21 @@ function Login() {
         style={{
           backgroundColor: '#fefdfd',
           borderColor: '#ac9c9b',
-          minHeight: '520px', // Fixed height
+          minHeight: '520px',
           display: 'flex',
           flexDirection: 'column'
         }}
       >
-        {/* Header Section - Fixed Space */}
+        {/* Header Section */}
         <div className="mb-10 text-center" style={{ minHeight: '120px' }}>
           <div className="flex justify-center mb-4">
-            {/* Circle container sized at 75px */}
             <div
               className="rounded-full flex items-center justify-center"
               style={{
                 backgroundColor: '#2e0304',
                 width: '75px',
                 height: '75px',
-                overflow: 'hidden' // ensures the image is clipped to the circle
+                overflow: 'hidden'
               }}
             >
               <img
@@ -84,7 +102,7 @@ function Login() {
           </p>
         </div>
 
-        {/* Error Message - Fixed Space (empty when no error) */}
+        {/* Error Message */}
         <div className="mb-4 min-h-[40px] flex items-center justify-center">
           {error && (
             <div
@@ -96,7 +114,7 @@ function Login() {
           )}
         </div>
 
-        {/* Form Section - Fixed Space */}
+        {/* Login Form */}
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col justify-between">
           <div className="space-y-6">
             <div>
@@ -105,14 +123,14 @@ function Login() {
                 className="block text-sm font-medium mb-1"
                 style={{ color: '#2e0304' }}
               >
-                Staff ID
+                Username
               </label>
               <input
                 type="text"
                 id="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your staff ID"
+                placeholder="Enter your username"
                 className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:outline-none"
                 style={{
                   backgroundColor: '#fefdfd',
@@ -122,6 +140,7 @@ function Login() {
                   placeholderColor: '#ac9c9b'
                 }}
                 autoComplete="username"
+                disabled={isLoading}
               />
             </div>
 
@@ -150,12 +169,14 @@ function Login() {
                   }}
                   autoComplete="current-password"
                   minLength="8"
+                  disabled={isLoading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2"
                   style={{ color: '#853619' }}
+                  disabled={isLoading}
                 >
                   {showPassword ? (
                     <EyeSlashIcon className="w-5 h-5" />
@@ -205,11 +226,11 @@ function Login() {
           </div>
         </form>
 
-        {/* Footer - Fixed Space */}
+        {/* Footer */}
         <div className="mt-8 text-center text-xs" style={{ color: '#853619' }}>
           <p>Having trouble? Contact your supervisor</p>
           <p className="mt-1">
-            System Version: 1.0 | {new Date().getFullYear()} Ring & Wing Café
+            System Version: 1.5 | {new Date().getFullYear()} Ring & Wing Café
           </p>
         </div>
       </div>

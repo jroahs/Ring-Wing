@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { ArrowUpIcon } from '@heroicons/react/24/solid';
-import logo from './assets/rw.jpg'; // <-- Adjust path/filename if needed
+import logo from './assets/rw.jpg';
 
 function ChatbotPage() {
-  // Color palette from your brand
   const colors = {
     primary: '#2e0304',
     background: '#fefdfd',
@@ -12,7 +11,6 @@ function ChatbotPage() {
     muted: '#ac9c9b'
   };
 
-  // Chatbot Avatar Component (using your actual logo)
   const ChatbotAvatar = () => (
     <div className="w-8 h-8 mr-3 flex-shrink-0 rounded-full overflow-hidden">
       <img
@@ -23,7 +21,6 @@ function ChatbotPage() {
     </div>
   );
 
-  // Chat state
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -34,14 +31,13 @@ function ChatbotPage() {
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [menuData, setMenuData] = useState([]); // To store menu items from the backend
+  const [menuData, setMenuData] = useState([]);
   const messagesEndRef = useRef(null);
   const [rateLimitMessage, setRateLimitMessage] = useState('');
   const lastRequestTime = useRef(Date.now());
   const [isProcessing, setIsProcessing] = useState(false);
   const abortControllerRef = useRef(null);
 
-  // Sample menu suggestions for user convenience
   const menuSuggestions = [
     { id: 1, text: "What's today's special?" },
     { id: 2, text: "Do you have any coffee recommendations?" },
@@ -49,24 +45,20 @@ function ChatbotPage() {
     { id: 4, text: "Can I see the full menu?" }
   ];
 
-  // Auto-scroll to bottom when new messages are added
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Fetch menu items from your backend when the component mounts
   useEffect(() => {
     fetch("http://localhost:5000/api/menu")
       .then((res) => res.json())
       .then((data) => {
-        // Check if data has items array (based on your API response structure)
         const items = data.items || [];
         setMenuData(items);
       })
       .catch((err) => console.error("Error fetching menu items:", err));
   }, []);
 
-  // Function to format menu data for AI context
   const getMenuContext = () => {
     if (!menuData.length) return "No menu items available";
     
@@ -81,13 +73,11 @@ function ChatbotPage() {
     }).join('\n');
   };
 
-  // Corrected sanitizeAIResponse function with all logic inside
   const sanitizeAIResponse = (text) => {
     if (!text || text.trim().length < 2) {
       return "Let me check that for you...";
     }
   
-    // Remove all asterisks to avoid bold formatting issues
     const sanitizedText = text.replace(/\*/g, '');
     const lowerText = sanitizedText.toLowerCase();
   
@@ -102,7 +92,6 @@ function ChatbotPage() {
       lowerText.includes(phrase)
     );
   
-    // Assuming menuData is available in scope
     const menuNames = menuData.map(item => item.name.toLowerCase());
     const mentionedItems = sanitizedText.split(/[\s.,]+/).filter(word =>
       menuNames.includes(word.toLowerCase())
@@ -121,13 +110,8 @@ function ChatbotPage() {
     return sanitizedText;
   };
 
-  // Async function to get AI response using DeepSeek API via OpenRouter with restaurant context.
-  // This function now accepts a 'chatHistory' parameter (an array of conversation messages)
-  // which includes the last 5 messages for context.
+  // Updated AI response function with proxy implementation
   const getAIResponse = async (userInput, chatHistory = []) => {
-    const API_KEY = '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';
-    const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-    
     const systemMessage = {
       role: "system",
       content: `You are Ring & Wing Café's helpful assistant. Rules:
@@ -147,44 +131,43 @@ ${getMenuContext()}
       model: "deepseek/deepseek-chat:free",
       messages: [
         systemMessage,
-        ...chatHistory, // Last 5 messages (memory)
+        ...chatHistory,
         { role: "user", content: userInput }
       ],
-      temperature: 0.85, 
-      max_tokens: 200, 
-      presence_penalty: 0.6 
+      temperature: 0.85,
+      max_tokens: 200,
+      presence_penalty: 0.6
     };
 
     try {
-      const res = await fetch(API_URL, {
+      // Updated to use proxy endpoint
+      const res = await fetch('/api/chat', {
         method: 'POST',
         headers: {
-          "Authorization": `Bearer ${API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://ring-wing-cafe.com", // Required by OpenRouter
-          "X-Title": "Ring & Wing Café Assistant" 
+          "Content-Type": "application/json"
         },
         body: JSON.stringify(payload)
       });
+      
       if (!res.ok) {
-        throw new Error(`DeepSeek API error: ${res.status}`);
+        throw new Error(`API error: ${res.status}`);
       }
+      
       const data = await res.json();
       let aiText = data.choices[0].message.content;
       aiText = sanitizeAIResponse(aiText);
       return aiText;
     } catch (error) {
-      console.error("Error with DeepSeek API:", error);
+      console.error("Error with AI service:", error);
       return "Sorry, I'm having trouble connecting to the AI service.";
     }
   };
 
-  // Handle sending a message (async to await AI responses)
+  // Rest of the component remains exactly the same
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;
   
-    // Rate limiting check
     const now = Date.now();
     const timeSinceLast = now - lastRequestTime.current;
     
@@ -193,7 +176,6 @@ ${getMenuContext()}
       setRateLimitMessage(`Just a moment... (${remaining.toFixed(1)}s)`);
       setIsTyping(true);
       
-      // Automatically clear after remaining time
       setTimeout(() => {
         setIsTyping(false);
         setRateLimitMessage('');
@@ -204,19 +186,17 @@ ${getMenuContext()}
   
     lastRequestTime.current = now;
   
-    // Add the user's message
     const userMessage = {
       id: Date.now(),
       text: inputMessage,
       sender: 'user',
       timestamp: new Date()
     };
-    // Update messages state and clear input
+    
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
     setIsTyping(true);
   
-    // Build conversation history from the last 5 messages (after adding the user message)
     const chatHistory = [...messages, userMessage]
       .slice(-5)
       .map(msg => ({
@@ -227,7 +207,6 @@ ${getMenuContext()}
     const input = userMessage.text.toLowerCase();
     let botResponse;
   
-    // Handle menu requests
     if (input.includes('menu')) {
       const aiText = await getAIResponse(userMessage.text, chatHistory);
       setMessages(prev => [...prev, {
@@ -255,7 +234,6 @@ ${getMenuContext()}
       return;
     }
   
-    // Handle coffee requests without duplication
     if (input.includes('coffee')) {
       const coffeeItems = menuData
         .filter(menuItem => 
@@ -274,7 +252,6 @@ ${getMenuContext()}
         }));
   
       if (coffeeItems.length === 0) {
-        // If no coffee items found in database
         setMessages(prev => [...prev, {
           id: Date.now(),
           text: "We currently don't have coffee items available. Please check back later!",
@@ -307,7 +284,6 @@ ${getMenuContext()}
       return;
     }
   
-    // Default case: get AI response
     const aiText = await getAIResponse(userMessage.text, chatHistory);
     botResponse = {
       id: Date.now(),
@@ -320,12 +296,10 @@ ${getMenuContext()}
     setIsTyping(false);
   };
 
-  // Handle suggestion button clicks
   const handleSuggestionClick = (suggestion) => {
     setInputMessage(suggestion);
   };
 
-  // Handle order action when a menu item is selected from the chat response
   const handleOrderItem = (itemName) => {
     const userMessage = {
       id: Date.now(),
@@ -349,7 +323,6 @@ ${getMenuContext()}
 
   return (
     <div className="flex flex-col h-screen" style={{ backgroundColor: colors.background }}>
-      {/* Header with Avatar */}
       <header className="flex items-center justify-between p-4 border-b" style={{ backgroundColor: colors.primary, borderColor: colors.muted }}>
         <div className="flex items-center">
           <ChatbotAvatar />
@@ -372,7 +345,6 @@ ${getMenuContext()}
         </div>
       </header>
 
-      {/* Main Chat Area */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="max-w-3xl mx-auto">
           {messages.map((message) => (
@@ -390,7 +362,6 @@ ${getMenuContext()}
               >
                 <p>{message.text}</p>
 
-                {/* Display menu items if bot response has type 'menu-items' */}
                 {message.type === 'menu-items' && (
                   <div className="mt-2 space-y-3">
                     {message.items.map((item, index) => (
@@ -400,20 +371,20 @@ ${getMenuContext()}
                         style={{ backgroundColor: colors.muted + '15', border: `1px solid ${colors.muted}` }}
                       >
                        <div className="w-16 h-16 rounded-md mr-3 flex items-center justify-center bg-gray-200 text-gray-500">
-  {item.image ? (
-    <img 
-    src={`http://localhost:5000${item.image}`}
-      alt={item.name} 
-      className="object-cover w-full h-full rounded-md"
-      onError={(e) => {
-        e.target.onerror = null; 
-        e.target.src = '/placeholder-food.jpg';
-      }}
-    />
-  ) : (
-    <span className="text-xs text-center">No Image</span>
-  )}
-</div>
+                          {item.image ? (
+                            <img 
+                              src={`http://localhost:5000${item.image}`}
+                              alt={item.name} 
+                              className="object-cover w-full h-full rounded-md"
+                              onError={(e) => {
+                                e.target.onerror = null; 
+                                e.target.src = '/placeholder-food.jpg';
+                              }}
+                            />
+                          ) : (
+                            <span className="text-xs text-center">No Image</span>
+                          )}
+                        </div>
                         <div className="flex-1">
                           <div className="flex justify-between items-start">
                             <h3 className="font-semibold" style={{ color: colors.primary }}>
@@ -491,7 +462,6 @@ ${getMenuContext()}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Suggestions */}
       <div className="px-4 pb-2">
         <div className="max-w-3xl mx-auto flex flex-wrap gap-2">
           {menuSuggestions.map((suggestion) => (
@@ -511,7 +481,6 @@ ${getMenuContext()}
         </div>
       </div>
 
-      {/* Input Area */}
       <form onSubmit={handleSendMessage} className="p-4 border-t" style={{ borderColor: colors.muted }}>
         <div className="max-w-3xl mx-auto flex">
           <input
@@ -526,58 +495,41 @@ ${getMenuContext()}
               color: colors.primary
             }}
           />
-         <button
-  type="submit"
-  disabled={!inputMessage.trim() || isTyping} // Add isTyping condition here
-  className={`send-button ${isProcessing ? 'processing' : ''}`}
-  style={{
-    backgroundColor: colors.accent,
-    color: colors.background,
-    opacity: (!inputMessage.trim() || isTyping) ? 0.7 : 1,
-    cursor: (!inputMessage.trim() || isTyping) ? 'not-allowed' : 'pointer'
-  }}
->
-  <ArrowUpIcon className="w-4 h-4" />
-</button>
+          <button
+            type="submit"
+            disabled={!inputMessage.trim() || isTyping}
+            className={`send-button ${isProcessing ? 'processing' : ''}`}
+            style={{
+              backgroundColor: colors.accent,
+              color: colors.background,
+              opacity: (!inputMessage.trim() || isTyping) ? 0.7 : 1,
+              cursor: (!inputMessage.trim() || isTyping) ? 'not-allowed' : 'pointer'
+            }}
+          >
+            <ArrowUpIcon className="w-4 h-4" />
+          </button>
         </div>
       </form>
 
-      {/* CSS for animations and hover effects */}
       <style jsx>{`
         @keyframes ping {
-          0% {
-            transform: scale(1);
-            opacity: 1;
-          }
-          100% {
-            transform: scale(2.5);
-            opacity: 0;
-          }
+          0% { transform: scale(1); opacity: 1; }
+          100% { transform: scale(2.5); opacity: 0; }
         }
         @keyframes pulse {
-          0%,
-          100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.5;
-          }
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
         }
-
-        /* Suggestion button styles */
         .suggestion-btn {
           font-size: 0.875rem;
           padding: 0.25rem 0.75rem;
           border-radius: 9999px;
           transition: all 0.2s ease;
         }
-
         .suggestion-btn:hover {
           background-color: ${colors.accent}20 !important;
           border-color: ${colors.accent} !important;
         }
-
-        /* Chat input styles */
         .chat-input {
           flex: 1;
           padding: 0.5rem 1rem;
@@ -586,13 +538,10 @@ ${getMenuContext()}
           transition: all 0.2s ease;
           border-right: none;
         }
-
         .chat-input:focus {
           border-color: ${colors.accent};
           box-shadow: 0 0 0 1px ${colors.accent};
         }
-
-        /* Send button styles */
         .send-button {
           padding: 0.5rem 1rem;
           border-radius: 0 0.5rem 0.5rem 0;
@@ -603,12 +552,9 @@ ${getMenuContext()}
           border: none;
           cursor: pointer;
         }
-
         .send-button:hover:not(:disabled) {
           opacity: 0.9 !important;
         }
-
-        /* Add to Order button styles */
         .add-to-order-btn {
           transition: all 0.2s ease;
           margin-top: 0.5rem;
@@ -616,7 +562,6 @@ ${getMenuContext()}
           border-radius: 9999px;
           font-size: 0.75rem;
         }
-
         .add-to-order-btn:hover {
           background-color: ${colors.accent}dd !important;
         }
