@@ -1,17 +1,18 @@
-import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, BarChart, Bar, CartesianGrid } from 'recharts';
-import { Link, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { Link } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer } from 'recharts';
+import { FiClock, FiUsers, FiDollarSign, FiCoffee, FiList, FiBox } from 'react-icons/fi';
 
 function Dashboard() {
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-  const location = useLocation();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  // Responsive layout calculations
-  const isLargeScreen = windowWidth >= 1920;
-  const isMediumScreen = windowWidth >= 768;
-  const pageMargin = isLargeScreen ? '8rem' : isMediumScreen ? '5rem' : '0';
+  const [expenses, setExpenses] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [staff, setStaff] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [staffLoading, setStaffLoading] = useState(true);
+  const [ordersError, setOrdersError] = useState(null);
+  const [staffError, setStaffError] = useState(null);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -19,239 +20,370 @@ function Dashboard() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Sample data
-  const dailyOrdersData = [
-    { day: 'Mon', orders: 45 }, { day: 'Tue', orders: 52 }, { day: 'Wed', orders: 48 },
-    { day: 'Thu', orders: 60 }, { day: 'Fri', orders: 75 }, { day: 'Sat', orders: 85 },
-    { day: 'Sun', orders: 65 },
-  ];
+  const pageMargin = useMemo(() => {
+    if (windowWidth >= 1920) return '8rem';
+    if (windowWidth >= 768) return '5rem';
+    return '0';
+  }, [windowWidth]);
 
-  const inventoryData = [
-    { item: 'Coffee Beans', stock: 45 }, { item: 'Chicken Wings', stock: 32 },
-    { item: 'Beverages', stock: 68 }, { item: 'Paper Goods', stock: 24 },
-  ];
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      try {
+        const response = await fetch('/api/expenses');
+        const data = await response.json();
+        setExpenses(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error fetching expenses:', error);
+      }
+    };
+    fetchExpenses();
+  }, []);
 
-  // Color scheme
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/orders');
+        if (!response.ok) throw new Error('Failed to fetch orders');
+        const { data, success } = await response.json();
+        
+        if (!success || !Array.isArray(data)) {
+          throw new Error('Invalid server response format');
+        }
+
+        setOrders(data.map(order => ({
+          ...order,
+          id: order._id,
+          createdAt: new Date(order.createdAt),
+          updatedAt: order.updatedAt ? new Date(order.updatedAt) : null,
+          completedAt: order.completedAt ? new Date(order.completedAt) : null
+        })));
+      } catch (err) {
+        setOrdersError(err.message);
+      } finally {
+        setOrdersLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, []);
+
+  useEffect(() => {
+    const fetchStaff = async () => {
+      try {
+        const response = await fetch('/api/staff');
+        const data = await response.json();
+        setStaff(data.map(staff => ({ ...staff, id: staff._id })));
+      } catch (error) {
+        setStaffError(error.message);
+      } finally {
+        setStaffLoading(false);
+      }
+    };
+    fetchStaff();
+  }, []);
+
+  const orderStatusCounts = useMemo(() => {
+    const counts = { received: 0, preparing: 0, ready: 0, completed: 0 };
+    orders.forEach(order => counts[order.status]++);
+    return counts;
+  }, [orders]);
+
+  const activeStaffCount = useMemo(() => 
+    staff.filter(member => member.status === 'Active').length,
+    [staff]
+  );
+
+  const recentOrders = useMemo(() => 
+    orders.sort((a, b) => b.createdAt - a.createdAt).slice(0, 5),
+    [orders]
+  );
+
+  const recentStaff = useMemo(() => 
+    staff.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5),
+    [staff]
+  );
+
+  const disbursedExpenses = useMemo(() => 
+    expenses.filter(exp => exp.disbursed), 
+    [expenses]
+  );
+
+  const formatPHP = (value) => 
+    new Intl.NumberFormat('en-PH', { 
+      style: 'currency', 
+      currency: 'PHP',
+      maximumFractionDigits: 0
+    }).format(value);
+
+  const monthlyDisbursements = useMemo(() => {
+    const monthly = disbursedExpenses.reduce((acc, exp) => {
+      const date = new Date(exp.date);
+      const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+      acc[monthYear] = (acc[monthYear] || 0) + Math.round(exp.amount);
+      return acc;
+    }, {});
+
+    return Object.entries(monthly).map(([monthYear, amount]) => ({
+      monthYear,
+      amount,
+      formattedMonth: new Date(monthYear + '-01').toLocaleDateString('en-PH', {
+        month: 'long', 
+        year: 'numeric'
+      })
+    })).sort((a, b) => new Date(a.monthYear) - new Date(b.monthYear));
+  }, [disbursedExpenses]);
+
   const colors = {
     primary: '#2e0304',
     background: '#fefdfd',
     accent: '#f1670f',
     secondary: '#853619',
     muted: '#ac9c9b',
-    activeBg: '#f1670f20',
-    activeBorder: '#f1670f',
-    hoverBg: '#f1670f10'
+    activeBg: '#f1670f20'
   };
 
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: colors.background }}>
-      {/* Main Content */}
-      <div 
-        className="flex-1 flex flex-col"
-        style={{ 
-          marginLeft: pageMargin,
-          transition: 'margin 0.3s ease-in-out'
-        }}
-      >
-        {/* Navbar */}
-        <header className="flex items-center justify-between h-16 px-4 sm:px-6 border-b" 
-                style={{ backgroundColor: colors.background, borderColor: colors.muted }}>
-          <div className="flex items-center">
-            <input
-              type="text"
-              placeholder="Search orders, inventory..."
-              className="search-input px-4 py-2 rounded-md outline-none transition-all"
-              style={{
-                backgroundColor: colors.background,
-                border: `1px solid ${colors.muted}`,
-                color: colors.primary,
-                width: isLargeScreen ? '400px' : '300px',
-                fontSize: isLargeScreen ? '1rem' : '0.875rem'
-              }}
-            />
-          </div>
-
-          {/* Profile Dropdown */}
-          <div className="flex items-center ms-3 relative">
-            <button
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex text-sm rounded-full"
-              style={{ backgroundColor: colors.primary }}
-            >
-              <img
-                className="w-8 h-8 rounded-full"
-                src="/staff-avatar.png"
-                alt="staff photo"
-              />
-            </button>
-
-            {isDropdownOpen && (
-              <div className="absolute top-full right-0 mt-2 w-48 rounded-lg shadow-lg z-50"
-                   style={{ 
-                     backgroundColor: colors.background,
-                     border: `1px solid ${colors.muted}`
-                   }}>
-                <div className="px-4 py-3 border-b" style={{ borderColor: colors.muted }}>
-                  <p className="text-sm" style={{ color: colors.primary }}>Staff Account</p>
-                  <p className="text-sm font-medium truncate" style={{ color: colors.secondary }}>
-                    staff@ringwing.com
-                  </p>
-                </div>
-                <ul className="py-2">
-                  {['Shift Details', 'Settings', 'Log Out'].map((item, index) => (
-                    <li key={index}>
-                      <Link
-                        to={`/${item.toLowerCase().replace(' ', '-')}`}
-                        className="block px-4 py-2 text-sm hover:bg-gray-100"
-                        style={{ color: colors.primary }}
-                      >
-                        {item}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </header>
-
-        {/* Main Content Area */}
+      <div className="flex-1 flex flex-col" style={{ marginLeft: pageMargin, transition: 'margin 0.3s' }}>
         <main className="flex-1 p-4 sm:p-6" style={{ color: colors.primary }}>
-          <h2 className="text-2xl lg:text-3xl font-bold mb-6">Operations Dashboard</h2>
+          <h2 className="text-xl lg:text-2xl font-bold mb-4">Operations Overview</h2>
 
-          {/* Key Metrics Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-6">
             {[
-              { title: "Today's Orders", value: 45, color: colors.accent },
-              { title: "Monthly Revenue", value: '₱85,234', color: colors.secondary },
-              { title: "Low Stock Items", value: 3, color: colors.primary },
-              { title: "Staff On Duty", value: 5, color: colors.accent }
+              { 
+                title: "Pending Orders", 
+                value: orderStatusCounts.received,
+                icon: <FiClock className="text-lg sm:text-xl" />,
+                color: colors.accent
+              },
+              { 
+                title: "Active Staff", 
+                value: activeStaffCount,
+                icon: <FiUsers className="text-lg sm:text-xl" />,
+                color: colors.secondary
+              },
+              { 
+                title: "Monthly Disbursements", 
+                value: `₱${disbursedExpenses
+                  .reduce((sum, exp) => sum + Math.round(exp.amount), 0)
+                  .toLocaleString('en-PH', { maximumFractionDigits: 0 })}`, 
+                icon: <FiDollarSign className="text-lg sm:text-xl" />,
+                color: colors.primary
+              },
+              { 
+                title: "Low Stock Items", 
+                value: '3',
+                icon: <FiBox className="text-lg sm:text-xl" />,
+                color: colors.accent
+              }
             ].map((metric, index) => (
               <div 
                 key={index}
-                className="p-4 sm:p-6 rounded-lg shadow-sm transition-shadow"
+                className="p-3 sm:p-4 rounded-lg flex items-center justify-between"
                 style={{ 
                   backgroundColor: colors.background,
                   border: `1px solid ${colors.muted}`,
-                  minHeight: isLargeScreen ? '120px' : '100px'
+                  minHeight: 'auto'
                 }}
               >
-                <h3 className="text-base sm:text-lg font-semibold mb-2">{metric.title}</h3>
-                <p 
-                  className="text-2xl sm:text-3xl font-bold" 
-                  style={{ color: metric.color }}
-                >
-                  {metric.value}
-                </p>
+                <div>
+                  <div className="flex items-center gap-2 text-sm sm:text-base mb-1" style={{ color: colors.muted }}>
+                    {metric.icon}
+                    <span>{metric.title}</span>
+                  </div>
+                  <div 
+                    className="text-xl sm:text-2xl font-semibold" 
+                    style={{ color: metric.color }}
+                  >
+                    {metric.value}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
 
-          {/* Charts Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-8">
-            <div className="p-4 sm:p-6 rounded-lg shadow-sm" 
-                 style={{ 
-                   backgroundColor: colors.background, 
-                   border: `1px solid ${colors.muted}`,
-                   minHeight: isLargeScreen ? '400px' : '300px'
-                 }}>
-              <h3 className="text-lg sm:text-xl font-semibold mb-4">Daily Orders Trend</h3>
-              <ResponsiveContainer width="100%" height="90%">
-                <LineChart data={dailyOrdersData}>
-                  <XAxis dataKey="day" stroke={colors.primary} />
-                  <YAxis stroke={colors.primary} />
-                  <Tooltip />
-                  <Line 
-                    type="monotone" 
-                    dataKey="orders" 
-                    stroke={colors.accent} 
-                    strokeWidth={2}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="p-4 sm:p-6 rounded-lg shadow-sm" 
-                 style={{ 
-                   backgroundColor: colors.background, 
-                   border: `1px solid ${colors.muted}`,
-                   minHeight: isLargeScreen ? '400px' : '300px'
-                 }}>
-              <h3 className="text-lg sm:text-xl font-semibold mb-4">Inventory Levels</h3>
-              <ResponsiveContainer width="100%" height="90%">
-                <BarChart data={inventoryData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={colors.muted} />
-                  <XAxis dataKey="item" stroke={colors.primary} />
-                  <YAxis stroke={colors.primary} />
-                  <Tooltip />
-                  <Bar 
-                    dataKey="stock" 
-                    fill={colors.secondary}
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Quick Actions Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            <div className="p-4 sm:p-6 rounded-lg shadow-sm" 
-                 style={{ 
-                   backgroundColor: colors.background, 
-                   border: `1px solid ${colors.muted}`
-                 }}>
-              <h3 className="text-lg sm:text-xl font-semibold mb-4">Quick Actions</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {[
-                  { label: 'New Order', color: colors.accent, path: '/new-order' },
-                  { label: 'Inventory', color: colors.secondary, path: '/inventory' },
-                  { label: 'Reports', color: colors.primary, path: '/reports' }
-                ].map((action, index) => (
-                  <Link
-                    key={index}
-                    to={action.path}
-                    className="flex items-center justify-center p-3 sm:p-4 text-center rounded-md font-medium transition-all hover:opacity-90"
-                    style={{ 
-                      backgroundColor: action.color,
-                      color: colors.background,
-                      fontSize: isLargeScreen ? '1rem' : '0.875rem'
-                    }}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 mb-6">
+            <div className="lg:col-span-1 p-4 rounded-lg" style={{ border: `1px solid ${colors.muted}` }}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-sm sm:text-base flex items-center gap-2">
+                  <FiUsers /> Team Overview
+                </h3>
+                <Link 
+                  to="/employees" 
+                  className="text-xs sm:text-sm hover:underline"
+                  style={{ color: colors.accent }}
+                >
+                  View All →
+                </Link>
+              </div>
+              
+              <div className="space-y-2">
+                {recentStaff.map(member => (
+                  <Link 
+                    key={member.id}
+                    to={`/employees/${member.id}`}
+                    className="flex items-center gap-3 p-2 rounded hover:bg-[#f1670f10] transition-colors"
                   >
-                    {action.label}
+                    <div 
+                      className="w-8 h-8 rounded-sm border bg-cover bg-center"
+                      style={{ 
+                        backgroundImage: `url(${member.profilePicture || 'https://via.placeholder.com/150'})`,
+                        borderColor: colors.muted
+                      }}
+                    />
+                    <div className="flex-1 truncate">
+                      <div className="text-sm font-medium truncate">{member.name}</div>
+                      <div className="text-xs truncate" style={{ color: colors.muted }}>{member.position}</div>
+                    </div>
+                    <span 
+                      className="text-xs px-1.5 py-0.5 rounded-full capitalize"
+                      style={{ 
+                        backgroundColor: member.status === 'Active' ? colors.activeBg : '#f0f0f0',
+                        color: member.status === 'Active' ? colors.accent : colors.muted
+                      }}
+                    >
+                      {member.status}
+                    </span>
                   </Link>
                 ))}
               </div>
             </div>
 
-            {/* Recent Activity */}
-            <div className="p-4 sm:p-6 rounded-lg shadow-sm" 
-                 style={{ 
-                   backgroundColor: colors.background, 
-                   border: `1px solid ${colors.muted}`
-                 }}>
-              <h3 className="text-lg sm:text-xl font-semibold mb-4">Recent Activity</h3>
-              <ul className="space-y-3">
+            <div className="lg:col-span-2 p-4 rounded-lg" style={{ border: `1px solid ${colors.muted}` }}>
+              <h3 className="font-semibold text-sm sm:text-base mb-3 flex items-center gap-2">
+                <FiDollarSign /> Monthly Disbursements
+              </h3>
+              <div className="h-64 sm:h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyDisbursements}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={colors.muted} />
+                    <XAxis
+                      dataKey="formattedMonth"
+                      stroke={colors.primary}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis 
+                      stroke={colors.primary}
+                      tickFormatter={value => `₱${value.toLocaleString('en-PH', { maximumFractionDigits: 0 })}`}
+                      width={90}
+                    />
+                    <Tooltip
+                      contentStyle={{ 
+                        backgroundColor: colors.background,
+                        border: `1px solid ${colors.muted}`,
+                        fontSize: 14
+                      }}
+                      formatter={(value) => [
+                        `₱${Number(value).toLocaleString('en-PH', { maximumFractionDigits: 0 })}`
+                      ]}
+                    />
+                    <Bar 
+                      dataKey="amount" 
+                      fill={colors.secondary}
+                      radius={[2, 2, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
+            <div className="lg:col-span-2 p-4 rounded-lg" style={{ border: `1px solid ${colors.muted}` }}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-sm sm:text-base flex items-center gap-2">
+                  <FiList /> Recent Orders
+                </h3>
+                <Link 
+                  to="/orders"
+                  className="text-xs sm:text-sm hover:underline"
+                  style={{ color: colors.accent }}
+                >
+                  View All →
+                </Link>
+              </div>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr style={{ color: colors.muted }}>
+                      <th className="text-left py-2 px-3 text-xs sm:text-sm">Order #</th>
+                      <th className="text-left py-2 px-3 text-xs sm:text-sm">Items</th>
+                      <th className="text-right py-2 px-3 text-xs sm:text-sm">Total</th>
+                      <th className="text-right py-2 px-3 text-xs sm:text-sm">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentOrders.map(order => (
+                      <tr key={order.id} className="hover:bg-[#f1670f10]">
+                        <td className="py-2 px-3 text-sm sm:text-base">
+                          <Link 
+                            to={`/orders/${order.id}`}
+                            className="hover:underline"
+                            style={{ color: colors.primary }}
+                          >
+                            #{order.receiptNumber}
+                          </Link>
+                        </td>
+                        <td className="py-2 px-3 text-sm text-nowrap">
+                          {order.items.slice(0, 2).map((item, idx) => (
+                            <span key={idx} className="mr-1.5">
+                              {item.quantity}x {item.name}
+                              {idx === 0 && order.items.length > 1 && ','}
+                            </span>
+                          ))}
+                          {order.items.length > 2 && '...'}
+                        </td>
+                        <td className="py-2 px-3 text-right text-sm sm:text-base">
+                          {formatPHP(order.totals.total)}
+                        </td>
+                        <td className="py-2 px-3 text-right">
+                          <span 
+                            className="text-xs px-2 py-1 rounded-full capitalize"
+                            style={{
+                              backgroundColor: 
+                                order.status === 'received' ? '#f1670f30' :
+                                order.status === 'preparing' ? '#f1670f50' :
+                                '#f1670f',
+                              color: 
+                                order.status === 'completed' ? colors.background : colors.secondary
+                            }}
+                          >
+                            {order.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-lg" style={{ border: `1px solid ${colors.muted}` }}>
+              <h3 className="font-semibold text-sm sm:text-base mb-3 flex items-center gap-2">
+                <FiCoffee /> Quick Actions
+              </h3>
+              <div className="grid grid-cols-1 gap-2">
                 {[
-                  'New order #2045 (₱1,250)',
-                  'Low stock: Coffee Beans (25kg)',
-                  'Inventory update: Chicken Wings (+50kg)',
-                  'Staff shift change: 2pm rotation',
-                  'New menu item added: Spicy Wings'
-                ].slice(0, isLargeScreen ? 5 : 3).map((activity, index) => (
-                  <li 
+                  { label: 'New Order', icon: <FiCoffee />, path: '/new-order' },
+                  { label: 'Inventory', icon: <FiBox />, path: '/inventory' },
+                  { label: 'Reports', icon: <FiDollarSign />, path: '/reports' },
+                  { label: 'Add Employee', icon: <FiUsers />, path: '/employees/new' }
+                ].map((action, index) => (
+                  <Link
                     key={index}
-                    className="text-sm sm:text-base flex items-center"
-                    style={{ color: colors.primary }}
+                    to={action.path}
+                    className="flex items-center gap-2 p-2.5 text-sm rounded-md transition-all hover:opacity-90"
+                    style={{ 
+                      backgroundColor: colors.activeBg,
+                      color: colors.primary
+                    }}
                   >
-                    <span 
-                      className="w-2 h-2 rounded-full mr-3" 
-                      style={{ backgroundColor: colors.accent }}
-                    ></span>
-                    {activity}
-                  </li>
+                    <span style={{ color: colors.accent }}>{action.icon}</span>
+                    {action.label}
+                  </Link>
                 ))}
-              </ul>
+              </div>
             </div>
           </div>
         </main>
