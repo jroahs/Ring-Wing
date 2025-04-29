@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, PieChart, Bar, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from 'recharts';
-import Sidebar from './Sidebar';
 import { saveAs } from 'file-saver';
 import axios from 'axios';
 
@@ -19,6 +18,7 @@ const colors = {
 const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:5000/api';
 
 const InventorySystem = () => {
+  
   const navigate = useNavigate();
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [loading, setLoading] = useState(true);
@@ -37,14 +37,30 @@ const InventorySystem = () => {
   const [newItem, setNewItem] = useState({
     name: '',
     category: '',
-    status: 'In Stock',
-    quantity: 0,
-    location: '',
+    unit: 'pieces',
     cost: 0,
     price: 0,
-    vendor: ''
+    vendor: '',
+    inventory: []
   });
 
+   // restock
+  const [showRestockModal, setShowRestockModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [restockData, setRestockData] = useState({
+  quantity: '',
+  expirationDate: ''
+});
+
+useEffect(() => {
+  const handleResize = () => {
+    setWindowWidth(window.innerWidth);
+  };
+  window.addEventListener('resize', handleResize);
+  return () => window.removeEventListener('resize', handleResize);
+}, []);
+
+  
   // Vendor creation state
   const [showVendorAccordion, setShowVendorAccordion] = useState(false);
   const [newVendor, setNewVendor] = useState({
@@ -54,6 +70,10 @@ const InventorySystem = () => {
     paymentTerms: 'NET_30'
   });
 
+
+  
+
+  
   // Fetch data from backend
   useEffect(() => {
     const fetchData = async () => {
@@ -66,30 +86,69 @@ const InventorySystem = () => {
         setVendors(vendorsRes.data);
         setLoading(false);
       } catch (err) {
-        setError('Failed to fetch data');
+        console.error('Fetch error:', err.response?.data || err.message); // Add this line
+        setError('Failed to fetch data: ' + (err.response?.data?.message || err.message));
         setLoading(false);
       }
     };
     fetchData();
   }, []);
 
-  // Window resize handler
   useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Stock alerts calculation
-  useEffect(() => {
-    const newAlerts = items.filter(item => 
-      item.quantity <= (item.status === 'Low Stock' ? 5 : 0)
-    ).map(item => ({
-      id: item._id,
-      message: `${item.name} is ${item.quantity === 0 ? 'out of stock' : 'low on stock'} (${item.quantity} remaining)`,
-      date: new Date().toISOString()
-    }));
-    setAlerts(newAlerts);
+    console.log('Raw items data:', items);
+    
+    const allAlerts = items.flatMap(item => {
+      const alerts = [];
+      
+      // Stock alerts
+      if (item.totalQuantity <= 5) {
+        alerts.push({
+          type: 'stock',
+          id: item._id,
+          message: `${item.name} is ${item.totalQuantity === 0 ? 'out of stock' : 'low on stock'} (${item.totalQuantity} ${item.unit} remaining)`,
+          date: new Date().toISOString()
+        });
+      }
+  
+      // Expiration alerts from backend
+      if (item.expirationAlerts?.length) {
+        item.expirationAlerts.forEach(batch => {
+          // Add validation for batch expiration date
+          if (!batch.expirationDate || isNaN(new Date(batch.expirationDate))) {
+            console.error('Invalid expiration date for batch:', batch);
+            return;
+          }
+  
+          const phExpDate = new Date(batch.expirationDate);
+          phExpDate.setHours(phExpDate.getHours() + 8); // Convert to PH time
+          
+          // Ensure daysLeft is calculated safely
+          const now = new Date();
+          const timeDiff = phExpDate - now;
+          const daysLeft = Math.ceil(timeDiff / (1000 * 3600 * 24));
+  
+          alerts.push({
+            type: 'expiration',
+            id: `${item._id}-${batch._id}`,
+            message: `${item.name} batch ${
+              daysLeft >= 0 ? 'expiring in' : 'expired'
+            } ${Math.abs(daysLeft)} day${Math.abs(daysLeft) !== 1 ? 's' : ''} (${
+              phExpDate.toLocaleDateString('en-PH', { 
+                year: 'numeric', 
+                month: '2-digit', 
+                day: '2-digit' 
+              })
+            })`,
+            date: batch.expirationDate
+          });
+        });
+      }
+  
+      return alerts;
+    });
+  
+    console.log('All alerts:', allAlerts);
+    setAlerts(allAlerts);
   }, [items]);
 
   // Filtered items
@@ -111,16 +170,75 @@ const InventorySystem = () => {
     }]);
   };
 
-  // Handle sales transaction
-  const handleSale = async (itemId, quantitySold) => {
-    try {
-      const { data } = await axios.patch(`${API_URL}/items/${itemId}/sell`, { quantity: quantitySold });
-      setItems(items.map(item => item._id === itemId ? data : item));
-      logAction(`Sold ${quantitySold} units`, itemId);
-    } catch (err) {
-      setError('Failed to process sale');
-    }
-  };
+// Updated handleSale function
+const handleSale = async (itemId, quantitySold) => {
+  try {
+    const { data } = await axios.patch(`${API_URL}/items/${itemId}/sell`, { quantity: quantitySold });
+    
+    setItems(items.map(item => 
+      item._id === itemId ? { 
+        ...data,
+        status: calculateStatus(data.totalQuantity) 
+      } : item
+    ));
+    
+    logAction(`Sold ${quantitySold} units`, itemId);
+  } catch (err) {
+    setError('Failed to process sale: ' + (err.response?.data?.message || err.message));
+  }
+};
+
+// Add this helper function
+const calculateStatus = (totalQuantity) => {
+  if (totalQuantity === 0) return 'Out of Stock';
+  if (totalQuantity <= 5) return 'Low Stock';
+  return 'In Stock';
+};
+
+
+const handleRestock = async (e) => {
+  e.preventDefault();
+  try {
+    // Convert local date to UTC-adjusted PH time
+    const adjustForPHTime = (dateString) => {
+      const localDate = new Date(dateString);
+      // Convert to PH time midnight in UTC
+      const phMidnightUTC = new Date(
+        Date.UTC(
+          localDate.getFullYear(),
+          localDate.getMonth(),
+          localDate.getDate(),
+          16, // 16 hours = 24 - 8 (UTC+8)
+          0,
+          0,
+          0
+        )
+      );
+      return phMidnightUTC.toISOString();
+    };
+
+    const payload = {
+      ...restockData,
+      expirationDate: adjustForPHTime(restockData.expirationDate)
+    };
+
+    const { data } = await axios.patch(
+      `${API_URL}/items/${selectedItem._id}/restock`,
+      payload
+    );
+
+    setItems(items.map(item => 
+      item._id === selectedItem._id ? data : item
+    ));
+
+    setShowRestockModal(false);
+    setRestockData({ quantity: '', expirationDate: '' });
+    logAction(`Restocked ${restockData.quantity} units`, selectedItem._id);
+  } catch (err) {
+    setError('Failed to restock item: ' + (err.response?.data?.message || err.message));
+  }
+};
+
 
   // Handle deletion
   const handleDelete = async (itemId) => {
@@ -128,7 +246,7 @@ const InventorySystem = () => {
       await axios.delete(`${API_URL}/items/${itemId}`);
       setItems(items.filter(item => item._id !== itemId));
     } catch (err) {
-      setError('Failed to delete item');
+      setError('Failed to delete item: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -139,22 +257,45 @@ const InventorySystem = () => {
     saveAs(blob, `inventory-${new Date().toISOString()}.${format}`);
   };
 
+  // Inventory batch management
+  const addBatch = () => {
+    setNewItem({
+      ...newItem,
+      inventory: [...newItem.inventory, { quantity: 0, expirationDate: '' }]
+    });
+  };
+
+  const removeBatch = (index) => {
+    const newInventory = newItem.inventory.filter((_, i) => i !== index);
+    setNewItem({ ...newItem, inventory: newInventory });
+  };
+
+  const handleBatchChange = (index, field, value) => {
+    const newInventory = [...newItem.inventory];
+    newInventory[index][field] = value;
+    setNewItem({ ...newItem, inventory: newInventory });
+  };
+
   // Handle item form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Validate inventory batches
+      if (newItem.inventory.length === 0) {
+        throw new Error('At least one inventory batch is required');
+      }
+      
       const { data } = await axios.post(`${API_URL}/items`, newItem);
       setItems([...items, data]);
       setShowAddModal(false);
       setNewItem({
         name: '',
         category: '',
-        status: 'In Stock',
-        quantity: 0,
-        location: '',
+        unit: 'pieces',
         cost: 0,
         price: 0,
-        vendor: ''
+        vendor: '',
+        inventory: []
       });
     } catch (err) {
       setError('Failed to add new item: ' + (err.response?.data?.message || err.message));
@@ -183,7 +324,7 @@ const InventorySystem = () => {
   const categoryData = Object.entries(
     items.reduce((acc, item) => ({
       ...acc,
-      [item.category]: (acc[item.category] || 0) + item.quantity
+      [item.category]: (acc[item.category] || 0) + item.totalQuantity
     }), {})
   ).map(([name, value]) => ({ name, value }));
 
@@ -198,7 +339,6 @@ const InventorySystem = () => {
 
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: colors.background }}>
-      <Sidebar colors={colors} />
       
       <div 
         className="flex-1 flex flex-col transition-all duration-300"
@@ -297,7 +437,7 @@ const InventorySystem = () => {
             <table className="w-full">
               <thead style={{ backgroundColor: colors.activeBg }}>
                 <tr>
-                  {['Item Name', 'Category', 'Status', 'Quantity', 'Location', 'Cost', 'Price', 'Vendor', 'Actions'].map((header) => (
+                  {['Item Name', 'Category', 'Status', 'Quantity', 'Unit', 'Cost', 'Price', 'Vendor', 'Actions'].map((header) => (
                     <th key={header} className="px-4 py-3 text-left text-sm font-semibold" style={{ color: colors.primary }}>
                       {header}
                     </th>
@@ -316,27 +456,37 @@ const InventorySystem = () => {
                         {item.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3" style={{ color: colors.primary }}>{item.quantity}</td>
-                    <td className="px-4 py-3" style={{ color: colors.secondary }}>{item.location}</td>
+                    <td className="px-4 py-3" style={{ color: colors.primary }}>{item.totalQuantity}</td>
+                    <td className="px-4 py-3" style={{ color: colors.secondary }}>{item.unit}</td>
                     <td className="px-4 py-3" style={{ color: colors.primary }}>{formatPeso(item.cost)}</td>
                     <td className="px-4 py-3" style={{ color: colors.primary }}>{formatPeso(item.price)}</td>
                     <td className="px-4 py-3" style={{ color: colors.secondary }}>{item.vendor}</td>
                     <td className="px-4 py-3 flex gap-2">
-                      <button
-                        onClick={() => handleSale(item._id, 1)}
-                        className="p-1 rounded hover:bg-opacity-20"
-                        style={{ color: colors.secondary }}
-                      >
-                        Sell 1
-                      </button>
-                      <button
-                        onClick={() => handleDelete(item._id)}
-                        className="p-1 rounded hover:bg-opacity-20"
-                        style={{ color: colors.secondary }}
-                      >
-                        Delete
-                      </button>
-                    </td>
+  <button
+    onClick={() => handleSale(item._id, 1)}
+    className="p-1 rounded hover:bg-opacity-20"
+    style={{ color: colors.secondary }}
+  >
+    Sell 1
+  </button>
+  <button
+    onClick={() => {
+      setSelectedItem(item);
+      setShowRestockModal(true);
+    }}
+    className="p-1 rounded hover:bg-opacity-20"
+    style={{ color: colors.secondary }}
+  >
+    Restock
+  </button>
+  <button
+    onClick={() => handleDelete(item._id)}
+    className="p-1 rounded hover:bg-opacity-20"
+    style={{ color: colors.secondary }}
+  >
+    Delete
+  </button>
+</td>
                   </tr>
                 ))}
               </tbody>
@@ -345,232 +495,324 @@ const InventorySystem = () => {
         </div>
 
         {showAddModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div className="bg-white p-6 rounded-lg w-full max-w-2xl max-h-[90vh] flex flex-col">
-      <h2 className="text-xl font-bold mb-4">Add New Inventory Item</h2>
-      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          {/* Item Name - Full Width */}
-          <div className="md:col-span-2">
-            <label className="block text-sm mb-1">Item Name</label>
-            <input
-              type="text"
-              required
-              value={newItem.name}
-              onChange={(e) => setNewItem({...newItem, name: e.target.value})}
-              className="w-full p-2 border rounded"
-              style={{ borderColor: colors.muted }}
-            />
-          </div>
-
-          {/* Category & Vendor */}
-          <div>
-            <label className="block text-sm mb-1">Category</label>
-            <select
-              required
-              value={newItem.category}
-              onChange={(e) => setNewItem({...newItem, category: e.target.value})}
-              className="w-full p-2 border rounded"
-              style={{ borderColor: colors.muted }}
-            >
-              <option value="">Select Category</option>
-              {['Food', 'Beverages', 'Ingredients', 'Packaging'].map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm mb-1">Vendor</label>
-            <div className="flex gap-2">
-              <select
-                required
-                value={newItem.vendor}
-                onChange={(e) => setNewItem({...newItem, vendor: e.target.value})}
-                className="w-full p-2 border rounded"
-                style={{ borderColor: colors.muted }}
-              >
-                <option value="">Select Vendor</option>
-                {vendors.map(vendor => (
-                  <option key={vendor._id} value={vendor.name}>{vendor.name}</option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => setShowVendorAccordion(!showVendorAccordion)}
-                className="px-3 py-2 rounded shrink-0"
-                style={{ backgroundColor: colors.accent, color: colors.background }}
-              >
-                {showVendorAccordion ? '−' : '+'}
-              </button>
-            </div>
-          </div>
-
-          {/* Vendor Form Accordion */}
-          {showVendorAccordion && (
-            <div className="md:col-span-2 mt-2 p-4 border rounded" style={{ borderColor: colors.muted }}>
-              <h3 className="text-sm font-medium mb-3">New Vendor Details</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs mb-1">Vendor Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={newVendor.name}
-                    onChange={(e) => setNewVendor({...newVendor, name: e.target.value})}
-                    className="w-full p-2 border rounded text-sm"
-                    style={{ borderColor: colors.muted }}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs mb-1">Email (optional)</label>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white p-6 rounded-lg w-full max-w-2xl max-h-[90vh] flex flex-col">
+              <h2 className="text-xl font-bold mb-4">Add New Inventory Item</h2>
+              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  {/* Item Name */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm mb-1">Item Name</label>
                     <input
-                      type="email"
-                      value={newVendor.contact.email}
-                      onChange={(e) => setNewVendor({
-                        ...newVendor,
-                        contact: {...newVendor.contact, email: e.target.value}
-                      })}
-                      className="w-full p-2 border rounded text-sm"
+                      type="text"
+                      required
+                      value={newItem.name}
+                      onChange={(e) => setNewItem({...newItem, name: e.target.value})}
+                      className="w-full p-2 border rounded"
                       style={{ borderColor: colors.muted }}
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs mb-1">Phone (optional)</label>
-                    <input
-                      type="tel"
-                      value={newVendor.contact.phone}
-                      onChange={(e) => setNewVendor({
-                        ...newVendor,
-                        contact: {...newVendor.contact, phone: e.target.value}
-                      })}
-                      className="w-full p-2 border rounded text-sm"
-                      style={{ borderColor: colors.muted }}
-                    />
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Category & Vendor */}
                   <div>
-                    <label className="block text-xs mb-1">Payment Terms</label>
+                    <label className="block text-sm mb-1">Category</label>
                     <select
-                      value={newVendor.paymentTerms}
-                      onChange={(e) => setNewVendor({...newVendor, paymentTerms: e.target.value})}
-                      className="w-full p-2 border rounded text-sm"
+                      required
+                      value={newItem.category}
+                      onChange={(e) => setNewItem({...newItem, category: e.target.value})}
+                      className="w-full p-2 border rounded"
                       style={{ borderColor: colors.muted }}
                     >
-                      <option value="NET_30">Net 30 Days</option>
-                      <option value="NET_60">Net 60 Days</option>
-                      <option value="COD">COD</option>
+                      <option value="">Select Category</option>
+                      {['Food', 'Beverages', 'Ingredients', 'Packaging'].map(category => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm mb-1">Vendor</label>
+                    <div className="flex gap-2">
+                      <select
+                        required
+                        value={newItem.vendor}
+                        onChange={(e) => setNewItem({...newItem, vendor: e.target.value})}
+                        className="w-full p-2 border rounded"
+                        style={{ borderColor: colors.muted }}
+                      >
+                        <option value="">Select Vendor</option>
+                        {vendors.map(vendor => (
+                          <option key={vendor._id} value={vendor.name}>{vendor.name}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setShowVendorAccordion(!showVendorAccordion)}
+                        className="px-3 py-2 rounded shrink-0"
+                        style={{ backgroundColor: colors.accent, color: colors.background }}
+                      >
+                        {showVendorAccordion ? '−' : '+'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Unit Selection */}
+                  <div>
+                    <label className="block text-sm mb-1">Unit</label>
+                    <select
+                      required
+                      value={newItem.unit}
+                      onChange={(e) => setNewItem({...newItem, unit: e.target.value})}
+                      className="w-full p-2 border rounded"
+                      style={{ borderColor: colors.muted }}
+                    >
+                      <option value="pieces">Pieces</option>
+                      <option value="grams">Grams</option>
+                      <option value="liters">Liters</option>
+                    </select>
+                  </div>
+
+                  {/* Inventory Batches */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm mb-1">Inventory Batches</label>
+                    <div className="space-y-2">
+                      {newItem.inventory.map((batch, index) => (
+                        <div key={index} className="flex gap-2">
+                          <input
+                            type="number"
+                            required
+                            min="0"
+                            value={batch.quantity}
+                            onChange={(e) => handleBatchChange(index, 'quantity', e.target.value)}
+                            className="p-2 border rounded flex-1"
+                            style={{ borderColor: colors.muted }}
+                            placeholder="Quantity"
+                          />
+                          <input
+                            type="date"
+                            required
+                            value={batch.expirationDate}
+                            onChange={(e) => handleBatchChange(index, 'expirationDate', e.target.value)}
+                            className="p-2 border rounded flex-1"
+                            style={{ borderColor: colors.muted }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeBatch(index)}
+                            className="px-3 py-2 rounded bg-red-100 text-red-700"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addBatch}
+                      className="mt-2 px-4 py-2 rounded bg-green-100 text-green-700"
+                    >
+                      Add Batch
+                    </button>
+                  </div>
+
+                  {/* Cost & Price */}
+                  <div>
+                    <label className="block text-sm mb-1">Cost (₱) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      min="0"
+                      value={newItem.cost}
+                      onChange={(e) => setNewItem({...newItem, cost: parseFloat(e.target.value)})}
+                      className="w-full p-2 border rounded"
+                      style={{ borderColor: colors.muted }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm mb-1">Price (₱) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      min="0"
+                      value={newItem.price}
+                      onChange={(e) => setNewItem({...newItem, price: parseFloat(e.target.value)})}
+                      className="w-full p-2 border rounded"
+                      style={{ borderColor: colors.muted }}
+                    />
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-2 mt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowVendorAccordion(false)}
-                    className="px-3 py-1 text-sm rounded border"
-                    style={{ borderColor: colors.muted, color: colors.primary }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleVendorSubmit}
-                    className="px-3 py-1 text-sm rounded font-medium"
-                    style={{ backgroundColor: colors.accent, color: colors.background }}
-                  >
-                    Add Vendor
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
-          {/* Quantity & Location */}
+   
+                {/* Vendor Creation Accordion */}
+                {showVendorAccordion && (
+                  <div className="md:col-span-2 mt-4 p-4 border rounded" style={{ borderColor: colors.muted }}>
+                    <h3 className="text-sm font-medium mb-3">New Vendor Details</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs mb-1">Vendor Name *</label>
+                        <input
+                          type="text"
+                          required
+                          value={newVendor.name}
+                          onChange={(e) => setNewVendor({...newVendor, name: e.target.value})}
+                          className="w-full p-2 border rounded text-sm"
+                          style={{ borderColor: colors.muted }}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs mb-1">Email (optional)</label>
+                          <input
+                            type="email"
+                            value={newVendor.contact.email}
+                            onChange={(e) => setNewVendor({
+                              ...newVendor,
+                              contact: {...newVendor.contact, email: e.target.value}
+                            })}
+                            className="w-full p-2 border rounded text-sm"
+                            style={{ borderColor: colors.muted }}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1">Phone (optional)</label>
+                          <input
+                            type="tel"
+                            value={newVendor.contact.phone}
+                            onChange={(e) => setNewVendor({
+                              ...newVendor,
+                              contact: {...newVendor.contact, phone: e.target.value}
+                            })}
+                            className="w-full p-2 border rounded text-sm"
+                            style={{ borderColor: colors.muted }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs mb-1">Payment Terms</label>
+                          <select
+                            value={newVendor.paymentTerms}
+                            onChange={(e) => setNewVendor({...newVendor, paymentTerms: e.target.value})}
+                            className="w-full p-2 border rounded text-sm"
+                            style={{ borderColor: colors.muted }}
+                          >
+                            <option value="NET_30">Net 30 Days</option>
+                            <option value="NET_60">Net 60 Days</option>
+                            <option value="COD">COD</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2 mt-4">
+                        <button
+                          type="button"
+                          onClick={() => setShowVendorAccordion(false)}
+                          className="px-3 py-1 text-sm rounded border"
+                          style={{ borderColor: colors.muted, color: colors.primary }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleVendorSubmit}
+                          className="px-3 py-1 text-sm rounded font-medium"
+                          style={{ backgroundColor: colors.accent, color: colors.background }}
+                        >
+                          Add Vendor
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="border-t pt-4 mt-4">
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddModal(false)}
+                      className="px-4 py-2 rounded border"
+                      style={{ borderColor: colors.muted, color: colors.primary }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded font-medium"
+                      style={{ backgroundColor: colors.accent, color: colors.background }}
+                    >
+                      Add Item
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+
+
+{showRestockModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="bg-white p-6 rounded-lg w-full max-w-md">
+      <h2 className="text-xl font-bold mb-4">
+        Restock {selectedItem?.name}
+      </h2>
+      <form onSubmit={handleRestock}>
+        <div className="space-y-4">
           <div>
             <label className="block text-sm mb-1">Quantity</label>
             <input
               type="number"
               required
-              min="0"
-              value={newItem.quantity}
-              onChange={(e) => setNewItem({...newItem, quantity: parseInt(e.target.value)})}
+              min="1"
+              value={restockData.quantity}
+              onChange={(e) => setRestockData({...restockData, quantity: e.target.value})}
               className="w-full p-2 border rounded"
               style={{ borderColor: colors.muted }}
             />
           </div>
-          
           <div>
-            <label className="block text-sm mb-1">Location</label>
+            <label className="block text-sm mb-1">Expiration Date</label>
             <input
-              type="text"
+              type="date"
               required
-              value={newItem.location}
-              onChange={(e) => setNewItem({...newItem, location: e.target.value})}
-              className="w-full p-2 border rounded"
-              style={{ borderColor: colors.muted }}
-            />
-          </div>
-
-          {/* Cost & Price */}
-          <div>
-            <label className="block text-sm mb-1">Cost (₱)</label>
-            <input
-              type="number"
-              step="0.01"
-              required
-              min="0"
-              value={newItem.cost}
-              onChange={(e) => setNewItem({...newItem, cost: parseFloat(e.target.value)})}
-              className="w-full p-2 border rounded"
-              style={{ borderColor: colors.muted }}
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm mb-1">Price (₱)</label>
-            <input
-              type="number"
-              step="0.01"
-              required
-              min="0"
-              value={newItem.price}
-              onChange={(e) => setNewItem({...newItem, price: parseFloat(e.target.value)})}
+              value={restockData.expirationDate}
+              onChange={(e) => setRestockData({...restockData, expirationDate: e.target.value})}
               className="w-full p-2 border rounded"
               style={{ borderColor: colors.muted }}
             />
           </div>
         </div>
-
-        <div className="border-t pt-4 mt-4">
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setShowAddModal(false)}
-              className="px-4 py-2 rounded border"
-              style={{ borderColor: colors.muted, color: colors.primary }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 rounded font-medium"
-              style={{ backgroundColor: colors.accent, color: colors.background }}
-            >
-              Add Item
-            </button>
-          </div>
+        <div className="flex justify-end gap-2 mt-6">
+          <button
+            type="button"
+            onClick={() => setShowRestockModal(false)}
+            className="px-4 py-2 rounded border"
+            style={{ borderColor: colors.muted, color: colors.primary }}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 rounded font-medium"
+            style={{ backgroundColor: colors.accent, color: colors.background }}
+          >
+            Confirm Restock
+          </button>
         </div>
       </form>
     </div>
   </div>
 )}
 
-        {showReports && (
+
+{showReports && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
             <div className="bg-white p-6 rounded-lg w-full max-w-2xl">
               <h2 className="text-xl font-bold mb-4">Inventory Analytics</h2>
@@ -658,6 +900,7 @@ const InventorySystem = () => {
   );
 };
 
+// Helper functions remain same
 const getStatusColor = (status) => {
   switch (status) {
     case 'In Stock': return { bg: '#e9f7ef', text: '#2a6b46' };
