@@ -1,78 +1,71 @@
 const express = require('express');
-const router = express.Router();
-const { check, validationResult } = require('express-validator');
 const Staff = require('../models/Staff');
 
-// Get all staff
+const router = express.Router();
+
+// Get all staff members
 router.get('/', async (req, res) => {
   try {
-    const staff = await Staff.find().sort({ createdAt: -1 });
+    const staff = await Staff.find();
     res.json(staff);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+  } catch (error) {
+    console.error('Error fetching staff:', error);
+    res.status(500).json({ message: error.message });
   }
 });
 
-// Add new staff
-router.post(
-  '/',
-  [
-    check('name', 'Name is required').not().isEmpty(),
-    check('position', 'Position is required').not().isEmpty(),
-    check('dailyRate', 'Daily rate must be a number').isNumeric()
-  ],
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+// Create new staff member
+router.post('/', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    const existingStaff = await Staff.findOne({ email });
+    if (existingStaff) {
+      return res.status(400).json({ message: 'Email already exists' });
     }
 
-    try {
-      const newStaff = new Staff(req.body);
-      const staff = await newStaff.save();
-      res.json(staff);
-    } catch (err) {
-      console.error(err.message);
-      res.status(500).send('Server Error');
-    }
+    const newStaff = new Staff(req.body);
+    const savedStaff = await newStaff.save();
+    res.status(201).json(savedStaff);
+  } catch (error) {
+    console.error('Error creating staff:', error);
+    res.status(400).json({ message: error.message });
   }
-);
+});
 
-// Update staff
+// Update staff member
 router.put('/:id', async (req, res) => {
   try {
     const staff = await Staff.findByIdAndUpdate(
       req.params.id,
       req.body,
-      { new: true }
+      { new: true, runValidators: true }
     );
-    
+
     if (!staff) {
-      return res.status(404).json({ msg: 'Staff not found' });
+      return res.status(404).json({ message: 'Staff member not found' });
     }
-    
+
     res.json(staff);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+  } catch (error) {
+    console.error('Error updating staff:', error);
+    res.status(400).json({ message: error.message });
   }
 });
 
-// Delete staff
+// Delete staff member
 router.delete('/:id', async (req, res) => {
   try {
-    const staff = await Staff.findById(req.params.id);
-
+    const staff = await Staff.findByIdAndDelete(req.params.id);
+    
     if (!staff) {
-      return res.status(404).json({ msg: 'Staff not found' });
+      return res.status(404).json({ message: 'Staff member not found' });
     }
-
-    await staff.remove();
-    res.json({ msg: 'Staff removed' });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    
+    res.json({ message: 'Staff member deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting staff:', error);
+    res.status(500).json({ message: error.message });
   }
 });
 
