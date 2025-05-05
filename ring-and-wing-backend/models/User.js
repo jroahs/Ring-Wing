@@ -49,9 +49,7 @@ const userSchema = new mongoose.Schema({
       },
       message: 'Staff must report to a valid manager'
     },
-    required: function() {
-      return this.role === 'staff';
-    }
+    required: false // Make this field optional
   }
 }, {
   timestamps: true,

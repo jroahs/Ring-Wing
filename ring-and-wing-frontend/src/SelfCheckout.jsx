@@ -175,7 +175,7 @@ const SelfCheckout = () => {
     const orderData = {
       items: currentOrder.map(item => ({
         name: item.name,
-        price: item.price,  // Ensure this is a number
+        price: item.price,
         quantity: item.quantity,
         selectedSize: item.selectedSize
       })),
@@ -185,8 +185,8 @@ const SelfCheckout = () => {
         total: calculatedTotals.total
       },
       paymentMethod: 'pending',
-      orderType: 'self_checkout'
-      // Remove status - let backend handle it
+      orderType: 'self_checkout',
+      status: 'pending' // Explicitly mark as pending for POS to handle payment
     };
   
     try {

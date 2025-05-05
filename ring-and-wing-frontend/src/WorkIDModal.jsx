@@ -1,13 +1,73 @@
 import { useState } from 'react';
-import { FiX, FiCamera, FiChevronDown, FiUser } from 'react-icons/fi';
+import { FiX, FiCamera, FiChevronDown, FiUser, FiDownload } from 'react-icons/fi';
+import { motion } from 'framer-motion';
 
 const WorkIDModal = ({ staff, onClose, colors }) => {
   const [showGovtDetails, setShowGovtDetails] = useState(false);
   const [imageError, setImageError] = useState(false);
 
+  if (!staff) return null;
+  
+  // Fallback values if colors aren't provided
+  const defaultColors = {
+    primary: '#2e0304',
+    background: '#fefdfd',
+    accent: '#f1670f',
+    secondary: '#853619',
+    muted: '#ac9c9b'
+  };
+  
+  const modalColors = colors || defaultColors;
+
   // Format ID and government numbers
   const formatID = (id) => `#${id.toString().slice(-8).toUpperCase().match(/.{1,4}/g)?.join('-')}`;
   const formatGovtNumber = (num) => num?.match(/.{1,4}/g)?.join('-') || 'N/A';
+
+  // New function to format date properly
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    
+    try {
+      const date = new Date(dateString);
+      return new Intl.DateTimeFormat('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      }).format(date);
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return 'Invalid Date';
+    }
+  };
+
+  const handleDownload = () => {
+    // This will be implemented in the future if needed
+    alert('ID Card download feature coming soon!');
+  };
+
+  // Card animation variants
+  const cardVariants = {
+    hidden: { opacity: 0, rotateY: 90 },
+    visible: { 
+      opacity: 1, 
+      rotateY: 0,
+      transition: { 
+        duration: 0.6,
+        type: "spring",
+        stiffness: 100
+      } 
+    },
+    hover: {
+      boxShadow: "0px 10px 20px rgba(0,0,0,0.2)",
+      translateY: -5,
+      transition: { duration: 0.3 }
+    }
+  };
+
+  const buttonVariants = {
+    hover: { scale: 1.05, transition: { duration: 0.2 } },
+    tap: { scale: 0.95 }
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 backdrop-blur-sm">
@@ -51,7 +111,12 @@ const WorkIDModal = ({ staff, onClose, colors }) => {
                       src={staff.profilePicture}
                       alt="Staff"
                       className="w-full h-full object-cover"
-                      onError={() => setImageError(true)}
+                      onError={(e) => {
+                        console.log('Image failed to load, using placeholder');
+                        setImageError(true);
+                        // Prevent infinite error loops
+                        e.target.onerror = null;
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-100 flex items-center justify-center">

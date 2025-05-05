@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "C:\\Users\\kliean\\Downloads\\Ring-Wing-TEST3\\Ring-Wing\\ring-and-wing-backend\\logs\\.6bf6e5b2a115078d1757ebffd4cb7ef557ce4817-audit.json",
+    "files": [
+        {
+            "date": 1746382355879,
+            "name": "C:\\Users\\kliean\\Downloads\\Ring-Wing-TEST3\\Ring-Wing\\ring-and-wing-backend\\logs\\error-2025-05-05.log",
+            "hash": "39f1d580b115de35d29416d302a5209b08f32cf7034c35c3da5953b43800a502"
+        }
+    ],
+    "hashType": "sha256"
+}

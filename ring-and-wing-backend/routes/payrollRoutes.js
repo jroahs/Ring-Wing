@@ -2,72 +2,130 @@ const express = require('express');
 const router = express.Router();
 const Payroll = require('../models/Payroll');
 const Staff = require('../models/Staff');
+const TimeLog = require('../models/TimeLog');
+const { auth } = require('../middleware/authMiddleware');
 
 // Create payroll record
-router.post('/', async (req, res) => {
+router.post('/', auth, async (req, res) => {
   try {
-    const { staffId, ...payload } = req.body;
+    const { staffId, payrollPeriod, basicPay, overtimePay, allowances, deductions, timeLogs } = req.body;
     
     // Verify staff exists
     const staff = await Staff.findById(staffId);
     if (!staff) {
-      return res.status(404).json({ error: 'Staff member not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Staff member not found' 
+      });
     }
 
+    // Calculate total hours and overtime from time logs
+    const timeLogRecords = await TimeLog.find({
+      _id: { $in: timeLogs },
+      staffId: staffId
+    });
+
+    const totalHours = timeLogRecords.reduce((sum, log) => sum + (log.totalHours || 0), 0);
+    const overtimeHours = timeLogRecords.reduce((sum, log) => 
+      sum + (log.isOvertime ? Math.max((log.totalHours || 0) - 8, 0) : 0), 0);
+
+    // Create payroll record
     const payroll = new Payroll({
       staffId,
-      ...payload
+      payrollPeriod: new Date(payrollPeriod),
+      timeLogs: timeLogRecords.map(log => log._id),
+      basicPay,
+      overtimePay,
+      allowances: allowances || staff.allowances || 0,
+      deductions,
+      totalHoursWorked: totalHours,
+      overtimeHours,
+      netPay: (basicPay + overtimePay + (allowances || staff.allowances || 0)) - 
+        (deductions?.late || 0) - (deductions?.absence || 0)
     });
 
     await payroll.save();
-    res.status(201).json(payroll);
+
+    // Populate staff details for response
+    const populatedPayroll = await Payroll.findById(payroll._id)
+      .populate('staffId', 'name position')
+      .populate('timeLogs');
+
+    res.status(201).json({
+      success: true,
+      data: populatedPayroll
+    });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error('Payroll creation error:', error);
+    res.status(400).json({ 
+      success: false,
+      message: error.message 
+    });
   }
 });
 
 // Get payroll records for a staff member
-router.get('/staff/:staffId', async (req, res) => {
+router.get('/staff/:staffId', auth, async (req, res) => {
   try {
-    const payrolls = await Payroll.find({ staffId: req.params.staffId })
-      .populate('staffId', 'name position basicSalary allowances')
+    const { startDate, endDate } = req.query;
+    let query = { staffId: req.params.staffId };
+
+    if (startDate || endDate) {
+      query.payrollPeriod = {};
+      if (startDate) query.payrollPeriod.$gte = new Date(startDate);
+      if (endDate) query.payrollPeriod.$lte = new Date(endDate);
+    }
+
+    const payrolls = await Payroll.find(query)
+      .populate('staffId', 'name position')
+      .populate('timeLogs')
       .sort('-payrollPeriod');
 
-    res.json(payrolls);
+    res.json({
+      success: true,
+      data: payrolls
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching payroll records:', error);
+    res.status(500).json({ 
+      success: false,
+      message: error.message 
+    });
   }
 });
 
-// Update payroll record
-router.put('/:id', async (req, res) => {
+// Get all payroll records with optional filters
+router.get('/', auth, async (req, res) => {
   try {
-    const payroll = await Payroll.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    ).populate('staffId', 'name position');
+    const { startDate, endDate, status } = req.query;
+    let query = {};
 
-    if (!payroll) {
-      return res.status(404).json({ error: 'Payroll record not found' });
+    if (startDate || endDate) {
+      query.payrollPeriod = {};
+      if (startDate) query.payrollPeriod.$gte = new Date(startDate);
+      if (endDate) query.payrollPeriod.$lte = new Date(endDate);
     }
 
-    res.json(payroll);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
+    const payrolls = await Payroll.find(query)
+      .populate('staffId', 'name position status')
+      .populate('timeLogs')
+      .sort('-payrollPeriod');
 
-// Delete payroll record
-router.delete('/:id', async (req, res) => {
-  try {
-    const payroll = await Payroll.findByIdAndDelete(req.params.id);
-    if (!payroll) {
-      return res.status(404).json({ error: 'Payroll record not found' });
-    }
-    res.json({ message: 'Payroll record deleted' });
+    // Filter by staff status if requested
+    const filteredPayrolls = status 
+      ? payrolls.filter(p => p.staffId?.status === status)
+      : payrolls;
+
+    res.json({
+      success: true,
+      data: filteredPayrolls
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching payroll records:', error);
+    res.status(500).json({ 
+      success: false,
+      message: error.message 
+    });
   }
 });
 
