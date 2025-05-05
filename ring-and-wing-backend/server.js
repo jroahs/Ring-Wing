@@ -12,10 +12,13 @@ const path = require('path');
 const multer = require('multer');
 const http = require('http');
 const axios = require('axios');
+const cron = require('node-cron');
+const Expense = require('./models/expense');
+const cookieParser = require('cookie-parser');
 
 dotenv.config();
 
-// Validate environment variables (added OPENROUTER_API_KEY)
+// Validate environment variables
 const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET', 'OPENROUTER_API_KEY'];
 requiredEnvVars.forEach(varName => {
   if (!process.env[varName]) {
@@ -29,7 +32,7 @@ const PORT = process.env.PORT || 5000;
 // Connect to MongoDB
 connectDB();
 
-// Existing security middleware remains unchanged
+// Security middleware
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -43,7 +46,7 @@ app.use(
 );
 app.use(compression());
 
-// Existing rate limiting remains unchanged
+// Rate limiting
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
@@ -51,7 +54,7 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
-// Existing directory setup remains unchanged
+// Create necessary directories
 const publicDir = path.join(__dirname, 'public');
 const uploadsDir = path.join(publicDir, 'uploads');
 
@@ -62,27 +65,43 @@ const uploadsDir = path.join(publicDir, 'uploads');
   }
 });
 
-// Existing CORS config remains unchanged
-const corsOptions = {
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    process.env.FRONTEND_URL
-  ].filter(Boolean),
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+// CORS configuration
+app.use(cors({
+  origin: function(origin, callback) {
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:5174',
+      undefined // Allow requests with no origin (like mobile apps or curl requests)
+    ];
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  optionsSuccessStatus: 204
-};
-app.use(cors(corsOptions));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Authorization']
+}));
+app.options('*', cors());
 
-// Existing body parsers remain unchanged
+// Request logging
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
+// Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser());
 
-// Existing logging remains unchanged
+// HTTP logging
 app.use(morgan('combined'));
 
-// Existing static files config remains unchanged
+// Static files
 app.use('/public', express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
     const ext = path.extname(filePath).toLowerCase();
@@ -108,11 +127,14 @@ app.use('/public', express.static(path.join(__dirname, 'public'), {
   }
 }));
 
-// Existing routes remain unchanged
-const expenseRoutes = require('./routes/expenseRoutes')
-const staffRoutes = require('./routes/staffRoutes');
-const payrollRoutes = require('./routes/payrollRoutes');
+// Route debug middleware - update to show more details
+app.use((req, res, next) => {
+  console.log(`[Route Debug] ${req.method} ${req.originalUrl}`);
+  console.log('[Route Debug] Headers:', req.headers);
+  next();
+});
 
+// Database connection check middleware
 app.use((req, res, next) => {
   if (mongoose.connection.readyState !== 1) {
     return res.status(500).json({
@@ -123,7 +145,17 @@ app.use((req, res, next) => {
   next();
 });
 
-// Existing route imports remain unchanged
+// Route imports
+const timeLogRoutes = require('./routes/timeLogRoutes');
+const payrollRoutes = require('./routes/payrollRoutes');
+const staffRoutes = require('./routes/staffRoutes');
+const revenueRoutes = require('./routes/revenueRoutes');
+
+// API Routes - add debug logs
+console.log('[Setup] Registering time-log routes...');
+app.use('/api/time-logs', timeLogRoutes);
+console.log('[Setup] Time-log routes registered');
+
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/expenses', require('./routes/expenseRoutes'));
@@ -134,8 +166,9 @@ app.use('/api/categories', require('./routes/categoryRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/items', require('./routes/itemRoutes'));
 app.use('/api/vendors', require('./routes/vendorRoutes'));
+app.use('/api/revenue', revenueRoutes);
 
-// Add new proxy route here
+// Chat proxy route
 app.post('/api/chat', async (req, res) => {
   try {
     const response = await axios.post(
@@ -160,7 +193,7 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// Existing health check remains unchanged
+// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
@@ -170,25 +203,45 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Existing error handling remains unchanged
+// Route check endpoint
+app.get('/api/route-check', (req, res) => {
+  const routes = [
+    '/api/time-logs/clock-in',
+    '/api/time-logs/clock-out'
+  ];
+  res.json({ registeredRoutes: routes });
+});
+
+// Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(`[${new Date().toISOString()}] Error:`, err.stack);
+  console.error(`[${new Date().toISOString()}] Error:`, {
+    message: err.message,
+    path: req.path,
+    method: req.method,
+    stack: process.env.NODE_ENV === 'production' ? '🔒' : err.stack
+  });
 
   if (err instanceof multer.MulterError) {
     return res.status(413).json({
       success: false,
-      message: err.message || 'File upload error'
+      message: 'File upload error: ' + err.message
     });
   }
 
-  res.status(err.statusCode || 500).json({
+  const statusCode = err.statusCode || 500;
+  const response = {
     success: false,
-    message: err.message || 'Internal Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
+    message: err.message || 'Internal Server Error'
+  };
+
+  if (process.env.NODE_ENV === 'development') {
+    response.stack = err.stack;
+  }
+
+  res.status(statusCode).json(response);
 });
 
-// Existing 404 handler remains unchanged
+// 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
@@ -196,7 +249,23 @@ app.use('*', (req, res) => {
   });
 });
 
-// Existing server setup remains unchanged
+// Scheduled tasks
+cron.schedule('0 0 * * *', async () => {
+  try {
+    const result = await Expense.updateMany(
+      { disbursed: true },
+      { $set: { disbursed: false } }
+    );
+    console.log(`Daily expense reset completed. Reset ${result.modifiedCount} expenses.`);
+  } catch (error) {
+    console.error('Daily expense reset failed:', error);
+  }
+}, {
+  scheduled: true,
+  timezone: "Asia/Manila"
+});
+
+// Server setup
 const server = http.createServer(app);
 
 server.listen(PORT, () => {

@@ -68,4 +68,28 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// @desc    Reset disbursement status daily
+// @route   POST /api/expenses/reset-disbursement
+router.post('/reset-disbursement', async (req, res) => {
+  try {
+    // Reset all expenses disbursed status to false
+    const result = await Expense.updateMany(
+      { disbursed: true },
+      { $set: { disbursed: false } }
+    );
+
+    res.json({
+      success: true,
+      message: 'Disbursement status reset successfully',
+      count: result.modifiedCount
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset disbursement status',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

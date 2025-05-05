@@ -27,13 +27,13 @@ const orderSchema = new mongoose.Schema({
   },
   orderType: {
     type: String,
-    enum: ['self_checkout', 'counter'],
+    enum: ['self_checkout', 'counter', 'chatbot'],
     required: true,
     default: 'self_checkout'
   },
   status: { 
     type: String, 
-    enum: ['received', 'preparing', 'ready', 'completed'],
+    enum: ['received', 'preparing', 'ready', 'completed', 'pending'],
     default: 'received'
   },
   createdAt: { type: Date, default: Date.now },

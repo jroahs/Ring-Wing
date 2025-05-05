@@ -15,13 +15,6 @@ const staffSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
-  email: {
-    type: String,
-    required: [true, 'Email is required'],
-    unique: true,
-    lowercase: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please fill a valid email address']
-  },
   phone: {
     type: String,
     required: [true, 'Phone number is required'],
@@ -37,9 +30,48 @@ const staffSchema = new mongoose.Schema({
     enum: ['Active', 'On Leave', 'Inactive'],
     default: 'Active'
   },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true
+  },
+  allowances: {
+    type: Number,
+    default: 0
+  },
+  scheduledHoursPerDay: {
+    type: Number,
+    default: 8
+  },
   sssNumber: String,
   tinNumber: String,
   philHealthNumber: String,
-}, { timestamps: true });
+  pinCode: {
+    type: String,
+    default: '0000', // Default PIN for new staff members
+    validate: {
+      validator: function(v) {
+        return /^\d{4,6}$/.test(v);
+      },
+      message: props => `${props.value} is not a valid PIN. PIN must be 4-6 digits only.`
+    }
+  }
+}, { 
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Add index for better query performance
+staffSchema.index({ userId: 1 });
+staffSchema.index({ status: 1 });
+
+// Virtual for full reference in payroll
+staffSchema.virtual('payrollRecords', {
+  ref: 'Payroll',
+  localField: '_id',
+  foreignField: 'staffId'
+});
 
 module.exports = mongoose.model('Staff', staffSchema);

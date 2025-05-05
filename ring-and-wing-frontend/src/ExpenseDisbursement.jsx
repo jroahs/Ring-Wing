@@ -27,6 +27,7 @@ const ExpenseTracker = ({ colors }) => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [lastResetCheck, setLastResetCheck] = useState(localStorage.getItem('lastExpenseResetCheck') || '');
 
   // Responsive margin calculations
   const isLargeScreen = windowWidth >= 1920;
@@ -73,6 +74,39 @@ const ExpenseTracker = ({ colors }) => {
     };
     fetchExpenses();
   }, [searchTerm, dateRange, selectedCategory]);
+
+  const checkAndResetIfNeeded = async () => {
+    const now = new Date();
+    const lastCheck = new Date(lastResetCheck);
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // If last check was before today, trigger reset
+    if (!lastResetCheck || lastCheck < startOfToday) {
+      try {
+        const response = await fetch('/api/expenses/reset-disbursement', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+          // Update last check time
+          const nowISOString = now.toISOString();
+          setLastResetCheck(nowISOString);
+          localStorage.setItem('lastExpenseResetCheck', nowISOString);
+          
+          // Refresh expenses list
+          const updatedExpenses = expenses.map(exp => ({...exp, disbursed: false}));
+          setExpenses(updatedExpenses);
+        }
+      } catch (error) {
+        console.error('Failed to reset disbursements:', error);
+      }
+    }
+  };
+
+  useEffect(() => {
+    checkAndResetIfNeeded();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

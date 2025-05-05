@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer } from 'recharts';
 import { FiClock, FiUsers, FiDollarSign, FiCoffee, FiList, FiBox } from 'react-icons/fi';
+import RevenueReports from './components/RevenueReports';
 
 function Dashboard() {
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
@@ -13,6 +14,7 @@ function Dashboard() {
   const [staffLoading, setStaffLoading] = useState(true);
   const [ordersError, setOrdersError] = useState(null);
   const [staffError, setStaffError] = useState(null);
+  const [lastResetCheck, setLastResetCheck] = useState(localStorage.getItem('lastExpenseResetCheck') || '');
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -26,10 +28,51 @@ function Dashboard() {
     return '0';
   }, [windowWidth]);
 
+  const checkAndResetIfNeeded = async () => {
+    const now = new Date();
+    const lastCheck = new Date(lastResetCheck);
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (!lastResetCheck || lastCheck < startOfToday) {
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch('/api/expenses/reset-disbursement', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const nowISOString = now.toISOString();
+          setLastResetCheck(nowISOString);
+          localStorage.setItem('lastExpenseResetCheck', nowISOString);
+          
+          // Refresh expenses list after reset
+          const updatedExpenses = expenses.map(exp => ({...exp, disbursed: false}));
+          setExpenses(updatedExpenses);
+        }
+      } catch (error) {
+        console.error('Failed to reset disbursements:', error);
+      }
+    }
+  };
+
+  useEffect(() => {
+    checkAndResetIfNeeded();
+  }, []);
+
   useEffect(() => {
     const fetchExpenses = async () => {
       try {
-        const response = await fetch('/api/expenses');
+        const token = localStorage.getItem('authToken');
+        const response = await fetch('/api/expenses', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (!response.ok) throw new Error('Failed to fetch expenses');
         const data = await response.json();
         setExpenses(Array.isArray(data) ? data : []);
       } catch (error) {
@@ -42,7 +85,12 @@ function Dashboard() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/orders');
+        const token = localStorage.getItem('authToken');
+        const response = await fetch('/api/orders', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         if (!response.ok) throw new Error('Failed to fetch orders');
         const { data, success } = await response.json();
         
@@ -70,7 +118,15 @@ function Dashboard() {
   useEffect(() => {
     const fetchStaff = async () => {
       try {
-        const response = await fetch('/api/staff');
+        const token = localStorage.getItem('authToken');
+        const response = await fetch('/api/staff', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (!response.ok) {
+          throw new Error('Failed to fetch staff data');
+        }
         const data = await response.json();
         setStaff(data.map(staff => ({ ...staff, id: staff._id })));
       } catch (error) {
@@ -200,6 +256,11 @@ function Dashboard() {
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="mb-6">
+            <h2 className="text-xl font-bold mb-4">Revenue Reports</h2>
+            <RevenueReports />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 mb-6">

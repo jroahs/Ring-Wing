@@ -1,7 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import axios from 'axios';
+import { motion } from 'framer-motion';
+import { FiUser, FiLock, FiAlertCircle, FiArrowRight } from 'react-icons/fi';
+import { Button, Input } from './components/ui';
 import logo from './assets/rw.jpg';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 function Login() {
   const [username, setUsername] = useState('');
@@ -9,38 +14,110 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const formRef = useRef(null);
   const navigate = useNavigate();
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setError('');
-    setIsLoading(true);
+  // Theme colors
+  const colors = {
+    primary: '#2e0304',
+    background: '#fefdfd',
+    accent: '#f1670f',
+    secondary: '#853619',
+    muted: '#ac9c9b'
+  };
 
-    try {
-      // Basic validation
-      if (!username.trim() || !password.trim()) {
-        throw new Error('Please fill in all fields');
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        when: "beforeChildren",
+        staggerChildren: 0.1
       }
+    }
+  };
 
-      const response = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json' 
-        },
-        body: JSON.stringify({
-          username: username.toLowerCase(), // Case-insensitive handling
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 24
+      }
+    }
+  };
+
+  const buttonVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 24
+      }
+    },
+    hover: {
+      scale: 1.05,
+      boxShadow: "0px 5px 10px rgba(0,0,0,0.2)"
+    },
+    tap: {
+      scale: 0.95
+    }
+  };
+
+  // Attempt login with credentials
+  const attemptLogin = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    if (isLoading) return;
+    
+    // Validate form fields
+    if (!username.trim() || !password.trim()) {
+      setError('Please provide both username and password');
+      return;
+    }
+    
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      // Use a direct axios call that won't be affected by global interceptors
+      const response = await axios({
+        method: 'post',
+        url: `${API_URL}/api/auth/login`,
+        data: {
+          username: username.toLowerCase(),
           password
-        })
+        },
+        validateStatus: function (status) {
+          // Allow any status code to resolve rather than reject
+          return true;
+        }
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed. Please try again.');
+      // Check for error responses
+      if (response.status !== 200) {
+        const errorMessage = response.data?.message || 'Login failed';
+        setError(errorMessage);
+        setIsLoading(false);
+        return;
       }
 
-      // Store authentication data
+      const { data } = response;
+
+      // Store token
       localStorage.setItem('authToken', data.token);
+      
+      // Store user data
       localStorage.setItem('userData', JSON.stringify({
         id: data._id,
         username: data.username,
@@ -49,160 +126,158 @@ function Login() {
         reportsTo: data.reportsTo
       }));
 
-      // Redirect based on role
-      navigate(data.role === 'manager' ? '/dashboard' : '/pos');
+      // Configure axios defaults for future requests
+      axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
 
+      // Navigate to appropriate page based on role
+      navigate(data.role === 'manager' ? '/dashboard' : '/pos');
     } catch (err) {
-      console.error('Login error:', err);
-      const errorMessage = err.message.includes('Failed to fetch') 
-        ? 'Network error - check your connection'
-        : err.message || 'Invalid credentials. Please try again.';
-      setError(errorMessage);
+      console.error("Login error:", err);
+      setError('Server connection error. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
+  
+  // Handle input changes and clear errors
+  const handleInputChange = (setter) => (e) => {
+    setter(e.target.value);
+    if (error) setError('');
+  };
+
+  // Form submit handler with strict preventDefault
+  const handleSubmit = (e) => {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation(); // Also stop propagation to be extra safe
+    }
+    attemptLogin();
+    return false; // Just to be extra safe
+  };
+
+  // For the button click handler
+  const handleButtonClick = () => {
+    attemptLogin();
+  };
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4" style={{ backgroundColor: '#fefdfd' }}>
-      <div
-        className="w-full max-w-md px-8 py-12 rounded-2xl shadow-xl border"
-        style={{
-          backgroundColor: '#fefdfd',
-          borderColor: '#ac9c9b',
-          minHeight: '520px',
-          display: 'flex',
-          flexDirection: 'column'
-        }}
-      >
-        {/* Header Section */}
-        <div className="mb-10 text-center" style={{ minHeight: '120px' }}>
-          <div className="flex justify-center mb-4">
-            <div
-              className="rounded-full flex items-center justify-center"
-              style={{
-                backgroundColor: '#2e0304',
-                width: '75px',
-                height: '75px',
-                overflow: 'hidden'
-              }}
-            >
+    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
+      <div className="w-full max-w-md px-4">
+        <motion.div 
+          className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8"
+          initial="hidden"
+          animate="visible"
+          variants={containerVariants}
+        >
+          {/* Logo Section */}
+          <div className="flex flex-col items-center mb-8">
+            <div className="w-28 h-28 mb-4 rounded-full overflow-hidden border-2 border-red-200 shadow-lg">
               <img
                 src={logo}
                 alt="Ring & Wing Logo"
-                className="rounded-full object-contain w-full h-full"
+                className="w-full h-full object-cover"
               />
             </div>
+            <h1 className="text-2xl font-bold text-gray-800">Ring & Wing</h1>
+            <p className="text-sm text-gray-600">Management System</p>
           </div>
-          <h1 className="text-2xl font-bold" style={{ color: '#2e0304' }}>
-            Ring & Wing Café
-          </h1>
-          <p className="text-sm" style={{ color: '#853619' }}>
-            Management System
-          </p>
-        </div>
 
-        {/* Error Message */}
-        <div className="mb-4 min-h-[40px] flex items-center justify-center">
+          {/* Login Form Section */}
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Welcome Back</h2>
+            <p className="text-sm text-gray-600">
+              Access your workspace - For Staff & Management
+            </p>
+          </div>
+
           {error && (
-            <div
-              className="w-full p-2 text-sm text-center rounded-md"
-              style={{ backgroundColor: '#fee2e2', color: '#dc2626' }}
+            <motion.div 
+              className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 flex justify-between items-center"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: "spring", stiffness: 500, damping: 20 }}
             >
-              {error}
-            </div>
-          )}
-        </div>
-
-        {/* Login Form */}
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col justify-between">
-          <div className="space-y-6">
-            <div>
-              <label
-                htmlFor="username"
-                className="block text-sm font-medium mb-1"
-                style={{ color: '#2e0304' }}
-              >
-                Username
-              </label>
-              <input
-                type="text"
-                id="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
-                className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:outline-none"
-                style={{
-                  backgroundColor: '#fefdfd',
-                  borderColor: '#ac9c9b',
-                  color: '#2e0304',
-                  focusRingColor: '#f1670f',
-                  placeholderColor: '#ac9c9b'
-                }}
-                autoComplete="username"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium mb-1"
-                style={{ color: '#2e0304' }}
-              >
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:outline-none"
-                  style={{
-                    backgroundColor: '#fefdfd',
-                    borderColor: '#ac9c9b',
-                    color: '#2e0304',
-                    focusRingColor: '#f1670f',
-                    placeholderColor: '#ac9c9b'
-                  }}
-                  autoComplete="current-password"
-                  minLength="8"
-                  disabled={isLoading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
-                  style={{ color: '#853619' }}
-                  disabled={isLoading}
-                >
-                  {showPassword ? (
-                    <EyeSlashIcon className="w-5 h-5" />
-                  ) : (
-                    <EyeIcon className="w-5 h-5" />
-                  )}
-                </button>
+              <div className="flex items-center">
+                <FiAlertCircle className="text-red-500 mr-2 flex-shrink-0" />
+                <span className="text-red-700">{error}</span>
               </div>
-            </div>
-          </div>
+              <button 
+                type="button"
+                onClick={() => setError('')}
+                className="text-red-500 hover:text-red-700 transition-colors"
+                aria-label="Dismiss error"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </motion.div>
+          )}
 
-          <div className="mt-8">
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-3 px-4 font-medium rounded-lg transition-all duration-200 
-                        disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                backgroundColor: '#f1670f',
-                color: '#fefdfd',
-                hoverBackgroundColor: '#e05b0c'
+          <div className="space-y-5">
+            <motion.div className="mb-6" variants={itemVariants}>
+              <Input
+                label="Username"
+                type="text"
+                value={username}
+                onChange={handleInputChange(setUsername)}
+                placeholder="Enter your username"
+                disabled={isLoading}
+                required
+                autoComplete="username"
+                error={error && error.includes('username') ? error : ''}
+                icon={
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FiUser style={{ color: colors.muted }} />
+                  </div>
+                }
+              />
+            </motion.div>
+
+            <motion.div className="mb-8" variants={itemVariants}>
+              <Input
+                label="Password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={handleInputChange(setPassword)}
+                placeholder="Enter your password"
+                disabled={isLoading}
+                required
+                autoComplete="current-password"
+                error={error && error.includes('password') ? error : ''}
+                icon={
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FiLock style={{ color: colors.muted }} />
+                  </div>
+                }
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleButtonClick();
+                  }
+                }}
+              />
+            </motion.div>
+
+            <motion.button
+              type="button" 
+              className="w-full py-3 rounded-lg font-medium flex items-center justify-center"
+              style={{ 
+                backgroundColor: colors.accent,
+                color: 'white' 
               }}
+              onClick={handleButtonClick}
+              disabled={isLoading}
+              variants={buttonVariants}
+              whileHover="hover"
+              whileTap="tap"
             >
               {isLoading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <circle
                       className="opacity-25"
                       cx="12"
@@ -210,29 +285,42 @@ function Login() {
                       r="10"
                       stroke="currentColor"
                       strokeWidth="4"
-                    ></circle>
+                      fill="none"
+                    />
                     <path
                       className="opacity-75"
                       fill="currentColor"
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
+                    />
                   </svg>
-                  Authenticating...
-                </span>
+                </motion.div>
               ) : (
-                'Access System'
+                <>
+                  <span>Sign In</span>
+                  <motion.div
+                    initial={{ x: -5, opacity: 0.5 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{
+                      repeat: Infinity,
+                      repeatType: "reverse",
+                      duration: 0.6
+                    }}
+                  >
+                    <FiArrowRight className="ml-2" />
+                  </motion.div>
+                </>
               )}
-            </button>
+            </motion.button>
           </div>
-        </form>
 
-        {/* Footer */}
-        <div className="mt-8 text-center text-xs" style={{ color: '#853619' }}>
-          <p>Having trouble? Contact your supervisor</p>
-          <p className="mt-1">
-            System Version: 1.5 | {new Date().getFullYear()} Ring & Wing Café
-          </p>
-        </div>
+          <motion.p 
+            className="text-center mt-8 text-sm"
+            style={{ color: colors.muted }}
+            variants={itemVariants}
+          >
+            © {new Date().getFullYear()} Ring & Wing. All rights reserved.
+          </motion.p>
+        </motion.div>
       </div>
     </div>
   );
