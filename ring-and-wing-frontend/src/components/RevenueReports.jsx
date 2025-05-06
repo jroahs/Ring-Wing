@@ -163,6 +163,46 @@ const RevenueReports = () => {
             </div>
           </div>
 
+          {/* Revenue by Order Source */}
+          {revenueData.revenueBySource && (
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold mb-4" style={{ color: colors.primary }}>
+                Revenue by Order Source
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {Object.entries(revenueData.revenueBySource).map(([source, amount]) => {
+                  const sourceLabel = source === 'self_checkout' ? 'Self Checkout' : 
+                                     source === 'chatbot' ? 'Chatbot' : 
+                                     source === 'pos' ? 'POS' : 
+                                     source === 'counter' ? 'Counter' : source;
+                  
+                  const sourceColor = source === 'self_checkout' ? '#fbbf24' : 
+                                     source === 'chatbot' ? '#60a5fa' : 
+                                     source === 'pos' ? colors.accent : 
+                                     colors.secondary;
+                  
+                  return (
+                    <div
+                      key={source}
+                      className="p-4 rounded-lg"
+                      style={{ backgroundColor: `${sourceColor}20` }}
+                    >
+                      <h4 className="text-sm font-medium capitalize" style={{ color: sourceColor }}>
+                        {sourceLabel}
+                      </h4>
+                      <p className="mt-2 text-xl font-semibold" style={{ color: colors.primary }}>
+                        {formatCurrency(amount)}
+                      </p>
+                      <p className="mt-1 text-xs" style={{ color: colors.muted }}>
+                        {((amount / revenueData.summary.totalRevenue) * 100).toFixed(1)}% of total
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Top Selling Items */}
           <div className="mt-8">
             <h3 className="text-lg font-semibold mb-4" style={{ color: colors.primary }}>

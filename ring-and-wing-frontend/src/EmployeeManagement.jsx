@@ -56,7 +56,15 @@ const StaffManagement = () => {
           setTimeout(() => reject(new Error('Request timed out')), 10000)
         );
         
-        const fetchPromise = axios.get('/api/staff');
+        // Add authorization token to the request
+        const token = localStorage.getItem('authToken');
+        const config = {
+          headers: { 
+            'Authorization': `Bearer ${token}`
+          }
+        };
+        
+        const fetchPromise = axios.get('/api/staff', config);
         
         // Race between fetch and timeout
         const response = await Promise.race([fetchPromise, timeoutPromise]);
@@ -140,6 +148,16 @@ const StaffManagement = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Helper function to check if PIN is unique
+  const isPinCodeUnique = (pinCode, currentStaffId = null) => {
+    const existingPin = staff.find(s => 
+      s.pinCode === pinCode && 
+      // If we're editing a staff member, exclude their current PIN from the check
+      (!currentStaffId || s._id !== currentStaffId)
+    );
+    return !existingPin;
+  };
+  
   const validateForm = () => {
     const errors = {};
 
@@ -164,11 +182,13 @@ const StaffManagement = () => {
       errors.password = 'Password must be at least 8 characters';
     }
 
-    // PIN validation - must be 4-6 digits
+    // PIN validation - must be 4-6 digits and unique
     if (!formData.pinCode.trim()) {
       errors.pinCode = 'PIN code is required';
     } else if (!/^\d{4,6}$/.test(formData.pinCode)) {
       errors.pinCode = 'PIN must be 4-6 digits';
+    } else if (!isPinCodeUnique(formData.pinCode, editMode ? selectedStaff?._id : null)) {
+      errors.pinCode = 'PIN code already in use by another staff member';
     }
 
     // Other required fields
@@ -195,6 +215,8 @@ const StaffManagement = () => {
       errors.pinCode = 'PIN code is required';
     } else if (!/^\d{4,6}$/.test(formData.pinCode)) {
       errors.pinCode = 'PIN must be 4-6 digits';
+    } else if (!isPinCodeUnique(formData.pinCode, editMode ? selectedStaff?._id : null)) {
+      errors.pinCode = 'PIN code already in use by another staff member';
     }
 
     // Other required staff fields
@@ -257,7 +279,15 @@ const StaffManagement = () => {
         email: formData.email.toLowerCase(),
       };
 
-      const response = await axios.post('/api/staff', payload);
+      // Add auth token to request headers
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      };
+
+      const response = await axios.post('/api/staff', payload, config);
       setStaff([...staff, response.data]);
       resetForm();
       toast.success('Staff member added successfully');
@@ -333,7 +363,15 @@ const StaffManagement = () => {
       
       console.log('Sending payload with PIN code:', payload.pinCode);
       
-      const response = await axios.put(`/api/staff/${selectedStaff._id}`, payload);
+      // Add auth token to request headers
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      };
+      
+      const response = await axios.put(`/api/staff/${selectedStaff._id}`, payload, config);
 
       console.log('Server response after update:', response.data);
       
@@ -377,7 +415,15 @@ const StaffManagement = () => {
       
       console.log('Sending staff-only update with payload:', payload);
       
-      const response = await axios.put(`/api/staff/${selectedStaff._id}`, payload);
+      // Add auth token to request headers
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      };
+      
+      const response = await axios.put(`/api/staff/${selectedStaff._id}`, payload, config);
 
       console.log('Server response after staff update:', response.data);
       
@@ -413,7 +459,15 @@ const StaffManagement = () => {
       
       console.log('Sending account-only update with payload:', payload);
       
-      const response = await axios.put(`/api/staff/${selectedStaff._id}`, payload);
+      // Add auth token to request headers
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      };
+      
+      const response = await axios.put(`/api/staff/${selectedStaff._id}`, payload, config);
 
       console.log('Server response after account update:', response.data);
       
@@ -439,7 +493,15 @@ const StaffManagement = () => {
     if (!window.confirm('Are you sure you want to delete this staff member?')) return;
     
     try {
-      await axios.delete(`/api/staff/${id}`);
+      // Add auth token to request headers
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      };
+      
+      await axios.delete(`/api/staff/${id}`, config);
       setStaff(prev => prev.filter(s => s._id !== id));
       toast.success('Staff member deleted successfully');
     } catch (error) {

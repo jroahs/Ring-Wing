@@ -13,7 +13,8 @@ try {
   }
 } catch (err) {
   console.error('Failed to create logs directory:', err);
-  process.exit(1);
+  // Don't exit process, just log the error
+  console.error('Will attempt to continue without file logging');
 }
 
 // Custom format for console output
@@ -65,27 +66,33 @@ const logger = createLogger({
       filename: path.join(logsDir, 'rejections.log'),
       format: fileFormat
     })
-  ]
+  ],
+  // Prevent Winston from exiting on uncaught exceptions
+  exitOnError: false
 });
 
 // Add file transports only if not in test environment
 if (process.env.NODE_ENV !== 'test') {
-  logger.add(new DailyRotateFile({
-    filename: path.join(logsDir, 'error-%DATE%.log'),
-    datePattern: 'YYYY-MM-DD',
-    level: 'error',
-    format: fileFormat,
-    maxSize: '20m',
-    maxFiles: '30d'
-  }));
-  
-  logger.add(new DailyRotateFile({
-    filename: path.join(logsDir, 'combined-%DATE%.log'),
-    datePattern: 'YYYY-MM-DD',
-    format: fileFormat,
-    maxSize: '20m',
-    maxFiles: '30d'
-  }));
+  try {
+    logger.add(new DailyRotateFile({
+      filename: path.join(logsDir, 'error-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      level: 'error',
+      format: fileFormat,
+      maxSize: '20m',
+      maxFiles: '30d'
+    }));
+    
+    logger.add(new DailyRotateFile({
+      filename: path.join(logsDir, 'combined-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      format: fileFormat,
+      maxSize: '20m',
+      maxFiles: '30d'
+    }));
+  } catch (err) {
+    console.error('Failed to set up log file rotation:', err);
+  }
 }
 
 // Handle logger errors
@@ -93,18 +100,57 @@ logger.on('error', (error) => {
   console.error('Logger error:', error);
 });
 
-// Handle uncaught exceptions
+// Store critical errors to track app health
+const criticalErrors = {
+  uncaughtExceptions: [],
+  unhandledRejections: []
+};
+
+// Keep only last 100 errors in memory
+const MAX_TRACKED_ERRORS = 100;
+
+// Handle uncaught exceptions without crashing
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
   logger.error(`Uncaught Exception: ${error.stack}`);
-  process.exit(1);
+  
+  // Store error details for health check API
+  criticalErrors.uncaughtExceptions.push({
+    timestamp: new Date().toISOString(),
+    message: error.message,
+    stack: error.stack
+  });
+  
+  // Trim array if it gets too large
+  if (criticalErrors.uncaughtExceptions.length > MAX_TRACKED_ERRORS) {
+    criticalErrors.uncaughtExceptions.shift();
+  }
+  
+  // DO NOT exit the process - this is key to preventing server shutdown
 });
 
-// Handle unhandled promise rejections
+// Handle unhandled promise rejections without crashing
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  logger.error(`Unhandled Rejection at: ${promise} reason: ${reason}`);
-  process.exit(1);
+  const reasonString = reason instanceof Error ? reason.stack : String(reason);
+  console.error('Unhandled Rejection at:', promise, 'reason:', reasonString);
+  logger.error(`Unhandled Rejection: ${reasonString}`);
+  
+  // Store error details for health check API
+  criticalErrors.unhandledRejections.push({
+    timestamp: new Date().toISOString(),
+    reason: reasonString
+  });
+  
+  // Trim array if it gets too large
+  if (criticalErrors.unhandledRejections.length > MAX_TRACKED_ERRORS) {
+    criticalErrors.unhandledRejections.shift();
+  }
+  
+  // DO NOT exit the process - this is key to preventing server shutdown
 });
 
-module.exports = logger;
+// Export both logger and critical errors tracking
+module.exports = { 
+  logger, 
+  criticalErrors 
+};

@@ -150,6 +150,9 @@ const clockIn = async (req, res) => {
         const filename = path.basename(req.file.path);
         photoPath = `uploads/timelogs/${filename}`;
         console.log('[TimeLog Debug] Photo saved at:', photoPath);
+      } else if (req.body.photoBase64) {
+        // Handle base64 photo upload
+        photoPath = saveBase64Image(req.body.photoBase64, staffMember._id);
       }
 
       // Create clock in record
@@ -263,6 +266,9 @@ const clockOut = async (req, res) => {
         const filename = path.basename(req.file.path);
         photoPath = `uploads/timelogs/${filename}`;
         console.log('[TimeLog Debug] Photo saved at:', photoPath);
+      } else if (req.body.photoBase64) {
+        // Handle base64 photo upload
+        photoPath = saveBase64Image(req.body.photoBase64, staffMember._id);
       }
 
       // Create clock out record
@@ -338,6 +344,48 @@ const calculateTotalHours = async (staffId, startDate, endDate) => {
     regularHours,
     overtimeHours
   };
+};
+
+// Helper function to save base64 image
+const saveBase64Image = (base64Data, staffId) => {
+  try {
+    if (!base64Data || typeof base64Data !== 'string' || !base64Data.startsWith('data:image')) {
+      console.log('[TimeLog Debug] Invalid base64 image data');
+      return null;
+    }
+
+    // Create the directory if it doesn't exist
+    const dir = path.join(__dirname, '../public/uploads/timelogs');
+    if (!fs.existsSync(dir)){
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    // Extract the image data and determine file extension
+    const matches = base64Data.match(/^data:image\/([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      console.log('[TimeLog Debug] Invalid base64 image format');
+      return null;
+    }
+
+    const imageType = matches[1];
+    const imageData = matches[2];
+    const buffer = Buffer.from(imageData, 'base64');
+    
+    // Generate filename
+    const timestamp = Date.now();
+    const filename = `${timestamp}-${staffId}-photo.${imageType === 'jpeg' ? 'jpg' : imageType}`;
+    const filepath = path.join(dir, filename);
+    
+    // Save the file
+    fs.writeFileSync(filepath, buffer);
+    console.log('[TimeLog Debug] Saved base64 image to:', filepath);
+    
+    // Return the relative path for database storage
+    return `uploads/timelogs/${filename}`;
+  } catch (error) {
+    console.error('[TimeLog Debug] Error saving base64 image:', error);
+    return null;
+  }
 };
 
 module.exports = {

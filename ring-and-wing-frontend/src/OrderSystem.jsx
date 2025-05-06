@@ -21,6 +21,7 @@ const useResponsiveMargin = () => {
 const OrderSystem = () => {
   const [orders, setOrders] = useState([]);
   const [activeTab, setActiveTab] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const { marginLeft, paddingTop } = useResponsiveMargin();
@@ -146,10 +147,38 @@ const OrderSystem = () => {
               ))}
             </div>
           </nav>
+          
+          {/* Source filter */}
+          <div className="bg-white rounded-lg shadow-sm mb-6 md:mb-8 p-3 md:p-4">
+            <p className="text-sm text-[#853619] mb-2">Filter by Order Source:</p>
+            <div className="flex flex-wrap gap-2">
+              { [
+                { id: 'all', label: 'All Sources' },
+                { id: 'counter', label: 'POS/Counter' },
+                { id: 'self_checkout', label: 'Self Checkout' },
+                { id: 'chatbot', label: 'Chatbot' }
+              ].map(src => (
+                <button
+                  key={src.id}
+                  className={`py-1 px-3 text-xs md:text-sm rounded-full transition-colors ${
+                    sourceFilter === src.id 
+                      ? 'bg-[#f1670f] text-white' 
+                      : 'bg-[#85361910] text-[#853619] hover:bg-[#f1670f20]'
+                  }`}
+                  onClick={() => setSourceFilter(src.id)}
+                >
+                  {src.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
             {orders
-              .filter(order => activeTab === 'all' || order.status === activeTab)
+              .filter(order => 
+                (activeTab === 'all' || order.status === activeTab) && 
+                (sourceFilter === 'all' || order.orderType === sourceFilter)
+              )
               .sort((a, b) => b.createdAt - a.createdAt)
               .map(order => (
                 <div 
@@ -163,9 +192,23 @@ const OrderSystem = () => {
                     'border-transparent'
                   }`}>
                     <div className="flex justify-between items-center mb-3 md:mb-4">
-                      <h2 className="font-bold text-lg md:text-xl text-[#2e0304]">
-                        Order #{order.receiptNumber}
-                      </h2>
+                      <div className="flex flex-col">
+                        <h2 className="font-bold text-lg md:text-xl text-[#2e0304]">
+                          Order #{order.receiptNumber}
+                        </h2>
+                        {order.orderType && order.orderType !== 'counter' && (
+                          <span className={`text-xs px-2 py-1 rounded-full inline-flex items-center w-fit ${
+                            order.orderType === 'self_checkout' 
+                              ? 'bg-[#fbbf2420] text-[#b45309]'
+                              : order.orderType === 'chatbot'
+                                ? 'bg-[#60a5fa20] text-[#1e40af]' 
+                                : 'bg-[#f1670f20] text-[#f1670f]'
+                          }`}>
+                            {order.orderType === 'self_checkout' ? 'Self Checkout' : 
+                             order.orderType === 'chatbot' ? 'Chatbot' : order.orderType}
+                          </span>
+                        )}
+                      </div>
                       <span className="text-sm md:text-base px-3 md:px-4 py-1 md:py-2 rounded-full bg-[#85361910] text-[#853619]">
                         {order.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>

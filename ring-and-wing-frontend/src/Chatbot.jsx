@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { ArrowUpIcon } from '@heroicons/react/24/solid';
-import { FiShoppingCart, FiClock, FiCheckCircle, FiInfo } from 'react-icons/fi';
+import { FiShoppingCart, FiClock, FiCheckCircle, FiInfo, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import logo from './assets/rw.jpg';
 
 function ChatbotPage() {
@@ -10,6 +10,41 @@ function ChatbotPage() {
     accent: '#f1670f',
     secondary: '#853619',
     muted: '#ac9c9b'
+  };
+  
+  // Carousel scroll refs
+  const carouselRefs = useRef({});
+
+  const scrollCarousel = (messageId, direction) => {
+    const carousel = carouselRefs.current[messageId];
+    if (carousel) {
+      const scrollAmount = 240; // Width of card + margin
+      carousel.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  // Add dedicated carousel navigation functions with console logs for debugging
+  const handleCarouselScroll = (messageId, direction) => {
+    console.log(`Attempting to scroll carousel ${messageId} ${direction}`);
+    const carousel = document.getElementById(`carousel-${messageId}`);
+    if (carousel) {
+      console.log("Found carousel element:", carousel);
+      const scrollAmount = 220; // Width of card + margin
+      const newScrollLeft = direction === 'left' 
+        ? carousel.scrollLeft - scrollAmount 
+        : carousel.scrollLeft + scrollAmount;
+      
+      console.log(`Scrolling from ${carousel.scrollLeft} to ${newScrollLeft}`);
+      carousel.scrollTo({
+        left: newScrollLeft,
+        behavior: 'smooth'
+      });
+    } else {
+      console.log(`Carousel with ID carousel-${messageId} not found`);
+    }
   };
 
   const ChatbotAvatar = () => (
@@ -33,6 +68,7 @@ function ChatbotPage() {
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [menuData, setMenuData] = useState([]);
+  const [revenueData, setRevenueData] = useState(null);
   const messagesEndRef = useRef(null);
   const [rateLimitMessage, setRateLimitMessage] = useState('');
   const lastRequestTime = useRef(Date.now());
@@ -77,6 +113,16 @@ function ChatbotPage() {
         setMenuData(items);
       })
       .catch((err) => console.error("Error fetching menu items:", err));
+      
+    // Fetch revenue data for better recommendations
+    fetch("http://localhost:5000/api/revenue/weekly")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setRevenueData(data.data);
+        }
+      })
+      .catch((err) => console.error("Error fetching revenue data:", err));
   }, []);
 
   const getMenuContext = () => {
@@ -117,14 +163,27 @@ function ChatbotPage() {
       menuNames.includes(word.toLowerCase())
     );
   
+    // Handle special items
     if (isGeneric && lowerText.includes('special')) {
       const special = menuData.find(item => item.isSpecial) || menuData[0];
       return `Today's special is ${special.name} - ${special.description}`;
     }
   
-    if (mentionedItems.length === 0 && lowerText.includes('recommend')) {
-      const popularItems = menuData.slice(0, 3).map(i => i.name);
-      return `${sanitizedText}\n\nPopular choices: ${popularItems.join(', ')}`;
+    // Enhanced recommendations using revenue data
+    if ((mentionedItems.length === 0 && lowerText.includes('recommend')) || 
+        lowerText.includes('popular') || 
+        lowerText.includes('best seller') ||
+        lowerText.includes('bestseller')) {
+      
+      // If we have revenue data, use it for recommendations
+      if (revenueData?.topItems?.length > 0) {
+        const topSellers = revenueData.topItems.slice(0, 3).map(item => item.name);
+        return `Based on our sales data, our most popular items are: ${topSellers.join(', ')}. Would you like to try any of these?`;
+      } else {
+        // Fall back to simple recommendations if no revenue data
+        const popularItems = menuData.slice(0, 3).map(i => i.name);
+        return `${sanitizedText}\n\nPopular choices: ${popularItems.join(', ')}`;
+      }
     }
   
     return sanitizedText;
@@ -132,6 +191,15 @@ function ChatbotPage() {
 
   // Updated AI response function with proxy implementation
   const getAIResponse = async (userInput, chatHistory = []) => {
+    // Create popular items list from revenue data if available
+    let popularItemsInfo = '';
+    if (revenueData?.topItems?.length > 0) {
+      const topSellers = revenueData.topItems.slice(0, 3).map(item => 
+        `${item.name} (${item.quantity} sold, ₱${Math.round(item.revenue)} revenue)`
+      );
+      popularItemsInfo = `\n\nOur current best-selling items are: ${topSellers.join(', ')}.`;
+    }
+    
     const systemMessage = {
       role: "system",
       content: `You are Ring & Wing Café's helpful assistant. Rules:
@@ -144,7 +212,7 @@ ${getMenuContext()}
 5. If the customer initiates a fun or playful interaction, the AI can engage in a lighthearted and friendly way while maintaining professionalism.
 6. If asked about something not in the menu, respond: "I'm sorry, that item isn't available. Would you like me to suggest something from our menu?"
 7. Format prices exactly as: "Small: ₱99 | Medium: ₱120
-8. For recommendations, suggest 1 specific item first`
+8. For recommendations, suggest 1 specific item first${popularItemsInfo}`
     };
 
     const payload = {
@@ -310,7 +378,6 @@ ${getMenuContext()}
         id: Date.now(),
         text: `You have ${currentOrder.length} item${currentOrder.length > 1 ? 's' : ''} in your order. You can view your cart below.`,
         sender: 'bot',
-        type: 'cart',
         timestamp: new Date()
       }]);
     }
@@ -725,30 +792,27 @@ ${getMenuContext()}
       }));
   
     const input = userMessage.text.toLowerCase();
+    let staticResponseSent = false;
 
     // Order management commands
     if (input.includes('show') && (input.includes('cart') || input.includes('order'))) {
       handleShowCart();
-      return;
+      staticResponseSent = true;
     }
-
-    if (input.includes('place order') || input.includes('checkout')) {
+    else if (input.includes('place order') || input.includes('checkout')) {
       handleCheckout();
-      return;
+      staticResponseSent = true;
     }
-
-    if (input.includes("where") && input.includes("order")) {
+    else if (input.includes("where") && input.includes("order")) {
       handleTrackOrder();
-      return;
+      staticResponseSent = true;
     }
-
-    if ((input.includes("clear") || input.includes("cancel")) && input.includes("order")) {
+    else if ((input.includes("clear") || input.includes("cancel")) && input.includes("order")) {
       handleCancelOrder();
-      return;
+      staticResponseSent = true;
     }
-  
     // Menu-related queries
-    if (input.includes('menu')) {
+    else if (input.includes('menu')) {
       const aiText = await getAIResponse(userMessage.text, chatHistory);
       setMessages(prev => [...prev, {
         id: Date.now(),
@@ -772,10 +836,9 @@ ${getMenuContext()}
       };
       setMessages(prev => [...prev, menuMessage]);
       setIsTyping(false);
-      return;
+      staticResponseSent = true;
     }
-  
-    if (input.includes('coffee')) {
+    else if (input.includes('coffee')) {
       const coffeeItems = menuData
         .filter(menuItem => 
           menuItem.category === 'Beverages' && 
@@ -800,41 +863,56 @@ ${getMenuContext()}
           timestamp: new Date()
         }]);
         setIsTyping(false);
-        return;
+        staticResponseSent = true;
+      } else {
+        const aiText = await getAIResponse(userMessage.text, chatHistory);
+        setMessages(prev => [
+          ...prev,
+          {
+            id: Date.now(),
+            text: aiText,
+            sender: 'bot',
+            timestamp: new Date()
+          },
+          {
+            id: Date.now() + 1,
+            text: "",
+            sender: 'bot',
+            type: 'menu-items',
+            items: coffeeItems,
+            timestamp: new Date()
+          }
+        ]);
+        setIsTyping(false);
+        staticResponseSent = true;
       }
-  
-      const aiText = await getAIResponse(userMessage.text, chatHistory);
-      setMessages(prev => [
-        ...prev,
-        {
+    }
+
+    // Only get AI response if no static response was sent
+    if (!staticResponseSent) {
+      try {
+        const aiText = await getAIResponse(userMessage.text, chatHistory);
+        const botResponse = {
           id: Date.now(),
           text: aiText,
           sender: 'bot',
           timestamp: new Date()
-        },
-        {
-          id: Date.now() + 1,
-          text: "",
+        };
+        
+        setMessages(prev => [...prev, botResponse]);
+      } catch (error) {
+        console.error("Error getting AI response:", error);
+        // Provide a fallback response in case of error
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          text: "I'm sorry, I'm having trouble processing your request right now. Please try again later.",
           sender: 'bot',
-          type: 'menu-items',
-          items: coffeeItems,
           timestamp: new Date()
-        }
-      ]);
-      setIsTyping(false);
-      return;
+        }]);
+      } finally {
+        setIsTyping(false);
+      }
     }
-  
-    const aiText = await getAIResponse(userMessage.text, chatHistory);
-    const botResponse = {
-      id: Date.now(),
-      text: aiText,
-      sender: 'bot',
-      timestamp: new Date()
-    };
-  
-    setMessages(prev => [...prev, botResponse]);
-    setIsTyping(false);
   };
 
   const handleSuggestionClick = (suggestion) => {
@@ -883,53 +961,107 @@ ${getMenuContext()}
                 <p>{message.text}</p>
 
                 {message.type === 'menu-items' && (
-                  <div className="mt-2 space-y-3">
-                    {message.items.map((item, index) => (
-                      <div
-                        key={index}
-                        className="p-3 rounded-lg flex items-start"
-                        style={{ backgroundColor: colors.muted + '15', border: `1px solid ${colors.muted}` }}
+                  <div className="mt-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="font-medium text-sm" style={{ color: colors.primary }}>
+                        Menu Items
+                      </h3>
+                      <span className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: colors.accent + '20', color: colors.accent }}>
+                        {message.items.length} items
+                      </span>
+                    </div>
+                    
+                    <div className="relative">
+                      <div 
+                        className="overflow-x-scroll pb-4 hide-scrollbar" 
+                        style={{ 
+                          scrollBehavior: 'smooth',
+                          WebkitOverflowScrolling: 'touch'
+                        }}
                       >
-                        <div className="w-16 h-16 rounded-md mr-3 flex items-center justify-center bg-gray-200 text-gray-500">
-                          {item.image ? (
-                            <img 
-                              src={`http://localhost:5000${item.image}`}
-                              alt={item.name} 
-                              className="object-cover w-full h-full rounded-md"
-                              onError={(e) => {
-                                e.target.onerror = null; 
-                                e.target.src = '/placeholder-food.jpg';
+                        <div 
+                          className="flex space-x-3" 
+                          style={{ width: `${message.items.length * 220}px` }}
+                        >
+                          {message.items.map((item, index) => (
+                            <div
+                              key={index}
+                              className="w-52 rounded-lg overflow-hidden shadow-md flex-shrink-0 transition-all hover:shadow-lg"
+                              style={{ 
+                                backgroundColor: colors.background, 
+                                border: `1px solid ${colors.muted}30`,
+                                transform: 'scale(1)',
+                                transition: 'all 0.2s ease',
+                                scrollSnapAlign: 'start'
                               }}
-                            />
-                          ) : (
-                            <span className="text-xs text-center">No Image</span>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex justify-between items-start">
-                            <h3 className="font-semibold" style={{ color: colors.primary }}>
-                              {item.name}
-                            </h3>
-                            <span className="font-medium" style={{ color: colors.accent }}>
-                              {item.price}
-                            </span>
-                          </div>
-                          <p className="text-sm mt-1" style={{ color: colors.secondary }}>
-                            {item.description}
-                          </p>
-                          <button
-                            onClick={() => handleOrderItem(item)}
-                            className="add-to-order-btn"
-                            style={{
-                              backgroundColor: colors.accent,
-                              color: colors.background
-                            }}
-                          >
-                            Add to Order
-                          </button>
+                            >
+                              <div className="h-32 overflow-hidden relative">
+                                {item.image ? (
+                                  <img 
+                                    src={`http://localhost:5000${item.image}`}
+                                    alt={item.name} 
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.target.onerror = null; 
+                                      e.target.src = '/placeholder-food.jpg';
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                                    <span className="text-sm text-gray-500">No Image</span>
+                                  </div>
+                                )}
+                                <div className="absolute top-0 right-0 m-2 px-2 py-1 rounded-full text-xs font-medium" 
+                                  style={{ backgroundColor: colors.accent, color: colors.background }}>
+                                  {item.price}
+                                </div>
+                              </div>
+                              
+                              <div className="p-3">
+                                <h4 className="font-semibold truncate" style={{ color: colors.primary }}>
+                                  {item.name}
+                                </h4>
+                                <p className="text-xs mt-1 h-8 overflow-hidden" style={{ color: colors.secondary }}>
+                                  {item.description || "No description available"}
+                                </p>
+                                <button
+                                  onClick={() => handleOrderItem(item)}
+                                  className="w-full mt-2 py-1.5 text-sm font-medium rounded-md transition-all"
+                                  style={{ 
+                                    backgroundColor: colors.accent,
+                                    color: colors.background,
+                                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                                  }}
+                                >
+                                  Add to Order
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    ))}
+                      
+                      <button
+                        className="absolute top-1/2 -left-4 transform -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full bg-white shadow-lg cursor-pointer hover:bg-gray-50 border border-gray-200 z-10"
+                        onClick={(e) => {
+                          // Get the parent scroll container
+                          const container = e.currentTarget.parentElement.querySelector('.overflow-x-scroll');
+                          container.scrollLeft -= 220;
+                        }}
+                      >
+                        <FiChevronLeft className="w-5 h-5 text-gray-600" />
+                      </button>
+                      <button
+                        className="absolute top-1/2 -right-4 transform -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full bg-white shadow-lg cursor-pointer hover:bg-gray-50 border border-gray-200 z-10"
+                        onClick={(e) => {
+                          // Get the parent scroll container
+                          const container = e.currentTarget.parentElement.querySelector('.overflow-x-scroll');
+                          container.scrollLeft += 220;
+                        }}
+                      >
+                        <FiChevronRight className="w-5 h-5 text-gray-600" />
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -1176,6 +1308,13 @@ ${getMenuContext()}
         }
         .add-to-order-btn:hover {
           background-color: ${colors.accent}dd !important;
+        }
+        .hide-scrollbar {
+          -ms-overflow-style: none;  /* IE and Edge */
+          scrollbar-width: none;  /* Firefox */
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none; /* Chrome, Safari, Opera */
         }
       `}</style>
     </div>

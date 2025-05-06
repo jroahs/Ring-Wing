@@ -30,7 +30,23 @@ const validateStaffCreation = (req, res, next) => {
   next();
 };
 
-// Get all staff members with optional filters
+// Public endpoint for time clock - returns limited staff information
+router.get('/time-clock', async (req, res) => {
+  try {
+    // Only return active staff with limited fields for the time clock
+    const staff = await Staff.find({ status: { $ne: 'inactive' } })
+      .select('_id name position profilePicture pinCode')
+      .lean();
+
+    console.log('Fetched staff for time clock:', staff.length, 'records');
+    res.json(staff);
+  } catch (error) {
+    console.error('Error fetching staff for time clock:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get all staff members with optional filters - requires authentication
 router.get('/', auth, async (req, res) => {
   try {
     const { userId, status } = req.query;
@@ -99,8 +115,7 @@ router.post('/', auth, validateStaffCreation, async (req, res) => {
       phone, 
       dailyRate, 
       profilePicture, 
-      allowances, 
-      scheduledHoursPerDay,
+      allowances,
       pinCode 
     } = req.body;
 
@@ -138,7 +153,6 @@ router.post('/', auth, validateStaffCreation, async (req, res) => {
         dailyRate,
         profilePicture,
         allowances: allowances || 0,
-        scheduledHoursPerDay: scheduledHoursPerDay || 8,
         userId: user._id,
         pinCode: pinCode || '0000' // Explicitly set the PIN code
       });
@@ -295,6 +309,43 @@ router.delete('/:id', auth, async (req, res) => {
   } catch (error) {
     console.error('Error deleting staff:', error);
     res.status(500).json({ message: error.message });
+  }
+});
+
+// Authenticate staff by PIN code
+router.post('/authenticate-pin', async (req, res) => {
+  try {
+    const { pin } = req.body;
+    
+    if (!pin || typeof pin !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'PIN code is required'
+      });
+    }
+
+    // Find staff member with matching PIN code
+    const staff = await Staff.findOne({ pinCode: pin })
+      .populate('userId', 'username email role');
+    
+    if (!staff) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid PIN code'
+      });
+    }
+    
+    return res.json({
+      success: true,
+      message: 'Authentication successful',
+      staff
+    });
+  } catch (error) {
+    console.error('PIN authentication error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error during authentication'
+    });
   }
 });
 

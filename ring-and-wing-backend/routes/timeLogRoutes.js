@@ -190,4 +190,37 @@ router.post('/generate-test-data', auth, async (req, res) => {
   }
 });
 
+// Verify staff photo for time clock
+router.post('/verify-photo', async (req, res) => {
+  try {
+    const { userId, staffId, image } = req.body;
+    
+    if (!userId || !image) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing required information for verification' 
+      });
+    }
+    
+    // In a production system, this is where you would:
+    // 1. Save the photo to a database or file system
+    // 2. Potentially run facial recognition to verify identity
+    // 3. Log the verification attempt
+    
+    // For now, we'll just accept all photos as valid
+    // TODO: Implement actual photo verification logic
+    
+    res.json({
+      success: true,
+      message: 'Photo verification successful'
+    });
+  } catch (error) {
+    console.error('Error in photo verification:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error during photo verification' 
+    });
+  }
+});
+
 module.exports = router;
