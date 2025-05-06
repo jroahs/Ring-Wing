@@ -27,7 +27,7 @@ const orderSchema = new mongoose.Schema({
   },
   orderType: {
     type: String,
-    enum: ['self_checkout', 'counter', 'chatbot'],
+    enum: ['self_checkout', 'chatbot', 'pos'],
     required: true,
     default: 'self_checkout'
   },

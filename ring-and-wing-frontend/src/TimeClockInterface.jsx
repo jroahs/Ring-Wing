@@ -44,7 +44,16 @@ const TimeClockInterface = ({ staffId, onClose }) => {
           : `/api/staff/user/${staffId}`; // Otherwise, use the user endpoint
 
         console.log('Fetching staff data from:', endpoint);
-        const response = await axios.get(endpoint);
+        
+        // Add authorization token to the request
+        const token = localStorage.getItem('authToken');
+        const config = {
+          headers: { 
+            'Authorization': `Bearer ${token}`
+          }
+        };
+
+        const response = await axios.get(endpoint, config);
         const staffData = response.data.data || response.data;
         setStaff(staffData);
         await fetchLastTimeLog(staffData._id);
@@ -72,7 +81,15 @@ const TimeClockInterface = ({ staffId, onClose }) => {
         endDate: new Date().toISOString()
       }).toString();
 
-      const { data } = await axios.get(`/api/time-logs/staff/${staffId}?${params}`);
+      // Add authorization token to the request
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      };
+
+      const { data } = await axios.get(`/api/time-logs/staff/${staffId}?${params}`, config);
       
       if (data?.data?.length > 0) {
         const formattedTimestamp = formatDateTime(data.data[0].timestamp || data.data[0].createdAt);
@@ -96,9 +113,17 @@ const TimeClockInterface = ({ staffId, onClose }) => {
     
     setLoading(true);
     try {
+      // Add authorization token to the request
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      };
+      
       const { data } = await axios.post(`/api/time-logs/${type === 'in' ? 'clock-in' : 'clock-out'}`, {
         userId: staff.userId
-      });
+      }, config);
       
       if (!data.success) {
         throw new Error(`Failed to clock ${type}`);

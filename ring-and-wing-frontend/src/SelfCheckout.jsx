@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
+import { API_URL } from './App'; // Import centralized API_URL
 
 const colors = {
   primary: '#2e0304',
@@ -96,12 +97,12 @@ const SelfCheckout = () => {
   useEffect(() => {
     const fetchMenuItems = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/menu');
+        const response = await fetch(`${API_URL}/api/menu`);
         const data = await response.json();
         const items = Array.isArray(data) ? data : data.items || [];
         setMenuItems(items.map(item => ({
           ...item,
-          image: item.image ? `http://localhost:5000${item.image}` : null,
+          image: item.image ? `${API_URL}${item.image}` : null,
           pricing: item.pricing || { base: 0 },
           modifiers: item.modifiers || []
         })));
@@ -190,7 +191,7 @@ const SelfCheckout = () => {
     };
   
     try {
-      const response = await fetch('http://localhost:5000/api/orders', {
+      const response = await fetch(`${API_URL}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderData)

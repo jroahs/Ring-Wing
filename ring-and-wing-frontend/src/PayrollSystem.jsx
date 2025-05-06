@@ -65,7 +65,15 @@ const PayrollSystem = () => {
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
-        const { data } = await axios.get('/api/staff');
+        // Add auth token to request headers
+        const token = localStorage.getItem('authToken');
+        const config = {
+          headers: { 
+            'Authorization': `Bearer ${token}`
+          }
+        };
+        
+        const { data } = await axios.get('/api/staff', config);
         // Ensure data is an array before mapping
         if (!Array.isArray(data)) {
           throw new Error('Invalid staff data format');
@@ -73,8 +81,7 @@ const PayrollSystem = () => {
         const formattedEmployees = data.map(emp => ({
           ...emp,
           dailyRate: Number(emp.dailyRate) || 0,
-          allowances: Number(emp.allowances) || 0,
-          scheduledHoursPerDay: Number(emp.scheduledHoursPerDay) || 8
+          allowances: Number(emp.allowances) || 0
         }));
         setEmployees(formattedEmployees);
       } catch (error) {
@@ -93,10 +100,19 @@ const PayrollSystem = () => {
     const fetchPaymentHistory = async () => {
       if (selectedEmployee) {
         try {
-          const { data } = await axios.get(`/api/payroll/staff/${selectedEmployee._id}`);
+          // Add auth token to request headers
+          const token = localStorage.getItem('authToken');
+          const config = {
+            headers: { 
+              'Authorization': `Bearer ${token}`
+            }
+          };
+
+          const { data } = await axios.get(`/api/payroll/staff/${selectedEmployee._id}`, config);
           setPaymentHistory(Array.isArray(data.data) ? data.data : []);
         } catch (error) {
           console.error('Error fetching payment history:', error);
+          toast.error(error.response?.data?.message || 'Failed to fetch payment history');
         }
       }
     };
@@ -122,8 +138,16 @@ const PayrollSystem = () => {
         endDate: new Date(endDate).toISOString()
       });
       
+      // Add auth token to request headers
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      };
+      
       // Fetch time logs for history display
-      const logsResponse = await axios.get(`/api/time-logs/staff/${staffId}?${params}`);
+      const logsResponse = await axios.get(`/api/time-logs/staff/${staffId}?${params}`, config);
       
       if (!logsResponse.data?.success) {
         throw new Error('Failed to fetch time logs');
@@ -133,7 +157,7 @@ const PayrollSystem = () => {
       setTimeLogs(logs);
       
       // Fetch calculated hours data from the new endpoint
-      const hoursResponse = await axios.get(`/api/time-logs/staff/${staffId}/hours?${params}`);
+      const hoursResponse = await axios.get(`/api/time-logs/staff/${staffId}/hours?${params}`, config);
       
       if (!hoursResponse.data?.success) {
         throw new Error('Failed to calculate working hours');
@@ -228,6 +252,14 @@ const PayrollSystem = () => {
         regularHours, overtimeHours, totalHours
       } = calculateNetSalary();
 
+      // Add auth token to request headers
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      };
+
       const { data } = await axios.post('/api/payroll', {
         staffId: selectedEmployee._id,
         payrollPeriod: new Date(payrollPeriod),
@@ -242,7 +274,7 @@ const PayrollSystem = () => {
         },
         netPay,
         timeLogs: timeLogs.map(log => log._id)
-      });
+      }, config);
 
       if (data?.success) {
         setPaymentHistory([...paymentHistory, data.data]);
@@ -279,6 +311,14 @@ const PayrollSystem = () => {
       const endDate = new Date(payrollPeriod);
       endDate.setMonth(endDate.getMonth() + 1, 0); // End of month
       
+      // Add auth token to request headers
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      };
+      
       // Call the backend endpoint to generate test data
       const response = await axios.post('/api/time-logs/generate-test-data', {
         staffId: selectedEmployee._id,
@@ -288,7 +328,7 @@ const PayrollSystem = () => {
         daysToGenerate: 21,
         hoursPerDay: 8,
         includeOvertimeInSomeDays: true
-      });
+      }, config);
       
       if (response.data?.success) {
         toast.success(`Generated ${response.data.count} test time logs`);

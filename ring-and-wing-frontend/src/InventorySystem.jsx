@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BarChart, PieChart, Bar, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from 'recharts';
 import { saveAs } from 'file-saver';
 import axios from 'axios';
+import { API_URL } from './App';  // Import API_URL from App.jsx
 
 const colors = {
   primary: '#2e0304',
@@ -14,8 +15,6 @@ const colors = {
   activeBorder: '#f1670f',
   hoverBg: '#f1670f10'
 };
-
-const API_URL = import.meta.env.VITE_APP_API_URL || 'http://localhost:5000/api';
 
 const InventorySystem = () => {
   
@@ -79,8 +78,8 @@ useEffect(() => {
     const fetchData = async () => {
       try {
         const [itemsRes, vendorsRes] = await Promise.all([
-          axios.get(`${API_URL}/items`),
-          axios.get(`${API_URL}/vendors`)
+          axios.get(`${API_URL}/api/items`),
+          axios.get(`${API_URL}/api/vendors`)
         ]);
         setItems(itemsRes.data);
         setVendors(vendorsRes.data);
@@ -173,7 +172,7 @@ useEffect(() => {
 // Updated handleSale function
 const handleSale = async (itemId, quantitySold) => {
   try {
-    const { data } = await axios.patch(`${API_URL}/items/${itemId}/sell`, { quantity: quantitySold });
+    const { data } = await axios.patch(`${API_URL}/api/items/${itemId}/sell`, { quantity: quantitySold });
     
     setItems(items.map(item => 
       item._id === itemId ? { 
@@ -223,7 +222,7 @@ const handleRestock = async (e) => {
     };
 
     const { data } = await axios.patch(
-      `${API_URL}/items/${selectedItem._id}/restock`,
+      `${API_URL}/api/items/${selectedItem._id}/restock`,
       payload
     );
 
@@ -243,7 +242,7 @@ const handleRestock = async (e) => {
   // Handle deletion
   const handleDelete = async (itemId) => {
     try {
-      await axios.delete(`${API_URL}/items/${itemId}`);
+      await axios.delete(`${API_URL}/api/items/${itemId}`);
       setItems(items.filter(item => item._id !== itemId));
     } catch (err) {
       setError('Failed to delete item: ' + (err.response?.data?.message || err.message));
@@ -285,7 +284,7 @@ const handleRestock = async (e) => {
         throw new Error('At least one inventory batch is required');
       }
       
-      const { data } = await axios.post(`${API_URL}/items`, newItem);
+      const { data } = await axios.post(`${API_URL}/api/items`, newItem);
       setItems([...items, data]);
       setShowAddModal(false);
       setNewItem({
@@ -306,7 +305,7 @@ const handleRestock = async (e) => {
   const handleVendorSubmit = async (e) => {
     e.preventDefault();
     try {
-      const { data } = await axios.post(`${API_URL}/vendors`, newVendor);
+      const { data } = await axios.post(`${API_URL}/api/vendors`, newVendor);
       setVendors([...vendors, data]);
       setNewVendor({
         name: '',

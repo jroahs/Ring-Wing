@@ -72,15 +72,26 @@ router.delete('/:id', async (req, res) => {
 // @route   POST /api/expenses/reset-disbursement
 router.post('/reset-disbursement', async (req, res) => {
   try {
-    // Reset all expenses disbursed status to false
+    // Calculate today's start and end date
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(startOfDay.getDate() + 1);
+    
+    // Only reset expenses that are:
+    // 1. Currently marked as disbursed
+    // 2. Were created/modified within the current day
     const result = await Expense.updateMany(
-      { disbursed: true },
+      { 
+        disbursed: true,
+        date: { $gte: startOfDay, $lt: endOfDay }
+      },
       { $set: { disbursed: false } }
     );
 
     res.json({
       success: true,
-      message: 'Disbursement status reset successfully',
+      message: 'Disbursement status reset successfully for today\'s expenses',
       count: result.modifiedCount
     });
   } catch (error) {

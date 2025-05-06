@@ -6,6 +6,8 @@ import { Receipt } from './components/Receipt';
 import PendingOrder from './components/PendingOrder';
 import Sidebar from './Sidebar';
 import TimeClockInterface from './components/TimeClockInterface';
+import TimeClockModal from './components/TimeClockModal';
+import { FiClock, FiPlus } from 'react-icons/fi';
 
 const PointOfSale = () => {
   const [menuItems, setMenuItems] = useState([]);
@@ -22,6 +24,7 @@ const PointOfSale = () => {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
   const [showTimeClock, setShowTimeClock] = useState(false);
+  const [showTimeClockModal, setShowTimeClockModal] = useState(false);
   const receiptRef = useRef();
 
   const isLargeScreen = windowWidth >= 1920;
@@ -322,7 +325,7 @@ const PointOfSale = () => {
         },
         paymentMethod,
         status: 'received',
-        orderType: 'self_checkout'
+        orderType: 'pos'  // Changed from 'self_checkout' to 'pos' for orders created in POS
       };
 
       const response = await fetch('http://localhost:5000/api/orders', {
@@ -474,13 +477,38 @@ const PointOfSale = () => {
           <div className="min-h-screen flex flex-col md:flex-row">
             {/* Menu Section */}
             <div className="flex-1 p-4 md:p-6 order-2 md:order-1">
-              <div className="relative mb-6 max-w-7xl mx-auto">
-                <SearchBar
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  placeholder="Search menu..."
-                  size="lg"
-                />
+              <div className="relative mb-6 max-w-7xl mx-auto flex">
+                <div className="relative flex-1 mr-2">
+                  <SearchBar
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    placeholder="Search menu..."
+                    size="lg"
+                  />
+                </div>
+
+                {/* Time Clock and Placeholder Buttons */}
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setShowTimeClockModal(true)}
+                    className="h-12 px-4 flex items-center justify-center rounded-lg hover:opacity-90 transition"
+                    style={{ backgroundColor: theme.colors.accent, color: theme.colors.background }}
+                    title="Quick Time Clock"
+                  >
+                    <FiClock className="mr-2" />
+                    <span className="hidden md:inline">Time Clock</span>
+                  </button>
+
+                  <button
+                    onClick={() => {}}
+                    className="h-12 px-4 flex items-center justify-center rounded-lg hover:opacity-90 transition"
+                    style={{ backgroundColor: theme.colors.secondary, color: theme.colors.background }}
+                    title="Additional Function"
+                  >
+                    <FiPlus className="mr-2" />
+                    <span className="hidden md:inline">Function</span>
+                  </button>
+                </div>
               </div>
 
               <div className={`grid ${gridColumns} gap-2 md:gap-3 mx-auto`}>
@@ -584,6 +612,11 @@ const PointOfSale = () => {
                 </button>
               </div>
             </Modal>
+
+            {/* Time Clock Modal */}
+            {showTimeClockModal && (
+              <TimeClockModal onClose={() => setShowTimeClockModal(false)} />
+            )}
           </div>
         )}
       </div>

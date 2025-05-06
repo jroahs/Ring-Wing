@@ -40,10 +40,6 @@ const staffSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  scheduledHoursPerDay: {
-    type: Number,
-    default: 8
-  },
   sssNumber: String,
   tinNumber: String,
   philHealthNumber: String,

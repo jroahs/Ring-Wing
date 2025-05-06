@@ -32,9 +32,11 @@ router.get('/:period', async (req, res) => {
     const { period } = req.params;
     const { start, end } = getDateRange(period);
     
+    // Include all orders that have a valid payment method (not 'pending')
+    // This ensures we count orders from all sources: POS, self-checkout, and chatbot
     const orders = await Order.find({
       createdAt: { $gte: start, $lte: end },
-      status: 'completed'
+      paymentMethod: { $ne: 'pending' }  // Only exclude pending payment orders
     });
 
     // Calculate revenue metrics
@@ -47,6 +49,13 @@ router.get('/:period', async (req, res) => {
     const revenueByPayment = orders.reduce((acc, order) => {
       const method = order.paymentMethod;
       acc[method] = (acc[method] || 0) + order.totals.total;
+      return acc;
+    }, {});
+
+    // Calculate revenue by order source
+    const revenueBySource = orders.reduce((acc, order) => {
+      const source = order.orderType || 'pos';  // Default to 'pos' if not specified
+      acc[source] = (acc[source] || 0) + order.totals.total;
       return acc;
     }, {});
 
@@ -86,6 +95,7 @@ router.get('/:period', async (req, res) => {
           averageOrderValue: totalOrders > 0 ? revenue / totalOrders : 0
         },
         revenueByPayment,
+        revenueBySource,
         hourlyDistribution,
         topItems
       }

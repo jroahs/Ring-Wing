@@ -74,7 +74,7 @@ const TimeClock = () => {
   useEffect(() => {
     const fetchStaff = async () => {
       try {
-        const response = await axios.get('/api/staff');
+        const response = await axios.get('/api/staff/time-clock');
         const staffData = Array.isArray(response.data) ? response.data : 
                         (response.data.data ? response.data.data : []);
         setStaff(staffData);
@@ -108,7 +108,15 @@ const TimeClock = () => {
         endDate: new Date().toISOString()
       }).toString();
 
-      const { data } = await axios.get(`/api/time-logs/staff/${staffId}?${params}`);
+      // Add authorization token to the request
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      };
+
+      const { data } = await axios.get(`/api/time-logs/staff/${staffId}?${params}`, config);
       
       if (data?.data?.length > 0) {
         const formattedTimestamp = formatDateTime(data.data[0].timestamp || data.data[0].createdAt);
