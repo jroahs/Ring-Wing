@@ -1,5 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { motion, AnimatePresence } from 'framer-motion';
+import ExpenseCard from './components/ui/ExpenseCard.jsx';
+import ExpenseFilters from './components/ui/ExpenseFilters.jsx';
+import ExpenseSummary from './components/ui/ExpenseSummary.jsx';
 
 const colors = {
   primary: '#2e0304',
@@ -25,9 +29,11 @@ const ExpenseTracker = ({ colors }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [paymentStatus, setPaymentStatus] = useState('All');
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [lastResetCheck, setLastResetCheck] = useState(localStorage.getItem('lastExpenseResetCheck') || '');
+  const [resetMessage, setResetMessage] = useState('');
 
   // Responsive margin calculations
   const isLargeScreen = windowWidth >= 1920;
@@ -53,7 +59,6 @@ const ExpenseTracker = ({ colors }) => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
   useEffect(() => {
     const fetchExpenses = async () => {
       try {
@@ -62,7 +67,12 @@ const ExpenseTracker = ({ colors }) => {
           startDate: dateRange.start,
           endDate: dateRange.end,
           category: selectedCategory !== 'All' ? selectedCategory : ''
-        });
+        });        // Add payment status filters
+        if (paymentStatus === 'Paid') {
+          params.append('disbursed', 'true');
+        } else if (paymentStatus === 'Pending') {
+          params.append('disbursed', 'false');
+        }
 
         const response = await fetch(`/api/expenses?${params}`);
         const data = await response.json();
@@ -73,14 +83,13 @@ const ExpenseTracker = ({ colors }) => {
       }
     };
     fetchExpenses();
-  }, [searchTerm, dateRange, selectedCategory]);
-
-  const checkAndResetIfNeeded = async () => {
+  }, [searchTerm, dateRange, selectedCategory, paymentStatus]);
+  const checkAndGetDailyStats = async () => {
     const now = new Date();
     const lastCheck = new Date(lastResetCheck);
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // If last check was before today, trigger reset
+    // If last check was before today, get updated stats
     if (!lastResetCheck || lastCheck < startOfToday) {
       try {
         const response = await fetch('/api/expenses/reset-disbursement', {
@@ -94,18 +103,24 @@ const ExpenseTracker = ({ colors }) => {
           setLastResetCheck(nowISOString);
           localStorage.setItem('lastExpenseResetCheck', nowISOString);
           
-          // Refresh expenses list
-          const updatedExpenses = expenses.map(exp => ({...exp, disbursed: false}));
-          setExpenses(updatedExpenses);
+          // Get stats data from response
+          const statsData = await response.json();
+          
+          // Show daily stats message
+          setResetMessage(`Today's expenses: ${statsData.todayCount}, Total paid expenses: ${statsData.allTimeCount}`);
+          
+          // Clear message after 10 seconds
+          setTimeout(() => {
+            setResetMessage('');
+          }, 10000);
         }
       } catch (error) {
-        console.error('Failed to reset disbursements:', error);
+        console.error('Failed to get disbursement statistics:', error);
       }
     }
   };
-
   useEffect(() => {
-    checkAndResetIfNeeded();
+    checkAndGetDailyStats();
   }, []);
 
   const handleSubmit = async (e) => {
@@ -150,16 +165,42 @@ const ExpenseTracker = ({ colors }) => {
       console.error('Error creating expense:', error);
       alert(error.message);
     }
-  };
-
-  const markAsDisbursed = async (id) => {
+  };  const markAsDisbursed = async (id) => {
     try {
       const response = await fetch(`/api/expenses/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ disbursed: true })
+        body: JSON.stringify({ 
+          disbursed: true,
+          disbursementDate: new Date().toISOString()
+        })
+      });
+
+      if (!response.ok) throw new Error('Update failed');
+      
+      const updatedExpense = await response.json();
+      setExpenses(prev =>
+        prev.map(exp => exp._id === updatedExpense._id ? updatedExpense : exp)
+      );
+    } catch (error) {
+      console.error('Error updating expense:', error);
+    }
+  };
+
+  const makePermanent = async (id) => {
+    try {
+      const response = await fetch(`/api/expenses/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          disbursed: true,
+          permanent: true,
+          disbursementDate: new Date().toISOString()
+        })
       });
 
       if (!response.ok) throw new Error('Update failed');
@@ -197,10 +238,13 @@ const ExpenseTracker = ({ colors }) => {
     Array.isArray(expenses) ? expenses.filter(exp => exp.disbursed) : [], 
     [expenses]
   );
-
   const dailyDisbursements = useMemo(() => {
     const daily = disbursedExpenses.reduce((acc, exp) => {
-      const date = new Date(exp.date).toISOString().split('T')[0];
+      // Use disbursementDate instead of date for the chart
+      const date = exp.disbursementDate ? 
+        new Date(exp.disbursementDate).toISOString().split('T')[0] : 
+        new Date().toISOString().split('T')[0];
+      
       acc[date] = (acc[date] || 0) + exp.amount;
       return acc;
     }, {});
@@ -244,11 +288,34 @@ const ExpenseTracker = ({ colors }) => {
       }}
     >
       <div className={`flex-1 transition-all duration-300`}>
-        <div className="p-6 md:p-8 pt-24 md:pt-8">
-          <div className="mb-8 flex items-center justify-between">
-            <h1 className="text-3xl font-bold" style={{ color: colors.primary }}>Expense Management</h1>
-            <div className="hidden md:block h-1 flex-1 max-w-[200px] ml-4" style={{ backgroundColor: colors.muted + '40' }} />
+        <div className="p-6 md:p-8 pt-24 md:pt-8">          <div className="mb-8">
+            <div className="flex items-center justify-between">
+              <h1 className="text-3xl font-bold" style={{ color: colors.primary }}>Expense Management</h1>
+              <div className="hidden md:block h-1 flex-1 max-w-[200px] ml-4" style={{ backgroundColor: colors.muted + '40' }} />
+            </div>
+            <p className="mt-2 text-sm" style={{ color: colors.muted }}>
+              Track and manage daily business expenses. Mark expenses as paid when they are processed.
+            </p>
           </div>
+
+          {resetMessage && (
+            <div className="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 flex items-center justify-between">
+              <span className="text-green-800 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                {resetMessage}
+              </span>
+              <button 
+                onClick={() => setResetMessage('')}
+                className="text-green-700 hover:text-green-900"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          )}
 
           <div className="mb-6 flex flex-col md:flex-row gap-4">
             <input
@@ -274,8 +341,7 @@ const ExpenseTracker = ({ colors }) => {
                 value={dateRange.end}
                 onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
               />
-            </div>
-            <select
+            </div>            <select
               className="p-2 rounded-lg border"
               style={{ borderColor: colors.muted }}
               value={selectedCategory}
@@ -285,6 +351,15 @@ const ExpenseTracker = ({ colors }) => {
               {categories.map((category) => (
                 <option key={category} value={category}>{category}</option>
               ))}
+            </select>              <select
+              className="p-2 rounded-lg border"
+              style={{ borderColor: colors.muted }}
+              value={paymentStatus}
+              onChange={(e) => setPaymentStatus(e.target.value)}
+            >
+              <option value="All">All Payments</option>
+              <option value="Pending">Pending</option>
+              <option value="Paid">Paid</option>
             </select>
           </div>
 
@@ -319,18 +394,37 @@ const ExpenseTracker = ({ colors }) => {
                         <td className="p-4 text-sm" style={{ color: colors.secondary }}>{expense.paymentMethod}</td>
                         <td className="p-4 text-right text-sm font-medium" style={{ color: colors.secondary }}>
                           ₱{expense.amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
-                        <td className="p-4">
+                        </td>                        <td className="p-4">
                           {expense.disbursed ? (
-                            <span className="text-green-500">Completed</span>
-                          ) : (
-                            <button
-                              onClick={() => markAsDisbursed(expense._id)}
-                              className="px-3 py-1 rounded-lg"
-                              style={{ backgroundColor: colors.accent, color: colors.background }}
-                            >
-                              Mark Paid
-                            </button>
+                            <div className="flex items-center">                              <span className="px-3 py-1 rounded-lg text-sm font-medium" 
+                                    style={{ 
+                                      backgroundColor: expense.permanent ? colors.secondary + '20' : colors.accent + '20',
+                                      color: expense.permanent ? colors.secondary : colors.accent,
+                                      border: expense.permanent ? 
+                                        `1px solid ${colors.secondary}` : 
+                                        `1px solid ${colors.accent}40`
+                                    }}>
+                                Paid {new Date(expense.disbursementDate).toLocaleDateString('en-PH', {month: 'short', day: 'numeric'})}
+                              </span>
+                            </div>
+                          ): (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => markAsDisbursed(expense._id)}
+                                className="px-3 py-1 rounded-lg"
+                                style={{ backgroundColor: colors.accent, color: colors.background }}
+                              >
+                                Mark Paid
+                              </button>
+                              <button
+                                onClick={() => makePermanent(expense._id)}
+                                className="px-3 py-1 rounded-lg"
+                                style={{ backgroundColor: colors.secondary, color: colors.background }}
+                                title="Mark as paid and permanent (won't be reset daily)"
+                              >
+                                Permanent
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -359,7 +453,8 @@ const ExpenseTracker = ({ colors }) => {
 
             <div className="md:col-span-1 space-y-6">
               <div className="p-4 rounded-lg shadow" style={{ backgroundColor: colors.background }}>
-                <h3 className="text-lg font-semibold mb-4">Daily Disbursements</h3>
+                <h3 className="text-lg font-semibold mb-4">Daily Payments</h3>
+                <p className="text-sm text-gray-500 mb-3">Expenses paid by day</p>
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={dailyDisbursements}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -383,7 +478,8 @@ const ExpenseTracker = ({ colors }) => {
               </div>
 
               <div className="p-4 rounded-lg shadow" style={{ backgroundColor: colors.background }}>
-                <h3 className="text-lg font-semibold mb-4">Monthly Disbursements</h3>
+                <h3 className="text-lg font-semibold mb-4">Monthly Payments</h3>
+                <p className="text-sm text-gray-500 mb-3">Expenses summarized by month</p>
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={monthlyDisbursements}>
                     <CartesianGrid strokeDasharray="3 3" />

@@ -3,6 +3,7 @@ const router = express.Router();
 const cors = require('cors');
 const { logger, criticalErrors } = require('../config/logger');
 const { getMemoryStats } = require('../utils/memoryMonitor');
+const { runConnectionDiagnostics, checkConnectionStatus, checkAndRecoverConnection } = require('../utils/dbMonitor');
 const os = require('os');
 const { auth } = require('../middleware/authMiddleware');
 
@@ -138,7 +139,120 @@ router.get('/protected', auth, (req, res) => {
   });
 });
 
-// Make sure OPTIONS requests are handled properly for protected endpoint
+/**
+ * @route   GET /api/health/database
+ * @desc    Get detailed database health status
+ * @access  Private (admin)
+ */
+router.get('/database', auth, async (req, res) => {
+  // Only allow admins to access this endpoint
+  if (req.user && req.user.role !== 'admin') {
+    return res.status(403).json({ 
+      status: 'error',
+      message: 'Only admins can access detailed database diagnostics'
+    });
+  }
+
+  try {
+    const status = await checkConnectionStatus();
+    res.json({
+      status: 'ok',
+      database: status,
+      timestamp: new Date()
+    });
+  } catch (error) {
+    logger.error(`Database health check failed: ${error.message}`);
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Database health check failed', 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * @route   POST /api/health/database/diagnose
+ * @desc    Run comprehensive database diagnostics
+ * @access  Private (admin)
+ */
+router.post('/database/diagnose', auth, async (req, res) => {
+  // Only allow admins to run diagnostics
+  if (req.user && req.user.role !== 'admin') {
+    return res.status(403).json({ 
+      status: 'error',
+      message: 'Only admins can run database diagnostics'
+    });
+  }
+
+  try {
+    logger.info('Running comprehensive database diagnostics');
+    const diagnostics = await runConnectionDiagnostics();
+    res.json({
+      status: 'ok',
+      message: 'Database diagnostics completed',
+      diagnostics
+    });
+  } catch (error) {
+    logger.error(`Database diagnostics failed: ${error.message}`);
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Database diagnostics failed', 
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * @route   POST /api/health/database/recover
+ * @desc    Attempt to recover dead database connections
+ * @access  Private (admin)
+ */
+router.post('/database/recover', auth, async (req, res) => {
+  // Only allow admins to force connection recovery
+  if (req.user && req.user.role !== 'admin') {
+    return res.status(403).json({ 
+      status: 'error',
+      message: 'Only admins can force database connection recovery'
+    });
+  }
+
+  try {
+    logger.info('Attempting to recover database connection');
+    const result = await checkAndRecoverConnection();
+    
+    if (result.recovered) {
+      res.json({
+        status: 'ok',
+        message: 'Database connection recovery successful',
+        details: result
+      });
+    } else if (!result.needed) {
+      res.json({
+        status: 'ok',
+        message: 'Database connection is already healthy, no recovery needed',
+        details: result
+      });
+    } else {
+      res.status(500).json({
+        status: 'error',
+        message: 'Database connection recovery failed',
+        details: result
+      });
+    }
+  } catch (error) {
+    logger.error(`Database recovery attempt failed: ${error.message}`);
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Database recovery attempt failed', 
+      error: error.message 
+    });
+  }
+});
+
+// Make sure OPTIONS requests are handled properly for protected and database endpoints
 router.options('/protected', cors(healthCorsOptions)); 
+router.options('/database', cors(healthCorsOptions));
+router.options('/database/diagnose', cors(healthCorsOptions));
+router.options('/database/recover', cors(healthCorsOptions));
 
 module.exports = router;

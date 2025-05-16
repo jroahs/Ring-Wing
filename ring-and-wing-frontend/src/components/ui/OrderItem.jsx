@@ -40,8 +40,7 @@ export const OrderItem = ({
             style={{ color: theme.colors.primary }}
           >
             {item.name}
-          </h4>
-          <select
+          </h4>          <select
             value={item.selectedSize}
             onChange={(e) => onUpdateSize(item, e.target.value)}
             className="w-full mt-1 text-sm rounded-lg px-2 py-1 transition-colors focus:outline-none focus:ring-2"
@@ -51,13 +50,13 @@ export const OrderItem = ({
               color: theme.colors.primary
             }}
           >
-            {item.availableSizes.map(size => (
+            {(item.availableSizes || []).map(size => (
               <option 
                 key={size} 
                 value={size} 
                 style={{ color: theme.colors.primary }}
               >
-                {size} (₱{item.pricing[size].toFixed(2)})
+                {size} (₱{item.pricing && item.pricing[size] ? item.pricing[size].toFixed(2) : item.price.toFixed(2)})
               </option>
             ))}
           </select>

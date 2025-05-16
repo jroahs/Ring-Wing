@@ -17,6 +17,7 @@ const Expense = require('./models/expense');
 const cookieParser = require('cookie-parser');
 const { logger, criticalErrors } = require('./config/logger');
 const { startMonitoring, checkMemory, releaseMemory } = require('./utils/memoryMonitor');
+const { checkAndRecoverConnection, runConnectionDiagnostics } = require('./utils/dbMonitor');
 
 // Optimize memory usage by setting a reasonable heap size limit
 // This will reduce memory fragmentation and improve GC efficiency
@@ -39,8 +40,19 @@ requiredEnvVars.forEach(varName => {
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Connect to MongoDB
-connectDB();
+// Import database error handler
+const dbErrorHandler = require('./middleware/dbErrorHandler');
+
+// Connect to MongoDB with enhanced connection handler
+let dbConnection;
+(async () => {
+  try {
+    dbConnection = await connectDB();
+    logger.info('Database connection initialized with enhanced resilience');
+  } catch (error) {
+    logger.error('Failed to initialize database connection:', error);
+  }
+})();
 
 // Security middleware
 app.use(
@@ -156,16 +168,98 @@ app.use((req, res, next) => {
   next();
 });
 
-// Database connection check middleware
-app.use((req, res, next) => {
+// Enhanced database connection check middleware
+app.use(async (req, res, next) => {
+  // Skip check for non-API routes and health endpoints to avoid circular issues
+  if (!req.originalUrl.startsWith('/api/') || 
+      req.originalUrl.startsWith('/api/health') ||
+      req.originalUrl.startsWith('/api/database-status')) {
+    return next();
+  }
+  
+  // Check connection state first (fast check)
   if (mongoose.connection.readyState !== 1) {
     logger.error('Database connection lost - middleware check');
-    return res.status(500).json({
+    return res.status(503).json({
       success: false,
-      message: 'Database connection not established'
+      message: 'Database connection unavailable',
+      code: 'DB_CONN_ERROR'
     });
   }
+  
+  // For write operations, perform an additional ping check
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    try {
+      await mongoose.connection.db.admin().ping();
+    } catch (err) {
+      logger.error(`Database ping check failed: ${err.message}`);
+      return res.status(503).json({
+        success: false,
+        message: 'Database connection unstable',
+        code: 'DB_PING_ERROR'
+      });
+    }
+  }
+  
   next();
+});
+
+// Enhanced database health check route
+app.get('/api/database-status', async (req, res) => {
+  try {
+    if (!dbConnection) {
+      return res.status(500).json({
+        success: false,
+        message: 'Database connection handler not initialized',
+        diagnostics: { initializationError: true }
+      });
+    }
+
+    // Standard connection check
+    await dbConnection.checkConnection();
+    
+    // Additional diagnostics
+    const serverStatus = await mongoose.connection.db.admin().serverStatus();
+    const connectionStats = mongoose.connection.db.serverConfig.s.options;
+    
+    // Calculate connection uptime
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    const serverUptime = serverStatus.uptime || 0;
+    const serverStartTime = new Date(currentTimestamp - serverUptime).toISOString();
+    
+    return res.json({
+      success: true,
+      message: 'Database connection is healthy',
+      status: 'connected',
+      readyState: mongoose.connection.readyState,
+      diagnostics: {
+        connections: {
+          current: serverStatus.connections?.current || 0,
+          available: serverStatus.connections?.available || 0,
+          totalCreated: serverStatus.connections?.totalCreated || 0
+        },
+        connectionOptions: {
+          maxPoolSize: connectionStats.maxPoolSize,
+          minPoolSize: connectionStats.minPoolSize,
+          socketTimeoutMS: connectionStats.socketTimeoutMS,
+          serverSelectionTimeoutMS: connectionStats.serverSelectionTimeoutMS
+        },
+        server: {
+          version: serverStatus.version,
+          uptime: serverUptime,
+          startTime: serverStartTime
+        }
+      }
+    });
+  } catch (error) {
+    logger.error('Database health check failed:', error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+      status: 'disconnected',
+      readyState: mongoose.connection.readyState
+    });
+  }
 });
 
 // Route imports
@@ -194,6 +288,9 @@ app.use('/api/revenue', revenueRoutes);
 
 // Health routes for server monitoring
 app.use('/api/health', healthRoutes);
+
+// Database status route for frontend
+app.use('/api/db-status', require('./routes/dbStatusRoutes'));
 
 // Chat proxy route
 app.post('/api/chat', async (req, res) => {
@@ -229,7 +326,10 @@ app.get('/api/route-check', (req, res) => {
   res.json({ registeredRoutes: routes });
 });
 
-// Error handling middleware
+// Database-specific error handling (must come before general error handling)
+app.use(dbErrorHandler);
+
+// General error handling middleware
 app.use((err, req, res, next) => {
   logger.error(`[${new Date().toISOString()}] Error:`, {
     message: err.message,
@@ -270,10 +370,10 @@ app.use('*', (req, res) => {
 cron.schedule('0 0 * * *', async () => {
   try {
     const result = await Expense.updateMany(
-      { disbursed: true },
+      { disbursed: true, permanent: { $ne: true } },
       { $set: { disbursed: false } }
     );
-    logger.info(`Daily expense reset completed. Reset ${result.modifiedCount} expenses.`);
+    logger.info(`Daily expense reset completed. Reset ${result.modifiedCount} non-permanent expenses.`);
   } catch (error) {
     logger.error('Daily expense reset failed:', error);
   }
@@ -311,6 +411,82 @@ cron.schedule('*/30 * * * *', async () => {
 }, {
   scheduled: true,
   timezone: "Asia/Manila"
+});
+
+// Schedule database health checks to prevent disconnections
+cron.schedule('*/5 * * * *', async () => {
+  try {
+    logger.debug('Running scheduled database health check');
+    
+    if (!dbConnection) {
+      logger.warn('Database connection handler not initialized, skipping health check');
+      return;
+    }
+    
+    // Check connection and attempt reconnect if needed
+    try {
+      await dbConnection.checkConnection();
+      logger.debug('Database health check passed');
+    } catch (error) {
+      logger.error('Database health check failed:', error.message);
+      
+      // The reconnect logic in db.js will handle reconnection
+      // This is just an extra safety measure
+      if (mongoose.connection.readyState !== 1) {
+        logger.info('Triggering database reconnection from health check');
+        try {
+          await mongoose.connect(process.env.MONGO_URI);
+          logger.info('Database reconnected successfully from health check');
+        } catch (reconnectError) {
+          logger.error('Failed to reconnect database from health check:', reconnectError.message);
+        }
+      }
+    }
+  } catch (error) {
+    logger.error('Error in database health check schedule:', error);
+  }
+}, {
+  scheduled: true,
+  timezone: "Asia/Manila"
+});
+
+// Database health monitoring setup
+// Setup periodic database health checks (every 30 minutes)
+const DB_HEALTH_CHECK_INTERVAL = 30 * 60 * 1000; // 30 minutes
+const DB_DIAGNOSTICS_INTERVAL = 12 * 60 * 60 * 1000; // 12 hours
+
+// Schedule database health monitoring
+let dbHealthCheckTimer = setInterval(async () => {
+  try {
+    logger.info('Running scheduled database health check');
+    const result = await checkAndRecoverConnection();
+    if (result.recovered) {
+      logger.info('Automatic database connection recovery successful');
+    }
+  } catch (error) {
+    logger.error('Scheduled database health check failed:', error);
+  }
+}, DB_HEALTH_CHECK_INTERVAL);
+
+// Schedule periodic comprehensive diagnostics
+let dbDiagnosticsTimer = setInterval(async () => {
+  try {
+    logger.info('Running scheduled comprehensive database diagnostics');
+    await runConnectionDiagnostics();
+  } catch (error) {
+    logger.error('Scheduled database diagnostics failed:', error);
+  }
+}, DB_DIAGNOSTICS_INTERVAL);
+
+// Clean up health check timers on server shutdown
+process.on('SIGINT', () => {
+  if (dbHealthCheckTimer) {
+    clearInterval(dbHealthCheckTimer);
+  }
+  if (dbDiagnosticsTimer) {
+    clearInterval(dbDiagnosticsTimer);
+  }
+  // Other cleanup code follows...
 });
 
 // Server setup
@@ -375,25 +551,13 @@ const gracefulShutdown = (signal) => {
       
       // Close MongoDB connection with a timeout
       logger.info('Closing database connection...');
-      const dbClosePromise = new Promise((resolve, reject) => {
-        mongoose.connection.close(false, (err) => {
-          if (err) {
-            logger.error('Error closing MongoDB connection:', err);
-            reject(err);
-          } else {
-            logger.info('MongoDB connection closed successfully.');
-            resolve();
-          }
-        });
-        
-        // Add a safety timeout for DB connection close
-        setTimeout(() => {
-          logger.warn('MongoDB close operation timed out, proceeding with shutdown.');
-          resolve();
-        }, 10000);
-      });
-      
-      await dbClosePromise;
+      try {
+        // Use promise-based approach instead of callback
+        await mongoose.connection.close();
+        logger.info('MongoDB connection closed successfully.');
+      } catch (err) {
+        logger.error('Error closing MongoDB connection:', err);
+      }
       
       // Clear the forced shutdown timeout as we're exiting cleanly
       clearTimeout(forcedShutdownTimeout);

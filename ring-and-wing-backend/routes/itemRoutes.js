@@ -3,10 +3,19 @@ const router = express.Router();
 const Item = require('../models/Items');
 
 // Helper functions
-const calculateStatus = (inventory) => {
+const calculateStatus = (inventory, minimumThreshold = 5, unit = 'pieces') => {
   const total = inventory.reduce((sum, batch) => sum + batch.quantity, 0);
+  
+  // Dynamic threshold based on unit type
+  const threshold = minimumThreshold || 
+    (unit === 'pieces' ? 5 :
+     unit === 'grams' ? 500 :
+     unit === 'kilograms' ? 0.5 :
+     unit === 'milliliters' ? 500 :
+     unit === 'liters' ? 0.5 : 5);
+     
   if (total === 0) return 'Out of Stock';
-  if (total <= 5) return 'Low Stock';
+  if (total <= threshold) return 'Low Stock';
   return 'In Stock';
 };
 
@@ -38,10 +47,31 @@ const getExpirationAlerts = (inventory) => {
     const daysLeft = Math.floor(timeDiff / (1000 * 3600 * 24));
 
     return { 
-      ...batch,  // Changed from batch.toObject()
+      ...batch,
       daysLeft 
     };
   }).filter(batch => Math.abs(batch.daysLeft) <= 7);
+};
+
+// Unit conversion helpers
+const conversionFactors = {
+  // Weight conversions
+  'grams_to_kilograms': 0.001,
+  'kilograms_to_grams': 1000,
+  // Volume conversions
+  'milliliters_to_liters': 0.001,
+  'liters_to_milliliters': 1000
+};
+
+const convertUnit = (value, fromUnit, toUnit) => {
+  if (fromUnit === toUnit) return value;
+  
+  const conversionKey = `${fromUnit}_to_${toUnit}`;
+  if (!conversionFactors[conversionKey]) {
+    throw new Error(`Unsupported conversion: ${fromUnit} to ${toUnit}`);
+  }
+  
+  return value * conversionFactors[conversionKey];
 };
 
 // Get all items
@@ -51,7 +81,7 @@ router.get('/', async (req, res) => {
     const formattedItems = items.map(item => ({
       ...item,
       totalQuantity: item.inventory.reduce((sum, b) => sum + b.quantity, 0),
-      status: calculateStatus(item.inventory),
+      status: calculateStatus(item.inventory, item.minimumThreshold, item.unit),
       expirationAlerts: getExpirationAlerts(item.inventory)
     }));
     
@@ -61,6 +91,23 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get item by ID
+router.get('/:id', async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id).lean();
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+    
+    res.json({
+      ...item,
+      totalQuantity: item.inventory.reduce((sum, b) => sum + b.quantity, 0),
+      status: calculateStatus(item.inventory, item.minimumThreshold, item.unit)
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Server Error: ' + err.message });
+  }
+});
 
 // Create new item
 router.post('/', async (req, res) => {
@@ -73,11 +120,14 @@ router.post('/', async (req, res) => {
 
     const validatedInventory = inventory.map(batch => ({
       quantity: Number(batch.quantity),
-      expirationDate: new Date(batch.expirationDate)
+      expirationDate: new Date(batch.expirationDate),
+      dailyStartQuantity: Number(batch.quantity),
+      lastTallied: new Date()
     }));
 
     const item = new Item({
       ...itemData,
+      isCountBased: itemData.unit === 'pieces',
       inventory: validatedInventory
     });
 
@@ -96,7 +146,7 @@ router.put('/:id', async (req, res) => {
       req.body,
       { new: true, runValidators: true }
     ).lean();
-
+    
     if (!updatedItem) {
       return res.status(404).json({ message: 'Item not found' });
     }
@@ -104,7 +154,7 @@ router.put('/:id', async (req, res) => {
     res.json({
       ...updatedItem,
       totalQuantity: updatedItem.inventory.reduce((sum, b) => sum + b.quantity, 0),
-      status: calculateStatus(updatedItem.inventory)
+      status: calculateStatus(updatedItem.inventory, updatedItem.minimumThreshold, updatedItem.unit)
     });
   } catch (err) {
     res.status(400).json({ message: 'Update Error: ' + err.message });
@@ -145,7 +195,9 @@ router.patch('/:id/restock', async (req, res) => {
 
     item.inventory.push({
       quantity: Number(quantity),
-      expirationDate: expDate
+      expirationDate: expDate,
+      dailyStartQuantity: Number(quantity),
+      lastTallied: new Date()
     });
 
     const updatedItem = await item.save();
@@ -156,6 +208,130 @@ router.patch('/:id/restock', async (req, res) => {
     });
   } catch (err) {
     res.status(400).json({ message: 'Restock Error: ' + err.message });
+  }
+});
+
+// Daily inventory operations
+
+// Start day - record starting quantities for all inventory items
+router.post('/start-day', async (req, res) => {
+  try {
+    const items = await Item.find();
+    
+    for (const item of items) {
+      item.inventory.forEach(batch => {
+        batch.dailyStartQuantity = batch.quantity;
+        batch.lastTallied = new Date();
+      });
+      await item.save();
+    }
+    
+    res.json({ message: 'Starting inventory recorded for all items' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error starting day: ' + err.message });
+  }
+});
+
+// End day - record ending quantities for specific item
+router.patch('/:id/end-day', async (req, res) => {
+  try {
+    const { endQuantities } = req.body;
+    
+    if (!endQuantities || !Array.isArray(endQuantities)) {
+      return res.status(400).json({ message: 'End quantities must be provided as an array' });
+    }
+    
+    const item = await Item.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+    
+    // Track if any batch was updated
+    let batchUpdated = false;
+    
+    // Map the provided end quantities to batch IDs
+    endQuantities.forEach(endQty => {
+      const batch = item.inventory.id(endQty.batchId);
+      if (batch) {
+        batch.dailyEndQuantity = Number(endQty.quantity);
+        batch.quantity = Number(endQty.quantity); // Update actual quantity to match end quantity
+        batch.lastTallied = new Date();
+        batchUpdated = true;
+      }
+    });
+    
+    if (!batchUpdated) {
+      return res.status(400).json({ message: 'No matching batches found' });
+    }
+    
+    const updatedItem = await item.save();
+    res.json({
+      ...updatedItem.toObject(),
+      dailyUsage: updatedItem.dailyUsage,
+      status: updatedItem.status
+    });
+  } catch (err) {
+    res.status(400).json({ message: 'Error recording end day quantities: ' + err.message });
+  }
+});
+
+// Convert units
+router.post('/convert', (req, res) => {
+  try {
+    const { value, fromUnit, toUnit } = req.body;
+    
+    if (value === undefined || !fromUnit || !toUnit) {
+      return res.status(400).json({ message: 'Value, fromUnit, and toUnit are required' });
+    }
+    
+    const convertedValue = convertUnit(Number(value), fromUnit, toUnit);
+    res.json({
+      originalValue: Number(value),
+      originalUnit: fromUnit,
+      convertedValue,
+      convertedUnit: toUnit
+    });
+  } catch (err) {
+    res.status(400).json({ message: 'Conversion error: ' + err.message });
+  }
+});
+
+// Usage report for a time period
+router.get('/usage-report', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    // Default to last 30 days if no dates provided
+    const end = endDate ? new Date(endDate) : new Date();
+    const start = startDate ? new Date(startDate) : new Date(end - 30 * 24 * 60 * 60 * 1000);
+    
+    const items = await Item.find({
+      'inventory.lastTallied': { $gte: start, $lte: end }
+    }).lean();
+    
+    const usageReport = items.map(item => {
+      // Calculate usage for batches that were tallied in the date range
+      const usage = item.inventory.reduce((total, batch) => {
+        if (batch.lastTallied >= start && batch.lastTallied <= end && 
+            batch.dailyStartQuantity !== undefined && batch.dailyEndQuantity !== undefined) {
+          return total + (batch.dailyStartQuantity - batch.dailyEndQuantity);
+        }
+        return total;
+      }, 0);
+      
+      return {
+        itemId: item._id,
+        name: item.name,
+        category: item.category,
+        unit: item.unit,
+        usage: usage > 0 ? usage : 0,
+        currentStock: item.inventory.reduce((sum, b) => sum + b.quantity, 0)
+      };
+    });
+    
+    res.json(usageReport);
+  } catch (err) {
+    res.status(500).json({ message: 'Error generating usage report: ' + err.message });
   }
 });
 

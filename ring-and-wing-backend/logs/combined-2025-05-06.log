@@ -6402,3 +6402,700 @@
 {"timestamp":"2025-05-06 14:48:55","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
 {"timestamp":"2025-05-06 14:48:55","level":"debug","message":"2025-05-06T06:48:55.068Z - GET /api/health"}
 {"timestamp":"2025-05-06 14:48:55","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:49:12","level":"info","message":"Garbage collection is enabled - memory optimization active"}
+{"timestamp":"2025-05-06 14:49:12","level":"info","message":"[Setup] Registering time-log routes..."}
+{"timestamp":"2025-05-06 14:49:12","level":"info","message":"[Setup] Time-log routes registered"}
+{"timestamp":"2025-05-06 14:49:12","level":"info","message":"Starting memory monitoring service"}
+{"timestamp":"2025-05-06 14:49:12","level":"debug","message":"Memory usage: 33MB / 560MB (6%)"}
+{"timestamp":"2025-05-06 14:49:12","level":"info","message":"Initial memory usage: 33MB / 560MB (6%)"}
+{"timestamp":"2025-05-06 14:49:12","level":"info","message":"Memory limit set to 560MB"}
+{"timestamp":"2025-05-06 14:49:12","level":"info","message":"\n  Server running in development mode\n  Listening on port 5000\n  Database: mongodb://admin:admin@localhost:27017/admin_db?authSource=admin\n  Keep-alive timeout: 65000ms\n  "}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"[CORS Debug] GET /api/health/protected - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"2025-05-06T06:49:16.293Z - GET /api/health/protected"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"[Route Debug] GET /api/health/protected"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"2025-05-06T06:49:16.365Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"2025-05-06T06:49:16.446Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"[CORS Debug] GET /api/health/protected - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"2025-05-06T06:49:16.565Z - GET /api/health/protected"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"[Route Debug] GET /api/health/protected"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"2025-05-06T06:49:16.647Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"[CORS Debug] GET /api/menu - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"2025-05-06T06:49:16.657Z - GET /api/menu"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"[Route Debug] GET /api/menu"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"[CORS Debug] GET /api/menu - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"2025-05-06T06:49:16.689Z - GET /api/menu"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"[Route Debug] GET /api/menu"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"2025-05-06T06:49:16.728Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:49:16","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:49:22","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:22","level":"debug","message":"2025-05-06T06:49:22.094Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:49:22","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:49:27","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:27","level":"debug","message":"2025-05-06T06:49:27.082Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:49:27","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:49:32","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:32","level":"debug","message":"2025-05-06T06:49:32.082Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:49:32","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:49:32","level":"debug","message":"[CORS Debug] GET /api/health - Origin: none"}
+{"timestamp":"2025-05-06 14:49:32","level":"debug","message":"2025-05-06T06:49:32.990Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:49:32","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"2025-05-06T06:49:35.523Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"[CORS Debug] GET /api/health/protected - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"2025-05-06T06:49:35.547Z - GET /api/health/protected"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"[Route Debug] GET /api/health/protected"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"2025-05-06T06:49:35.620Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"[CORS Debug] GET /api/health/protected - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"2025-05-06T06:49:35.777Z - GET /api/health/protected"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"[Route Debug] GET /api/health/protected"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"2025-05-06T06:49:35.844Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"[CORS Debug] GET /api/menu - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"2025-05-06T06:49:35.862Z - GET /api/menu"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"[Route Debug] GET /api/menu"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"[CORS Debug] GET /api/menu - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"2025-05-06T06:49:35.906Z - GET /api/menu"}
+{"timestamp":"2025-05-06 14:49:35","level":"debug","message":"[Route Debug] GET /api/menu"}
+{"timestamp":"2025-05-06 14:49:36","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:36","level":"debug","message":"2025-05-06T06:49:36.069Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:49:36","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:49:37","level":"debug","message":"[CORS Debug] GET /api/health/protected - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:37","level":"debug","message":"2025-05-06T06:49:37.924Z - GET /api/health/protected"}
+{"timestamp":"2025-05-06 14:49:37","level":"debug","message":"[Route Debug] GET /api/health/protected"}
+{"timestamp":"2025-05-06 14:49:37","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:37","level":"debug","message":"2025-05-06T06:49:37.949Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:49:37","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:49:38","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:38","level":"debug","message":"2025-05-06T06:49:38.063Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:49:38","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:49:38","level":"debug","message":"[CORS Debug] GET /api/health/protected - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:38","level":"debug","message":"2025-05-06T06:49:38.135Z - GET /api/health/protected"}
+{"timestamp":"2025-05-06 14:49:38","level":"debug","message":"[Route Debug] GET /api/health/protected"}
+{"timestamp":"2025-05-06 14:49:38","level":"debug","message":"[CORS Debug] GET /api/menu - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:38","level":"debug","message":"2025-05-06T06:49:38.178Z - GET /api/menu"}
+{"timestamp":"2025-05-06 14:49:38","level":"debug","message":"[Route Debug] GET /api/menu"}
+{"timestamp":"2025-05-06 14:49:38","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:38","level":"debug","message":"2025-05-06T06:49:38.194Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:49:38","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:49:38","level":"debug","message":"[CORS Debug] GET /api/menu - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:38","level":"debug","message":"2025-05-06T06:49:38.228Z - GET /api/menu"}
+{"timestamp":"2025-05-06 14:49:38","level":"debug","message":"[Route Debug] GET /api/menu"}
+{"timestamp":"2025-05-06 14:49:38","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:38","level":"debug","message":"2025-05-06T06:49:38.281Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:49:38","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:49:44","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:44","level":"debug","message":"2025-05-06T06:49:44.074Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:49:44","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:49:49","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:49","level":"debug","message":"2025-05-06T06:49:49.069Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:49:49","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:49:54","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:54","level":"debug","message":"2025-05-06T06:49:54.079Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:49:54","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:49:59","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:49:59","level":"debug","message":"2025-05-06T06:49:59.074Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:49:59","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:50:00","level":"debug","message":"Memory usage: 28MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 14:50:04","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:50:04","level":"debug","message":"2025-05-06T06:50:04.074Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:50:04","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:50:08","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:50:08","level":"debug","message":"2025-05-06T06:50:08.066Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:50:08","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:50:09","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:50:09","level":"debug","message":"2025-05-06T06:50:09.060Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:50:09","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:50:12","level":"debug","message":"Memory usage: 28MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 14:50:14","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:50:14","level":"debug","message":"2025-05-06T06:50:14.069Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:50:14","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:50:19","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:50:19","level":"debug","message":"2025-05-06T06:50:19.063Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:50:19","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:50:24","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:50:24","level":"debug","message":"2025-05-06T06:50:24.070Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:50:24","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:50:29","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:50:29","level":"debug","message":"2025-05-06T06:50:29.069Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:50:29","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:50:34","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:50:34","level":"debug","message":"2025-05-06T06:50:34.075Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:50:34","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:50:38","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:50:38","level":"debug","message":"2025-05-06T06:50:38.069Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:50:38","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:50:39","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:50:39","level":"debug","message":"2025-05-06T06:50:39.065Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:50:39","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:50:44","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:50:44","level":"debug","message":"2025-05-06T06:50:44.069Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:50:44","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:51:08","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:51:08","level":"debug","message":"2025-05-06T06:51:08.075Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:51:08","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:51:12","level":"debug","message":"Memory usage: 29MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 14:51:38","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:51:38","level":"debug","message":"2025-05-06T06:51:38.072Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:51:38","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:51:44","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:51:44","level":"debug","message":"2025-05-06T06:51:44.068Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:51:44","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:52:08","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:52:08","level":"debug","message":"2025-05-06T06:52:08.066Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:52:08","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:52:12","level":"debug","message":"Memory usage: 29MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 14:52:38","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:52:38","level":"debug","message":"2025-05-06T06:52:38.064Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:52:38","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:52:44","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:52:44","level":"debug","message":"2025-05-06T06:52:44.073Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:52:44","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:53:12","level":"debug","message":"Memory usage: 29MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 14:53:44","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:53:44","level":"debug","message":"2025-05-06T06:53:44.070Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:53:44","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:53:44","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:53:44","level":"debug","message":"2025-05-06T06:53:44.081Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:53:44","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:54:12","level":"debug","message":"Memory usage: 30MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 14:54:44","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:54:44","level":"debug","message":"2025-05-06T06:54:44.065Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:54:44","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:54:44","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:54:44","level":"debug","message":"2025-05-06T06:54:44.069Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:54:44","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:54:56","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:54:56","level":"debug","message":"2025-05-06T06:54:56.919Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:54:56","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:54:58","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:54:58","level":"debug","message":"2025-05-06T06:54:58.185Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:54:58","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:55:04","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:55:04","level":"debug","message":"2025-05-06T06:55:04.076Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:55:04","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:55:08","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:55:08","level":"debug","message":"2025-05-06T06:55:08.073Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:55:08","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:55:09","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:55:09","level":"debug","message":"2025-05-06T06:55:09.065Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:55:09","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:55:12","level":"debug","message":"Memory usage: 30MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 14:55:14","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:55:14","level":"debug","message":"2025-05-06T06:55:14.069Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:55:14","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:55:19","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:55:19","level":"debug","message":"2025-05-06T06:55:19.074Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:55:19","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:55:24","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:55:24","level":"debug","message":"2025-05-06T06:55:24.062Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:55:24","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:55:29","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:55:29","level":"debug","message":"2025-05-06T06:55:29.072Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:55:29","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:55:34","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:55:34","level":"debug","message":"2025-05-06T06:55:34.063Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:55:34","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:55:38","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:55:38","level":"debug","message":"2025-05-06T06:55:38.093Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:55:38","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:55:39","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:55:39","level":"debug","message":"2025-05-06T06:55:39.075Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:55:39","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:55:44","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:55:44","level":"debug","message":"2025-05-06T06:55:44.074Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:55:44","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:55:49","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:55:49","level":"debug","message":"2025-05-06T06:55:49.081Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:55:49","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:55:54","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:55:54","level":"debug","message":"2025-05-06T06:55:54.075Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:55:54","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:55:59","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:55:59","level":"debug","message":"2025-05-06T06:55:59.071Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:55:59","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:56:04","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:56:04","level":"debug","message":"2025-05-06T06:56:04.071Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:56:04","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:56:08","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:56:08","level":"debug","message":"2025-05-06T06:56:08.065Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:56:08","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:56:09","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:56:09","level":"debug","message":"2025-05-06T06:56:09.077Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:56:09","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:56:12","level":"debug","message":"Memory usage: 31MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 14:56:44","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:56:44","level":"debug","message":"2025-05-06T06:56:44.070Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:56:44","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:56:44","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:56:44","level":"debug","message":"2025-05-06T06:56:44.079Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:56:44","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:57:12","level":"debug","message":"Memory usage: 31MB / 560MB (6%)"}
+{"timestamp":"2025-05-06 14:57:44","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:57:44","level":"debug","message":"2025-05-06T06:57:44.092Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:57:44","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:57:44","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:57:44","level":"debug","message":"2025-05-06T06:57:44.114Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:57:44","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:58:12","level":"debug","message":"Memory usage: 31MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 14:58:44","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:58:44","level":"debug","message":"2025-05-06T06:58:44.072Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:58:44","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:58:44","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:58:44","level":"debug","message":"2025-05-06T06:58:44.083Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:58:44","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 14:59:12","level":"debug","message":"Memory usage: 31MB / 560MB (6%)"}
+{"timestamp":"2025-05-06 14:59:44","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:59:44","level":"debug","message":"2025-05-06T06:59:44.078Z - GET /api/health"}
+{"timestamp":"2025-05-06 14:59:44","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 14:59:44","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 14:59:44","level":"debug","message":"2025-05-06T06:59:44.085Z - GET /api/orders"}
+{"timestamp":"2025-05-06 14:59:44","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:00:00","level":"info","message":"Server uptime: 0.2 hours"}
+{"timestamp":"2025-05-06 15:00:00","level":"debug","message":"Memory usage: 31MB / 560MB (6%)"}
+{"timestamp":"2025-05-06 15:00:00","level":"debug","message":"Memory usage: 31MB / 560MB (6%)"}
+{"timestamp":"2025-05-06 15:00:12","level":"debug","message":"Memory usage: 31MB / 560MB (6%)"}
+{"timestamp":"2025-05-06 15:00:44","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:00:44","level":"debug","message":"2025-05-06T07:00:44.080Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:00:44","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:00:44","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:00:44","level":"debug","message":"2025-05-06T07:00:44.083Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:00:44","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:01:12","level":"debug","message":"Memory usage: 32MB / 560MB (6%)"}
+{"timestamp":"2025-05-06 15:01:44","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:01:44","level":"debug","message":"2025-05-06T07:01:44.071Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:01:44","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:01:44","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:01:44","level":"debug","message":"2025-05-06T07:01:44.074Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:01:44","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:02:12","level":"debug","message":"Memory usage: 31MB / 560MB (6%)"}
+{"timestamp":"2025-05-06 15:02:44","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:02:44","level":"debug","message":"2025-05-06T07:02:44.076Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:02:44","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:02:44","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:02:44","level":"debug","message":"2025-05-06T07:02:44.079Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:02:44","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:03:12","level":"debug","message":"Memory usage: 31MB / 560MB (6%)"}
+{"timestamp":"2025-05-06 15:03:44","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:03:44","level":"debug","message":"2025-05-06T07:03:44.077Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:03:44","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:03:44","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:03:44","level":"debug","message":"2025-05-06T07:03:44.083Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:03:44","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:04:12","level":"debug","message":"Memory usage: 32MB / 560MB (6%)"}
+{"timestamp":"2025-05-06 15:04:44","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:04:44","level":"debug","message":"2025-05-06T07:04:44.070Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:04:44","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:04:44","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:04:44","level":"debug","message":"2025-05-06T07:04:44.073Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:04:44","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:05:12","level":"debug","message":"Memory usage: 32MB / 560MB (6%)"}
+{"timestamp":"2025-05-06 15:05:14","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:05:14","level":"debug","message":"2025-05-06T07:05:14.320Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:05:14","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:05:14","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:05:14","level":"debug","message":"2025-05-06T07:05:14.343Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:05:14","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:05:19","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:05:19","level":"debug","message":"2025-05-06T07:05:19.071Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:05:19","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:05:24","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:05:24","level":"debug","message":"2025-05-06T07:05:24.068Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:05:24","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:05:29","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:05:29","level":"debug","message":"2025-05-06T07:05:29.073Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:05:29","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:05:34","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:05:34","level":"debug","message":"2025-05-06T07:05:34.071Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:05:34","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:05:38","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:05:38","level":"debug","message":"2025-05-06T07:05:38.079Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:05:38","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:05:39","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:05:39","level":"debug","message":"2025-05-06T07:05:39.075Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:05:39","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:05:44","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:05:44","level":"debug","message":"2025-05-06T07:05:44.071Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:05:44","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:05:49","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:05:49","level":"debug","message":"2025-05-06T07:05:49.071Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:05:49","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:05:54","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:05:54","level":"debug","message":"2025-05-06T07:05:54.078Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:05:54","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:05:59","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:05:59","level":"debug","message":"2025-05-06T07:05:59.073Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:05:59","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:06:04","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:06:04","level":"debug","message":"2025-05-06T07:06:04.085Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:06:04","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:06:08","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:06:08","level":"debug","message":"2025-05-06T07:06:08.078Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:06:08","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:06:09","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:06:09","level":"debug","message":"2025-05-06T07:06:09.077Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:06:09","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:06:12","level":"debug","message":"Memory usage: 33MB / 560MB (6%)"}
+{"timestamp":"2025-05-06 15:06:13","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:06:13","level":"debug","message":"2025-05-06T07:06:13.201Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:06:13","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:06:19","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:06:19","level":"debug","message":"2025-05-06T07:06:19.066Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:06:19","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:06:24","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:06:24","level":"debug","message":"2025-05-06T07:06:24.091Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:06:24","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:06:29","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:06:29","level":"debug","message":"2025-05-06T07:06:29.078Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:06:29","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:06:34","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:06:34","level":"debug","message":"2025-05-06T07:06:34.075Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:06:34","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:06:38","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:06:38","level":"debug","message":"2025-05-06T07:06:38.085Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:06:38","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:06:39","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:06:39","level":"debug","message":"2025-05-06T07:06:39.068Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:06:39","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:06:44","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:06:44","level":"debug","message":"2025-05-06T07:06:44.098Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:06:44","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:06:49","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:06:49","level":"debug","message":"2025-05-06T07:06:49.070Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:06:49","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:06:54","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:06:54","level":"debug","message":"2025-05-06T07:06:54.077Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:06:54","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:06:59","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:06:59","level":"debug","message":"2025-05-06T07:06:59.074Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:06:59","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:07:04","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:07:04","level":"debug","message":"2025-05-06T07:07:04.070Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:07:04","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:07:08","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:07:08","level":"debug","message":"2025-05-06T07:07:08.066Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:07:08","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:07:09","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:07:09","level":"debug","message":"2025-05-06T07:07:09.082Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:07:09","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:07:12","level":"debug","message":"Memory usage: 27MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 15:07:14","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:07:14","level":"debug","message":"2025-05-06T07:07:14.070Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:07:14","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:07:44","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:07:44","level":"debug","message":"2025-05-06T07:07:44.077Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:07:44","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:07:44","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:07:44","level":"debug","message":"2025-05-06T07:07:44.081Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:07:44","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:08:12","level":"debug","message":"Memory usage: 28MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 15:08:38","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:08:38","level":"debug","message":"2025-05-06T07:08:38.849Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:08:38","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:08:38","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:08:38","level":"debug","message":"2025-05-06T07:08:38.930Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:08:38","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:08:43","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:08:43","level":"debug","message":"2025-05-06T07:08:43.173Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:08:43","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:11:05","level":"info","message":"Garbage collection is enabled - memory optimization active"}
+{"timestamp":"2025-05-06 15:11:05","level":"info","message":"[Setup] Registering time-log routes..."}
+{"timestamp":"2025-05-06 15:11:05","level":"info","message":"[Setup] Time-log routes registered"}
+{"timestamp":"2025-05-06 15:11:05","level":"info","message":"Starting memory monitoring service"}
+{"timestamp":"2025-05-06 15:11:05","level":"debug","message":"Memory usage: 33MB / 560MB (6%)"}
+{"timestamp":"2025-05-06 15:11:05","level":"info","message":"Initial memory usage: 33MB / 560MB (6%)"}
+{"timestamp":"2025-05-06 15:11:05","level":"info","message":"Memory limit set to 560MB"}
+{"timestamp":"2025-05-06 15:11:05","level":"info","message":"\n  Server running in development mode\n  Listening on port 5000\n  Database: mongodb://admin:admin@localhost:27017/admin_db?authSource=admin\n  Keep-alive timeout: 65000ms\n  "}
+{"timestamp":"2025-05-06 15:11:19","level":"debug","message":"[CORS Debug] POST /api/auth/login - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:19","level":"debug","message":"2025-05-06T07:11:19.891Z - POST /api/auth/login"}
+{"timestamp":"2025-05-06 15:11:19","level":"debug","message":"[Route Debug] POST /api/auth/login"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[CORS Debug] GET /api/health/protected - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"2025-05-06T07:11:20.317Z - GET /api/health/protected"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[Route Debug] GET /api/health/protected"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"2025-05-06T07:11:20.329Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"2025-05-06T07:11:20.349Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[CORS Debug] GET /api/health/protected - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"2025-05-06T07:11:20.371Z - GET /api/health/protected"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[Route Debug] GET /api/health/protected"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[CORS Debug] GET /api/revenue/daily - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"2025-05-06T07:11:20.419Z - GET /api/revenue/daily"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[Route Debug] GET /api/revenue/daily"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: none"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"2025-05-06T07:11:20.445Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[Route Debug] GET /api/orders"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[CORS Debug] GET /api/staff - Origin: none"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"2025-05-06T07:11:20.454Z - GET /api/staff"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[Route Debug] GET /api/staff"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[CORS Debug] GET /api/expenses - Origin: none"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"2025-05-06T07:11:20.463Z - GET /api/expenses"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[Route Debug] GET /api/expenses"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[CORS Debug] GET /api/revenue/daily - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"2025-05-06T07:11:20.501Z - GET /api/revenue/daily"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[Route Debug] GET /api/revenue/daily"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[CORS Debug] GET /api/expenses - Origin: none"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"2025-05-06T07:11:20.530Z - GET /api/expenses"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[Route Debug] GET /api/expenses"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: none"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"2025-05-06T07:11:20.561Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[Route Debug] GET /api/orders"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[CORS Debug] GET /api/staff - Origin: none"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"2025-05-06T07:11:20.604Z - GET /api/staff"}
+{"timestamp":"2025-05-06 15:11:20","level":"debug","message":"[Route Debug] GET /api/staff"}
+{"timestamp":"2025-05-06 15:11:22","level":"debug","message":"[CORS Debug] GET /api/menu - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:22","level":"debug","message":"2025-05-06T07:11:22.137Z - GET /api/menu"}
+{"timestamp":"2025-05-06 15:11:22","level":"debug","message":"[Route Debug] GET /api/menu"}
+{"timestamp":"2025-05-06 15:11:22","level":"debug","message":"[CORS Debug] GET /api/menu - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:22","level":"debug","message":"2025-05-06T07:11:22.158Z - GET /api/menu"}
+{"timestamp":"2025-05-06 15:11:22","level":"debug","message":"[Route Debug] GET /api/menu"}
+{"timestamp":"2025-05-06 15:11:22","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:22","level":"debug","message":"2025-05-06T07:11:22.167Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:11:22","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:11:22","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:22","level":"debug","message":"2025-05-06T07:11:22.195Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:11:22","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:11:23","level":"debug","message":"[CORS Debug] GET /api/menu - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:23","level":"debug","message":"2025-05-06T07:11:23.424Z - GET /api/menu"}
+{"timestamp":"2025-05-06 15:11:23","level":"debug","message":"[Route Debug] GET /api/menu"}
+{"timestamp":"2025-05-06 15:11:23","level":"debug","message":"[CORS Debug] GET /api/menu - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:23","level":"debug","message":"2025-05-06T07:11:23.445Z - GET /api/menu"}
+{"timestamp":"2025-05-06 15:11:23","level":"debug","message":"[Route Debug] GET /api/menu"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"[CORS Debug] GET /api/health/protected - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"2025-05-06T07:11:24.611Z - GET /api/health/protected"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"[Route Debug] GET /api/health/protected"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"2025-05-06T07:11:24.620Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"2025-05-06T07:11:24.640Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"[CORS Debug] GET /api/health/protected - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"2025-05-06T07:11:24.652Z - GET /api/health/protected"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"[Route Debug] GET /api/health/protected"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"2025-05-06T07:11:24.658Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"[CORS Debug] GET /api/menu - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"2025-05-06T07:11:24.664Z - GET /api/menu"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"[Route Debug] GET /api/menu"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"[CORS Debug] GET /api/menu - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"2025-05-06T07:11:24.692Z - GET /api/menu"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"[Route Debug] GET /api/menu"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"2025-05-06T07:11:24.746Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:11:24","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:11:25","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:25","level":"debug","message":"2025-05-06T07:11:25.954Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:11:25","level":"debug","message":"[Route Debug] GET /api/orders"}
+{"timestamp":"2025-05-06 15:11:25","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:25","level":"debug","message":"2025-05-06T07:11:25.986Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:11:25","level":"debug","message":"[Route Debug] GET /api/orders"}
+{"timestamp":"2025-05-06 15:11:27","level":"debug","message":"[CORS Debug] GET /api/items - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:27","level":"debug","message":"2025-05-06T07:11:27.744Z - GET /api/items"}
+{"timestamp":"2025-05-06 15:11:27","level":"debug","message":"[Route Debug] GET /api/items"}
+{"timestamp":"2025-05-06 15:11:27","level":"debug","message":"[CORS Debug] GET /api/vendors - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:27","level":"debug","message":"2025-05-06T07:11:27.748Z - GET /api/vendors"}
+{"timestamp":"2025-05-06 15:11:27","level":"debug","message":"[Route Debug] GET /api/vendors"}
+{"timestamp":"2025-05-06 15:11:27","level":"debug","message":"[CORS Debug] GET /api/items - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:27","level":"debug","message":"2025-05-06T07:11:27.768Z - GET /api/items"}
+{"timestamp":"2025-05-06 15:11:27","level":"debug","message":"[Route Debug] GET /api/items"}
+{"timestamp":"2025-05-06 15:11:27","level":"debug","message":"[CORS Debug] GET /api/vendors - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:27","level":"debug","message":"2025-05-06T07:11:27.798Z - GET /api/vendors"}
+{"timestamp":"2025-05-06 15:11:27","level":"debug","message":"[Route Debug] GET /api/vendors"}
+{"timestamp":"2025-05-06 15:11:29","level":"debug","message":"[CORS Debug] GET /api/menu - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:29","level":"debug","message":"2025-05-06T07:11:29.051Z - GET /api/menu"}
+{"timestamp":"2025-05-06 15:11:29","level":"debug","message":"[Route Debug] GET /api/menu"}
+{"timestamp":"2025-05-06 15:11:29","level":"debug","message":"[CORS Debug] GET /api/add-ons - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:29","level":"debug","message":"2025-05-06T07:11:29.058Z - GET /api/add-ons"}
+{"timestamp":"2025-05-06 15:11:29","level":"debug","message":"[Route Debug] GET /api/add-ons"}
+{"timestamp":"2025-05-06 15:11:29","level":"debug","message":"[CORS Debug] GET /api/menu - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:29","level":"debug","message":"2025-05-06T07:11:29.075Z - GET /api/menu"}
+{"timestamp":"2025-05-06 15:11:29","level":"debug","message":"[Route Debug] GET /api/menu"}
+{"timestamp":"2025-05-06 15:11:29","level":"debug","message":"[CORS Debug] GET /api/add-ons - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:29","level":"debug","message":"2025-05-06T07:11:29.088Z - GET /api/add-ons"}
+{"timestamp":"2025-05-06 15:11:29","level":"debug","message":"[Route Debug] GET /api/add-ons"}
+{"timestamp":"2025-05-06 15:11:29","level":"debug","message":"[CORS Debug] GET /api/staff/time-clock - Origin: none"}
+{"timestamp":"2025-05-06 15:11:29","level":"debug","message":"2025-05-06T07:11:29.556Z - GET /api/staff/time-clock"}
+{"timestamp":"2025-05-06 15:11:29","level":"debug","message":"[Route Debug] GET /api/staff/time-clock"}
+{"timestamp":"2025-05-06 15:11:29","level":"debug","message":"[CORS Debug] GET /api/staff/time-clock - Origin: none"}
+{"timestamp":"2025-05-06 15:11:29","level":"debug","message":"2025-05-06T07:11:29.609Z - GET /api/staff/time-clock"}
+{"timestamp":"2025-05-06 15:11:29","level":"debug","message":"[Route Debug] GET /api/staff/time-clock"}
+{"timestamp":"2025-05-06 15:11:30","level":"debug","message":"[CORS Debug] GET /api/staff - Origin: none"}
+{"timestamp":"2025-05-06 15:11:30","level":"debug","message":"2025-05-06T07:11:30.710Z - GET /api/staff"}
+{"timestamp":"2025-05-06 15:11:30","level":"debug","message":"[Route Debug] GET /api/staff"}
+{"timestamp":"2025-05-06 15:11:30","level":"debug","message":"[CORS Debug] GET /api/staff - Origin: none"}
+{"timestamp":"2025-05-06 15:11:30","level":"debug","message":"2025-05-06T07:11:30.739Z - GET /api/staff"}
+{"timestamp":"2025-05-06 15:11:30","level":"debug","message":"[Route Debug] GET /api/staff"}
+{"timestamp":"2025-05-06 15:11:32","level":"debug","message":"[CORS Debug] GET /api/staff - Origin: none"}
+{"timestamp":"2025-05-06 15:11:32","level":"debug","message":"2025-05-06T07:11:32.059Z - GET /api/staff"}
+{"timestamp":"2025-05-06 15:11:32","level":"debug","message":"[Route Debug] GET /api/staff"}
+{"timestamp":"2025-05-06 15:11:32","level":"debug","message":"[CORS Debug] GET /api/staff - Origin: none"}
+{"timestamp":"2025-05-06 15:11:32","level":"debug","message":"2025-05-06T07:11:32.087Z - GET /api/staff"}
+{"timestamp":"2025-05-06 15:11:32","level":"debug","message":"[Route Debug] GET /api/staff"}
+{"timestamp":"2025-05-06 15:11:55","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:11:55","level":"debug","message":"2025-05-06T07:11:55.238Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:11:55","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:12:05","level":"debug","message":"Memory usage: 29MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 15:12:25","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:12:25","level":"debug","message":"2025-05-06T07:12:25.237Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:12:25","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:12:55","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:12:55","level":"debug","message":"2025-05-06T07:12:55.240Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:12:55","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:13:05","level":"debug","message":"Memory usage: 27MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 15:13:25","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:13:25","level":"debug","message":"2025-05-06T07:13:25.246Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:13:25","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:13:55","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:13:55","level":"debug","message":"2025-05-06T07:13:55.227Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:13:55","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:14:05","level":"debug","message":"Memory usage: 27MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 15:14:25","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:14:25","level":"debug","message":"2025-05-06T07:14:25.233Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:14:25","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:15:05","level":"debug","message":"Memory usage: 27MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 15:15:18","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:15:18","level":"debug","message":"2025-05-06T07:15:18.230Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:15:18","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:16:05","level":"debug","message":"Memory usage: 28MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 15:16:13","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:16:13","level":"debug","message":"2025-05-06T07:16:13.396Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:16:13","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:16:32","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:16:32","level":"debug","message":"2025-05-06T07:16:32.202Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:16:32","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:16:55","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:16:55","level":"debug","message":"2025-05-06T07:16:55.236Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:16:55","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:17:05","level":"debug","message":"Memory usage: 28MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 15:18:05","level":"debug","message":"Memory usage: 28MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 15:18:12","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:18:12","level":"debug","message":"2025-05-06T07:18:12.237Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:18:12","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:19:05","level":"debug","message":"Memory usage: 28MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 15:19:13","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:19:13","level":"debug","message":"2025-05-06T07:19:13.237Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:19:13","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:20:00","level":"debug","message":"Memory usage: 28MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 15:20:05","level":"debug","message":"Memory usage: 28MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 15:20:14","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:20:14","level":"debug","message":"2025-05-06T07:20:14.241Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:20:14","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:21:05","level":"debug","message":"Memory usage: 28MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 15:21:15","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:21:15","level":"debug","message":"2025-05-06T07:21:15.235Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:21:15","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:21:46","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:21:46","level":"debug","message":"2025-05-06T07:21:46.119Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:21:46","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:21:55","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:21:55","level":"debug","message":"2025-05-06T07:21:55.238Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:21:55","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:22:05","level":"debug","message":"Memory usage: 29MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 15:22:25","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:22:25","level":"debug","message":"2025-05-06T07:22:25.225Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:22:25","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:23:05","level":"debug","message":"Memory usage: 29MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 15:23:18","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:23:18","level":"debug","message":"2025-05-06T07:23:18.235Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:23:18","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:23:43","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:23:43","level":"debug","message":"2025-05-06T07:23:43.525Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:23:43","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:23:45","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:23:45","level":"debug","message":"2025-05-06T07:23:45.213Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:23:45","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:23:45","level":"debug","message":"[CORS Debug] GET /api/health/protected - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:23:45","level":"debug","message":"2025-05-06T07:23:45.222Z - GET /api/health/protected"}
+{"timestamp":"2025-05-06 15:23:45","level":"debug","message":"[Route Debug] GET /api/health/protected"}
+{"timestamp":"2025-05-06 15:23:45","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:23:45","level":"debug","message":"2025-05-06T07:23:45.265Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:23:45","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:23:45","level":"debug","message":"[CORS Debug] GET /api/health/protected - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:23:45","level":"debug","message":"2025-05-06T07:23:45.319Z - GET /api/health/protected"}
+{"timestamp":"2025-05-06 15:23:45","level":"debug","message":"[Route Debug] GET /api/health/protected"}
+{"timestamp":"2025-05-06 15:23:45","level":"debug","message":"[CORS Debug] GET /api/staff - Origin: none"}
+{"timestamp":"2025-05-06 15:23:45","level":"debug","message":"2025-05-06T07:23:45.395Z - GET /api/staff"}
+{"timestamp":"2025-05-06 15:23:45","level":"debug","message":"[Route Debug] GET /api/staff"}
+{"timestamp":"2025-05-06 15:23:45","level":"debug","message":"[CORS Debug] GET /api/staff - Origin: none"}
+{"timestamp":"2025-05-06 15:23:45","level":"debug","message":"2025-05-06T07:23:45.466Z - GET /api/staff"}
+{"timestamp":"2025-05-06 15:23:45","level":"debug","message":"[Route Debug] GET /api/staff"}
+{"timestamp":"2025-05-06 15:23:46","level":"debug","message":"[CORS Debug] GET /api/menu - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:23:46","level":"debug","message":"2025-05-06T07:23:46.027Z - GET /api/menu"}
+{"timestamp":"2025-05-06 15:23:46","level":"debug","message":"[Route Debug] GET /api/menu"}
+{"timestamp":"2025-05-06 15:23:46","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:23:46","level":"debug","message":"2025-05-06T07:23:46.040Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:23:46","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:23:46","level":"debug","message":"[CORS Debug] GET /api/menu - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:23:46","level":"debug","message":"2025-05-06T07:23:46.050Z - GET /api/menu"}
+{"timestamp":"2025-05-06 15:23:46","level":"debug","message":"[Route Debug] GET /api/menu"}
+{"timestamp":"2025-05-06 15:23:46","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:23:46","level":"debug","message":"2025-05-06T07:23:46.105Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:23:46","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:23:51","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:23:51","level":"debug","message":"2025-05-06T07:23:51.035Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:23:51","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:23:56","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:23:56","level":"debug","message":"2025-05-06T07:23:56.035Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:23:56","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:24:01","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:24:01","level":"debug","message":"2025-05-06T07:24:01.043Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:24:01","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:24:05","level":"debug","message":"Memory usage: 29MB / 560MB (5%)"}
+{"timestamp":"2025-05-06 15:24:06","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:24:06","level":"debug","message":"2025-05-06T07:24:06.235Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:24:06","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:24:11","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:24:11","level":"debug","message":"2025-05-06T07:24:11.226Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:24:11","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:24:15","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:24:15","level":"debug","message":"2025-05-06T07:24:15.230Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:24:15","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:24:16","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:24:16","level":"debug","message":"2025-05-06T07:24:16.226Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:24:16","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:24:21","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:24:21","level":"debug","message":"2025-05-06T07:24:21.240Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:24:21","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:24:26","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:24:26","level":"debug","message":"2025-05-06T07:24:26.236Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:24:26","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:24:31","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:24:31","level":"debug","message":"2025-05-06T07:24:31.231Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:24:31","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:24:36","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:24:36","level":"debug","message":"2025-05-06T07:24:36.230Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:24:36","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:24:41","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:24:41","level":"debug","message":"2025-05-06T07:24:41.235Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:24:41","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:24:45","level":"debug","message":"[CORS Debug] GET /api/health - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:24:45","level":"debug","message":"2025-05-06T07:24:45.225Z - GET /api/health"}
+{"timestamp":"2025-05-06 15:24:45","level":"debug","message":"[Route Debug] GET /api/health"}
+{"timestamp":"2025-05-06 15:24:46","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:24:46","level":"debug","message":"2025-05-06T07:24:46.224Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:24:46","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:24:51","level":"debug","message":"[CORS Debug] GET /api/orders - Origin: http://localhost:5173"}
+{"timestamp":"2025-05-06 15:24:51","level":"debug","message":"2025-05-06T07:24:51.245Z - GET /api/orders"}
+{"timestamp":"2025-05-06 15:24:51","level":"debug","message":"[Route Debug] GET /api/orders?paymentMethod=pending"}
+{"timestamp":"2025-05-06 15:24:53","level":"info","message":"Garbage collection is enabled - memory optimization active"}
+{"timestamp":"2025-05-06 15:24:53","level":"info","message":"[Setup] Registering time-log routes..."}
+{"timestamp":"2025-05-06 15:24:53","level":"info","message":"[Setup] Time-log routes registered"}
+{"timestamp":"2025-05-06 15:24:53","level":"info","message":"Starting memory monitoring service"}
+{"timestamp":"2025-05-06 15:24:53","level":"debug","message":"Memory usage: 33MB / 560MB (6%)"}
+{"timestamp":"2025-05-06 15:24:53","level":"info","message":"Initial memory usage: 33MB / 560MB (6%)"}
+{"timestamp":"2025-05-06 15:24:53","level":"info","message":"Memory limit set to 560MB"}
+{"timestamp":"2025-05-06 15:24:53","level":"info","message":"\n  Server running in development mode\n  Listening on port 5000\n  Database: mongodb://admin:admin@localhost:27017/admin_db?authSource=admin\n  Keep-alive timeout: 65000ms\n  "}

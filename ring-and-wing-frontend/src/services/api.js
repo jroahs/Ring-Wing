@@ -6,10 +6,13 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
 const REQUEST_TIMEOUT = 30000; // 30 seconds
 const HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
+const DB_CHECK_INTERVAL = 60000; // 1 minute - check database connection health periodically
 
 // Connection state
 let isOnline = true;
+let isDatabaseConnected = true;
 let healthCheckInterval = null;
+let dbCheckInterval = null;
 let pendingRequests = [];
 
 // Create axios instance with configuration
@@ -47,17 +50,63 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor
+// Response interceptor with improved database connection handling
 api.interceptors.response.use(
   (response) => {
     // If we got a successful response, we're definitely online
     if (!isOnline) {
       setOnlineStatus(true);
     }
+    
+    // Database connection is likely working if we get valid responses
+    if (!isDatabaseConnected) {
+      checkDatabaseConnection();
+    }
+    
     return response;
   },
   async (error) => {
     const originalRequest = error.config;
+    
+    // Check specifically for database connection errors
+    if (error.response && 
+        error.response.status === 500 && 
+        (error.response.data?.message?.includes('database') || 
+         error.response.data?.message?.includes('Database'))) {
+      
+      // Mark database as disconnected
+      if (isDatabaseConnected) {
+        isDatabaseConnected = false;
+        console.error('Database connection issue detected');
+        
+        // Show notification to user
+        if (window.toast?.error) {
+          window.toast.error('Database connection issue detected. Retrying your request...');
+        }
+        
+        // Trigger an immediate database check
+        checkDatabaseConnection();
+      }
+      
+      // Initialize retry count if not set
+      if (!originalRequest._dbRetryCount) {
+        originalRequest._dbRetryCount = 0;
+      }
+      
+      // Retry database-specific errors with longer delays
+      if (originalRequest._dbRetryCount < MAX_RETRIES + 2) { // Extra retries for DB issues
+        originalRequest._dbRetryCount++;
+        
+        console.log(`Database error, retrying request (${originalRequest._dbRetryCount}/${MAX_RETRIES + 2}):`, originalRequest.url);
+        
+        // Use a longer delay for database issues - start with 2s and increase
+        const dbRetryDelay = 2000 * Math.pow(1.5, originalRequest._dbRetryCount - 1);
+        await new Promise(resolve => setTimeout(resolve, dbRetryDelay));
+        
+        // Retry the request
+        return api(originalRequest);
+      }
+    }
     
     // Network errors might indicate we're offline
     if (!error.response) {
@@ -67,7 +116,6 @@ api.interceptors.response.use(
       }
       
       // For requests that absolutely need to be made, add them to the retry queue
-      // This could be an advanced feature for mission-critical operations
       if (originalRequest.retryWhenOnline) {
         return new Promise(resolve => {
           pendingRequests.push(() => resolve(api(originalRequest)));
@@ -75,7 +123,7 @@ api.interceptors.response.use(
       }
     }
     
-    // Check if we should retry the request
+    // Regular request retry logic for non-database errors
     if (
       error.message.includes('timeout') || 
       error.message.includes('Network Error') ||
@@ -176,6 +224,53 @@ const checkHealth = async () => {
   }
 };
 
+// Start database connection check interval
+dbCheckInterval = setInterval(checkDatabaseConnection, DB_CHECK_INTERVAL);
+
+// Database connection check function
+async function checkDatabaseConnection() {
+  try {
+    const response = await axios({
+      url: `${API_URL}/api/database-status`,
+      method: 'GET',
+      timeout: 5000,
+      bypassOfflineCheck: true
+    });
+    
+    // Update database connection status
+    const wasDisconnected = !isDatabaseConnected;
+    isDatabaseConnected = response.data.success === true;
+    
+    if (wasDisconnected && isDatabaseConnected) {
+      console.log('Database connection restored');
+      
+      // Show notification to user
+      if (window.toast?.success) {
+        window.toast.success('Database connection restored. The system is fully operational.');
+      }
+      
+      // Process any pending requests that were waiting for DB
+      const requests = [...pendingRequests];
+      pendingRequests = [];
+      requests.forEach(reqFn => reqFn());
+    } else if (!isDatabaseConnected && isOnline) {
+      console.error('Server is online but database connection is down');
+      
+      // Notify user of database issues
+      if (window.toast?.error) {
+        window.toast.error('Database connection issue detected. Some features may be unavailable.');
+      }
+    }
+    
+    return isDatabaseConnected;
+  } catch (error) {
+    // If we can't reach the endpoint, assume database issue
+    isDatabaseConnected = false;
+    console.error('Database health check failed:', error.message);
+    return false;
+  }
+}
+
 // Listen for browser online/offline events
 if (typeof window !== 'undefined') {
   window.addEventListener('online', () => checkHealth());
@@ -250,9 +345,38 @@ const apiService = {
     }
   },
   
+  // Check database connection status
+  async checkDatabaseStatus() {
+    try {
+      const response = await axios.get(`${API_URL}/api/database-status`, { timeout: 5000 });
+      return {
+        isConnected: response.data.success === true,
+        status: response.data.status,
+        message: response.data.message
+      };
+    } catch (error) {
+      console.error('Database status check failed:', error.message);
+      return {
+        isConnected: false,
+        status: 'error',
+        message: 'Failed to check database status: ' + error.message
+      };
+    }
+  },
+  
+  // Force immediate database status check
+  async refreshDatabaseStatus() {
+    return checkDatabaseConnection();
+  },
+  
   // Current connection status
   isOnline() {
     return isOnline;
+  },
+  
+  // Current database connection status
+  isDatabaseConnected() {
+    return isDatabaseConnected;
   },
   
   // Centralized error handling
@@ -264,7 +388,23 @@ const apiService = {
     if (!error.response) {
       console.error('Network error: No response from server. Check your connection.');
     }
+    
+    // Check for database connection issues
+    if (error.response && 
+        error.response.status === 500 && 
+        (error.response.data?.message?.includes('database') || 
+         error.response.data?.message?.includes('Database'))) {
+      console.error('Database connection error detected');
+    }
   }
 };
+
+// Clean up intervals on page unload
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    if (healthCheckInterval) clearInterval(healthCheckInterval);
+    if (dbCheckInterval) clearInterval(dbCheckInterval);
+  });
+}
 
 export default apiService;

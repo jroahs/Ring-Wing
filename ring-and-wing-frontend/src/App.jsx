@@ -15,6 +15,7 @@ import SelfCheckout from './SelfCheckout';
 import PayrollSystem from './PayrollSystem';
 import EmployeeManagement from "./EmployeeManagement";
 import TimeClock from './TimeClock';
+import RevenueReportsPage from './RevenueReportsPage';
 import TimeClockInterface from './TimeClockInterface';
 import api, { checkApiHealth, startHealthMonitoring } from './services/apiService';
 import axios from 'axios';
@@ -276,10 +277,14 @@ function App() {
             <RoleProtectedRoute requiredRole="manager">
               <PayrollSystem />
             </RoleProtectedRoute>
-          } />
-          <Route path="/expenses" element={
+          } />          <Route path="/expenses" element={
             <RoleProtectedRoute requiredRole="manager">
               <ExpenseTracker colors={colors} />
+            </RoleProtectedRoute>
+          } />
+          <Route path="/revenue-reports" element={
+            <RoleProtectedRoute requiredRole="manager">
+              <RevenueReportsPage />
             </RoleProtectedRoute>
           } />
         </Route>

@@ -27,6 +27,14 @@ const expenseSchema = new mongoose.Schema({
   disbursed: {
     type: Boolean,
     default: false
+  },
+  disbursementDate: {
+    type: Date,
+    default: null
+  },
+  permanent: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true
@@ -36,6 +44,8 @@ const expenseSchema = new mongoose.Schema({
 expenseSchema.index({ date: 1 });
 expenseSchema.index({ category: 1 });
 expenseSchema.index({ disbursed: 1 });
+expenseSchema.index({ disbursementDate: 1 });
+expenseSchema.index({ permanent: 1 });
 
 const Expense = mongoose.model('Expense', expenseSchema);
 

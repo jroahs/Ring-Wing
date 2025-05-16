@@ -215,8 +215,7 @@ function Login() {
           )}
 
           <div className="space-y-5">
-            <motion.div className="mb-6" variants={itemVariants}>
-              <Input
+            <motion.div className="mb-6" variants={itemVariants}>              <Input
                 label="Username"
                 type="text"
                 value={username}
@@ -226,16 +225,10 @@ function Login() {
                 required
                 autoComplete="username"
                 error={error && error.includes('username') ? error : ''}
-                icon={
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FiUser style={{ color: colors.muted }} />
-                  </div>
-                }
               />
             </motion.div>
 
-            <motion.div className="mb-8" variants={itemVariants}>
-              <Input
+            <motion.div className="mb-8" variants={itemVariants}>              <Input
                 label="Password"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
@@ -245,11 +238,6 @@ function Login() {
                 required
                 autoComplete="current-password"
                 error={error && error.includes('password') ? error : ''}
-                icon={
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FiLock style={{ color: colors.muted }} />
-                  </div>
-                }
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();

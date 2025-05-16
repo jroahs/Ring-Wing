@@ -50,7 +50,13 @@ export const Modal = ({
     '3xl': 'max-w-3xl',
     '4xl': 'max-w-4xl',
     '5xl': 'max-w-5xl',
-    full: 'max-w-full'
+    full: 'max-w-full',
+    wide: 'max-w-2xl' // New wide rectangular option
+  };
+
+  // New height styles for different size options
+  const heightStyles = {
+    wide: 'max-h-[80vh] h-auto' // For the wide rectangular layout
   };
 
   if (!isOpen) return null;
@@ -66,9 +72,10 @@ export const Modal = ({
         <div
           ref={modalRef}
           className={`
-            w-full relative rounded-xl shadow-xl
-            animate-modal-enter
+            w-full relative rounded-xl shadow-xl 
+            animate-modal-enter overflow-hidden
             ${sizes[size]}
+            ${heightStyles[size] || 'max-h-[90vh]'}
             ${className}
           `}
           style={{ backgroundColor: theme.colors.background }}
@@ -98,8 +105,13 @@ export const Modal = ({
             </div>
           )}
 
-          {/* Content */}
-          <div className="p-4">
+          {/* Content - Now with conditional padding based on size */}
+          <div 
+            className={`overflow-y-auto ${size === 'wide' ? 'p-6' : 'p-4'}`} 
+            style={{ 
+              maxHeight: size === 'wide' ? 'calc(80vh - 120px)' : 'calc(90vh - 120px)'
+            }}
+          >
             {children}
           </div>
 
