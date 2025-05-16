@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Button, Badge } from './ui';
 import { theme } from '../theme';
 
-const PendingOrder = ({ order, processPayment, colors = theme.colors }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+const PendingOrder = ({ order, processPayment, colors = theme.colors }) => {  const [isExpanded, setIsExpanded] = useState(false);
   const [localPaymentMethod, setLocalPaymentMethod] = useState('cash');
   const [localCashAmount, setLocalCashAmount] = useState('');
+  const [cardDetails, setCardDetails] = useState({ last4: '', name: '' });
+  const [eWalletDetails, setEWalletDetails] = useState({ number: '', name: '' });
   
   const orderTotal = order.totals?.total || 
     order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -117,9 +118,7 @@ const PendingOrder = ({ order, processPayment, colors = theme.colors }) => {
               <option value="card">Card</option>
               <option value="e-wallet">E-Wallet</option>
             </select>
-          </div>
-
-          {isCashPayment && (
+          </div>          {isCashPayment && (
             <input
               type="number"
               value={localCashAmount}
@@ -138,8 +137,65 @@ const PendingOrder = ({ order, processPayment, colors = theme.colors }) => {
               step="1"
             />
           )}
-
-          <Button
+          
+          {localPaymentMethod === 'card' && (
+            <div className="space-y-2 mt-3">
+              <input
+                type="text"
+                value={cardDetails.last4}
+                onChange={(e) => setCardDetails({...cardDetails, last4: e.target.value})}
+                maxLength={4}
+                placeholder="Last 4 digits of card"
+                className="w-full p-2 rounded text-sm transition-colors focus:outline-none focus:ring-2"
+                style={{
+                  backgroundColor: colors.background,
+                  border: '2px solid ' + colors.muted,
+                  color: colors.primary
+                }}
+              />
+              <input
+                type="text"
+                value={cardDetails.name}
+                onChange={(e) => setCardDetails({...cardDetails, name: e.target.value})}
+                placeholder="Cardholder name"
+                className="w-full p-2 rounded text-sm transition-colors focus:outline-none focus:ring-2"
+                style={{
+                  backgroundColor: colors.background,
+                  border: '2px solid ' + colors.muted,
+                  color: colors.primary
+                }}
+              />
+            </div>
+          )}
+          
+          {localPaymentMethod === 'e-wallet' && (
+            <div className="space-y-2 mt-3">
+              <input
+                type="text"
+                value={eWalletDetails.number}
+                onChange={(e) => setEWalletDetails({...eWalletDetails, number: e.target.value})}
+                placeholder="E-wallet number"
+                className="w-full p-2 rounded text-sm transition-colors focus:outline-none focus:ring-2"
+                style={{
+                  backgroundColor: colors.background,
+                  border: '2px solid ' + colors.muted,
+                  color: colors.primary
+                }}
+              />
+              <input
+                type="text"
+                value={eWalletDetails.name}
+                onChange={(e) => setEWalletDetails({...eWalletDetails, name: e.target.value})}
+                placeholder="E-wallet account name"
+                className="w-full p-2 rounded text-sm transition-colors focus:outline-none focus:ring-2"
+                style={{
+                  backgroundColor: colors.background,
+                  border: '2px solid ' + colors.muted,
+                  color: colors.primary
+                }}
+              />
+            </div>
+          )}          <Button
             variant="primary"
             fullWidth
             onClick={() => {
@@ -147,12 +203,50 @@ const PendingOrder = ({ order, processPayment, colors = theme.colors }) => {
                 alert('Cash amount must be at least ₱' + orderTotal.toFixed(2));
                 return;
               }
-              processPayment(order, {
+              
+              if (localPaymentMethod === 'card' && (!cardDetails.last4 || !cardDetails.name)) {
+                alert('Please enter card details');
+                return;
+              }
+              
+              if (localPaymentMethod === 'e-wallet' && (!eWalletDetails.number || !eWalletDetails.name)) {
+                alert('Please enter e-wallet details');
+                return;
+              }
+                const paymentInfo = {
                 method: localPaymentMethod,
                 cashAmount: parseFloat(localCashAmount) || 0
-              });
+              };
+              
+              if (localPaymentMethod === 'card') {
+                paymentInfo.cardDetails = {
+                  last4: cardDetails.last4,
+                  name: cardDetails.name
+                };
+              } else if (localPaymentMethod === 'e-wallet') {
+                paymentInfo.eWalletDetails = {
+                  number: eWalletDetails.number,
+                  name: eWalletDetails.name
+                };
+              }
+              
+              // Make sure order items have all required fields for OrderItem component
+              const enrichedOrder = {
+                ...order,
+                items: order.items.map(item => ({
+                  ...item,
+                  availableSizes: item.availableSizes || [item.selectedSize || 'base'],
+                  pricing: item.pricing || { [item.selectedSize || 'base']: item.price }
+                }))
+              };
+              
+              processPayment(enrichedOrder, paymentInfo);
             }}
-            disabled={isCashPayment && !localCashAmount}
+            disabled={
+              (isCashPayment && !localCashAmount) || 
+              (localPaymentMethod === 'card' && (!cardDetails.last4 || !cardDetails.name)) || 
+              (localPaymentMethod === 'e-wallet' && (!eWalletDetails.number || !eWalletDetails.name))
+            }
           >
             {isCashPayment ? 'Process Payment' : 'Confirm Payment'}
           </Button>

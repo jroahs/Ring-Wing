@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
+const { criticalCheck, standardCheck } = require('../middleware/dbConnectionMiddleware');
 
 // Advanced validation middleware
 const validateOrder = (req, res, next) => {
@@ -19,7 +20,7 @@ const validateOrder = (req, res, next) => {
 };
 
 // Create new order with advanced features
-router.post('/', validateOrder, async (req, res, next) => {
+router.post('/', validateOrder, criticalCheck, async (req, res, next) => {
   try {
     const orderData = {
       ...req.body,
@@ -50,7 +51,7 @@ router.post('/', validateOrder, async (req, res, next) => {
 
 // Get orders with filtering and pagination
 // routes/OrderRoutes.js
-router.get('/', async (req, res, next) => {
+router.get('/', standardCheck, async (req, res, next) => {
   try {
     const { status, paymentMethod, limit = 50, page = 1 } = req.query;
     const query = {};

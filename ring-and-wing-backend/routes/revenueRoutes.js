@@ -99,8 +99,7 @@ router.get('/:period', async (req, res) => {
         hourlyDistribution,
         topItems
       }
-    });
-  } catch (error) {
+    });  } catch (error) {
     res.status(500).json({
       success: false,
       error: error.message

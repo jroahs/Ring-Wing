@@ -152,12 +152,15 @@ const attemptGarbageCollection = () => {
  * Release memory from caches and buffers
  */
 const releaseMemory = () => {
-  // Clear module cache for non-critical modules
+  // Only clear module cache for non-critical, non-database related modules
   Object.keys(require.cache).forEach(key => {
     if (!key.includes('node_modules') && 
         !key.includes('server.js') && 
         !key.includes('config/') &&
-        !key.includes('middleware/auth')) {
+        !key.includes('middleware/auth') &&
+        !key.includes('models/') &&     // Don't clear model cache
+        !key.includes('db.js') &&       // Don't clear DB connection
+        !key.includes('routes/')) {     // Don't clear route handlers
       delete require.cache[key];
     }
   });

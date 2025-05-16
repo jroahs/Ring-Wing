@@ -13,6 +13,17 @@ const inventoryBatchSchema = new mongoose.Schema({
   addedAt: { 
     type: Date, 
     default: Date.now 
+  },
+  // Added for daily inventory tracking
+  dailyStartQuantity: {
+    type: Number,
+    default: function() { return this.quantity; }
+  },
+  dailyEndQuantity: {
+    type: Number
+  },
+  lastTallied: {
+    type: Date
   }
 });
 
@@ -29,7 +40,7 @@ const itemSchema = new mongoose.Schema({
   },
   unit: {
     type: String,
-    enum: ['pieces', 'grams', 'liters'],
+    enum: ['pieces', 'grams', 'kilograms', 'milliliters', 'liters'],
     required: [true, 'Unit is required']
   },
   status: {
@@ -52,6 +63,18 @@ const itemSchema = new mongoose.Schema({
     type: String, 
     required: [true, 'Vendor is required'],
     trim: true
+  },
+  // Minimum thresholds for different unit types
+  minimumThreshold: {
+    type: Number,
+    default: 5 // Default 5 for pieces, can be overridden for weight/volume units
+  },
+  // Track if the item is count-based or weight-based
+  isCountBased: {
+    type: Boolean,
+    default: function() {
+      return this.unit === 'pieces';
+    }
   }
 }, { 
   timestamps: true,
@@ -62,6 +85,16 @@ const itemSchema = new mongoose.Schema({
 // Virtual fields
 itemSchema.virtual('totalQuantity').get(function() {
   return this.inventory.reduce((sum, batch) => sum + batch.quantity, 0);
+});
+
+// Daily usage tracking
+itemSchema.virtual('dailyUsage').get(function() {
+  return this.inventory.reduce((sum, batch) => {
+    if (batch.dailyStartQuantity && batch.dailyEndQuantity !== undefined) {
+      return sum + (batch.dailyStartQuantity - batch.dailyEndQuantity);
+    }
+    return sum;
+  }, 0);
 });
 
 itemSchema.virtual('expirationAlerts').get(function() {
@@ -81,15 +114,24 @@ itemSchema.virtual('expirationAlerts').get(function() {
     const daysLeft = Math.ceil(timeDiff / (1000 * 3600 * 24));
 
     return { 
-      ...batch,  // Changed from batch.toObject()
+      ...batch,
       daysLeft 
     };
   }).filter(batch => batch.daysLeft <= 7);
 });
+
 // Pre-save hook
 itemSchema.pre('save', function(next) {
+  // Dynamic threshold based on unit type
+  const threshold = this.minimumThreshold || 
+                    (this.unit === 'pieces' ? 5 :
+                     this.unit === 'grams' ? 500 :
+                     this.unit === 'kilograms' ? 0.5 :
+                     this.unit === 'milliliters' ? 500 :
+                     this.unit === 'liters' ? 0.5 : 5);
+                     
   this.status = this.totalQuantity === 0 ? 'Out of Stock' :
-                this.totalQuantity <= 5 ? 'Low Stock' : 'In Stock';
+                this.totalQuantity <= threshold ? 'Low Stock' : 'In Stock';
   next();
 });
 

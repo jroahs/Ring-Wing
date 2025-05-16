@@ -165,11 +165,16 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
           roles: ['manager']
         }
       ]
-    },
-    { 
+    },    { 
       path: '/expenses', 
       icon: <FiDollarSign size={iconSize} className="text-white" />, 
       label: 'Expenses',
+      roles: ['manager']
+    },
+    { 
+      path: '/revenue-reports', 
+      icon: <FiDollarSign size={iconSize} className="text-white" />, 
+      label: 'Revenue Reports',
       roles: ['manager']
     },
     { 

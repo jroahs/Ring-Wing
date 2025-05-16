@@ -111,6 +111,46 @@ const TrashIcon = ({ className }) => (
   </svg>
 );
 
+const EditIcon = ({ className }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+    />
+  </svg>
+);
+
+const ViewIcon = ({ className }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+    />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+    />
+  </svg>
+);
+
 
 const MenuPage = () => {
   const [expandedItemId, setExpandedItemId] = useState(null);
@@ -372,69 +412,90 @@ const MenuPage = () => {
 
   return (
     <div style={{ backgroundColor: colors.background }} className="min-h-screen p-8 ml-0 md:ml-20">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 style={{ color: colors.primary }} className="text-3xl font-bold mb-4">
+      <div className="max-w-6xl mx-auto">        <div className="mb-8 flex justify-between items-center">
+          <h1 style={{ color: colors.primary }} className="text-3xl font-bold">
             Menu Management
           </h1>
           <button
             style={{ backgroundColor: colors.accent, color: colors.background }}
-            className="px-4 py-2 rounded-lg hover:opacity-90"
+            className="px-4 py-2 rounded-lg hover:opacity-90 flex items-center gap-2 shadow-md transition-all"
             onClick={() => setSelectedItem(initialItem)}
           >
-            Add New Item
+            <PlusIcon className="w-5 h-5" />
+            <span>Add New Item</span>
           </button>
         </div>
 
-        {/* Menu List Table */}
-        <div className="overflow-x-auto rounded-lg border" style={{ borderColor: colors.muted }}>
+        {/* Menu List Table */}        <div className="overflow-x-auto rounded-xl shadow-lg mx-6" style={{ border: `1px solid ${colors.muted}20`, maxHeight: '520px' }}>
           <table className="w-full">
-            <thead style={{ backgroundColor: colors.primary, position: 'sticky', top: 0 }}>
+            <thead style={{ backgroundColor: colors.activeBg, position: 'sticky', top: 0 }}>
               <tr>
-                <th className="p-3 text-left text-white">Code</th>
-                <th className="p-3 text-left text-white">Name</th>
-                <th className="p-3 text-left text-white">Category</th>
-                <th className="p-3 text-left text-white">Price</th>
-                <th className="p-3 text-left text-white">Actions</th>
+                <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Code</th>
+                <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Name</th>
+                <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Category</th>
+                <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Price</th>
+                <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {menuItems.length === 0 ? (
+            <tbody>              {menuItems.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="p-4 text-center text-gray-500">
-                    No menu items found. Click "Add New Item" to get started.
+                  <td colSpan="5" className="py-10">
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.activeBg }}>
+                        <PlusIcon className="w-8 h-8" style={{ color: colors.accent }} />
+                      </div>
+                      <p className="text-gray-500 font-medium">No menu items found</p>
+                      <button
+                        onClick={() => setSelectedItem(initialItem)}
+                        className="mt-2 px-4 py-2 rounded-lg flex items-center gap-2"
+                        style={{ backgroundColor: colors.accent, color: colors.background }}
+                      >
+                        <PlusIcon className="w-4 h-4" />
+                        <span>Add New Item</span>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : (
-                menuItems.map(item => (
-                  <tr
+                menuItems.map(item => (                  <tr
                     key={item._id}
-                    style={{ borderColor: colors.activeBg }}
-                    className="border-t"
+                    style={{ borderColor: colors.muted + '20' }}
+                    className="border-t hover:bg-gray-50"
                   >
-                    <td className="p-3 font-mono" style={{ color: colors.accent }}>
-                      {item.code || '--'}
+                    <td className="p-4 font-mono" style={{ color: colors.accent }}>
+                      <span className="px-2 py-1 rounded-md text-sm" style={{ backgroundColor: colors.activeBg }}>
+                        {item.code || '--'}
+                      </span>
                     </td>
-                    <td className="p-3">{item.name}</td>
-                    <td className="p-3">{item.category}</td>
-                    <td className="p-3 relative">
+                    <td className="p-4 font-medium">{item.name}</td>
+                    <td className="p-4">
+                      <span className="px-2.5 py-1 rounded-lg text-xs" 
+                            style={{ 
+                              backgroundColor: item.category === 'Beverages' ? '#E7F5FE' : '#FDF1E7', 
+                              color: item.category === 'Beverages' ? '#0284C7' : '#EA580C'
+                            }}>
+                        {item.category}
+                      </span>
+                    </td><td className="p-3 relative">
   <div className="flex flex-col">
     <button 
-      className="flex items-center gap-1 hover:underline text-left"
+      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-left border hover:bg-gray-50 transition-all"
+      style={{ borderColor: colors.muted }}
       onClick={() => setExpandedItemId(prev => prev === item._id ? null : item._id)}
     >
       {Object.entries(item.pricing).map(([size, price], index) => (
         index === 0 && (
-          <span key={size}>
-            ₱{price}
+          <span key={size} className="flex items-center">
+            <span className="font-medium">₱{price.toFixed(2)}</span>
             {Object.keys(item.pricing).length > 1 && (
               <span 
-                className="text-xs ml-1"
-                style={{ color: colors.accent }}
+                className="ml-1.5 px-1.5 py-0.5 rounded text-xs"
+                style={{ backgroundColor: colors.activeBg, color: colors.accent }}
               >
-                (+{Object.keys(item.pricing).length - 1})
+                +{Object.keys(item.pricing).length - 1} more
               </span>
             )}
+            <ViewIcon className="w-4 h-4 ml-1.5" style={{ color: colors.accent }} />
           </span>
         )
       ))}
@@ -442,42 +503,46 @@ const MenuPage = () => {
     
     {expandedItemId === item._id && (
       <div 
-        className="absolute top-full left-0 z-10 p-2 border rounded shadow-lg"
+        className="absolute top-full left-0 z-10 p-3 border rounded-lg shadow-lg mt-1"
         style={{
           backgroundColor: colors.background,
           borderColor: colors.muted
         }}
       >
+        <div className="font-medium mb-1.5 pb-1.5 border-b" style={{ borderColor: colors.muted + '40' }}>Price Details</div>
         {Object.entries(item.pricing).map(([size, price]) => (
           <div 
             key={size} 
-            className="whitespace-nowrap text-sm"
+            className="whitespace-nowrap text-sm py-1 flex justify-between gap-4"
           >
-            {size}: ₱{price.toFixed(2)}
+            <span>{size}:</span> <span className="font-medium">₱{price.toFixed(2)}</span>
           </div>
         ))}
       </div>
     )}
   </div>
-</td>
-                    <td className="p-3 flex gap-2">
-                      <button
-                        style={{ color: colors.accent }}
-                        className="hover:underline"
-                        onClick={() => setSelectedItem(item)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        style={{ color: colors.secondary }}
-                        className="hover:underline"
-                        onClick={() => {
-                          setSelectedItem(item);
-                          setShowDeleteModal(true);
-                        }}
-                      >
-                        Delete
-                      </button>
+</td><td className="p-3">
+                      <div className="flex gap-2 items-center">
+                        <button
+                          style={{ backgroundColor: colors.accent, color: colors.background }}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity"
+                          onClick={() => setSelectedItem(item)}
+                        >
+                          <EditIcon className="w-4 h-4" />
+                          <span className="text-sm">Edit</span>
+                        </button>
+                        <button
+                          style={{ backgroundColor: colors.secondary, color: colors.background }}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity"
+                          onClick={() => {
+                            setSelectedItem(item);
+                            setShowDeleteModal(true);
+                          }}
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                          <span className="text-sm">Delete</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -488,14 +553,23 @@ const MenuPage = () => {
 
         {/* Add/Edit Form Modal */}
         {selectedItem && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center md:pl-20">
-    <div 
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center md:pl-20">    <div 
       style={{ backgroundColor: colors.background }}
-      className="p-6 rounded-lg w-full max-w-3xl max-h-[90vh] flex flex-col"
+      className="p-6 rounded-lg w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl"
     >
-      <h2 className="text-2xl font-bold mb-4" style={{ color: colors.primary }}>
-        {selectedItem._id ? 'Edit' : 'Add'} Menu Item
-      </h2>
+      <div className="flex justify-between items-center mb-6 pb-3 border-b" style={{ borderColor: colors.muted + '40' }}>
+        <h2 className="text-2xl font-bold" style={{ color: colors.primary }}>
+          {selectedItem._id ? 'Edit' : 'Add'} Menu Item
+        </h2>
+        <button 
+          onClick={() => setSelectedItem(null)} 
+          className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
       
       <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-y-auto pr-2">
         {/* Image Section */}
@@ -648,23 +722,11 @@ const MenuPage = () => {
               </div>
             </div>
           )}
-        </div>
-
-        {/* Add-Ons Section */}
-        <div className="mb-6">
-          <div className="flex justify-between items-center mb-4">
+        </div>        {/* Add-Ons Section */}        <div className="mb-8">
+          <div className="flex items-center mb-4">
             <h3 className="text-lg font-medium" style={{ color: colors.primary }}>
               Add-Ons
             </h3>
-            <button
-              type="button"
-              className="px-3 py-1 rounded-lg flex items-center gap-1"
-              style={{ backgroundColor: colors.accent, color: colors.background }}
-              onClick={() => setShowAddOnModal(true)}
-            >
-              <PlusIcon className="w-4 h-4" />
-              New Add-On
-            </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {addOns
@@ -675,31 +737,57 @@ const MenuPage = () => {
               .map((addOn) => (
                 <div 
                   key={addOn._id} 
-                  className="flex items-center justify-between p-3 rounded-lg border"
-                  style={{ borderColor: colors.muted }}
+                  className="flex items-center justify-between p-3.5 rounded-lg border hover:border-opacity-100 transition-all hover:shadow-sm"
+                  style={{ borderColor: colors.muted + '80', backgroundColor: colors.background }}
                 >
-                  <label className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      value={addOn._id}
-                      {...register('modifiers')}
-                      className="form-checkbox h-5 w-5 rounded"
-                      style={{ color: colors.accent }}
-                    />
-                    <div>
+                  <label className="flex items-center gap-3 cursor-pointer flex-1">
+                    <div className="flex items-center justify-center">
+                      <input
+                        type="checkbox"
+                        value={addOn._id}
+                        {...register('modifiers')}
+                        className="form-checkbox h-5 w-5 rounded border-2 focus:ring-2 focus:ring-offset-2 transition-all"
+                        style={{ color: colors.accent, borderColor: colors.muted }}
+                      />
+                    </div>
+                    <div className="flex-1">
                       <p className="font-medium">{addOn.name}</p>
-                      <p className="text-sm text-gray-600">+₱{addOn.price.toFixed(2)}</p>
+                      <div className="flex items-center mt-0.5">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium" 
+                              style={{ backgroundColor: colors.activeBg, color: colors.accent }}>
+                          +₱{addOn.price.toFixed(2)}
+                        </span>
+                        <span className="ml-2 text-xs text-gray-500">{addOn.category}</span>
+                      </div>
                     </div>
                   </label>
                   <button
                     type="button"
                     onClick={() => setAddOnToDelete(addOn._id)}
-                    className="text-red-500 hover:text-red-700"
+                    className="p-1.5 rounded-full hover:bg-red-100 text-red-500 hover:text-red-700 transition-colors"
                   >
-                    <TrashIcon className="w-5 h-5" />
+                    <TrashIcon className="w-4 h-4" />
                   </button>
                 </div>
               ))}
+              
+            {addOns.filter(a => 
+              ADDONS_CONFIG[selectedSubCategory]?.includes(a.name) ||
+              a.category === selectedCategory
+            ).length === 0 && (
+              <div className="col-span-2 p-6 border border-dashed rounded-lg flex flex-col items-center justify-center"
+                   style={{ borderColor: colors.muted + '60' }}>
+                <p className="text-gray-500 mb-3">No relevant add-ons found for this item type</p>                <button
+                  type="button"
+                  className="px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm hover:opacity-90 transition-opacity"
+                  style={{ backgroundColor: colors.accent, color: colors.background }}
+                  onClick={() => setShowAddOnModal(true)}
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  Create Add-On
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -715,26 +803,39 @@ const MenuPage = () => {
             rows="3"
             placeholder="Add a delicious description for this item..."
           />
-        </div>
-
-        {/* Actions */}
-        <div className="sticky bottom-0 bg-white pt-4 pb-2 border-t"
-          style={{ borderColor: colors.muted }}>
+        </div>        {/* Actions */}
+        <div className="sticky bottom-0 bg-white pt-4 pb-2 border-t shadow-md"
+          style={{ borderColor: colors.muted + '40', backgroundColor: colors.background }}>
           <div className="flex justify-end gap-3">
             <button
               type="button"
-              className="px-6 py-2 border rounded-lg font-medium"
+              className="px-6 py-2.5 border rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
               style={{ borderColor: colors.muted }}
               onClick={() => setSelectedItem(null)}
             >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
               Cancel
             </button>
             <button
               type="submit"
-              className="px-6 py-2 rounded-lg font-medium"
+              className="px-6 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
               style={{ backgroundColor: colors.primary, color: colors.background }}
             >
-              {selectedItem._id ? 'Update Item' : 'Create Item'}
+              {selectedItem._id ? (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Update Item
+                </>
+              ) : (
+                <>
+                  <PlusIcon className="h-5 w-5" />
+                  Create Item
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -745,12 +846,21 @@ const MenuPage = () => {
 
         {/* Add-On Creation Modal */}
         {showAddOnModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">            <div
               style={{ backgroundColor: colors.background }}
-              className="p-6 rounded-lg w-96"
+              className="p-6 rounded-lg w-96 shadow-2xl"
             >
-              <h3 className="text-xl font-bold mb-4">Create New Add-On</h3>
+              <div className="flex justify-between items-center mb-6 pb-3 border-b" style={{ borderColor: colors.muted + '40' }}>
+                <h3 className="text-xl font-bold" style={{ color: colors.primary }}>Create New Add-On</h3>
+                <button 
+                  onClick={() => setShowAddOnModal(false)} 
+                  className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
               <div className="space-y-4">
                 <div>
                   <label className="block mb-1">Name</label>
@@ -792,22 +902,25 @@ const MenuPage = () => {
                       </option>
                     ))}
                   </select>
-                </div>
-                <div className="flex justify-end gap-2">
+                </div>                <div className="flex justify-end gap-3 mt-6">
                   <button
                     type="button"
-                    className="px-4 py-2 border rounded"
+                    className="px-4 py-2.5 border rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
                     style={{ borderColor: colors.muted }}
                     onClick={() => setShowAddOnModal(false)}
                   >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                     Cancel
                   </button>
                   <button
                     type="button"
                     style={{ backgroundColor: colors.primary, color: colors.background }}
-                    className="px-4 py-2 rounded hover:opacity-90"
+                    className="px-4 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-sm"
                     onClick={createAddOn}
                   >
+                    <PlusIcon className="h-4 w-4" />
                     Create Add-On
                   </button>
                 </div>
@@ -818,23 +931,49 @@ const MenuPage = () => {
 
         {/* Delete Add-On Confirmation Modal */}
         {addOnToDelete && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div style={{ backgroundColor: colors.background }} className="p-6 rounded-lg">
-              <h3 className="text-lg font-bold mb-4">Confirm Delete Add-On</h3>
-              <p className="mb-4">Are you sure you want to delete this add-on?</p>
-              <div className="flex justify-end gap-2">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">            <div style={{ backgroundColor: colors.background }} className="p-6 rounded-lg shadow-2xl w-96">
+              <div className="flex justify-between items-center mb-4 pb-3 border-b" style={{ borderColor: colors.muted + '40' }}>
+                <h3 className="text-lg font-bold" style={{ color: colors.primary }}>Confirm Delete Add-On</h3>
+                <button 
+                  onClick={() => setAddOnToDelete(null)} 
+                  className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6 rounded">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-red-700">
+                      Are you sure you want to delete this add-on? This action cannot be undone.
+                    </p>
+                  </div>
+                </div>
+              </div><div className="flex justify-end gap-3 mt-6">
                 <button
-                  className="px-4 py-2 border rounded"
+                  className="px-4 py-2.5 border rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
                   style={{ borderColor: colors.muted }}
                   onClick={() => setAddOnToDelete(null)}
                 >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                   Cancel
                 </button>
                 <button
                   style={{ backgroundColor: colors.secondary, color: colors.background }}
-                  className="px-4 py-2 rounded hover:opacity-90"
+                  className="px-4 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-sm"
                   onClick={() => deleteAddOn(addOnToDelete)}
                 >
+                  <TrashIcon className="h-4 w-4" />
                   Confirm Delete
                 </button>
               </div>
@@ -844,23 +983,49 @@ const MenuPage = () => {
 
         {/* Delete Menu Item Confirmation Modal */}
         {showDeleteModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div style={{ backgroundColor: colors.background }} className="p-6 rounded-lg">
-              <h3 className="text-lg font-bold mb-4">Confirm Delete</h3>
-              <p className="mb-4">Are you sure you want to delete this item?</p>
-              <div className="flex justify-end gap-2">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">            <div style={{ backgroundColor: colors.background }} className="p-6 rounded-lg shadow-2xl w-96">
+              <div className="flex justify-between items-center mb-4 pb-3 border-b" style={{ borderColor: colors.muted + '40' }}>
+                <h3 className="text-lg font-bold" style={{ color: colors.primary }}>Confirm Delete</h3>
+                <button 
+                  onClick={() => setShowDeleteModal(false)} 
+                  className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6 rounded">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-red-700">
+                      Are you sure you want to delete <strong>{selectedItem?.name || 'this item'}</strong>? This action cannot be undone.
+                    </p>
+                  </div>
+                </div>
+              </div><div className="flex justify-end gap-3 mt-6">
                 <button
-                  className="px-4 py-2 border rounded"
+                  className="px-4 py-2.5 border rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
                   style={{ borderColor: colors.muted }}
                   onClick={() => setShowDeleteModal(false)}
                 >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                   Cancel
                 </button>
                 <button
                   style={{ backgroundColor: colors.secondary, color: colors.background }}
-                  className="px-4 py-2 rounded hover:opacity-90"
+                  className="px-4 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-sm"
                   onClick={handleDelete}
                 >
+                  <TrashIcon className="h-4 w-4" />
                   Confirm Delete
                 </button>
               </div>

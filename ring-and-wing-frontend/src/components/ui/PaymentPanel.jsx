@@ -15,12 +15,20 @@ export const PaymentPanel = ({
   onDiscountToggle,
   onProcessPayment,
   onCancelOrder,
+  cardDetails,
+  onCardDetailsChange,
+  eWalletDetails,
+  onEWalletDetailsChange,
   disabled
 }) => {
   const paymentMethods = ['cash', 'card', 'e-wallet'];
 
   return (
-    <div className="pt-4 border-t-2" style={{ borderColor: theme.colors.muted }}>
+    <div className="pt-4 border-t-2" style={{ borderColor: theme.colors.muted }}>      <div className="mb-2">
+        <span className="text-sm font-medium" style={{ color: theme.colors.primary }}>
+          Payment via:
+        </span>
+      </div>
       <div className="flex gap-2 mb-3 flex-wrap">
         {paymentMethods.map(method => (
           <Button
@@ -69,9 +77,7 @@ export const PaymentPanel = ({
           <span style={{ color: theme.colors.primary }}>TOTAL:</span>
           <span style={{ color: theme.colors.primary }}>₱{total}</span>
         </div>
-      </div>
-
-      {paymentMethod === 'cash' && (
+      </div>      {paymentMethod === 'cash' && (
         <div className="mb-3">
           <input
             type="number"
@@ -87,6 +93,65 @@ export const PaymentPanel = ({
               color: theme.colors.primary
             }}
             placeholder="Cash amount"
+          />
+        </div>
+      )}
+      
+      {paymentMethod === 'card' && (
+        <div className="space-y-2 mb-3">
+          <input
+            type="text"
+            value={cardDetails?.last4 || ''}
+            onChange={(e) => onCardDetailsChange({...cardDetails, last4: e.target.value})}
+            maxLength={4}
+            className="w-full p-3 text-sm rounded-lg border-2 focus:outline-none transition-colors"
+            style={{
+              borderColor: theme.colors.muted,
+              backgroundColor: theme.colors.background,
+              color: theme.colors.primary
+            }}
+            placeholder="Last 4 digits of card"
+          />
+          <input
+            type="text"
+            value={cardDetails?.name || ''}
+            onChange={(e) => onCardDetailsChange({...cardDetails, name: e.target.value})}
+            className="w-full p-3 text-sm rounded-lg border-2 focus:outline-none transition-colors"
+            style={{
+              borderColor: theme.colors.muted,
+              backgroundColor: theme.colors.background,
+              color: theme.colors.primary
+            }}
+            placeholder="Cardholder name"
+          />
+        </div>
+      )}
+      
+      {paymentMethod === 'e-wallet' && (
+        <div className="space-y-2 mb-3">
+          <input
+            type="text"
+            value={eWalletDetails?.number || ''}
+            onChange={(e) => onEWalletDetailsChange({...eWalletDetails, number: e.target.value})}
+            className="w-full p-3 text-sm rounded-lg border-2 focus:outline-none transition-colors"
+            style={{
+              borderColor: theme.colors.muted,
+              backgroundColor: theme.colors.background,
+              color: theme.colors.primary
+            }}
+            placeholder="E-wallet number"
+          />
+          <input
+            type="text"
+            value={eWalletDetails?.name || ''}
+            onChange={(e) => onEWalletDetailsChange({...eWalletDetails, name: e.target.value})}
+            className="w-full p-3 text-sm rounded-lg border-2 focus:outline-none transition-colors"
+            style={{
+              borderColor: theme.colors.muted,
+              backgroundColor: theme.colors.background,
+              color: theme.colors.primary
+            }}
+            placeholder="E-wallet account name"
           />
         </div>
       )}

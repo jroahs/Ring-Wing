@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, PieChart, Bar, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from 'recharts';
 import { saveAs } from 'file-saver';
@@ -14,6 +14,131 @@ const colors = {
   activeBg: '#f1670f20',
   activeBorder: '#f1670f',
   hoverBg: '#f1670f10'
+};
+
+// AlertCard component to display individual alerts in a better format
+const AlertCard = ({ alert, onRestock }) => {
+  const isStockAlert = alert.type === 'stock';
+  const isExpiredAlert = alert.type === 'expiration' && alert.message.includes('expired');
+  
+  // Determine severity color
+  const getSeverityStyle = () => {
+    if (isStockAlert && alert.message.includes('out of stock')) {
+      return { bg: '#fee2e2', border: '#ef4444' };
+    } else if (isStockAlert) {
+      return { bg: '#fef3c7', border: '#f59e0b' };
+    } else if (isExpiredAlert) {
+      return { bg: '#fee2e2', border: '#ef4444' };
+    } else {
+      return { bg: '#dbeafe', border: '#3b82f6' };
+    }
+  };
+  
+  const style = getSeverityStyle();
+  
+  return (
+    <div className="border rounded p-3 flex flex-col" 
+         style={{ backgroundColor: style.bg, borderColor: style.border }}>
+      <div className="font-medium truncate" title={alert.message}>
+        {alert.message}
+      </div>
+      <div className="mt-2 flex justify-between items-center text-xs text-gray-600">
+        <span>{new Date(alert.date).toLocaleDateString()}</span>
+        {isStockAlert && (
+          <button
+            onClick={() => onRestock(alert.id)}
+            className="px-2 py-1 bg-white rounded-md shadow-sm hover:bg-gray-50"
+            style={{ color: colors.accent }}
+          >
+            Restock Now
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// AlertDashboard component to manage and display alerts
+const AlertDashboard = ({ alerts, onRestock }) => {
+  const [filterType, setFilterType] = useState('all');
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  
+  const filteredAlerts = filterType === 'all' 
+    ? alerts 
+    : alerts.filter(alert => alert.type === filterType);
+  
+  const alertCounts = {
+    all: alerts.length,
+    stock: alerts.filter(a => a.type === 'stock').length,
+    expiration: alerts.filter(a => a.type === 'expiration').length
+  };
+
+  // Sort alerts by priority: out of stock > expired > low stock > expiring soon
+  const organizedAlerts = [...filteredAlerts].sort((a, b) => {
+    const getPriority = (alert) => {
+      if (alert.type === 'stock' && alert.message.includes('out of stock')) return 1;
+      if (alert.type === 'expiration' && alert.message.includes('expired')) return 2;
+      if (alert.type === 'stock') return 3;
+      return 4; // expiring soon
+    };
+    
+    return getPriority(a) - getPriority(b);
+  });
+  
+  if (alerts.length === 0) return null;
+  
+  return (
+    <div className="mb-4 border rounded-lg shadow-sm" 
+         style={{ borderColor: colors.muted }}>
+      <div className="flex items-center justify-between p-3 bg-gray-50 border-b"
+           style={{ borderColor: colors.muted }}>
+        <div className="flex items-center">
+          <h3 className="font-medium" style={{ color: colors.primary }}>
+            Inventory Alerts ({alerts.length})
+          </h3>
+          <div className="ml-4 flex space-x-2">
+            <button 
+              onClick={() => setFilterType('all')}
+              className={`px-2 py-1 rounded text-xs ${filterType === 'all' ? 'bg-blue-100 text-blue-700' : 'text-gray-600'}`}>
+              All ({alertCounts.all})
+            </button>
+            <button 
+              onClick={() => setFilterType('stock')}
+              className={`px-2 py-1 rounded text-xs ${filterType === 'stock' ? 'bg-orange-100 text-orange-700' : 'text-gray-600'}`}>
+              Stock ({alertCounts.stock})
+            </button>
+            <button 
+              onClick={() => setFilterType('expiration')}
+              className={`px-2 py-1 rounded text-xs ${filterType === 'expiration' ? 'bg-red-100 text-red-700' : 'text-gray-600'}`}>
+              Expiration ({alertCounts.expiration})
+            </button>
+          </div>
+        </div>
+        <button 
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="p-1 rounded hover:bg-gray-100"
+        >
+          {isCollapsed ? '▼' : '▲'}
+        </button>
+      </div>
+      
+      {!isCollapsed && (
+        <div className="max-h-64 overflow-y-auto p-2">
+          {organizedAlerts.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+              {organizedAlerts.map(alert => (
+                <AlertCard key={alert.id} alert={alert} onRestock={onRestock} />
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 text-center text-gray-500">
+              No alerts in this category
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 };
 
 const InventorySystem = () => {
@@ -40,26 +165,42 @@ const InventorySystem = () => {
     cost: 0,
     price: 0,
     vendor: '',
-    inventory: []
+    inventory: [],
+    isCountBased: true,
+    minimumThreshold: 5
   });
 
-   // restock
+  // Daily inventory tracking state
+  const [showDailyInventoryModal, setShowDailyInventoryModal] = useState(false);
+  const [selectedItemForEndDay, setSelectedItemForEndDay] = useState(null);
+  const [endDayQuantities, setEndDayQuantities] = useState([]);
+
+  // Unit conversion state
+  const [showConversionModal, setShowConversionModal] = useState(false);
+  const [conversionData, setConversionData] = useState({
+    value: '',
+    fromUnit: 'grams',
+    toUnit: 'kilograms'
+  });
+  const [conversionResult, setConversionResult] = useState(null);
+
+  // restock
   const [showRestockModal, setShowRestockModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [restockData, setRestockData] = useState({
-  quantity: '',
-  expirationDate: ''
-});
+    quantity: '',
+    expirationDate: ''
+  });
 
-useEffect(() => {
-  const handleResize = () => {
-    setWindowWidth(window.innerWidth);
-  };
-  window.addEventListener('resize', handleResize);
-  return () => window.removeEventListener('resize', handleResize);
-}, []);
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
-  
+
   // Vendor creation state
   const [showVendorAccordion, setShowVendorAccordion] = useState(false);
   const [newVendor, setNewVendor] = useState({
@@ -69,10 +210,6 @@ useEffect(() => {
     paymentTerms: 'NET_30'
   });
 
-
-  
-
-  
   // Fetch data from backend
   useEffect(() => {
     const fetchData = async () => {
@@ -85,7 +222,7 @@ useEffect(() => {
         setVendors(vendorsRes.data);
         setLoading(false);
       } catch (err) {
-        console.error('Fetch error:', err.response?.data || err.message); // Add this line
+        console.error('Fetch error:', err.response?.data || err.message);
         setError('Failed to fetch data: ' + (err.response?.data?.message || err.message));
         setLoading(false);
       }
@@ -99,8 +236,15 @@ useEffect(() => {
     const allAlerts = items.flatMap(item => {
       const alerts = [];
       
-      // Stock alerts
-      if (item.totalQuantity <= 5) {
+      // Stock alerts with dynamic thresholds
+      const threshold = item.minimumThreshold || 
+                       (item.unit === 'pieces' ? 5 :
+                        item.unit === 'grams' ? 500 :
+                        item.unit === 'kilograms' ? 0.5 :
+                        item.unit === 'milliliters' ? 500 :
+                        item.unit === 'liters' ? 0.5 : 5);
+                        
+      if (item.totalQuantity <= threshold) {
         alerts.push({
           type: 'stock',
           id: item._id,
@@ -169,75 +313,139 @@ useEffect(() => {
     }]);
   };
 
-// Updated handleSale function
-const handleSale = async (itemId, quantitySold) => {
-  try {
-    const { data } = await axios.patch(`${API_URL}/api/items/${itemId}/sell`, { quantity: quantitySold });
-    
-    setItems(items.map(item => 
-      item._id === itemId ? { 
-        ...data,
-        status: calculateStatus(data.totalQuantity) 
-      } : item
-    ));
-    
-    logAction(`Sold ${quantitySold} units`, itemId);
-  } catch (err) {
-    setError('Failed to process sale: ' + (err.response?.data?.message || err.message));
-  }
-};
+  // Updated consumption function for daily inventory tracking
+  const recordConsumption = async (itemId, quantity) => {
+    try {
+      const { data } = await axios.patch(`${API_URL}/api/items/${itemId}/sell`, { quantity });
+      
+      setItems(items.map(item => 
+        item._id === itemId ? { 
+          ...data,
+          status: calculateStatus(data.totalQuantity) 
+        } : item
+      ));
+      
+      logAction(`Consumed ${quantity} units`, itemId);
+    } catch (err) {
+      setError('Failed to process consumption: ' + (err.response?.data?.message || err.message));
+    }
+  };
 
-// Add this helper function
-const calculateStatus = (totalQuantity) => {
-  if (totalQuantity === 0) return 'Out of Stock';
-  if (totalQuantity <= 5) return 'Low Stock';
-  return 'In Stock';
-};
+  // Add this helper function
+  const calculateStatus = (totalQuantity) => {
+    if (totalQuantity === 0) return 'Out of Stock';
+    if (totalQuantity <= 5) return 'Low Stock';
+    return 'In Stock';
+  };
 
+  // Format for unit display
+  const formatQuantity = (quantity, unit) => {
+    if (unit === 'kilograms' && quantity < 1) {
+      return `${(quantity * 1000).toFixed(0)} g`;
+    }
+    if (unit === 'liters' && quantity < 1) {
+      return `${(quantity * 1000).toFixed(0)} ml`;
+    }
+    return `${quantity} ${unit}`;
+  };
 
-const handleRestock = async (e) => {
-  e.preventDefault();
-  try {
-    // Convert local date to UTC-adjusted PH time
-    const adjustForPHTime = (dateString) => {
-      const localDate = new Date(dateString);
-      // Convert to PH time midnight in UTC
-      const phMidnightUTC = new Date(
-        Date.UTC(
-          localDate.getFullYear(),
-          localDate.getMonth(),
-          localDate.getDate(),
-          16, // 16 hours = 24 - 8 (UTC+8)
-          0,
-          0,
-          0
-        )
+  const handleRestock = async (e) => {
+    e.preventDefault();
+    try {
+      // Convert local date to UTC-adjusted PH time
+      const adjustForPHTime = (dateString) => {
+        const localDate = new Date(dateString);
+        // Convert to PH time midnight in UTC
+        const phMidnightUTC = new Date(
+          Date.UTC(
+            localDate.getFullYear(),
+            localDate.getMonth(),
+            localDate.getDate(),
+            16, // 16 hours = 24 - 8 (UTC+8)
+            0,
+            0,
+            0
+          )
+        );
+        return phMidnightUTC.toISOString();
+      };
+
+      const payload = {
+        ...restockData,
+        expirationDate: adjustForPHTime(restockData.expirationDate)
+      };
+
+      const { data } = await axios.patch(
+        `${API_URL}/api/items/${selectedItem._id}/restock`,
+        payload
       );
-      return phMidnightUTC.toISOString();
-    };
 
-    const payload = {
-      ...restockData,
-      expirationDate: adjustForPHTime(restockData.expirationDate)
-    };
+      setItems(items.map(item => 
+        item._id === selectedItem._id ? data : item
+      ));
 
-    const { data } = await axios.patch(
-      `${API_URL}/api/items/${selectedItem._id}/restock`,
-      payload
-    );
+      setShowRestockModal(false);
+      setRestockData({ quantity: '', expirationDate: '' });
+      logAction(`Restocked ${restockData.quantity} units`, selectedItem._id);
+    } catch (err) {
+      setError('Failed to restock item: ' + (err.response?.data?.message || err.message));
+    }
+  };
 
-    setItems(items.map(item => 
-      item._id === selectedItem._id ? data : item
-    ));
+  // Unit conversion handler
+  const handleConversion = async (e) => {
+    e.preventDefault();
+    try {
+      const { data } = await axios.post(`${API_URL}/api/items/convert`, conversionData);
+      setConversionResult(data);
+    } catch (err) {
+      setError('Failed to convert units: ' + (err.response?.data?.message || err.message));
+    }
+  };
 
-    setShowRestockModal(false);
-    setRestockData({ quantity: '', expirationDate: '' });
-    logAction(`Restocked ${restockData.quantity} units`, selectedItem._id);
-  } catch (err) {
-    setError('Failed to restock item: ' + (err.response?.data?.message || err.message));
-  }
-};
+  // Handle batch end-of-day update
+  const handleEndDayUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      // Make sure endQuantities is properly included in the request body
+      const { data } = await axios.patch(
+        `${API_URL}/api/items/${selectedItemForEndDay._id}/end-day`,
+        { endQuantities: endDayQuantities }  // Ensure it's named exactly like the backend expects
+      );
+      
+      setItems(items.map(item => 
+        item._id === selectedItemForEndDay._id ? data : item
+      ));
+      
+      setShowDailyInventoryModal(false);
+      setSelectedItemForEndDay(null);
+      setEndDayQuantities([]);
+      
+      logAction(`Updated end-of-day quantities`, selectedItemForEndDay._id);
+    } catch (err) {
+      // Display error message without crashing the component
+      console.error('End day update error:', err);
+      setError('Failed to update end-of-day quantities: ' + (err.response?.data?.message || err.message));
+      
+      // Keep the modal open so the user can try again
+      // instead of closing it when an error occurs
+    }
+  };
 
+  // Start day for all inventory items
+  const handleStartDay = async () => {
+    try {
+      await axios.post(`${API_URL}/api/items/start-day`);
+      
+      // Refresh items data
+      const { data } = await axios.get(`${API_URL}/api/items`);
+      setItems(data);
+      
+      logAction('Started day - recorded beginning inventory', 'all');
+    } catch (err) {
+      setError('Failed to record starting inventory: ' + (err.response?.data?.message || err.message));
+    }
+  };
 
   // Handle deletion
   const handleDelete = async (itemId) => {
@@ -284,7 +492,19 @@ const handleRestock = async (e) => {
         throw new Error('At least one inventory batch is required');
       }
       
-      const { data } = await axios.post(`${API_URL}/api/items`, newItem);
+      // Set isCountBased based on unit
+      const isCountBased = newItem.unit === 'pieces';
+      const itemToSubmit = {
+        ...newItem,
+        isCountBased,
+        minimumThreshold: isCountBased ? 5 : 
+                         (newItem.unit === 'grams' ? 500 :
+                          newItem.unit === 'kilograms' ? 0.5 :
+                          newItem.unit === 'milliliters' ? 500 :
+                          newItem.unit === 'liters' ? 0.5 : 5)
+      };
+      
+      const { data } = await axios.post(`${API_URL}/api/items`, itemToSubmit);
       setItems([...items, data]);
       setShowAddModal(false);
       setNewItem({
@@ -294,7 +514,9 @@ const handleRestock = async (e) => {
         cost: 0,
         price: 0,
         vendor: '',
-        inventory: []
+        inventory: [],
+        isCountBased: true,
+        minimumThreshold: 5
       });
     } catch (err) {
       setError('Failed to add new item: ' + (err.response?.data?.message || err.message));
@@ -329,11 +551,43 @@ const handleRestock = async (e) => {
 
   // Loading and error states
   if (loading) return <div className="p-4">Loading inventory...</div>;
-  if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
+  
 
   const getMainContentMargin = () => {
     if (windowWidth < 768) return '0';
     return windowWidth >= 1920 ? '8rem' : '5rem';
+  };
+
+  // Format peso values
+  const formatPeso = (value) => {
+    return `₱${parseFloat(value).toFixed(2)}`;
+  };
+
+  // Status colors
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'In Stock':
+        return { bg: '#d1fae5', text: '#047857' };
+      case 'Low Stock':
+        return { bg: '#fef3c7', text: '#b45309' };
+      case 'Out of Stock':
+        return { bg: '#fee2e2', text: '#b91c1c' };
+      default:
+        return { bg: '#e5e7eb', text: '#374151' };
+    }
+  };
+
+  // Handle preparing for end-day inventory count
+  const prepareEndDayCount = (item) => {
+    setSelectedItemForEndDay(item);
+    setEndDayQuantities(
+      item.inventory.map(batch => ({
+        batchId: batch._id,
+        quantity: batch.quantity,
+        expirationDate: new Date(batch.expirationDate).toLocaleDateString()
+      }))
+    );
+    setShowDailyInventoryModal(true);
   };
 
   return (
@@ -351,16 +605,25 @@ const handleRestock = async (e) => {
             {error}
           </div>
         )}
-
-        {alerts.length > 0 && (
-          <div className="p-4 bg-yellow-100 border-b border-yellow-200">
-            {alerts.map(alert => (
-              <div key={alert.id} className="text-yellow-800 text-sm mb-1">
-                ⚠️ {alert.message}
-              </div>
-            ))}
-          </div>
-        )}
+        
+        {/* Replace old alerts display with new AlertDashboard */}
+        <div className="px-6 pt-4">
+          <AlertDashboard 
+            alerts={alerts} 
+            onRestock={(alertId) => {
+              // Find the item associated with this alert
+              const alert = alerts.find(a => a.id === alertId);
+              if (alert?.type === 'stock') {
+                // For stock alerts, the ID is the item's ID
+                const itemToRestock = items.find(item => item._id === alert.id);
+                if (itemToRestock) {
+                  setSelectedItem(itemToRestock);
+                  setShowRestockModal(true);
+                }
+              }
+            }}
+          />
+        </div>
 
         <div className="mb-6 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h1 className="text-2xl font-bold" style={{ color: colors.primary }}>
@@ -376,31 +639,52 @@ const handleRestock = async (e) => {
               className="px-4 py-2 rounded-lg border focus:outline-none focus:ring-1"
               style={{
                 borderColor: colors.muted,
-                focusBorderColor: colors.accent,
+                color: colors.primary
               }}
             />
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-2 rounded-lg border"
-              style={{ borderColor: colors.muted }}
+              className="px-4 py-2 rounded-lg border focus:outline-none focus:ring-1"
+              style={{
+                borderColor: colors.muted,
+                color: colors.primary
+              }}
             >
               <option value="All">All Categories</option>
-              {['Food', 'Beverages', 'Ingredients', 'Packaging'].map(category => (
-                <option key={category} value={category}>{category}</option>
+              {['Food', 'Beverages', 'Ingredients', 'Packaging'].map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
             <button
               onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 rounded-lg font-medium"
-              style={{ backgroundColor: colors.accent, color: colors.background }}
+              className="px-4 py-2 rounded-lg font-semibold"
+              style={{
+                backgroundColor: colors.accent,
+                color: colors.background
+              }}
             >
               Add New Item
             </button>
           </div>
         </div>
 
-        <div className="flex gap-3 px-6 mb-4">
+        {/* Inventory Management Actions */}
+        <div className="px-6 mb-4 flex flex-wrap gap-2">
+          <button
+            onClick={handleStartDay}
+            className="px-4 py-2 rounded border"
+            style={{ borderColor: colors.accent, color: colors.accent, backgroundColor: colors.activeBg }}
+          >
+            Start Day (Record Beginning Inventory)
+          </button>
+          <button
+            onClick={() => setShowConversionModal(true)}
+            className="px-4 py-2 rounded border"
+            style={{ borderColor: colors.muted, color: colors.primary }}
+          >
+            Convert Units
+          </button>
           <button
             onClick={() => setShowReports(true)}
             className="px-4 py-2 rounded border"
@@ -461,31 +745,31 @@ const handleRestock = async (e) => {
                     <td className="px-4 py-3" style={{ color: colors.primary }}>{formatPeso(item.price)}</td>
                     <td className="px-4 py-3" style={{ color: colors.secondary }}>{item.vendor}</td>
                     <td className="px-4 py-3 flex gap-2">
-  <button
-    onClick={() => handleSale(item._id, 1)}
-    className="p-1 rounded hover:bg-opacity-20"
-    style={{ color: colors.secondary }}
-  >
-    Sell 1
-  </button>
-  <button
-    onClick={() => {
-      setSelectedItem(item);
-      setShowRestockModal(true);
-    }}
-    className="p-1 rounded hover:bg-opacity-20"
-    style={{ color: colors.secondary }}
-  >
-    Restock
-  </button>
-  <button
-    onClick={() => handleDelete(item._id)}
-    className="p-1 rounded hover:bg-opacity-20"
-    style={{ color: colors.secondary }}
-  >
-    Delete
-  </button>
-</td>
+                      <button
+                        onClick={() => prepareEndDayCount(item)}
+                        className="p-1 rounded hover:bg-opacity-20 text-sm"
+                        style={{ color: colors.accent, backgroundColor: colors.activeBg }}
+                      >
+                        End-Day Count
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedItem(item);
+                          setShowRestockModal(true);
+                        }}
+                        className="p-1 rounded hover:bg-opacity-20"
+                        style={{ color: colors.secondary }}
+                      >
+                        Restock
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item._id)}
+                        className="p-1 rounded hover:bg-opacity-20"
+                        style={{ color: colors.secondary }}
+                      >
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -561,14 +845,43 @@ const handleRestock = async (e) => {
                     <select
                       required
                       value={newItem.unit}
-                      onChange={(e) => setNewItem({...newItem, unit: e.target.value})}
+                      onChange={(e) => setNewItem({
+                        ...newItem, 
+                        unit: e.target.value,
+                        isCountBased: e.target.value === 'pieces',
+                        minimumThreshold: e.target.value === 'pieces' ? 5 : 
+                                         e.target.value === 'grams' ? 500 :
+                                         e.target.value === 'kilograms' ? 0.5 :
+                                         e.target.value === 'milliliters' ? 500 :
+                                         e.target.value === 'liters' ? 0.5 : 5
+                      })}
                       className="w-full p-2 border rounded"
                       style={{ borderColor: colors.muted }}
                     >
                       <option value="pieces">Pieces</option>
                       <option value="grams">Grams</option>
+                      <option value="kilograms">Kilograms</option>
+                      <option value="milliliters">Milliliters</option>
                       <option value="liters">Liters</option>
                     </select>
+                  </div>
+
+                  {/* Minimum Threshold */}
+                  <div>
+                    <label className="block text-sm mb-1">Minimum Threshold</label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      step={newItem.unit === 'kilograms' || newItem.unit === 'liters' ? '0.1' : '1'}
+                      value={newItem.minimumThreshold}
+                      onChange={(e) => setNewItem({...newItem, minimumThreshold: parseFloat(e.target.value)})}
+                      className="w-full p-2 border rounded"
+                      style={{ borderColor: colors.muted }}
+                    />
+                    <small className="text-xs text-gray-500">
+                      Low stock warning will appear when quantity falls below this value
+                    </small>
                   </div>
 
                   {/* Inventory Batches */}
@@ -581,6 +894,7 @@ const handleRestock = async (e) => {
                             type="number"
                             required
                             min="0"
+                            step={newItem.unit === 'kilograms' || newItem.unit === 'liters' ? '0.1' : '1'}
                             value={batch.quantity}
                             onChange={(e) => handleBatchChange(index, 'quantity', e.target.value)}
                             className="p-2 border rounded flex-1"
@@ -692,27 +1006,11 @@ const handleRestock = async (e) => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs mb-1">Payment Terms</label>
-                          <select
-                            value={newVendor.paymentTerms}
-                            onChange={(e) => setNewVendor({...newVendor, paymentTerms: e.target.value})}
-                            className="w-full p-2 border rounded text-sm"
-                            style={{ borderColor: colors.muted }}
-                          >
-                            <option value="NET_30">Net 30 Days</option>
-                            <option value="NET_60">Net 60 Days</option>
-                            <option value="COD">COD</option>
-                          </select>
-                        </div>
-                      </div>
-
                       <div className="flex justify-end gap-2 mt-4">
                         <button
                           type="button"
                           onClick={() => setShowVendorAccordion(false)}
-                          className="px-3 py-1 text-sm rounded border"
+                          className="px-3 py-1 rounded text-sm"
                           style={{ borderColor: colors.muted, color: colors.primary }}
                         >
                           Cancel
@@ -720,7 +1018,7 @@ const handleRestock = async (e) => {
                         <button
                           type="button"
                           onClick={handleVendorSubmit}
-                          className="px-3 py-1 text-sm rounded font-medium"
+                          className="px-3 py-1 rounded text-sm"
                           style={{ backgroundColor: colors.accent, color: colors.background }}
                         >
                           Add Vendor
@@ -730,8 +1028,8 @@ const handleRestock = async (e) => {
                   </div>
                 )}
 
-                <div className="border-t pt-4 mt-4">
-                  <div className="flex justify-end gap-2">
+                <div className="mt-6 flex justify-between">
+                  <div>
                     <button
                       type="button"
                       onClick={() => setShowAddModal(false)}
@@ -770,6 +1068,7 @@ const handleRestock = async (e) => {
               type="number"
               required
               min="1"
+              step={selectedItem?.unit === 'kilograms' || selectedItem?.unit === 'liters' ? '0.1' : '1'}
               value={restockData.quantity}
               onChange={(e) => setRestockData({...restockData, quantity: e.target.value})}
               className="w-full p-2 border rounded"
@@ -810,6 +1109,159 @@ const handleRestock = async (e) => {
   </div>
 )}
 
+{/* Daily Inventory Modal */}
+{showDailyInventoryModal && selectedItemForEndDay && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="bg-white p-6 rounded-lg w-full max-w-xl max-h-[90vh] overflow-y-auto">
+      <h2 className="text-xl font-bold mb-4">
+        End-of-Day Count: {selectedItemForEndDay.name}
+      </h2>
+      <p className="mb-4 text-sm text-gray-600">
+        Record the actual remaining quantities for each batch based on your physical count.
+      </p>
+      <form onSubmit={handleEndDayUpdate}>
+        <div className="space-y-4">
+          {endDayQuantities.map((batch, index) => (
+            <div key={index} className="p-3 border rounded" style={{ borderColor: colors.muted }}>
+              <div className="flex justify-between mb-2">
+                <span className="text-sm font-medium">Batch #{index + 1}</span>
+                <span className="text-sm text-gray-500">Expires: {batch.expirationDate}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-grow">
+                  <label className="block text-sm mb-1">End-of-Day Quantity</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    step={selectedItemForEndDay.unit === 'kilograms' || selectedItemForEndDay.unit === 'liters' ? '0.1' : '1'}
+                    value={batch.quantity}
+                    onChange={(e) => {
+                      const newQuantities = [...endDayQuantities];
+                      newQuantities[index].quantity = e.target.value;
+                      setEndDayQuantities(newQuantities);
+                    }}
+                    className="w-full p-2 border rounded"
+                    style={{ borderColor: colors.muted }}
+                  />
+                </div>
+                <div className="text-sm text-gray-600 pt-6">
+                  {selectedItemForEndDay.unit}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end gap-2 mt-6">
+          <button
+            type="button"
+            onClick={() => setShowDailyInventoryModal(false)}
+            className="px-4 py-2 rounded border"
+            style={{ borderColor: colors.muted, color: colors.primary }}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 rounded font-medium"
+            style={{ backgroundColor: colors.accent, color: colors.background }}
+          >
+            Save End-of-Day Count
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+{/* Unit Conversion Modal */}
+{showConversionModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="bg-white p-6 rounded-lg w-full max-w-md">
+      <h2 className="text-xl font-bold mb-4">Unit Conversion</h2>
+      <form onSubmit={handleConversion}>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm mb-1">Value</label>
+            <input
+              type="number"
+              required
+              min="0"
+              step="0.01"
+              value={conversionData.value}
+              onChange={(e) => setConversionData({...conversionData, value: e.target.value})}
+              className="w-full p-2 border rounded"
+              style={{ borderColor: colors.muted }}
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm mb-1">From Unit</label>
+              <select
+                required
+                value={conversionData.fromUnit}
+                onChange={(e) => setConversionData({...conversionData, fromUnit: e.target.value})}
+                className="w-full p-2 border rounded"
+                style={{ borderColor: colors.muted }}
+              >
+                <option value="grams">Grams</option>
+                <option value="kilograms">Kilograms</option>
+                <option value="milliliters">Milliliters</option>
+                <option value="liters">Liters</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm mb-1">To Unit</label>
+              <select
+                required
+                value={conversionData.toUnit}
+                onChange={(e) => setConversionData({...conversionData, toUnit: e.target.value})}
+                className="w-full p-2 border rounded"
+                style={{ borderColor: colors.muted }}
+              >
+                <option value="grams">Grams</option>
+                <option value="kilograms">Kilograms</option>
+                <option value="milliliters">Milliliters</option>
+                <option value="liters">Liters</option>
+              </select>
+            </div>
+          </div>
+          
+          {conversionResult && (
+            <div className="mt-4 p-3 rounded" style={{ backgroundColor: colors.activeBg }}>
+              <p className="font-medium" style={{ color: colors.primary }}>
+                {conversionResult.originalValue} {conversionResult.originalUnit} = 
+                <span className="text-lg ml-2" style={{ color: colors.accent }}>
+                  {conversionResult.convertedValue} {conversionResult.convertedUnit}
+                </span>
+              </p>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex justify-end gap-2 mt-6">
+          <button
+            type="button"
+            onClick={() => setShowConversionModal(false)}
+            className="px-4 py-2 rounded border"
+            style={{ borderColor: colors.muted, color: colors.primary }}
+          >
+            Close
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 rounded font-medium"
+            style={{ backgroundColor: colors.accent, color: colors.background }}
+          >
+            Convert
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
 
 {showReports && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
@@ -825,32 +1277,53 @@ const handleRestock = async (e) => {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius={80}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                     >
                       {categoryData.map((entry, index) => (
-                        <Cell key={index} fill={getCategoryColor(entry.name)} />
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={[colors.accent, colors.secondary, '#36A2EB', '#FFCE56'][
+                            index % 4
+                          ]}
+                        />
                       ))}
                     </Pie>
-                    <Tooltip />
                     <Legend />
+                    <Tooltip />
                   </PieChart>
                 </div>
+
                 <div>
-                  <h3 className="font-medium mb-2">Stock Levels</h3>
-                  <BarChart width={300} height={300} data={items}>
+                  <h3 className="font-medium mb-2">Current Stock Levels</h3>
+                  <BarChart width={300} height={300} data={items.slice(0, 5)}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis />
                     <Tooltip />
-                    <Legend />
-                    <Bar dataKey="quantity" fill={colors.accent} />
+                    <Bar dataKey="totalQuantity" fill={colors.accent}>
+                      {items.slice(0, 5).map((item, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={
+                            item.status === 'Out of Stock'
+                              ? '#FF6863'
+                              : item.status === 'Low Stock'
+                              ? '#FFCE56'
+                              : colors.accent
+                          }
+                        />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </div>
               </div>
+
               <button
                 onClick={() => setShowReports(false)}
-                className="mt-4 px-4 py-2 float-right"
-                style={{ color: colors.primary }}
+                className="mt-4 px-4 py-2 rounded"
+                style={{ backgroundColor: colors.accent, color: colors.background }}
               >
                 Close
               </button>
@@ -886,8 +1359,8 @@ const handleRestock = async (e) => {
               </div>
               <button
                 onClick={() => setShowAuditLog(false)}
-                className="mt-4 px-4 py-2 float-right"
-                style={{ color: colors.primary }}
+                className="mt-4 px-4 py-2 rounded"
+                style={{ backgroundColor: colors.accent, color: colors.background }}
               >
                 Close
               </button>
@@ -897,28 +1370,6 @@ const handleRestock = async (e) => {
       </div>
     </div>
   );
-};
-
-// Helper functions remain same
-const getStatusColor = (status) => {
-  switch (status) {
-    case 'In Stock': return { bg: '#e9f7ef', text: '#2a6b46' };
-    case 'Low Stock': return { bg: '#fff3cd', text: '#856404' };
-    case 'Out of Stock': return { bg: '#f8d7da', text: '#721c24' };
-    default: return { bg: '#e2e3e5', text: '#41464b' };
-  }
-};
-
-const getCategoryColor = (category) => {
-  const colorsArr = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088fe'];
-  return colorsArr[category.charCodeAt(0) % colorsArr.length];
-};
-
-const formatPeso = (value) => {
-  return new Intl.NumberFormat('en-PH', {
-    style: 'currency',
-    currency: 'PHP'
-  }).format(value);
 };
 
 export default InventorySystem;

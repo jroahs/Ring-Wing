@@ -18,14 +18,15 @@ router.post('/', async (req, res) => {
 // @route   GET /api/expenses
 router.get('/', async (req, res) => {
   try {
-    const { startDate, endDate, category, search, disbursed } = req.query;
+    const { startDate, endDate, category, search, disbursed, permanent } = req.query;
     const filter = {};
 
     if (startDate && endDate) {
       filter.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
     }
     if (category && category !== 'All') filter.category = category;
-    if (disbursed) filter.disbursed = disbursed === 'true';
+    if (disbursed !== undefined) filter.disbursed = disbursed === 'true';
+    if (permanent !== undefined) filter.permanent = permanent === 'true';
     if (search) {
       filter.$or = [
         { description: { $regex: search, $options: 'i' } },
@@ -68,8 +69,8 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// @desc    Reset disbursement status daily
-// @route   POST /api/expenses/reset-disbursement
+// @desc    Get daily disbursements for charts (without resetting payment status)
+// @route   POST /api/expenses/daily-stats
 router.post('/reset-disbursement', async (req, res) => {
   try {
     // Calculate today's start and end date
@@ -78,21 +79,24 @@ router.post('/reset-disbursement', async (req, res) => {
     const endOfDay = new Date(startOfDay);
     endOfDay.setDate(startOfDay.getDate() + 1);
     
-    // Only reset expenses that are:
-    // 1. Currently marked as disbursed
-    // 2. Were created/modified within the current day
-    const result = await Expense.updateMany(
-      { 
-        disbursed: true,
-        date: { $gte: startOfDay, $lt: endOfDay }
-      },
-      { $set: { disbursed: false } }
-    );
-
+    // Get count of expenses disbursed today
+    const todayDisbursedCount = await Expense.countDocuments({
+      disbursementDate: { $gte: startOfDay, $lt: endOfDay },
+      disbursed: true
+    });
+    
+    // Get count of all disbursed expenses
+    const allDisbursedCount = await Expense.countDocuments({
+      disbursed: true
+    });
+    
+    // No longer reset any payment statuses - just return the stats
     res.json({
       success: true,
-      message: 'Disbursement status reset successfully for today\'s expenses',
-      count: result.modifiedCount
+      message: 'Daily disbursement statistics calculated',
+      todayCount: todayDisbursedCount,
+      allTimeCount: allDisbursedCount,
+      date: startOfDay.toISOString()
     });
   } catch (error) {
     res.status(500).json({

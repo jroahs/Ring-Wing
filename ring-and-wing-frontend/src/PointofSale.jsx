@@ -1,18 +1,20 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import * as ReactDOM from 'react-dom/client';
 import { useReactToPrint } from 'react-to-print';
 import { MenuItemCard, OrderItem, PaymentPanel, SearchBar, Modal } from './components/ui';
 import { theme } from './theme';
 import { Receipt } from './components/Receipt';
-import PendingOrder from './components/PendingOrder';
 import Sidebar from './Sidebar';
 import TimeClockInterface from './components/TimeClockInterface';
 import TimeClockModal from './components/TimeClockModal';
-import { FiClock, FiPlus } from 'react-icons/fi';
+import CashFloatModal from './components/CashFloatModal';
+import OrderProcessingModal from './components/OrderProcessingModal';
+import PendingOrder from './components/PendingOrder';
+import { FiClock, FiPlus, FiSettings, FiDollarSign, FiCheckCircle, FiCoffee } from 'react-icons/fi';
 
-const PointOfSale = () => {
-  const [menuItems, setMenuItems] = useState([]);
+const PointOfSale = () => {  const [menuItems, setMenuItems] = useState([]);
   const [currentOrder, setCurrentOrder] = useState([]);
-  const [pendingOrders, setPendingOrders] = useState([]);
+  const [activeOrders, setActiveOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showReceipt, setShowReceipt] = useState(false);
   const [cashAmount, setCashAmount] = useState(0);
@@ -20,12 +22,121 @@ const PointOfSale = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-  const [cashFloat, setCashFloat] = useState(1000);
-  const [paymentMethod, setPaymentMethod] = useState('cash');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
-  const [showTimeClock, setShowTimeClock] = useState(false);
+  
+  // Cash float state management
+  const [cashFloat, setCashFloat] = useState(() => {
+    const savedFloat = localStorage.getItem('cashFloat');
+    return savedFloat ? parseFloat(savedFloat) : 1000;
+  });
+  const [showCashFloatModal, setShowCashFloatModal] = useState(false);
+  const [cashFloatSettings, setCashFloatSettings] = useState(() => {
+    const savedSettings = localStorage.getItem('cashFloatSettings');
+    return savedSettings ? JSON.parse(savedSettings) : {
+      resetDaily: false,
+      resetAmount: 1000,
+      lastReset: null
+    };
+  });
+    const [isUserAdmin, setIsUserAdmin] = useState(false);
+  // State for managing user role
+  const [isManager, setIsManager] = useState(false);
+    const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [cardDetails, setCardDetails] = useState({ last4: '', name: '' });
+  const [eWalletDetails, setEWalletDetails] = useState({ number: '', name: '' });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);const [showTimeClock, setShowTimeClock] = useState(false);
   const [showTimeClockModal, setShowTimeClockModal] = useState(false);
+  const [showOrderProcessingModal, setShowOrderProcessingModal] = useState(false);
   const receiptRef = useRef();
+
+  // Check if user is manager
+  useEffect(() => {
+    const checkUserRole = async () => {
+      try {
+        // First check if we have user info in localStorage
+        const userData = localStorage.getItem('userData');
+        const user = userData ? JSON.parse(userData) : null;
+        
+        if (user && user.role === 'manager') {
+          console.log("Found manager in localStorage:", user.role);
+          setIsManager(true);
+          return;
+        }
+        
+        // If not found in localStorage, try to fetch from backend
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        const response = await fetch('http://localhost:5000/api/auth/me', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log("User role from API:", data.role);
+          // Set isManager to true if user has manager role
+          setIsManager(data.role === 'manager');
+        }
+      } catch (err) {
+        console.error('Error checking user role:', err);
+      }
+    };
+    
+    checkUserRole();
+  }, []);
+
+  // Check for daily reset
+  useEffect(() => {
+    const checkDailyReset = () => {
+      // Safely check if resetDaily is true and resetAmount exists
+      if (!cashFloatSettings?.resetDaily || !cashFloatSettings?.resetAmount) return;
+      
+      const today = new Date().toDateString();
+      const lastReset = cashFloatSettings.lastReset || null;
+      
+      if (lastReset !== today) {
+        // Ensure resetAmount is a number
+        const resetAmount = Number(cashFloatSettings.resetAmount) || 1000;
+        setCashFloat(resetAmount);
+        
+        // Update settings with today's date
+        const updatedSettings = {
+          ...cashFloatSettings,
+          lastReset: today
+        };
+        
+        setCashFloatSettings(updatedSettings);
+        
+        // Save to localStorage with proper string conversion
+        localStorage.setItem('cashFloat', resetAmount.toString());
+        localStorage.setItem('cashFloatSettings', JSON.stringify(updatedSettings));
+      }
+    };
+    
+    checkDailyReset();
+  }, [cashFloatSettings]);
+
+  // Save cash float to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('cashFloat', cashFloat.toString());
+  }, [cashFloat]);
+  
+  // Handle updating cash float settings
+  const updateCashFloatSettings = (newSettings) => {
+    setCashFloatSettings(newSettings);
+    localStorage.setItem('cashFloatSettings', JSON.stringify(newSettings));
+    
+    // If manual adjustment is being made, update the cash float immediately
+    if (newSettings.manualAdjustment !== undefined) {
+      setCashFloat(parseFloat(newSettings.manualAdjustment));
+      // Remove the manualAdjustment from the settings object before saving
+      const { manualAdjustment, ...settingsToSave } = newSettings;
+      localStorage.setItem('cashFloatSettings', JSON.stringify(settingsToSave));
+    }
+    
+    // Don't close the modal automatically - we'll use a separate save button
+  };
 
   const isLargeScreen = windowWidth >= 1920;
   const isMediumScreen = windowWidth >= 768;
@@ -42,10 +153,9 @@ const PointOfSale = () => {
     if (windowWidth >= 1024) return 'grid-cols-3';
     return 'grid-cols-2';
   }, [windowWidth]);
-
   useEffect(() => {
-    fetchPendingOrders();
-    const interval = setInterval(fetchPendingOrders, 5000);
+    fetchActiveOrders();
+    const interval = setInterval(fetchActiveOrders, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -106,80 +216,159 @@ const PointOfSale = () => {
 
     fetchMenuItems();
     return () => abortController.abort();
-  }, []);
-
-  const fetchPendingOrders = async () => {
+  }, []);  const fetchActiveOrders = async () => {
     try {
-      // Modified to fetch both self_checkout and chatbot pending orders
+      // Fetch all active orders (not just ready or pending)
       const response = await fetch(
-        'http://localhost:5000/api/orders?paymentMethod=pending',
+        'http://localhost:5000/api/orders',
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`
           }
         }
       );
+      
       const data = await response.json();
-      setPendingOrders(data.data || []);
+      
+      // Use all orders that aren't completed
+      const activeOrders = data.data.filter(order => order.status !== 'completed');
+      
+      setActiveOrders(activeOrders);
     } catch (error) {
-      console.error('Error fetching pending orders:', error);
+      console.error('Error fetching orders:', error);
     }
-  };
-
-  const processExistingOrderPayment = async (order, { method, cashAmount }) => {
-    const totalDue = parseFloat(order.totals.total);
-    let paymentData = {};
-
-    if (method === 'cash') {
-      if (cashAmount < totalDue) {
-        alert('Insufficient cash amount');
-        return;
-      }
-
-      const change = cashAmount - totalDue;
-      if (change > cashFloat) {
-        alert(`Insufficient cash float (₱${cashFloat.toFixed(2)}) to give ₱${change.toFixed(2)} change`);
-        return;
-      }
-
-      paymentData = {
-        cashReceived: cashAmount,
-        change: change.toFixed(2)
-      };
-    }
-
+  };  const processExistingOrderPayment = async (orderId, newStatus) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/orders/${order._id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          status: 'received',
-          paymentMethod: method,
-          ...paymentData
-        })
-      });
+      // Case 1: Payment processing flow from legacy payment component
+      if (typeof orderId === 'object' && orderId._id) {
+        const order = orderId;
+        const { method, cashAmount, cardDetails, eWalletDetails } = newStatus;
+        
+        const totalDue = parseFloat(order.totals.total);
+        let paymentData = {};
 
-      if (!response.ok) throw new Error('Failed to update order');
+        if (method === 'cash') {
+          if (cashAmount < totalDue) {
+            alert('Insufficient cash amount');
+            return;
+          }
 
-      setShowReceipt(true);
-      await new Promise(resolve => setTimeout(resolve, 100));
-      await handlePrint();
+          const change = cashAmount - totalDue;
+          if (change > cashFloat) {
+            alert(`Insufficient cash float (₱${cashFloat.toFixed(2)}) to give ₱${change.toFixed(2)} change`);
+            return;
+          }
 
-      setPendingOrders(prev => prev.filter(o => o._id !== order._id));
-      setCashAmount(0);
-      setShowReceipt(false);
+          paymentData = {
+            cashReceived: cashAmount,
+            change: change.toFixed(2)
+          };
+        } else if (method === 'card' && cardDetails) {
+          paymentData = {
+            cardLastFour: cardDetails.last4,
+            cardholderName: cardDetails.name
+          };
+        } else if (method === 'e-wallet' && eWalletDetails) {
+          paymentData = {
+            eWalletNumber: eWalletDetails.number,
+            eWalletName: eWalletDetails.name
+          };
+        }
+        
+        try {
+          const response = await fetch(`http://localhost:5000/api/orders/${order._id}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({
+              status: 'received',
+              paymentMethod: method,
+              ...paymentData
+            })
+          });
 
-      if (method === 'cash') {
-        setCashFloat(prev => prev + cashAmount - (cashAmount - totalDue));
+          if (!response.ok) throw new Error('Failed to update order');          // Store current state to restore later
+          const prevCurrentOrder = [...currentOrder];
+          const prevPaymentMethod = paymentMethod;
+          const prevCashAmount = cashAmount;
+          const prevCardDetails = {...cardDetails};
+          const prevEWalletDetails = {...eWalletDetails};          // Instead of using ReactDOM, we'll use the existing state and refs for the receipt
+          // First, ensure each order item has all the necessary properties for OrderItem component
+          const processedItems = order.items.map(item => ({
+            ...item,
+            // Ensure each item has availableSizes and pricing to prevent the TypeError in OrderItem
+            availableSizes: item.availableSizes || [item.selectedSize || 'base'],
+            pricing: item.pricing || { [item.selectedSize || 'base']: item.price }
+          }));          // Set up temporary state for receipt printing with the processed items
+          setCurrentOrder(processedItems);
+          setPaymentMethod(method);
+          
+          if (method === 'cash') {
+            setCashAmount(cashAmount);
+          } else if (method === 'card' && cardDetails) {
+            setCardDetails(cardDetails);
+          } else if (method === 'e-wallet' && eWalletDetails) {
+            setEWalletDetails(eWalletDetails);
+          }
+          
+          // Show the receipt and print
+          setShowReceipt(true);
+          await new Promise(resolve => setTimeout(resolve, 100));
+          await handlePrint();          // No need for cleanup of DOM elements since we're not creating any// Update active orders (remove the one we just processed)
+          setActiveOrders(prev => prev.filter(o => o._id !== order._id));
+          
+          // Reset state for next use
+          setCashAmount(0);
+          setCardDetails({ last4: '', name: '' });
+          setEWalletDetails({ number: '', name: '' });
+          setCurrentOrder([]);
+          setShowReceipt(false);
+
+          if (method === 'cash') {
+            setCashFloat(prev => prev + cashAmount - (cashAmount - totalDue));
+          }
+
+          alert('Payment processed successfully!');
+        } catch (error) {
+          console.error('Payment processing error:', error);
+          alert('Error processing payment');
+        }
+      } 
+      // Case 2: Order status update from OrderProcessingModal
+      else {
+        const response = await fetch(`http://localhost:5000/api/orders/${orderId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ status: newStatus })
+        });
+
+        if (!response.ok) throw new Error('Failed to update order status');
+
+        // Update the local state with the new status
+        setActiveOrders(prev => {
+          return prev.map(order => {
+            if (order._id === orderId) {
+              return { ...order, status: newStatus };
+            }
+            return order;
+          });
+        });
+
+        // If order is completed, remove it from the list
+        if (newStatus === 'completed') {
+          setActiveOrders(prev => prev.filter(o => o._id !== orderId));
+        }
+
+        alert(`Order status updated to ${newStatus}`);
       }
-
-      alert('Payment processed successfully!');
     } catch (error) {
-      console.error('Payment processing error:', error);
-      alert('Error processing payment');
+      console.error('Order processing error:', error);
+      alert('Error updating order');
     }
   };
 
@@ -288,13 +477,14 @@ const PointOfSale = () => {
       if (paymentMethod === 'cash') {
         const change = cashValue - totalDue;
         setCashFloat(prev => prev + cashValue - change);
-      }
-
-      setCurrentOrder([]);
+      }      setCurrentOrder([]);
       setCashAmount(0);
       setIsDiscountApplied(false);
       setSearchTerm('');
       setShowReceipt(false);
+      // Reset payment details
+      setCardDetails({ last4: '', name: '' });
+      setEWalletDetails({ number: '', name: '' });
 
       alert('Order completed successfully!');
     } catch (error) {
@@ -302,11 +492,30 @@ const PointOfSale = () => {
       alert('Error processing payment. Please try again.');
     }
   };
-
   const saveOrderToDB = async () => {
     try {
       const totals = calculateTotal();
       const cashValue = parseFloat(cashAmount);
+
+      // Prepare payment details based on the payment method
+      let paymentDetails = {};
+      
+      if (paymentMethod === 'cash') {
+        paymentDetails = {
+          cashReceived: cashValue,
+          change: cashValue - parseFloat(totals.total)
+        };
+      } else if (paymentMethod === 'card') {
+        paymentDetails = {
+          cardLastFour: cardDetails.last4,
+          cardholderName: cardDetails.name
+        };
+      } else if (paymentMethod === 'e-wallet') {
+        paymentDetails = {
+          eWalletNumber: eWalletDetails.number,
+          eWalletName: eWalletDetails.name
+        };
+      }
 
       const orderData = {
         items: currentOrder.map(item => ({
@@ -320,10 +529,10 @@ const PointOfSale = () => {
           subtotal: parseFloat(totals.subtotal),
           discount: parseFloat(totals.discount),
           total: parseFloat(totals.total),
-          cashReceived: paymentMethod === 'cash' ? cashValue : 0,
-          change: paymentMethod === 'cash' ? cashValue - parseFloat(totals.total) : 0
+          ...paymentDetails
         },
         paymentMethod,
+        paymentDetails, // Additional field for payment details
         status: 'received',
         orderType: 'pos'  // Changed from 'self_checkout' to 'pos' for orders created in POS
       };
@@ -360,11 +569,13 @@ const PointOfSale = () => {
       )
     );
   };
-
   const cancelOrder = () => {
     setCurrentOrder([]);
     setCashAmount(0);
     setIsDiscountApplied(false);
+    // Reset payment details
+    setCardDetails({ last4: '', name: '' });
+    setEWalletDetails({ number: '', name: '' });
   };
 
   const filteredItems = useMemo(
@@ -499,14 +710,28 @@ const PointOfSale = () => {
                     <span className="hidden md:inline">Time Clock</span>
                   </button>
 
-                  <button
-                    onClick={() => {}}
+                  {/* Cash Float Settings Button (Manager Only) */}
+                  {isManager && (
+                    <button
+                      onClick={() => setShowCashFloatModal(true)}
+                      className="h-12 px-4 flex items-center justify-center rounded-lg hover:opacity-90 transition"
+                      style={{ backgroundColor: theme.colors.primary, color: theme.colors.background }}
+                      title="Cash Float Settings"
+                    >
+                      <FiDollarSign className="mr-2" />
+                      <span className="hidden md:inline">Cash Float</span>
+                    </button>                  )}                  <button
+                    onClick={() => setShowOrderProcessingModal(true)}
                     className="h-12 px-4 flex items-center justify-center rounded-lg hover:opacity-90 transition"
                     style={{ backgroundColor: theme.colors.secondary, color: theme.colors.background }}
-                    title="Additional Function"
+                    title="Ready Orders"
                   >
-                    <FiPlus className="mr-2" />
-                    <span className="hidden md:inline">Function</span>
+                    <FiCoffee className="mr-2" />                    <span className="hidden md:inline">Ready Orders</span>
+                    {activeOrders.filter(o => o.status === 'ready').length > 0 && (
+                      <span className="ml-2 bg-green-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                        {activeOrders.filter(o => o.status === 'ready').length}
+                      </span>
+                    )}
                   </button>
                 </div>
               </div>
@@ -537,32 +762,67 @@ const PointOfSale = () => {
                       onUpdateSize={updateSize}
                       onUpdateQuantity={updateQuantity}
                     />
-                  ))}
-
-                  {/* Pending Orders Section */}
-                  {pendingOrders.length > 0 && (
+                  ))}                  {/* Pending Orders Section */}
+                  {activeOrders.filter(order => order.paymentMethod === "pending").length > 0 && (
                     <div className="mt-4 pt-4 border-t-2">
                       <h3
                         className="text-base font-bold mb-3"
                         style={{ color: theme.colors.primary }}
                       >
-                        Pending Orders ({pendingOrders.length})
+                        Pending Orders ({activeOrders.filter(order => order.paymentMethod === "pending").length})
                       </h3>
                       <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-                        {pendingOrders.map(order => (
-                          <PendingOrder
-                            key={order._id}
-                            order={order}
-                            processPayment={processExistingOrderPayment}
-                            colors={theme.colors}
-                          />
+                        {activeOrders
+                          .filter(order => order.paymentMethod === "pending")
+                          .map(order => (
+                            <PendingOrder
+                              key={order._id}
+                              order={order}
+                              processPayment={processExistingOrderPayment}
+                              colors={theme.colors}
+                            />
                         ))}
                       </div>
                     </div>
                   )}
-                </div>
-
-                <PaymentPanel
+                    {/* Ready Orders Section */}
+                  {activeOrders.filter(order => order.status === "ready").length > 0 && (
+                    <div className="mt-4 pt-4 border-t-2">
+                      <h3
+                        className="text-base font-bold mb-3"
+                        style={{ color: theme.colors.primary }}
+                      >
+                        Ready Orders ({activeOrders.filter(order => order.status === "ready").length})
+                      </h3>
+                      <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                        {activeOrders
+                          .filter(order => order.status === "ready")
+                          .map(order => (
+                            <div 
+                              key={order._id}
+                              className="p-3 rounded-lg flex justify-between"
+                              style={{ backgroundColor: "#e6f7e6" }}
+                            >
+                              <div>
+                                <span className="font-medium" style={{ color: theme.colors.primary }}>
+                                  Order #{order.receiptNumber || order._id?.substring(0, 6)}
+                                </span>
+                                <span className="ml-2 text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">
+                                  Ready
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => setShowOrderProcessingModal(true)}
+                                className="text-xs px-2 py-1 rounded bg-green-500 text-white hover:bg-green-600"
+                              >
+                                Complete
+                              </button>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>                <PaymentPanel
                   total={calculateTotal().total}
                   subtotal={calculateTotal().subtotal}
                   discount={calculateTotal().discount}
@@ -570,23 +830,32 @@ const PointOfSale = () => {
                   paymentMethod={paymentMethod}
                   cashAmount={cashAmount}
                   isDiscountApplied={isDiscountApplied}
-                  onPaymentMethodChange={setPaymentMethod}
+                  onPaymentMethodChange={(method) => {
+                    setPaymentMethod(method);
+                    // Reset other payment details when changing methods
+                    if (method !== 'card') setCardDetails({ last4: '', name: '' });
+                    if (method !== 'e-wallet') setEWalletDetails({ number: '', name: '' });
+                    if (method !== 'cash') setCashAmount(0);
+                  }}
                   onCashAmountChange={setCashAmount}
                   onDiscountToggle={() => setIsDiscountApplied(!isDiscountApplied)}
                   onProcessPayment={processPayment}
                   onCancelOrder={cancelOrder}
-                  disabled={
+                  cardDetails={cardDetails}
+                  onCardDetailsChange={setCardDetails}
+                  eWalletDetails={eWalletDetails}
+                  onEWalletDetailsChange={setEWalletDetails}disabled={
                     currentOrder.length === 0 ||
-                    (paymentMethod === 'cash' &&
-                      cashAmount < parseFloat(calculateTotal().total))
+                    (paymentMethod === 'cash' && cashAmount < parseFloat(calculateTotal().total)) ||
+                    (paymentMethod === 'card' && (!cardDetails?.last4 || !cardDetails?.name)) ||
+                    (paymentMethod === 'e-wallet' && (!eWalletDetails?.number || !eWalletDetails?.name))
                   }
                 />
               </div>
             </div>
 
             {/* Receipt Modal */}
-            <Modal isOpen={showReceipt} onClose={() => setShowReceipt(false)} size="lg">
-              <Receipt
+            <Modal isOpen={showReceipt} onClose={() => setShowReceipt(false)} size="lg">              <Receipt
                 ref={receiptRef}
                 order={{
                   items: currentOrder,
@@ -594,8 +863,12 @@ const PointOfSale = () => {
                 }}
                 totals={{
                   ...calculateTotal(),
-                  cashReceived: cashAmount.toFixed(2),
-                  change: (cashAmount - parseFloat(calculateTotal().total)).toFixed(2)
+                  cashReceived: paymentMethod === 'cash' ? cashAmount.toFixed(2) : 0,
+                  change: paymentMethod === 'cash' ? (cashAmount - parseFloat(calculateTotal().total)).toFixed(2) : 0,
+                  cardLastFour: paymentMethod === 'card' ? cardDetails.last4 : '',
+                  cardholderName: paymentMethod === 'card' ? cardDetails.name : '',
+                  eWalletNumber: paymentMethod === 'e-wallet' ? eWalletDetails.number : '',
+                  eWalletName: paymentMethod === 'e-wallet' ? eWalletDetails.name : ''
                 }}
                 paymentMethod={paymentMethod}
               />
@@ -617,6 +890,45 @@ const PointOfSale = () => {
             {showTimeClockModal && (
               <TimeClockModal onClose={() => setShowTimeClockModal(false)} />
             )}
+
+            {/* Cash Float Settings Modal - Manager Only */}
+            <CashFloatModal 
+              isOpen={showCashFloatModal} 
+              onClose={() => setShowCashFloatModal(false)} 
+              initialCashFloat={cashFloat}
+              theme={theme}
+              onSave={(settings) => {
+                // Update cash float settings
+                if (settings.resetDaily !== undefined) {
+                  setCashFloatSettings({
+                    resetDaily: settings.resetDaily,
+                    resetAmount: settings.resetAmount,
+                    lastReset: cashFloatSettings.lastReset
+                  });
+                  
+                  localStorage.setItem('cashFloatSettings', JSON.stringify({
+                    resetDaily: settings.resetDaily,
+                    resetAmount: settings.resetAmount,
+                    lastReset: cashFloatSettings.lastReset
+                  }));
+                }
+                
+                // Update manual cash float amount
+                if (settings.manualAmount) {
+                  setCashFloat(settings.manualAmount);
+                  localStorage.setItem('cashFloat', settings.manualAmount.toString());
+                }              }}
+            />
+          </div>
+        )}        {/* Order Processing Modal */}        {showOrderProcessingModal && (
+          <div>
+            <OrderProcessingModal
+              isOpen={showOrderProcessingModal} 
+              onClose={() => setShowOrderProcessingModal(false)}
+              orders={activeOrders}
+              updateOrderStatus={processExistingOrderPayment}
+              theme={theme}
+            />
           </div>
         )}
       </div>
