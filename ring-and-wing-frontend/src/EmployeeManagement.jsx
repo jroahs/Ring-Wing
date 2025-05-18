@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { FiUser, FiPlus, FiEdit, FiTrash, FiSave, FiChevronDown, FiCamera } from 'react-icons/fi';
+import { FiUser, FiPlus, FiEdit, FiTrash, FiSave, FiCamera, FiChevronDown } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import Sidebar from './Sidebar';
 import WorkIDModal from './WorkIDModal';
 import { toast } from 'react-toastify';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Button } from './components/ui/Button'; // Import Button component
+import StaffAvatar from './components/StaffAvatar'; // Import StaffAvatar component
 
 const StaffManagement = () => {
   const colors = {
@@ -58,10 +60,13 @@ const StaffManagement = () => {
         
         // Add authorization token to the request
         const token = localStorage.getItem('authToken');
+        console.log('Using auth token:', token ? 'Found token' : 'No token');
+        
         const config = {
           headers: { 
-            'Authorization': `Bearer ${token}`
-          }
+            'Authorization': token ? `Bearer ${token}` : ''
+          },
+          withCredentials: true
         };
         
         const fetchPromise = axios.get('/api/staff', config);
@@ -124,13 +129,23 @@ const StaffManagement = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Check file size (2MB limit)
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('Image too large. Maximum size is 2MB.');
+        return;
+      }
+      
       const reader = new FileReader();
       reader.onloadend = () => {
+        // Store the base64 data directly
         setFormData(prev => ({ ...prev, profilePicture: reader.result }));
+        console.log('Image uploaded successfully as base64');
+      };
+      reader.onerror = () => {
+        toast.error('Failed to read the image file.');
       };
       reader.readAsDataURL(file);
     }
@@ -156,6 +171,30 @@ const StaffManagement = () => {
       (!currentStaffId || s._id !== currentStaffId)
     );
     return !existingPin;
+  };  // Helper function to format image URLs
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) {
+      // Use local placeholder from public folder
+      return '/placeholders/staff.png';
+    }
+    
+    if (imagePath.startsWith('data:')) {
+      // Base64 image
+      return imagePath;
+    }
+    
+    // Handle different path formats
+    const baseUrl = 'http://localhost:5000';
+    
+    // Direct path to image in /uploads/staff
+    if (imagePath.includes('/uploads/staff/')) {
+      const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+      return `${baseUrl}${cleanPath}`;
+    } else {
+      // Fallback to direct path for staff avatars
+      const filename = imagePath.split('/').pop();
+      return `${baseUrl}/uploads/staff/${filename}`;
+    }
   };
   
   const validateForm = () => {
@@ -283,17 +322,21 @@ const StaffManagement = () => {
       const token = localStorage.getItem('authToken');
       const config = {
         headers: { 
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        },
+        withCredentials: true
       };
 
+      console.log('Sending staff creation request');
       const response = await axios.post('/api/staff', payload, config);
       setStaff([...staff, response.data]);
       resetForm();
       toast.success('Staff member added successfully');
     } catch (error) {
       console.error('Error adding staff:', error);
-      toast.error(error.response?.data?.message || 'Failed to add staff member');
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to add staff member';
+      toast.error(errorMsg);
     }
   };
 
@@ -571,7 +614,6 @@ const StaffManagement = () => {
     },
     tap: { scale: 0.99 }
   };
-
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: colors.background }}>
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} colors={colors} />
@@ -638,50 +680,39 @@ const StaffManagement = () => {
                             animate="visible"
                             exit={{ opacity: 0, x: -10 }}
                             layout
-                          >
-                            <div className="flex items-center gap-3">
-                              <motion.div 
-                                className="w-10 h-10 bg-cover bg-center border rounded-sm overflow-hidden"
-                                style={{ 
-                                  backgroundImage: `url(${staffMember.profilePicture || 'https://via.placeholder.com/150'})`,
-                                  borderColor: colors.muted
-                                }}
-                                whileHover={{ scale: 1.15 }}
-                                transition={{ type: "spring", stiffness: 300 }}
+                          >                            <div className="flex items-center gap-3">
+                              <StaffAvatar 
+                                imagePath={staffMember.profilePicture}
+                                alt={`${staffMember.name}'s photo`}
+                                size={40}
+                                className="border rounded-sm overflow-hidden"
                               />
                               <div>
                                 <p className="font-medium">{staffMember.name}</p>
                                 <p className="text-sm" style={{ color: colors.muted }}>{staffMember.position}</p>
                               </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <motion.button 
+                            </div>                            <div className="flex gap-2">
+                              <Button 
                                 onClick={() => { setSelectedStaff(staffMember); setIsModalOpen(true); }}
-                                className="p-1 hover:opacity-70" 
-                                style={{ color: colors.accent }}
-                                whileHover={{ scale: 1.2, rotate: 5 }}
-                                whileTap={{ scale: 0.9 }}
+                                variant="ghost"
+                                size="sm"
                               >
                                 <FiUser />
-                              </motion.button>
-                              <motion.button 
+                              </Button>
+                              <Button 
                                 onClick={() => handleEditStaff(staffMember)}
-                                className="p-1 hover:opacity-70" 
-                                style={{ color: colors.secondary }}
-                                whileHover={{ scale: 1.2, rotate: 5 }}
-                                whileTap={{ scale: 0.9 }}
+                                variant="ghost"
+                                size="sm"
                               >
                                 <FiEdit />
-                              </motion.button>
-                              <motion.button 
+                              </Button>
+                              <Button 
                                 onClick={() => handleDeleteStaff(staffMember._id)}
-                                className="p-1 hover:opacity-70" 
-                                style={{ color: colors.muted }}
-                                whileHover={{ scale: 1.2, rotate: 5 }}
-                                whileTap={{ scale: 0.9 }}
+                                variant="ghost"
+                                size="sm"
                               >
                                 <FiTrash />
-                              </motion.button>
+                              </Button>
                             </div>
                           </motion.div>
                         ))}
@@ -719,19 +750,13 @@ const StaffManagement = () => {
                         </motion.span>
                       </AnimatePresence>
                     </motion.h2>
-                    
-                    {/* Government Details dropdown toggle */}
+                      {/* Government Details dropdown toggle */}
                     <div className="relative z-20">
-                      <motion.button 
-                        type="button" 
+                      <Button 
                         onClick={() => setShowGovtDetails(!showGovtDetails)}
-                        className="flex items-center gap-1 px-3 py-1 rounded-full text-xs"
-                        style={{ 
-                          backgroundColor: showGovtDetails ? colors.primary + '15' : 'transparent',
-                          color: colors.primary,
-                          border: `1px solid ${colors.muted}`
-                        }}
-                        whileHover={{ backgroundColor: colors.primary + '10' }}
+                        variant="ghost"
+                        size="sm"
+                        className="flex items-center gap-1 text-xs"
                       >
                         <span className="font-medium">Government Details</span>
                         <FiChevronDown
@@ -740,7 +765,7 @@ const StaffManagement = () => {
                             transition: 'transform 0.3s' 
                           }}
                         />
-                      </motion.button>
+                      </Button>
                       
                       {/* Government Details Popup */}
                       <AnimatePresence>
@@ -806,141 +831,57 @@ const StaffManagement = () => {
                         )}
                       </AnimatePresence>
                     </div>
-                  </div>
-                  
-                  {/* More compact two-column layout */}
-                  <div className="flex flex-col md:flex-row gap-2">
-                    {/* Staff Information with Profile Picture */}
-                    <div className="md:w-1/2 pr-2">
-                      <div className="flex items-start mb-2">
+                  </div>                  {/* Three-column grid layout for better space utilization */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    {/* Profile Picture - Column 1 */}
+                    <div className="md:col-span-3">
+                      <div className="flex flex-col items-center">
                         {/* Profile Picture */}
-                        <div className="relative group mr-3">
-                          <motion.label 
-                            htmlFor="profileUpload" 
-                            className="w-16 h-16 border-2 border-dashed flex items-center justify-center cursor-pointer hover:border-solid rounded-sm bg-gray-100 overflow-hidden"
-                            style={{ 
-                              borderColor: colors.muted,
-                              backgroundImage: `url(${formData.profilePicture})`,
-                              backgroundSize: 'cover',
-                              backgroundPosition: 'center'
-                            }}
-                            whileHover={{ 
-                              borderColor: colors.accent
-                            }}
-                          >
-                            {!formData.profilePicture && <FiCamera size={16} style={{ color: colors.muted }} />}
-                          </motion.label>
+                        <div className="relative group mb-3">
+                          <motion.div className="relative">
+                            <StaffAvatar 
+                              imagePath={formData.profilePicture}
+                              alt="Staff profile"
+                              size={120}
+                              className="border-2 border-dashed rounded-sm cursor-pointer shadow-sm"
+                            />                            <motion.label 
+                              htmlFor="profileUpload" 
+                              className="absolute inset-0 flex items-center justify-center cursor-pointer hover:bg-black hover:bg-opacity-20 rounded-sm transition-all"
+                              whileHover={{ 
+                                borderColor: colors.accent
+                              }}
+                            >
+                              {formData.profilePicture && (
+                                <div className="flex flex-col items-center justify-center text-center">
+                                  <FiCamera size={18} style={{ color: 'white' }} />
+                                  <span className="text-xs mt-1" style={{ color: 'white' }}>
+                                    Change
+                                  </span>
+                                </div>
+                              )}
+                            </motion.label>
+                          </motion.div>
                           <input 
                             id="profileUpload"
                             type="file" 
-                            accept="image/*" 
+                            accept="image/jpeg,image/png,image/gif,image/webp" 
                             onChange={handleImageUpload} 
                             className="hidden" 
                           />
-                          {formData.profilePicture && (
+                          {formData.profilePicture && !formData.profilePicture.startsWith('data:') && (
                             <button 
                               onClick={() => setFormData(prev => ({ ...prev, profilePicture: '' }))} 
-                              className="absolute top-0 right-0 bg-red-500 text-white rounded-sm px-1 hover:bg-red-600 text-xs"
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 text-xs"
+                              title="Remove image"
                             >
                               <FiTrash size={10} />
                             </button>
                           )}
                         </div>
                         
-                        <div className="flex-1">
-                          <h3 className="text-xs font-semibold border-b pb-1 mb-1" style={{ color: colors.primary, borderColor: colors.muted + '30' }}>
-                            Staff Information
-                          </h3>
-                          
-                          <div className="flex flex-wrap -mx-1">
-                            <div className="px-1 w-full">
-                              <label className="block text-xs font-medium" style={{ color: colors.muted }}>
-                                Full Name
-                              </label>
-                              <input 
-                                type="text" 
-                                name="name" 
-                                placeholder="Full Name" 
-                                value={formData.name} 
-                                onChange={handleInputChange}
-                                className="p-1 rounded border w-full text-xs" 
-                                style={{ borderColor: formErrors.name ? colors.accent : colors.muted }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* Compact staff info fields */}
-                      <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-                        <div>
-                          <label className="block text-xs font-medium" style={{ color: colors.muted }}>
-                            Position
-                          </label>
-                          <select 
-                            name="position" 
-                            value={formData.position} 
-                            onChange={handleInputChange}
-                            className="p-1 rounded border w-full text-xs" 
-                            style={{ borderColor: formErrors.position ? colors.accent : colors.muted }}
-                          >
-                            <option value="">Select Position</option>
-                            {positionOptions.map(option => (
-                              <option key={option} value={option}>{option}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-medium" style={{ color: colors.muted }}>
-                            Status
-                          </label>
-                          <select 
-                            name="status" 
-                            value={formData.status} 
-                            onChange={handleInputChange}
-                            className="p-1 rounded border w-full text-xs" 
-                            style={{ borderColor: colors.muted }}
-                          >
-                            {statusOptions.map(option => (
-                              <option key={option} value={option}>{option}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-medium" style={{ color: colors.muted }}>
-                            Phone Number
-                          </label>
-                          <input 
-                            type="tel" 
-                            name="phone" 
-                            placeholder="09123456789" 
-                            value={formData.phone}
-                            onChange={handleInputChange} 
-                            className="p-1 rounded border w-full text-xs"
-                            style={{ borderColor: formErrors.phone ? colors.accent : colors.muted }}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-medium" style={{ color: colors.muted }}>
-                            Daily Rate (₱)
-                          </label>
-                          <input 
-                            type="number" 
-                            name="dailyRate" 
-                            placeholder="0.00" 
-                            value={formData.dailyRate}
-                            onChange={handleInputChange} 
-                            className="p-1 rounded border w-full text-xs"
-                            style={{ borderColor: formErrors.dailyRate ? colors.accent : colors.muted }}
-                            min="0" 
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-medium" style={{ color: colors.muted }}>
+                        {/* PIN Code - Placed under profile picture */}
+                        <div className="w-full">
+                          <label className="block text-xs font-medium mb-1" style={{ color: colors.primary }}>
                             PIN Code
                           </label>
                           <input 
@@ -949,23 +890,128 @@ const StaffManagement = () => {
                             placeholder="4-6 digits" 
                             value={formData.pinCode}
                             onChange={handleInputChange} 
-                            className="p-1 rounded border w-full text-xs"
+                            className="p-2 rounded border w-full text-sm text-center font-medium"
                             style={{ borderColor: formErrors.pinCode ? colors.accent : colors.muted }}
                             maxLength={6}
                           />
+                          {formErrors.pinCode && (
+                            <div className="text-xs text-red-500 mt-1">{formErrors.pinCode}</div>
+                          )}
                         </div>
                       </div>
                     </div>
+                    
+                    {/* Staff Information - Column 2 */}
+                    <div className="md:col-span-5">
+                      <h3 className="text-sm font-semibold border-b pb-1 mb-3" style={{ color: colors.primary, borderColor: colors.muted + '40' }}>
+                        Staff Information
+                      </h3>
+                      
+                      {/* Staff info fields */}
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-medium mb-1" style={{ color: colors.primary }}>
+                            Full Name
+                          </label>
+                          <input 
+                            type="text" 
+                            name="name" 
+                            placeholder="Full Name" 
+                            value={formData.name} 
+                            onChange={handleInputChange}
+                            className="p-2 rounded border w-full text-sm" 
+                            style={{ borderColor: formErrors.name ? colors.accent : colors.muted }}
+                          />
+                          {formErrors.name && (
+                            <div className="text-xs text-red-500 mt-1">{formErrors.name}</div>
+                          )}
+                        </div>
 
-                    {/* Account Details */}
-                    <div className="md:w-1/2 md:border-l pl-2" style={{ borderColor: colors.muted + '30' }}>
-                      <h3 className="text-xs font-semibold border-b pb-1 mb-2" style={{ color: colors.primary, borderColor: colors.muted + '30' }}>
+                        <div>
+                          <label className="block text-xs font-medium mb-1" style={{ color: colors.primary }}>
+                            Position
+                          </label>
+                          <select 
+                            name="position" 
+                            value={formData.position} 
+                            onChange={handleInputChange}
+                            className="p-2 rounded border w-full text-sm" 
+                            style={{ borderColor: formErrors.position ? colors.accent : colors.muted }}
+                          >
+                            <option value="">Select Position</option>
+                            {positionOptions.map(option => (
+                              <option key={option} value={option}>{option}</option>
+                            ))}
+                          </select>
+                          {formErrors.position && (
+                            <div className="text-xs text-red-500 mt-1">{formErrors.position}</div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-medium mb-1" style={{ color: colors.primary }}>
+                            Phone Number
+                          </label>
+                          <input 
+                            type="tel" 
+                            name="phone" 
+                            placeholder="09123456789" 
+                            value={formData.phone}
+                            onChange={handleInputChange} 
+                            className="p-2 rounded border w-full text-sm"
+                            style={{ borderColor: formErrors.phone ? colors.accent : colors.muted }}
+                          />
+                          {formErrors.phone && (
+                            <div className="text-xs text-red-500 mt-1">{formErrors.phone}</div>
+                          )}
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs font-medium mb-1" style={{ color: colors.primary }}>
+                            Daily Rate
+                          </label>
+                          <input 
+                            type="number" 
+                            name="dailyRate" 
+                            placeholder="Daily Rate" 
+                            value={formData.dailyRate}
+                            onChange={handleInputChange} 
+                            className="p-2 rounded border w-full text-sm"
+                            style={{ borderColor: formErrors.dailyRate ? colors.accent : colors.muted }}
+                          />
+                          {formErrors.dailyRate && (
+                            <div className="text-xs text-red-500 mt-1">{formErrors.dailyRate}</div>
+                          )}
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs font-medium mb-1" style={{ color: colors.primary }}>
+                            Status
+                          </label>
+                          <select 
+                            name="status" 
+                            value={formData.status} 
+                            onChange={handleInputChange}
+                            className="p-2 rounded border w-full text-sm" 
+                            style={{ borderColor: formErrors.status ? colors.accent : colors.muted }}
+                          >
+                            {statusOptions.map(option => (
+                              <option key={option} value={option}>{option}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Account Details - Column 3 */}
+                    <div className="md:col-span-4 md:border-l md:pl-4" style={{ borderColor: colors.muted + '30' }}>
+                      <h3 className="text-sm font-semibold border-b pb-1 mb-3" style={{ color: colors.primary, borderColor: colors.muted + '30' }}>
                         Account Details
                       </h3>
                       
-                      <div className="grid grid-cols-1 gap-y-1">
+                      <div className="space-y-3">
                         <div>
-                          <label className="block text-xs font-medium" style={{ color: colors.muted }}>
+                          <label className="block text-xs font-medium mb-1" style={{ color: colors.primary }}>
                             Username
                           </label>
                           <input 
@@ -974,13 +1020,16 @@ const StaffManagement = () => {
                             placeholder="Username" 
                             value={formData.username}
                             onChange={handleInputChange} 
-                            className="p-1 rounded border w-full text-xs"
+                            className="p-2 rounded border w-full text-sm"
                             style={{ borderColor: formErrors.username ? colors.accent : colors.muted }}
                           />
+                          {formErrors.username && (
+                            <div className="text-xs text-red-500 mt-1">{formErrors.username}</div>
+                          )}
                         </div>
 
                         <div>
-                          <label className="block text-xs font-medium" style={{ color: colors.muted }}>
+                          <label className="block text-xs font-medium mb-1" style={{ color: colors.primary }}>
                             Email
                           </label>
                           <input 
@@ -989,13 +1038,16 @@ const StaffManagement = () => {
                             placeholder="email@example.com" 
                             value={formData.email} 
                             onChange={handleInputChange}
-                            className="p-1 rounded border w-full text-xs"
+                            className="p-2 rounded border w-full text-sm"
                             style={{ borderColor: formErrors.email ? colors.accent : colors.muted }}
                           />
+                          {formErrors.email && (
+                            <div className="text-xs text-red-500 mt-1">{formErrors.email}</div>
+                          )}
                         </div>
 
                         <div>
-                          <label className="block text-xs font-medium" style={{ color: colors.muted }}>
+                          <label className="block text-xs font-medium mb-1" style={{ color: colors.primary }}>
                             Password {editMode && <span className="text-xs font-normal">(leave empty to keep current)</span>}
                           </label>
                           <input 
@@ -1004,67 +1056,63 @@ const StaffManagement = () => {
                             placeholder={editMode ? "Leave empty to keep current" : "Min. 8 characters"} 
                             value={formData.password}
                             onChange={handleInputChange} 
-                            className="p-1 rounded border w-full text-xs"
+                            className="p-2 rounded border w-full text-sm"
                             style={{ borderColor: formErrors.password ? colors.accent : colors.muted }}
                             required={!editMode} 
                           />
+                          {formErrors.password && (
+                            <div className="text-xs text-red-500 mt-1">{formErrors.password}</div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  </div>
-                  
-                  {/* Action Buttons - More compact */}
-                  <div className="mt-3 pt-2 border-t flex justify-end" style={{ borderColor: colors.muted + '30' }}>
-                    <div className="flex flex-wrap gap-1 justify-end">
+                    </div>                  </div>
+
+                    {/* Action Buttons */}                  <div className="mt-4 pt-3 border-t flex justify-end" style={{ borderColor: colors.muted + '30' }}>
+                    <div className="flex flex-wrap gap-2 justify-end">
                       {editMode && (
-                        <button 
-                          type="button" 
+                        <Button 
                           onClick={resetForm}
-                          className="px-2 py-1 rounded text-xs font-medium border"
-                          style={{ borderColor: colors.muted, color: colors.primary }}
+                          variant="secondary"
+                          size="sm"
                         >
                           Cancel
-                        </button>
+                        </Button>
                       )}
                       {!editMode ? (
-                        <button 
-                          type="button" 
+                        <Button 
                           onClick={handleAddStaff}
-                          className="px-3 py-1 rounded text-xs font-medium"
-                          style={{ backgroundColor: colors.accent, color: colors.background }}
+                          variant="primary"
+                          size="sm"
                         >
-                          <FiSave className="inline mr-1" size={12} />
+                          <FiSave className="inline mr-1" size={14} />
                           Add Staff Member
-                        </button>
+                        </Button>
                       ) : (
                         <>
-                          <button 
-                            type="button" 
+                          <Button 
                             onClick={() => handleSaveStaffOnly()}
-                            className="px-2 py-1 rounded text-xs font-medium"
-                            style={{ backgroundColor: colors.secondary, color: colors.background }}
+                            variant="secondary"
+                            size="sm"
                           >
-                            <FiSave className="inline mr-1" size={10} />
+                            <FiSave className="inline mr-1" size={12} />
                             Update Staff Only
-                          </button>
-                          <button 
-                            type="button" 
+                          </Button>
+                          <Button 
                             onClick={() => handleSaveAccountOnly()}
-                            className="px-2 py-1 rounded text-xs font-medium"
-                            style={{ backgroundColor: colors.primary, color: colors.background }}
+                            variant="accent"
+                            size="sm"
                           >
-                            <FiUser className="inline mr-1" size={10} />
+                            <FiUser className="inline mr-1" size={12} />
                             Update Account Only
-                          </button>
-                          <button 
-                            type="button" 
+                          </Button>
+                          <Button 
                             onClick={handleSaveEdit}
-                            className="px-2 py-1 rounded text-xs font-medium"
-                            style={{ backgroundColor: colors.accent, color: colors.background }}
+                            variant="primary"
+                            size="sm"
                           >
-                            <FiSave className="inline mr-1" size={10} />
+                            <FiSave className="inline mr-1" size={12} />
                             Update Both
-                          </button>
+                          </Button>
                         </>
                       )}
                     </div>
@@ -1097,6 +1145,6 @@ const StaffManagement = () => {
       </AnimatePresence>
     </div>
   );
-};
+};;
 
 export default StaffManagement;
