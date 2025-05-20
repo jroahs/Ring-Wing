@@ -275,6 +275,75 @@ router.patch('/:id/end-day', async (req, res) => {
   }
 });
 
+// New route for bulk end-of-day inventory updates
+router.post('/bulk-end-day', async (req, res) => {
+  try {
+    const { itemQuantities } = req.body;
+    
+    if (!itemQuantities || !Array.isArray(itemQuantities) || itemQuantities.length === 0) {
+      return res.status(400).json({ message: 'Item quantities must be provided as a non-empty array' });
+    }
+    
+    const results = [];
+    const errors = [];
+    
+    // Process each item in the batch
+    for (const itemData of itemQuantities) {
+      try {
+        const { itemId, endQuantities } = itemData;
+        
+        if (!itemId || !endQuantities || !Array.isArray(endQuantities)) {
+          errors.push({ itemId, error: 'Invalid data format' });
+          continue;
+        }
+        
+        const item = await Item.findById(itemId);
+        if (!item) {
+          errors.push({ itemId, error: 'Item not found' });
+          continue;
+        }
+        
+        // Track if any batch was updated
+        let batchUpdated = false;
+        
+        // Map the provided end quantities to batch IDs
+        endQuantities.forEach(endQty => {
+          const batch = item.inventory.id(endQty.batchId);
+          if (batch) {
+            batch.dailyEndQuantity = Number(endQty.quantity);
+            batch.quantity = Number(endQty.quantity); // Update actual quantity to match end quantity
+            batch.lastTallied = new Date();
+            batchUpdated = true;
+          }
+        });
+        
+        if (!batchUpdated) {
+          errors.push({ itemId, error: 'No matching batches found' });
+          continue;
+        }
+        
+        const updatedItem = await item.save();
+        results.push({
+          itemId,
+          name: updatedItem.name,
+          status: calculateStatus(updatedItem.inventory, updatedItem.minimumThreshold, updatedItem.unit)
+        });
+      } catch (err) {
+        errors.push({ itemId: itemData.itemId, error: err.message });
+      }
+    }
+    
+    res.json({
+      success: results.length > 0,
+      updated: results,
+      errors: errors.length > 0 ? errors : null,
+      message: `Successfully updated ${results.length} items${errors.length > 0 ? ` with ${errors.length} errors` : ''}`
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Error processing bulk end-day update: ' + err.message });
+  }
+});
+
 // Convert units
 router.post('/convert', (req, res) => {
   try {

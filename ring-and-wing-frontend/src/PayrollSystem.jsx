@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { FiUser, FiDollarSign, FiCalendar, FiClock, FiFileText, FiPrinter, FiEdit } from 'react-icons/fi';
 import { FaWrench } from 'react-icons/fa';
 import Sidebar from './Sidebar';
-import WorkIDModal from './WorkIDModal';
+import { default as WorkIDModal } from './WorkIDModal';
 import TimeLogHistory from './components/TimeLogHistory';
+import StaffAvatar from './components/StaffAvatar';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
@@ -413,17 +414,13 @@ const PayrollSystem = () => {
                           color: colors.primary,
                           ringColor: colors.accent
                         }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div 
-                            className="w-10 h-10 bg-cover bg-center border rounded-sm"
-                            style={{ 
-                              backgroundImage: `url(${employee.profilePicture || 'https://via.placeholder.com/150'})`,
-                              borderColor: colors.muted,
-                              backgroundSize: 'contain',
-                              backgroundRepeat: 'no-repeat'
-                            }}
-                          ></div>
+                      >                        <div className="flex items-center gap-3">
+                          <StaffAvatar 
+                            imagePath={employee.profilePicture}
+                            alt={`${employee.name}'s photo`}
+                            size={40}
+                            className="border rounded-sm"
+                          />
                           <div>
                             <p className="font-medium">{employee.name}</p>
                             <p className="text-sm" style={{ color: colors.muted }}>

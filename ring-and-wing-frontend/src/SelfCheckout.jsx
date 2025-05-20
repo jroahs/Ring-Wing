@@ -310,10 +310,19 @@ const SelfCheckout = () => {
               className="text-left p-3 rounded-xl shadow-sm"
               style={{ backgroundColor: colors.background }}
               onClick={() => addToOrder(item)}
-            >
-              {item.image && (
+            >              {item.image ? (
                 <img 
                   src={item.image} 
+                  alt={item.name} 
+                  className="w-full h-32 object-cover rounded-lg mb-2"
+                  onError={(e) => {
+                    // If image fails to load, use category-specific placeholder
+                    e.target.src = item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png';
+                  }}
+                />
+              ) : (
+                <img 
+                  src={item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png'} 
                   alt={item.name} 
                   className="w-full h-32 object-cover rounded-lg mb-2"
                 />

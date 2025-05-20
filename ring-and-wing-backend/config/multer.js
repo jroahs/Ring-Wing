@@ -5,15 +5,18 @@ const fs = require('fs');
 // Configure storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../public/uploads');
+    // Check if this is a menu image upload
+    const uploadPath = req.originalUrl.includes('/menu') ? 
+      path.join(__dirname, '../public/uploads/menu') : 
+      path.join(__dirname, '../public/uploads');
     
     // Create directory with proper error handling
-    fs.mkdir(uploadDir, { recursive: true }, (err) => {
+    fs.mkdir(uploadPath, { recursive: true }, (err) => {
       if (err) {
         console.error('Directory creation error:', err);
         return cb(new Error('Failed to create upload directory'));
       }
-      cb(null, uploadDir);
+      cb(null, uploadPath);
     });
   },
   filename: (req, file, cb) => {

@@ -10,6 +10,7 @@ import PesoIcon from './PesoIcon';
 import { PesoIconSVG } from './PesoIconSVG';
 import { PesoIconClean } from './PesoIconClean';
 import { PesoIconSimple } from './PesoIconSimple';
+import StaffAvatar from '../../components/StaffAvatar';
 
 export const DashboardGridMinimal = ({
   stats,
@@ -229,14 +230,12 @@ export const DashboardGridMinimal = ({
                 to={`/employees/${member.id}`}
                 className="px-3 py-1.5 border-b last:border-0 flex items-center justify-between cursor-pointer hover:bg-gray-50"
                 style={{ borderColor: theme.colors.muted + '10' }}
-              >
-                <div className="flex items-center gap-2">
-                  <div 
-                    className="w-6 h-6 rounded-sm border bg-cover bg-center"
-                    style={{ 
-                      backgroundImage: `url(${member.profilePicture || 'https://via.placeholder.com/150'})`,
-                      borderColor: theme.colors.muted
-                    }}
+              >                <div className="flex items-center gap-2">
+                  <StaffAvatar 
+                    imagePath={member.profilePicture}
+                    alt={`${member.name}'s photo`}
+                    size={24}
+                    className="rounded-sm border"
                   />
                   <div className="flex flex-col">
                     <span className="text-[11px] font-medium">{member.name}</span>

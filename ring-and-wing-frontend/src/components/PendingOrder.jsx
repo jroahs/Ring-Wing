@@ -7,9 +7,23 @@ const PendingOrder = ({ order, processPayment, colors = theme.colors }) => {  co
   const [localCashAmount, setLocalCashAmount] = useState('');
   const [cardDetails, setCardDetails] = useState({ last4: '', name: '' });
   const [eWalletDetails, setEWalletDetails] = useState({ number: '', name: '' });
+  const [isDiscountApplied, setIsDiscountApplied] = useState(false);
   
-  const orderTotal = order.totals?.total || 
-    order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const calculateTotal = () => {
+    const subtotal = order.totals?.subtotal || 
+      order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const discount = isDiscountApplied ? subtotal * 0.1 : (order.totals?.discount || 0);
+    const total = subtotal - discount;
+    
+    return {
+      subtotal: subtotal,
+      discount: discount,
+      total: total
+    };
+  };
+  
+  const totals = calculateTotal();
+  const orderTotal = totals.total;
   const isCashPayment = localPaymentMethod === 'cash';
   const orderType = order.orderType || 'self_checkout';
   const isFromChatbot = orderType === 'chatbot';
@@ -83,9 +97,7 @@ const PendingOrder = ({ order, processPayment, colors = theme.colors }) => {  co
                 </p>
               )}
             </div>
-          )}
-
-          {/* Order Items */}
+          )}          {/* Order Items */}
           {order.items.map((item, index) => (
             <div 
               key={`${item._id || index}-${item.selectedSize}`}
@@ -99,6 +111,37 @@ const PendingOrder = ({ order, processPayment, colors = theme.colors }) => {  co
               </span>
             </div>
           ))}
+          
+          {/* Order Totals */}
+          <div className="mt-2 border-t pt-2" style={{ borderColor: colors.muted + '40' }}>
+            <div className="flex justify-between text-sm">
+              <span style={{ color: colors.secondary }}>Subtotal:</span>
+              <span style={{ color: colors.secondary }}>₱{totals.subtotal.toFixed(2)}</span>
+            </div>
+            
+            {totals.discount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span style={{ color: colors.secondary }}>Discount (10%):</span>
+                <span style={{ color: colors.secondary }}>-₱{totals.discount.toFixed(2)}</span>
+              </div>
+            )}
+            
+            <div className="flex justify-between text-sm font-bold mt-1">
+              <span style={{ color: colors.primary }}>Total:</span>
+              <span style={{ color: colors.primary }}>₱{totals.total.toFixed(2)}</span>
+            </div>
+          </div>          {/* Discount Toggle Button */}
+          <div className="mt-3">
+            <Button
+              variant={isDiscountApplied ? 'primary' : 'secondary'}
+              fullWidth
+              size="lg"
+              className="py-3 text-base font-medium"
+              onClick={() => setIsDiscountApplied(!isDiscountApplied)}
+            >
+              {isDiscountApplied ? '✓ Discount Applied (10%)' : 'PWD/Senior Discount (10%)'}
+            </Button>
+          </div>
 
           <div className="flex gap-2 mt-3">
             <select
@@ -212,10 +255,10 @@ const PendingOrder = ({ order, processPayment, colors = theme.colors }) => {  co
               if (localPaymentMethod === 'e-wallet' && (!eWalletDetails.number || !eWalletDetails.name)) {
                 alert('Please enter e-wallet details');
                 return;
-              }
-                const paymentInfo = {
+              }                const paymentInfo = {
                 method: localPaymentMethod,
-                cashAmount: parseFloat(localCashAmount) || 0
+                cashAmount: parseFloat(localCashAmount) || 0,
+                isDiscountApplied: isDiscountApplied
               };
               
               if (localPaymentMethod === 'card') {
@@ -229,15 +272,15 @@ const PendingOrder = ({ order, processPayment, colors = theme.colors }) => {  co
                   name: eWalletDetails.name
                 };
               }
-              
-              // Make sure order items have all required fields for OrderItem component
+                // Make sure order items have all required fields for OrderItem component
               const enrichedOrder = {
                 ...order,
                 items: order.items.map(item => ({
                   ...item,
                   availableSizes: item.availableSizes || [item.selectedSize || 'base'],
                   pricing: item.pricing || { [item.selectedSize || 'base']: item.price }
-                }))
+                })),
+                totals: totals // Use our calculated totals that include the discount
               };
               
               processPayment(enrichedOrder, paymentInfo);

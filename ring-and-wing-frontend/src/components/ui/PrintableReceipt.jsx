@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useEffect, useState } from 'react';
 import { theme } from '../../theme';
 
 export const PrintableReceipt = forwardRef(({
@@ -12,6 +12,22 @@ export const PrintableReceipt = forwardRef(({
   },
   className = ''
 }, ref) => {
+  const [staffName, setStaffName] = useState(order.server || '');
+  
+  useEffect(() => {
+    // If server isn't provided in the order, get it from localStorage
+    if (!order.server) {
+      try {
+        const userData = localStorage.getItem('userData');
+        if (userData) {
+          const user = JSON.parse(userData);
+          setStaffName(user.username || '');
+        }
+      } catch (error) {
+        console.error('Error retrieving staff info:', error);
+      }
+    }
+  }, [order.server]);
   const formatDate = (date) => {
     return new Date(date).toLocaleDateString('en-US', {
       weekday: 'long',
@@ -50,13 +66,12 @@ export const PrintableReceipt = forwardRef(({
       <div className="border-t border-b py-4 mb-4">
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div>
-            <strong>Receipt #:</strong> {order.receiptNumber}
-          </div>
+            <strong>Receipt #:</strong> {order.receiptNumber}          </div>
           <div>
             <strong>Date:</strong> {formatDate(order.createdAt)}
           </div>
           <div>
-            <strong>Server:</strong> {order.server}
+            <strong>Server:</strong> {staffName || 'Cashier'}
           </div>
           <div>
             <strong>Type:</strong> {order.orderType}

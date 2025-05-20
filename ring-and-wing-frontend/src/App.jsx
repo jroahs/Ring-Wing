@@ -256,18 +256,9 @@ function App() {
           <Route path="/pos" element={<PointofSale />} />
           <Route path="/orders" element={<OrderSystem />} />
           <Route path="/timeclock" element={<TimeClock />} />
-          
-          {/* Manager-only routes */}
-          <Route path="/inventory" element={
-            <RoleProtectedRoute requiredRole="manager">
-              <InventorySystem />
-            </RoleProtectedRoute>
-          } />
-          <Route path="/menu" element={
-            <RoleProtectedRoute requiredRole="manager">
-              <MenuManagement colors={colors} />
-            </RoleProtectedRoute>
-          } />
+            {/* Routes accessible to staff (inventory/menu now accessible) */}
+          <Route path="/inventory" element={<InventorySystem />} />
+          <Route path="/menu" element={<MenuManagement colors={colors} />} />          {/* Manager-only routes */}
           <Route path="/employees" element={
             <RoleProtectedRoute requiredRole="manager">
               <EmployeeManagement colors={colors} />
@@ -277,12 +268,16 @@ function App() {
             <RoleProtectedRoute requiredRole="manager">
               <PayrollSystem />
             </RoleProtectedRoute>
-          } />          <Route path="/expenses" element={
+          } /><Route path="/expenses" element={
             <RoleProtectedRoute requiredRole="manager">
               <ExpenseTracker colors={colors} />
             </RoleProtectedRoute>
+          } />          <Route path="/revenue-reports" element={
+            <RoleProtectedRoute requiredRole="manager">
+              <RevenueReportsPage />
+            </RoleProtectedRoute>
           } />
-          <Route path="/revenue-reports" element={
+          <Route path="/reports" element={
             <RoleProtectedRoute requiredRole="manager">
               <RevenueReportsPage />
             </RoleProtectedRoute>

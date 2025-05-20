@@ -20,17 +20,21 @@ export const OrderItem = ({
           style={{ color: theme.colors.error }}
         >
           <FiTrash2 className="w-5 h-5" />
-        </button>
-
-        {item.image && (
+        </button>        {item.image ? (
           <img 
             src={item.image} 
             alt={item.name} 
             className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
             onError={(e) => {
-              e.target.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
-              e.target.alt = 'Image not available';
+              // If image fails to load, use category-specific placeholder
+              e.target.src = item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png';
             }}
+          />
+        ) : (
+          <img 
+            src={item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png'} 
+            alt={item.name} 
+            className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
           />
         )}
 

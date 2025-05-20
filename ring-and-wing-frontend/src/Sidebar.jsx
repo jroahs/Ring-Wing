@@ -29,7 +29,8 @@ import {
   FiLogOut,
   FiShield,
   FiSettings,
-  FiDatabase
+  FiDatabase,
+  FiPieChart
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -83,8 +84,7 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
   const logoSize = isLargeScreen ? '1.875rem' : '1.5rem';
   const tooltipTextSize = isLargeScreen ? '1rem' : '0.875rem';
   const dropdownWidth = isLargeScreen ? '14rem' : '12rem';
-  
-  const userRole = userData?.role || 'staff';
+    const userRole = userData?.role || 'staff';
 
   // Define navigation items with role-based access - updated structure
   const navigationItems = [
@@ -98,7 +98,7 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
       path: '/pos', 
       icon: <FiShoppingCart size={iconSize} className="text-white" />, 
       label: 'POS',
-      roles: ['manager', 'staff']
+      roles: ['staff']
     },
     { 
       path: '/sales',
@@ -117,34 +117,32 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
           icon: <FiShoppingBag size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Orders',
           roles: ['manager', 'staff']
-        },
-      ]
+        },      ]
     },
     { 
       path: '/inventory-management',
       icon: <FiDatabase size={iconSize} className="text-white" />,
       label: 'Inventory & Menu',
-      roles: ['manager'],
+      roles: ['manager', 'staff'],
       subItems: [
         { 
           path: '/inventory', 
           icon: <FiBox size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Inventory',
-          roles: ['manager']
+          roles: ['manager', 'staff']
         },
         { 
           path: '/menu', 
           icon: <FiBookOpen size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Menu',
-          roles: ['manager']
+          roles: ['manager', 'staff']
         },
       ]
     },
-    { 
-      path: '/timeclock', 
+    {      path: '/timeclock', 
       icon: <FiClock size={iconSize} className="text-white" />, 
       label: 'Time Clock',
-      roles: ['manager', 'staff']
+      roles: ['staff']
     },
     { 
       path: '/staff',
@@ -163,17 +161,16 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
           icon: <FiDollarSign size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Payroll System',
           roles: ['manager']
-        }
-      ]
-    },    { 
+        }      ]
+    },
+    { 
       path: '/expenses', 
       icon: <FiDollarSign size={iconSize} className="text-white" />, 
       label: 'Expenses',
       roles: ['manager']
-    },
-    { 
+    },    { 
       path: '/revenue-reports', 
-      icon: <FiDollarSign size={iconSize} className="text-white" />, 
+      icon: <FiPieChart size={iconSize} className="text-white" />, 
       label: 'Revenue Reports',
       roles: ['manager']
     },
@@ -182,8 +179,7 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
       icon: <FiMessageSquare size={iconSize} className="text-white" />, 
       label: 'AI Assistant',
       roles: ['manager', 'staff']
-    }
-  ];
+    }  ];
 
   // Filter navigation items based on user role
   const allowedNavigationItems = navigationItems.map(item => {
@@ -205,7 +201,6 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
     
     return item;
   }).filter(Boolean); // Remove null items
-
   const allowedRoutes = [
     '/dashboard', 
     '/orders', 
@@ -217,7 +212,11 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
     '/pos', 
     '/employees',
     '/self-checkout',
-    '/timeclock'
+    '/timeclock',
+    '/sales',
+    '/inventory-management',
+    '/staff',
+    '/revenue-reports'
   ];
   
   const shouldRender = allowedRoutes.some(route => location.pathname.startsWith(route));

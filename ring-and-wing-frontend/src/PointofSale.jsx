@@ -12,10 +12,31 @@ import OrderProcessingModal from './components/OrderProcessingModal';
 import PendingOrder from './components/PendingOrder';
 import { FiClock, FiPlus, FiSettings, FiDollarSign, FiCheckCircle, FiCoffee } from 'react-icons/fi';
 
-const PointOfSale = () => {  const [menuItems, setMenuItems] = useState([]);
+const PointOfSale = () => {  
+  const [menuItems, setMenuItems] = useState([]);
   const [currentOrder, setCurrentOrder] = useState([]);
   const [activeOrders, setActiveOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  // Separate state for meals and beverages navigation
+  const [selectedMealSubCategory, setSelectedMealSubCategory] = useState(null);
+  const [selectedBeverageSubCategory, setSelectedBeverageSubCategory] = useState(null);
+  const [activeCategory, setActiveCategory] = useState('Meals'); // For tracking which category is active
+  const [menuConfig, setMenuConfig] = useState({
+    Beverages: {
+      subCategories: {
+        'Coffee': {}, 'Non-Coffee (Milk-Based)': {}, 'Fruit Tea': {}, 
+        'Milktea': {}, 'Yogurt Smoothies': {}, 'Fresh Lemonade': {}, 
+        'Frappe': {}, 'Fruit Soda': {}
+      }
+    },
+    Meals: {
+      subCategories: {
+        'Breakfast All Day': {}, 'Wings & Sides': {}, 
+        'Flavored Wings': {}, 'Combos': {}, 'Snacks': {}
+      }
+    }
+  });
+  
   const [showReceipt, setShowReceipt] = useState(false);
   const [cashAmount, setCashAmount] = useState(0);
   const [isDiscountApplied, setIsDiscountApplied] = useState(false);
@@ -185,16 +206,16 @@ const PointOfSale = () => {  const [menuItems, setMenuItems] = useState([]);
 
         const validatedItems = rawData.filter(item =>
           item && typeof item === 'object' && 'pricing' in item && 'name' in item
-        );
-
-        const transformedItems = validatedItems.map(item => ({
+        );        const transformedItems = validatedItems.map(item => ({
           _id: item._id,
           code: item.code || 'N/A',
           name: item.name,
           category: item.category,
+          subCategory: item.subCategory || '',  // Ensure subCategory is included
           pricing: item.pricing,
           description: item.description,
-          image: item.image ? `http://localhost:5000${item.image}` : null,
+          image: item.image ? `http://localhost:5000${item.image}` : 
+                 (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png'),
           modifiers: item.modifiers || []
         }));
 
@@ -216,7 +237,40 @@ const PointOfSale = () => {  const [menuItems, setMenuItems] = useState([]);
 
     fetchMenuItems();
     return () => abortController.abort();
-  }, []);  const fetchActiveOrders = async () => {
+  }, []);
+
+  // Debug function to check subcategories
+  useEffect(() => {
+    if (menuItems.length > 0) {
+      console.log('Menu Items with SubCategories:', menuItems.map(item => ({
+        name: item.name,
+        category: item.category,
+        subCategory: item.subCategory
+      })));
+      
+      // Count items per subcategory
+      const mealSubcats = menuItems
+        .filter(item => item.category === 'Meals')
+        .reduce((acc, item) => {
+          const subcat = item.subCategory || 'None';
+          acc[subcat] = (acc[subcat] || 0) + 1;
+          return acc;
+        }, {});
+        
+      const bevSubcats = menuItems
+        .filter(item => item.category === 'Beverages')
+        .reduce((acc, item) => {
+          const subcat = item.subCategory || 'None';
+          acc[subcat] = (acc[subcat] || 0) + 1;
+          return acc;
+        }, {});
+      
+      console.log('Meal Subcategories Count:', mealSubcats);
+      console.log('Beverage Subcategories Count:', bevSubcats);
+    }
+  }, [menuItems]);
+  
+  const fetchActiveOrders = async () => {
     try {
       // Fetch all active orders (not just ready or pending)
       const response = await fetch(
@@ -294,16 +348,31 @@ const PointOfSale = () => {  const [menuItems, setMenuItems] = useState([]);
           const prevPaymentMethod = paymentMethod;
           const prevCashAmount = cashAmount;
           const prevCardDetails = {...cardDetails};
-          const prevEWalletDetails = {...eWalletDetails};          // Instead of using ReactDOM, we'll use the existing state and refs for the receipt
-          // First, ensure each order item has all the necessary properties for OrderItem component
+          const prevEWalletDetails = {...eWalletDetails};          // Instead of using ReactDOM, we'll use the existing state and refs for the receipt          // First, ensure each order item has all the necessary properties for OrderItem component
           const processedItems = order.items.map(item => ({
             ...item,
             // Ensure each item has availableSizes and pricing to prevent the TypeError in OrderItem
             availableSizes: item.availableSizes || [item.selectedSize || 'base'],
             pricing: item.pricing || { [item.selectedSize || 'base']: item.price }
-          }));          // Set up temporary state for receipt printing with the processed items
+          }));          
+          
+          // Set up temporary state for receipt printing with the processed items
           setCurrentOrder(processedItems);
           setPaymentMethod(method);
+          
+          // Add staff name to the order for receipt display
+          order.server = (() => {
+            try {
+              const userData = localStorage.getItem('userData');
+              if (userData) {
+                const user = JSON.parse(userData);
+                return user.username || '';
+              }
+            } catch (error) {
+              console.error('Error getting staff name:', error);
+            }
+            return '';
+          })();
           
           if (method === 'cash') {
             setCashAmount(cashAmount);
@@ -515,9 +584,7 @@ const PointOfSale = () => {  const [menuItems, setMenuItems] = useState([]);
           eWalletNumber: eWalletDetails.number,
           eWalletName: eWalletDetails.name
         };
-      }
-
-      const orderData = {
+      }      const orderData = {
         items: currentOrder.map(item => ({
           name: item.name,
           price: item.price,
@@ -534,7 +601,19 @@ const PointOfSale = () => {  const [menuItems, setMenuItems] = useState([]);
         paymentMethod,
         paymentDetails, // Additional field for payment details
         status: 'received',
-        orderType: 'pos'  // Changed from 'self_checkout' to 'pos' for orders created in POS
+        orderType: 'pos',  // Changed from 'self_checkout' to 'pos' for orders created in POS
+        server: (() => {
+          try {
+            const userData = localStorage.getItem('userData');
+            if (userData) {
+              const user = JSON.parse(userData);
+              return user.username || '';
+            }
+          } catch (error) {
+            console.error('Error getting staff name:', error);
+          }
+          return '';
+        })()
       };
 
       const response = await fetch('http://localhost:5000/api/orders', {
@@ -576,17 +655,30 @@ const PointOfSale = () => {  const [menuItems, setMenuItems] = useState([]);
     // Reset payment details
     setCardDetails({ last4: '', name: '' });
     setEWalletDetails({ number: '', name: '' });
-  };
-
-  const filteredItems = useMemo(
-    () =>
-      menuItems.filter(
-        item =>
-          item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.code.toLowerCase().includes(searchTerm.toLowerCase())
-      ),
-    [menuItems, searchTerm]
-  );
+  };  // Filtered items is kept for compatibility with any existing code that might reference it
+  // But filtering is now done directly in the render for each category section
+  const filteredItems = useMemo(() => {
+    const searchFiltered = menuItems.filter(item =>
+      searchTerm === '' || 
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      item.code.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    // Now apply separate category filters
+    if (activeCategory === 'Meals') {
+      return searchFiltered.filter(item => 
+        item.category === 'Meals' && 
+        (!selectedMealSubCategory || item.subCategory === selectedMealSubCategory)
+      );
+    } else if (activeCategory === 'Beverages') {
+      return searchFiltered.filter(item => 
+        item.category === 'Beverages' && 
+        (!selectedBeverageSubCategory || item.subCategory === selectedBeverageSubCategory)
+      );
+    }
+    
+    return searchFiltered;
+  }, [menuItems, searchTerm, activeCategory, selectedMealSubCategory, selectedBeverageSubCategory]);
 
   useEffect(() => {
     const handleKeyPress = e => {
@@ -605,7 +697,47 @@ const PointOfSale = () => {  const [menuItems, setMenuItems] = useState([]);
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [searchTerm, menuItems, filteredItems]);
+  }, [searchTerm, menuItems, filteredItems]);  // Helper function to reset all filters
+  const showAllItems = () => {
+    setActiveCategory(null);
+    setSelectedMealSubCategory(null);
+    setSelectedBeverageSubCategory(null);
+    setSearchTerm('');
+  };  // Category tabs component - no longer needed with the new integrated breadcrumb navigation
+  const renderCategoryTabs = () => {
+    return null;
+  };  // Subcategory tabs component - now handles separate states for meals and beverages
+  // Displays subcategories in a compact single row with separators
+  const renderSubCategoryTabs = (category) => {
+    if (!menuConfig[category]) return null;
+    
+    const subCategories = Object.keys(menuConfig[category].subCategories || {});
+    if (subCategories.length === 0) return null;
+    
+    const selectedSubCategory = category === 'Meals' ? selectedMealSubCategory : selectedBeverageSubCategory;
+    const setSelectedSubCategory = category === 'Meals' ? setSelectedMealSubCategory : setSelectedBeverageSubCategory;
+    
+    return (
+      <div className="overflow-x-auto whitespace-nowrap py-1 mt-1 flex items-center">
+        {subCategories.map((subCategory, index) => (
+          <React.Fragment key={subCategory}>
+            {index > 0 && <span className="text-gray-300 mx-1">•</span>}
+            <button
+              onClick={() => setSelectedSubCategory(subCategory)}
+              className={`text-xs transition-colors ${
+                selectedSubCategory === subCategory ? 'font-medium underline' : ''
+              }`}
+              style={{
+                color: selectedSubCategory === subCategory ? theme.colors.accent : theme.colors.primary
+              }}
+            >
+              {subCategory}
+            </button>
+          </React.Fragment>
+        ))}
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -687,15 +819,23 @@ const PointOfSale = () => {  const [menuItems, setMenuItems] = useState([]);
         ) : (
           <div className="min-h-screen flex flex-col md:flex-row">
             {/* Menu Section */}
-            <div className="flex-1 p-4 md:p-6 order-2 md:order-1">
-              <div className="relative mb-6 max-w-7xl mx-auto flex">
+            <div className="flex-1 p-4 md:p-6 order-2 md:order-1">              <div className="relative mb-6 max-w-7xl mx-auto flex">
                 <div className="relative flex-1 mr-2">
                   <SearchBar
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
                     placeholder="Search menu..."
                     size="lg"
-                  />
+                  />                  {/* Show All Items button */}
+                  {(activeCategory || selectedMealSubCategory || selectedBeverageSubCategory || searchTerm) && (
+                    <button
+                      onClick={showAllItems}
+                      className="absolute right-2 top-2 text-xs py-1 px-2 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors"
+                      style={{ color: theme.colors.primary }}
+                    >
+                      Show All
+                    </button>
+                  )}
                 </div>
 
                 {/* Time Clock and Placeholder Buttons */}
@@ -734,16 +874,149 @@ const PointOfSale = () => {  const [menuItems, setMenuItems] = useState([]);
                     )}
                   </button>
                 </div>
-              </div>
+              </div>              {/* Menu Navigation */}
+              <div className="mb-4">{/* Meals Section */}
+                <div className="mb-6">
+                  {/* Meals Breadcrumb with integrated subcategory selector */}
+                  <div className="mb-2 bg-white rounded-lg py-1 px-3 shadow-sm">
+                    <div className="flex items-center justify-between">                    <div>
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium mr-2 text-sm" style={{ color: theme.colors.primary }}>
+                          Meals:
+                        </span>
+                        <button
+                          onClick={() => { 
+                            setActiveCategory('Meals');
+                            setSelectedMealSubCategory(null);
+                          }}
+                          className={`text-sm transition-colors ${!selectedMealSubCategory ? 'font-medium' : ''}`}
+                          style={{ 
+                            color: !selectedMealSubCategory ? theme.colors.accent : theme.colors.primary 
+                          }}
+                        >
+                          All Meals
+                        </button>
+                        
+                        {selectedMealSubCategory && (
+                          <>
+                            <span className="text-gray-400 mx-1">/</span>
+                            <span 
+                              className="text-sm font-medium"
+                              style={{ color: theme.colors.accent }}
+                            >
+                              {selectedMealSubCategory}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      </div>
+                      
+                      {/* Clear selection button */}
+                      {selectedMealSubCategory && (
+                        <button
+                          onClick={() => setSelectedMealSubCategory(null)}
+                          className="text-xs px-2 py-1 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors"
+                          style={{ color: theme.colors.primary }}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    
+                    {/* Subcategories in a single row */}
+                    {renderSubCategoryTabs('Meals')}
+                  </div>
 
-              <div className={`grid ${gridColumns} gap-2 md:gap-3 mx-auto`}>
-                {filteredItems.map(item => (
-                  <MenuItemCard
-                    key={item._id}
-                    item={item}
-                    onClick={() => addToOrder(item)}
-                  />
-                ))}
+                  {/* Display Meal Items */}
+                  <div className={`grid ${gridColumns} gap-2 md:gap-3 mx-auto`}>
+                    {menuItems
+                      .filter(item => 
+                        item.category === 'Meals' && 
+                        (!selectedMealSubCategory || item.subCategory === selectedMealSubCategory) &&
+                        (searchTerm === '' || 
+                         item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         item.code.toLowerCase().includes(searchTerm.toLowerCase()))
+                      )
+                      .map(item => (
+                        <MenuItemCard
+                          key={item._id}
+                          item={item}
+                          onClick={() => addToOrder(item)}
+                        />
+                      ))
+                    }
+                  </div>
+                </div>                {/* Beverages Section */}
+                <div>
+                  {/* Beverages Breadcrumb with integrated subcategory selector */}
+                  <div className="mb-2 bg-white rounded-lg py-1 px-3 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium mr-2 text-sm" style={{ color: theme.colors.primary }}>
+                          Beverages:
+                        </span>
+                        <button
+                          onClick={() => { 
+                            setActiveCategory('Beverages');
+                            setSelectedBeverageSubCategory(null);
+                          }}
+                          className={`text-sm transition-colors ${!selectedBeverageSubCategory ? 'font-medium' : ''}`}
+                          style={{ 
+                            color: !selectedBeverageSubCategory ? theme.colors.accent : theme.colors.primary 
+                          }}
+                        >
+                          All Beverages
+                        </button>
+                        
+                        {selectedBeverageSubCategory && (
+                          <>
+                            <span className="text-gray-400 mx-1">/</span>
+                            <span 
+                              className="text-sm font-medium"
+                              style={{ color: theme.colors.accent }}
+                            >
+                              {selectedBeverageSubCategory}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      
+                      {/* Clear selection button */}
+                      {selectedBeverageSubCategory && (
+                        <button
+                          onClick={() => setSelectedBeverageSubCategory(null)}
+                          className="text-xs px-2 py-1 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors"
+                          style={{ color: theme.colors.primary }}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    
+                    {/* Subcategories in a single row */}
+                    {renderSubCategoryTabs('Beverages')}
+                  </div>
+
+                  {/* Display Beverage Items */}
+                  <div className={`grid ${gridColumns} gap-2 md:gap-3 mx-auto`}>
+                    {menuItems
+                      .filter(item => 
+                        item.category === 'Beverages' && 
+                        (!selectedBeverageSubCategory || item.subCategory === selectedBeverageSubCategory) &&
+                        (searchTerm === '' || 
+                         item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         item.code.toLowerCase().includes(searchTerm.toLowerCase()))
+                      )
+                      .map(item => (
+                        <MenuItemCard
+                          key={item._id}
+                          item={item}
+                          onClick={() => addToOrder(item)}
+                        />
+                      ))
+                    }
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -854,12 +1127,23 @@ const PointOfSale = () => {  const [menuItems, setMenuItems] = useState([]);
               </div>
             </div>
 
-            {/* Receipt Modal */}
-            <Modal isOpen={showReceipt} onClose={() => setShowReceipt(false)} size="lg">              <Receipt
+            {/* Receipt Modal */}            <Modal isOpen={showReceipt} onClose={() => setShowReceipt(false)} size="lg">              <Receipt
                 ref={receiptRef}
                 order={{
                   items: currentOrder,
-                  receiptNumber: generateReceiptNumber()
+                  receiptNumber: generateReceiptNumber(),
+                  server: (() => {
+                    try {
+                      const userData = localStorage.getItem('userData');
+                      if (userData) {
+                        const user = JSON.parse(userData);
+                        return user.username || '';
+                      }
+                    } catch (error) {
+                      console.error('Error getting staff name:', error);
+                    }
+                    return '';
+                  })()
                 }}
                 totals={{
                   ...calculateTotal(),

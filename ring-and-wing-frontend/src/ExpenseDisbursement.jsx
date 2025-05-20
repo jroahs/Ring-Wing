@@ -213,6 +213,32 @@ const ExpenseTracker = ({ colors }) => {
       console.error('Error updating expense:', error);
     }
   };
+  
+  // New function that handles both paid and permanent status in one call
+  const markAsPaidAndPermanent = async (id) => {
+    try {
+      const response = await fetch(`/api/expenses/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          disbursed: true,
+          permanent: true,
+          disbursementDate: new Date().toISOString()
+        })
+      });
+
+      if (!response.ok) throw new Error('Update failed');
+      
+      const updatedExpense = await response.json();
+      setExpenses(prev =>
+        prev.map(exp => exp._id === updatedExpense._id ? updatedExpense : exp)
+      );
+    } catch (error) {
+      console.error('Error updating expense:', error);
+    }
+  };
 
   const exportToCSV = () => {
     const csvContent = [
@@ -406,23 +432,14 @@ const ExpenseTracker = ({ colors }) => {
                                     }}>
                                 Paid {new Date(expense.disbursementDate).toLocaleDateString('en-PH', {month: 'short', day: 'numeric'})}
                               </span>
-                            </div>
-                          ): (
-                            <div className="flex gap-2">
+                            </div>                          ): (                            <div className="flex gap-2">
                               <button
-                                onClick={() => markAsDisbursed(expense._id)}
+                                onClick={() => markAsPaidAndPermanent(expense._id)}
                                 className="px-3 py-1 rounded-lg"
                                 style={{ backgroundColor: colors.accent, color: colors.background }}
-                              >
-                                Mark Paid
-                              </button>
-                              <button
-                                onClick={() => makePermanent(expense._id)}
-                                className="px-3 py-1 rounded-lg"
-                                style={{ backgroundColor: colors.secondary, color: colors.background }}
                                 title="Mark as paid and permanent (won't be reset daily)"
                               >
-                                Permanent
+                                Mark as Paid
                               </button>
                             </div>
                           )}
