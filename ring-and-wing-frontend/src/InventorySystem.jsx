@@ -5,6 +5,7 @@ import { saveAs } from 'file-saver';
 import axios from 'axios';
 import { API_URL } from './App';  // Import API_URL from App.jsx
 import { Button } from './components/ui/Button'; // Import Button component
+import { toast } from 'react-toastify';
 
 const colors = {
   primary: '#2e0304',
@@ -18,7 +19,7 @@ const colors = {
 };
 
 // AlertCard component to display individual alerts in a better format
-const AlertCard = ({ alert, onRestock }) => {
+const AlertCard = ({ alert, onRestock, onDispose }) => {
   const isStockAlert = alert.type === 'stock';
   const isExpiredAlert = alert.type === 'expiration' && alert.message.includes('expired');
   
@@ -42,27 +43,39 @@ const AlertCard = ({ alert, onRestock }) => {
          style={{ backgroundColor: style.bg, borderColor: style.border }}>
       <div className="font-medium truncate" title={alert.message}>
         {alert.message}
-      </div>
-      <div className="mt-2 flex justify-between items-center text-xs text-gray-600">        <span>{new Date(alert.date).toLocaleDateString()}</span>
-        {isStockAlert && (
-          <Button
-            onClick={() => onRestock(alert.id)}
-            variant="accent"
-            size="sm"
-          >
-            Restock Now
-          </Button>
-        )}
+      </div>      <div className="mt-2 flex justify-between items-center text-xs text-gray-600">
+        <span>{new Date(alert.date).toLocaleDateString()}</span>
+        <div className="flex gap-2">
+          {isStockAlert && (
+            <Button
+              onClick={() => onRestock(alert.id)}
+              variant="accent"
+              size="sm"
+            >
+              Restock Now
+            </Button>
+          )}
+          {isExpiredAlert && (
+            <Button
+              onClick={() => onDispose(alert.id.split('-')[0], alert.id.split('-')[1])}
+              variant="secondary"
+              size="sm"
+            >
+              Dispose
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
 };
 
 // AlertDashboard component to manage and display alerts
-const AlertDashboard = ({ alerts, onRestock }) => {
+const AlertDashboard = ({ alerts, onRestock, onDispose }) => {
   const [filterType, setFilterType] = useState('all');
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  
+  const [isCollapsed, setIsCollapsed] = useState(true);
+
+  // Filter and organize alerts
   const filteredAlerts = filterType === 'all' 
     ? alerts 
     : alerts.filter(alert => alert.type === filterType);
@@ -81,63 +94,90 @@ const AlertDashboard = ({ alerts, onRestock }) => {
       if (alert.type === 'stock') return 3;
       return 4; // expiring soon
     };
-    
     return getPriority(a) - getPriority(b);
   });
-  
-  if (alerts.length === 0) return null;
-  
-  return (
-    <div className="mb-4 border rounded-lg shadow-sm" 
-         style={{ borderColor: colors.muted }}>
-      <div className="flex items-center justify-between p-3 bg-gray-50 border-b"
-           style={{ borderColor: colors.muted }}>
-        <div className="flex items-center">          <h3 className="font-medium" style={{ color: colors.primary }}>
-            Inventory Alerts ({alerts.length})
-          </h3>
-          <div className="ml-4 flex space-x-2">
-            <Button 
-              onClick={() => setFilterType('all')}
-              variant={filterType === 'all' ? 'accent' : 'ghost'}
-              size="sm">
-              All ({alertCounts.all})
-            </Button>
-            <Button 
-              onClick={() => setFilterType('stock')}
-              variant={filterType === 'stock' ? 'accent' : 'ghost'}
-              size="sm">
-              Stock ({alertCounts.stock})
-            </Button>
-            <Button 
-              onClick={() => setFilterType('expiration')}
-              variant={filterType === 'expiration' ? 'accent' : 'ghost'}
-              size="sm">
-              Expiration ({alertCounts.expiration})
-            </Button>
-          </div>
-        </div>        <button 
+
+  return (    <div className="relative z-50" style={{ width: '450px' }}>
+      <div className="border rounded-lg shadow-sm relative" style={{ borderColor: colors.muted }}>
+        <div 
+          className="flex items-center justify-between p-3 bg-gray-50 border-b cursor-pointer"
+          style={{ borderColor: colors.muted }}
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-1 rounded-full hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-900/50"
         >
-          {isCollapsed ? '▼' : '▲'}
-        </button>
-      </div>
-      
-      {!isCollapsed && (
-        <div className="max-h-64 overflow-y-auto p-2">
-          {organizedAlerts.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-              {organizedAlerts.map(alert => (
-                <AlertCard key={alert.id} alert={alert} onRestock={onRestock} />
-              ))}
+          <div className="flex items-center">
+            <h3 className="font-medium" style={{ color: colors.primary }}>
+              Inventory Alerts ({alerts.length})
+            </h3>
+            <div className="flex items-center ml-2">
+              <span 
+                className="flex h-5 w-5 items-center justify-center rounded-full text-xs"
+                style={{ backgroundColor: colors.accent, color: 'white' }}
+              >
+                {alertCounts.stock}
+              </span>
+              <span className="ml-1 text-sm">Stock</span>
+              <span 
+                className="flex h-5 w-5 items-center justify-center rounded-full text-xs ml-2"
+                style={{ backgroundColor: colors.secondary, color: 'white' }}
+              >
+                {alertCounts.expiration}
+              </span>
+              <span className="ml-1 text-sm">Expiration</span>
             </div>
-          ) : (
-            <div className="p-4 text-center text-gray-500">
-              No alerts in this category
-            </div>
-          )}
+          </div>
+          <span className="text-gray-500">{isCollapsed ? '▼' : '▲'}</span>
         </div>
-      )}
+
+        {!isCollapsed && (
+          <div className="absolute top-full left-0 right-0 bg-white border rounded-b-lg shadow-lg" style={{ borderColor: colors.muted }}>
+            <div className="p-3 border-b" style={{ borderColor: colors.muted }}>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setFilterType('all')}
+                  className={`px-3 py-1 rounded-full text-sm ${
+                    filterType === 'all' ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  All ({alertCounts.all})
+                </button>
+                <button
+                  onClick={() => setFilterType('stock')}
+                  className={`px-3 py-1 rounded-full text-sm ${
+                    filterType === 'stock' ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  Stock ({alertCounts.stock})
+                </button>
+                <button
+                  onClick={() => setFilterType('expiration')}
+                  className={`px-3 py-1 rounded-full text-sm ${
+                    filterType === 'expiration' ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  Expiration ({alertCounts.expiration})
+                </button>
+              </div>
+            </div>            <div className="max-h-[400px] overflow-y-auto p-2">
+              {organizedAlerts.length > 0 ? (
+                <div className="grid grid-cols-1 gap-2">
+                  {organizedAlerts.map(alert => (
+                    <AlertCard 
+                      key={alert.id} 
+                      alert={alert} 
+                      onRestock={onRestock}
+                      onDispose={onDispose}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 py-4">
+                  No alerts for the selected type.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -238,9 +278,12 @@ const InventorySystem = () => {
     };
     fetchData();
   }, []);
-
+  const [lastAlertsHash, setLastAlertsHash] = useState('');
+  const [isFirstLoad, setIsFirstLoad] = useState(true);
+  
   useEffect(() => {
-    console.log('Raw items data:', items);
+    // Skip if no items loaded yet
+    if (!items.length) return;
     
     const allAlerts = items.flatMap(item => {
       const alerts = [];
@@ -298,8 +341,101 @@ const InventorySystem = () => {
   
       return alerts;
     });
-  
-    console.log('All alerts:', allAlerts);
+    
+    // Calculate hash of current alerts to detect actual changes
+    const alertsHash = JSON.stringify(allAlerts.map(a => a.id + a.message));
+    
+    // Only show toasts on first load or when alerts actually change
+    if (isFirstLoad || (alertsHash !== lastAlertsHash && !isFirstLoad)) {
+      // Group alerts by type for cleaner notification display
+      const stockAlerts = allAlerts.filter(a => a.type === 'stock');
+      const expirationAlerts = allAlerts.filter(a => a.type === 'expiration');
+        // Show stock alerts first with specific details
+      if (stockAlerts.length) {
+        const outOfStock = stockAlerts.filter(a => a.message.includes('out of stock'));
+        const lowStock = stockAlerts.filter(a => a.message.includes('low on stock'));
+        
+        if (outOfStock.length) {
+          const itemNames = outOfStock.map(a => a.message.split(' is ')[0]).join(', ');
+          toast.error(            <div>
+              <strong>Out of Stock Items:</strong>
+              <br />
+              {outOfStock.map(a => (
+                <div key={a.id} className="mt-1 text-sm">
+                  • {a.message}
+                </div>
+              ))}
+            </div>,
+            {
+              toastId: 'out-of-stock',
+              autoClose: 3000,
+            }
+          );
+        }
+        
+        if (lowStock.length) {
+          toast.warning(            <div>
+              <strong>Low Stock Items:</strong>
+              <br />
+              {lowStock.map(a => (
+                <div key={a.id} className="mt-1 text-sm">
+                  • {a.message}
+                </div>
+              ))}
+            </div>,
+            {
+              toastId: 'low-stock',
+              autoClose: 3000,
+            }
+          );
+        }
+      }
+      
+      // Then show expiration alerts with specific details
+      if (expirationAlerts.length) {
+        const expired = expirationAlerts.filter(a => a.message.includes('expired'));
+        const expiringSoon = expirationAlerts.filter(a => !a.message.includes('expired'));
+        
+        if (expired.length) {
+          toast.error(
+            <div>
+              <strong>Expired Items:</strong>
+              <br />
+              {expired.map(a => (
+                <div key={a.id} className="mt-1 text-sm">
+                  • {a.message}
+                </div>
+              ))}
+            </div>,
+            {
+              toastId: 'expired',
+              autoClose: 7000, // Give more time to read
+            }
+          );
+        }
+        
+        if (expiringSoon.length) {
+          toast.warning(            <div>
+              <strong>Items Expiring Soon:</strong>
+              <br />
+              {expiringSoon.map(a => (
+                <div key={a.id} className="mt-1 text-sm">
+                  • {a.message}
+                </div>
+              ))}
+            </div>,
+            {
+              toastId: 'expiring-soon',
+              autoClose: 3000
+            }
+          );
+        }
+      }
+    }
+    
+    // Update state
+    setLastAlertsHash(alertsHash);
+    setIsFirstLoad(false);
     setAlerts(allAlerts);
   }, [items]);
 
@@ -513,6 +649,25 @@ const InventorySystem = () => {
     saveAs(blob, `inventory-${new Date().toISOString()}.${format}`);
   };
 
+  // Expiry handling
+  const handleDispose = async (itemId, batchId) => {
+    try {
+      const { data } = await axios.patch(
+        `${API_URL}/api/items/${itemId}/dispose-expired`,
+        { batchIds: [batchId] }
+      );
+      
+      setItems(items.map(item => 
+        item._id === itemId ? { ...data } : item
+      ));
+      
+      toast.success("Successfully disposed of expired batch");
+      logAction(`Disposed expired batch`, itemId);
+    } catch (err) {
+      toast.error('Failed to dispose expired batch: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
   // Inventory batch management
   const addBatch = () => {
     setNewItem({
@@ -667,9 +822,7 @@ const InventorySystem = () => {
     
     setBulkEndDayQuantities(initialBulkQuantities);
     setShowBulkEndDayModal(true);
-  };
-
-  return (
+  };  return (
     <div className="flex min-h-screen" style={{ backgroundColor: colors.background }}>
       
       <div 
@@ -684,66 +837,60 @@ const InventorySystem = () => {
             {error}
           </div>
         )}
-        
-        {/* Replace old alerts display with new AlertDashboard */}
-        <div className="px-6 pt-4">
-          <AlertDashboard 
-            alerts={alerts} 
-            onRestock={(alertId) => {
-              // Find the item associated with this alert
-              const alert = alerts.find(a => a.id === alertId);
-              if (alert?.type === 'stock') {
-                // For stock alerts, the ID is the item's ID
-                const itemToRestock = items.find(item => item._id === alert.id);
-                if (itemToRestock) {
-                  setSelectedItem(itemToRestock);
-                  setShowRestockModal(true);
-                }
-              }
-            }}
-          />
-        </div>
 
-        <div className="mb-6 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h1 className="text-2xl font-bold" style={{ color: colors.primary }}>
+        <div className="px-6 pt-6 pb-2">
+          <h1 className="text-2xl font-bold mb-4" style={{ color: colors.primary }}>
             Ring & Wing Café Inventory System
           </h1>
           
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <input
-              type="text"
-              placeholder="Search inventory..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-4 py-2 rounded-lg border focus:outline-none focus:ring-1"
-              style={{
-                borderColor: colors.muted,
-                color: colors.primary
+          <div className="flex items-center justify-between">
+            <AlertDashboard 
+              alerts={alerts} 
+              onRestock={(alertId) => {
+                const alert = alerts.find(a => a.id === alertId);
+                if (alert?.type === 'stock') {
+                  const itemToRestock = items.find(item => item._id === alert.id);
+                  if (itemToRestock) {
+                    setSelectedItem(itemToRestock);
+                    setShowRestockModal(true);
+                  }
+                }
               }}
+              onDispose={(itemId, batchId) => handleDispose(itemId, batchId)}
             />
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-2 rounded-lg border focus:outline-none focus:ring-1"
-              style={{
-                borderColor: colors.muted,
-                color: colors.primary
-              }}
-            >
-              <option value="All">All Categories</option>
-              {['Food', 'Beverages', 'Ingredients', 'Packaging'].map(cat => (                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-            <Button
-              onClick={() => setShowAddModal(true)}
-              variant="primary"
-            >
-              Add New Item
-            </Button>
+            <div className="flex items-center gap-3">
+              <div className="w-[280px]">
+                <input
+                  type="text"
+                  placeholder="Search items..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="p-2 border rounded w-full"
+                  style={{ borderColor: colors.muted }}
+                />
+              </div>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="p-2 border rounded w-[200px]"
+                style={{ borderColor: colors.muted }}
+              >
+                <option value="All">All Categories</option>
+                {Array.from(new Set(items.map(item => item.category))).map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+              <Button
+                onClick={() => setShowAddModal(true)}
+                variant="accent"
+              >
+                Add New Item
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Inventory Management Actions */}        <div className="px-6 mb-4 flex flex-wrap gap-2">
+        <div className="px-6 mb-4 flex flex-wrap gap-2">
           <Button
             onClick={handleStartDay}
             variant="accent"
