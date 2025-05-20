@@ -1,7 +1,21 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { theme } from '../theme';
 
 export const Receipt = React.forwardRef(({ order, totals, paymentMethod }, ref) => {
+  const [staffName, setStaffName] = useState('');
+  
+  useEffect(() => {
+    try {
+      const userData = localStorage.getItem('userData');
+      if (userData) {
+        const user = JSON.parse(userData);
+        setStaffName(user.username || '');
+      }
+    } catch (error) {
+      console.error('Error retrieving staff info:', error);
+    }
+  }, []);
+  
   const formattedDate = new Date().toLocaleTimeString([], { 
     hour: '2-digit', 
     minute: '2-digit',
@@ -27,10 +41,15 @@ export const Receipt = React.forwardRef(({ order, totals, paymentMethod }, ref) 
       
       <div 
         className="flex flex-col md:flex-row mt-2 md:mt-4" 
-        style={{ color: theme.colors.primary }}
-      >
+        style={{ color: theme.colors.primary }}      >
         <div className="flex-grow">No: {order.receiptNumber}</div>
         <div className="mt-1 md:mt-0">{formattedDate}</div>
+      </div>
+      
+      {/* Cashier/Staff Name */}
+      <div style={{ color: theme.colors.primary }} className="my-1 text-sm">
+        <span className="font-medium">Staff: </span>
+        <span>{staffName || 'Cashier'}</span>
       </div>
 
       <hr className="my-2" style={{ borderColor: theme.colors.muted }}/>

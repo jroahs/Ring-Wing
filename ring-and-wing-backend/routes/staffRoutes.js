@@ -3,6 +3,9 @@ const mongoose = require('mongoose');
 const Staff = require('../models/Staff');
 const User = require('../models/User');
 const { auth, isManager } = require('../middleware/authMiddleware');
+const fs = require('fs');
+const path = require('path');
+const { saveStaffProfileImage, deleteStaffProfileImage } = require('../utils/imageUtils');
 
 const router = express.Router();
 
@@ -52,6 +55,8 @@ router.get('/', auth, async (req, res) => {
     const { userId, status } = req.query;
     let query = {};
     
+    console.log('[Staff Debug] GET request received with auth:', req.user?.username);
+    
     if (userId) {
       query.userId = userId;
     }
@@ -69,7 +74,11 @@ router.get('/', auth, async (req, res) => {
     res.json(staff);
   } catch (error) {
     console.error('Error fetching staff:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Error fetching staff',
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
@@ -142,16 +151,20 @@ router.post('/', auth, validateStaffCreation, async (req, res) => {
       password,
       role: 'staff'
     });
-    await user.save();
-
-    try {
+    await user.save();    try {
+      // Handle base64 profile picture if provided
+      let processedProfilePicture = profilePicture;
+      if (profilePicture && profilePicture.startsWith('data:image')) {
+        processedProfilePicture = saveStaffProfileImage(profilePicture, user._id);
+      }
+      
       // Create the staff member and link to the user account
       const newStaff = new Staff({
         name,
         position,
         phone,
         dailyRate,
-        profilePicture,
+        profilePicture: processedProfilePicture,
         allowances: allowances || 0,
         userId: user._id,
         pinCode: pinCode || '0000' // Explicitly set the PIN code
@@ -251,12 +264,50 @@ router.put('/:id', auth, async (req, res) => {
           email: updatedUser.email
         });
       }
-    }
-
-    let updatedStaff = staff;
-    
-    // Update the staff information if not account-only update
-    if (!accountOnly) {
+    }    let updatedStaff = staff;
+        // Update the staff information if not account-only update
+    if (!accountOnly) {      // Handle profile picture update - if a new picture is provided, delete the old one
+      if (staffUpdates.profilePicture) {
+        // Check if it's a base64 image
+        if (staffUpdates.profilePicture.startsWith('data:image')) {
+          // Save the new base64 image
+          const newProfilePicturePath = saveStaffProfileImage(staffUpdates.profilePicture, staff._id);
+          
+          // Delete the old image if it exists
+          if (staff.profilePicture && 
+              !staff.profilePicture.includes('placeholders') && 
+              !staff.profilePicture.startsWith('data:')) {
+            try {
+              // Use the utility function to delete the old profile picture
+              const deleted = deleteStaffProfileImage(staff.profilePicture);
+              if (deleted) {
+                console.log(`Successfully deleted old profile picture during update: ${staff.profilePicture}`);
+              }
+            } catch (fileError) {
+              console.error('Error deleting old profile picture during update:', fileError);
+              // Continue with update even if old file removal fails
+            }
+          }
+          
+          // Update the path to the new image
+          staffUpdates.profilePicture = newProfilePicturePath;
+        } else if (staff.profilePicture && 
+                  staffUpdates.profilePicture !== staff.profilePicture &&
+                  !staff.profilePicture.includes('placeholders') && 
+                  !staff.profilePicture.startsWith('data:')) {
+          // Handle regular file path changes (not base64)
+          try {
+            const deleted = deleteStaffProfileImage(staff.profilePicture);
+            if (deleted) {
+              console.log(`Successfully deleted old profile picture during path change: ${staff.profilePicture}`);
+            }
+          } catch (fileError) {
+            console.error('Error deleting old profile picture during path change:', fileError);
+            // Continue with update even if old file removal fails
+          }
+        }
+      }
+      
       updatedStaff = await Staff.findByIdAndUpdate(
         req.params.id,
         staffUpdates,
@@ -297,6 +348,18 @@ router.delete('/:id', auth, async (req, res) => {
     
     if (!staff) {
       return res.status(404).json({ message: 'Staff member not found' });
+    }    // Delete profile picture if it exists
+    if (staff.profilePicture && !staff.profilePicture.includes('placeholders')) {
+      try {
+        // Use the deleteStaffProfileImage utility function
+        const deleted = deleteStaffProfileImage(staff.profilePicture);
+        if (deleted) {
+          console.log(`Deleted staff profile picture: ${staff.profilePicture}`);
+        }
+      } catch (fileError) {
+        console.error('Error deleting profile picture:', fileError);
+        // Continue with deletion even if file removal fails
+      }
     }
 
     // Delete associated user account

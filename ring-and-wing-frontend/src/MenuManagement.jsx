@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-
+import MenuItemImage from './components/MenuItemImage';
 
 
 
@@ -386,14 +386,15 @@ const MenuPage = () => {
         ...selectedItem,
         code: selectedItem.code || '',
         subCategory: selectedItem.subCategory || defaultSubCategory
-      });
-
-      if (selectedItem.image) {
+      });      if (selectedItem.image) {
         setImagePreview(
           selectedItem.image.startsWith('http') 
             ? selectedItem.image
             : `http://localhost:5000${selectedItem.image}`
         );
+      } else {
+        // Set imagePreview to null so the placeholder will be used
+        setImagePreview(null);
       }
     }
   }, [selectedItem, reset]);
@@ -427,11 +428,10 @@ const MenuPage = () => {
         </div>
 
         {/* Menu List Table */}        <div className="overflow-x-auto rounded-xl shadow-lg mx-6" style={{ border: `1px solid ${colors.muted}20`, maxHeight: '520px' }}>
-          <table className="w-full">
-            <thead style={{ backgroundColor: colors.activeBg, position: 'sticky', top: 0 }}>
+          <table className="w-full">            <thead style={{ backgroundColor: colors.activeBg, position: 'sticky', top: 0 }}>
               <tr>
                 <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Code</th>
-                <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Name</th>
+                <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Item</th>
                 <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Category</th>
                 <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Price</th>
                 <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Actions</th>
@@ -461,13 +461,25 @@ const MenuPage = () => {
                     key={item._id}
                     style={{ borderColor: colors.muted + '20' }}
                     className="border-t hover:bg-gray-50"
-                  >
-                    <td className="p-4 font-mono" style={{ color: colors.accent }}>
+                  >                    <td className="p-4 font-mono" style={{ color: colors.accent }}>
                       <span className="px-2 py-1 rounded-md text-sm" style={{ backgroundColor: colors.activeBg }}>
                         {item.code || '--'}
                       </span>
                     </td>
-                    <td className="p-4 font-medium">{item.name}</td>
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">                        <div 
+                          className="w-10 h-10 bg-cover bg-center border rounded-sm overflow-hidden"                          style={{ 
+                            backgroundImage: `url(${item.image ? 
+                              (item.image.startsWith('http') ? item.image : 
+                               (item.image.startsWith('data:') ? item.image : 
+                                `http://localhost:5000${item.image}`)) : 
+                              (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png')})`,
+                            borderColor: colors.muted
+                          }}
+                        />
+                        <span className="font-medium">{item.name}</span>
+                      </div>
+                    </td>
                     <td className="p-4">
                       <span className="px-2.5 py-1 rounded-lg text-xs" 
                             style={{ 
@@ -580,16 +592,23 @@ const MenuPage = () => {
               <label className="cursor-pointer">
                 <div 
                   className="w-32 h-32 border-2 border-dashed rounded-lg flex items-center justify-center"
-                  style={{ borderColor: colors.muted }}
-                >
+                  style={{ borderColor: colors.muted }}                >
                   {imagePreview ? (
-                    <img
-                      src={imagePreview}
+                    <MenuItemImage
+                      image={imagePreview}
+                      category={selectedItem.category}
                       alt="Preview"
-                      className="w-full h-full object-cover rounded-lg"
+                      size="100%"
+                      className="w-full h-full rounded-lg"
                     />
                   ) : (
-                    <span className="text-gray-500">Click to upload</span>
+                    <MenuItemImage
+                      image=""
+                      category={selectedItem.category}
+                      alt="Default Item Image"
+                      size="100%"
+                      className="w-full h-full rounded-lg opacity-50" 
+                    />
                   )}
                 </div>
                 <input

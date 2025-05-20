@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { ArrowUpIcon } from '@heroicons/react/24/solid';
 import { FiShoppingCart, FiClock, FiCheckCircle, FiInfo, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import logo from './assets/rw.jpg';
+import MenuItemImage from './components/MenuItemImage';
 
 function ChatbotPage() {
   const colors = {
@@ -994,23 +995,14 @@ ${getMenuContext()}
                                 transition: 'all 0.2s ease',
                                 scrollSnapAlign: 'start'
                               }}
-                            >
-                              <div className="h-32 overflow-hidden relative">
-                                {item.image ? (
-                                  <img 
-                                    src={`http://localhost:5000${item.image}`}
-                                    alt={item.name} 
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                      e.target.onerror = null; 
-                                      e.target.src = '/placeholder-food.jpg';
-                                    }}
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                                    <span className="text-sm text-gray-500">No Image</span>
-                                  </div>
-                                )}
+                            >                              <div className="h-32 overflow-hidden relative">
+                                <MenuItemImage
+                                  image={item.image}
+                                  category={item.category}
+                                  alt={item.name}
+                                  size="100%"
+                                  className="w-full h-full"
+                                />
                                 <div className="absolute top-0 right-0 m-2 px-2 py-1 rounded-full text-xs font-medium" 
                                   style={{ backgroundColor: colors.accent, color: colors.background }}>
                                   {item.price}

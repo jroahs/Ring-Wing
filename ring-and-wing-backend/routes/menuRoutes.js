@@ -8,7 +8,7 @@ const path = require('path');
 // Configure storage with better filename handling
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = 'public/uploads/';
+    const uploadDir = path.join(__dirname, '../public/uploads/menu');
     // Ensure directory exists
     fs.mkdirSync(uploadDir, { recursive: true });
     cb(null, uploadDir);
@@ -83,11 +83,10 @@ router.post('/', upload.single('image'), async (req, res) => {
       code: req.body.code.trim().toUpperCase(),
       name: req.body.name.trim(),
       category: req.body.category,
-      subCategory: req.body.subCategory,
-      pricing: parseJSONField('pricing', req.body.pricing),
+      subCategory: req.body.subCategory,      pricing: parseJSONField('pricing', req.body.pricing),
       modifiers: parseJSONField('modifiers', req.body.modifiers || '[]'),
       description: req.body.description?.trim() || '',
-      image: req.file ? `/public/uploads/${req.file.filename}` : null
+      image: req.file ? `/uploads/menu/${req.file.filename}` : null
     };
 
     // Validate code format
@@ -138,17 +137,17 @@ router.put('/:id', upload.single('image'), async (req, res) => {
       if (existingItem) {
         return res.status(409).json({ message: 'Item code already exists' });
       }
-    }
-
-    // Handle image update
+    }    // Handle image update
     if (req.file) {
-      updates.image = `/public/uploads/${req.file.filename}`;
-      // Remove old image async
-      if (oldItem.image) {
-        const oldImagePath = path.join(__dirname, '../public', oldItem.image);
-        fs.unlink(oldImagePath, (err) => {
-          if (err) console.error('Error deleting old image:', err);
-        });
+      updates.image = `/uploads/menu/${req.file.filename}`;
+      // Remove old image if it exists
+      if (oldItem.image && !oldItem.image.includes('placeholders')) {
+        try {
+          const { deleteMenuImage } = require('../utils/imageUtils');
+          deleteMenuImage(oldItem.image);
+        } catch (err) {
+          console.error('Error deleting old image:', err);
+        }
       }
     }
 
@@ -175,14 +174,19 @@ router.delete('/:id', async (req, res) => {
     
     if (!item) {
       return res.status(404).json({ message: 'Item not found' });
-    }
-
-    // Remove associated image
-    if (item.image) {
-      const imagePath = path.join(__dirname, '../public', item.image);
-      fs.unlink(imagePath, (err) => {
-        if (err) console.error('Error deleting image:', err);
-      });
+    }    // Remove associated image
+    if (item.image && !item.image.includes('placeholders')) {
+      try {
+        const { deleteMenuImage } = require('../utils/imageUtils');
+        const deleted = deleteMenuImage(item.image);
+        if (deleted) {
+          console.log(`Successfully deleted menu image: ${item.image}`);
+        } else {
+          console.warn(`Failed to delete menu image: ${item.image} - Image may not exist`);
+        }
+      } catch (err) {
+        console.error('Error deleting image:', err);
+      }
     }
 
     res.json({ message: 'Item deleted successfully' });

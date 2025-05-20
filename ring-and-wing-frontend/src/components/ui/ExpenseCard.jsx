@@ -2,7 +2,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const ExpenseCard = ({ expense, colors, onMarkPaid, onMakePermanent }) => {
+const ExpenseCard = ({ expense, colors, onMakePermanent, onMarkPaidAndPermanent }) => {
   const formatCurrency = (amount) => {
     return `₱${amount.toLocaleString('en-PH', { 
       minimumFractionDigits: 2, 
@@ -17,7 +17,7 @@ const ExpenseCard = ({ expense, colors, onMarkPaid, onMakePermanent }) => {
       day: 'numeric' 
     });
   };
-  // Format disbursement date
+  
   const formatDisbursementDate = (date) => {
     if (!date) return '';
     return new Date(date).toLocaleDateString('en-PH', { 
@@ -26,7 +26,6 @@ const ExpenseCard = ({ expense, colors, onMarkPaid, onMakePermanent }) => {
     });
   };
   
-  // Status badge styling based on payment status
   const getBadgeStyle = () => {
     if (expense.disbursed) {
       if (expense.permanent) {
@@ -53,11 +52,9 @@ const ExpenseCard = ({ expense, colors, onMarkPaid, onMakePermanent }) => {
       };
     }
   };
-
   const badgeStyle = getBadgeStyle();
 
-  return (
-    <motion.div 
+  return (    <motion.div 
       className="bg-white rounded-lg shadow-md overflow-hidden mb-4 border border-gray-100"
       whileHover={{ y: -2, boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
       transition={{ duration: 0.2 }}
@@ -92,21 +89,14 @@ const ExpenseCard = ({ expense, colors, onMarkPaid, onMakePermanent }) => {
         </div>
         
         {!expense.disbursed ? (
-          <div className="flex gap-2 mt-3">
+          <div className="mt-3">
             <button
-              onClick={() => onMarkPaid(expense._id)}
-              className="flex-1 px-3 py-1 rounded-lg text-sm font-medium transition-colors"
+              onClick={() => onMarkPaidAndPermanent(expense._id)}
+              className="w-full px-3 py-1 rounded-lg text-sm font-medium transition-colors"
               style={{ backgroundColor: colors.accent, color: colors.background }}
-            >
-              Mark Paid
-            </button>
-            <button
-              onClick={() => onMakePermanent(expense._id)}
-              className="flex-1 px-3 py-1 rounded-lg text-sm font-medium transition-colors"
-              style={{ backgroundColor: colors.secondary, color: colors.background }}
               title="Mark as paid and permanent (won't be reset daily)"
             >
-              Mark Permanent
+              Mark as Paid
             </button>
           </div>
         ) : !expense.permanent ? (

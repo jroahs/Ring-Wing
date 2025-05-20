@@ -96,6 +96,9 @@ app.use(cors({
       'http://localhost:5174',
       undefined // Allow requests with no origin (like mobile apps or curl requests)
     ];
+    // Log all CORS requests
+    logger.debug(`CORS request from origin: ${origin || 'no origin'}`);
+    
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
@@ -137,7 +140,7 @@ app.use(cookieParser());
 app.use(morgan('combined'));
 
 // Static files
-app.use('/public', express.static(path.join(__dirname, 'public'), {
+app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
     const ext = path.extname(filePath).toLowerCase();
     const mimeTypes = {
@@ -161,6 +164,9 @@ app.use('/public', express.static(path.join(__dirname, 'public'), {
     );
   }
 }));
+
+// Keep the /public path for backward compatibility
+app.use('/public', express.static(path.join(__dirname, 'public')));
 
 // Route debug middleware - update to show more details
 app.use((req, res, next) => {
@@ -675,6 +681,56 @@ cron.schedule('*/10 * * * *', async () => {
       logger.info(`Business hours memory check: ${memoryStats.percentUsed}% memory usage detected`);
       releaseMemory();
     }
+  }
+}, {
+  scheduled: true,
+  timezone: "Asia/Manila"
+});
+
+// Import cleanup utilities
+const { 
+  cleanupTimeLogPhotos, 
+  cleanupOrphanedImages 
+} = require('./utils/cleanupUtils');
+
+// Schedule time log photo cleanup to run every day at 2 AM
+// This job will respect payroll-related photos and only delete photos
+// that are older than the retention period and not part of a payroll cycle
+cron.schedule('0 2 * * *', async () => {
+  try {
+    logger.info('Running daily time log photo cleanup job');
+    
+    // Keep photos from last 60 days by default
+    // And protect any photos from the last 3 payroll cycles
+    await cleanupTimeLogPhotos({
+      daysToKeep: 60,
+      payrollBackupMonths: 3,
+      dryRun: false
+    });
+    
+    logger.info('Time log photo cleanup complete');
+  } catch (error) {
+    logger.error('Error running time log photo cleanup:', error);
+  }
+}, {
+  scheduled: true,
+  timezone: "Asia/Manila"
+});
+
+// Schedule orphaned image cleanup to run weekly on Sunday at 3 AM
+// This cleans up staff profile pictures and menu images that are no longer
+// referenced in the database
+cron.schedule('0 3 * * 0', async () => {
+  try {
+    logger.info('Running weekly orphaned image cleanup job');
+    
+    await cleanupOrphanedImages({
+      dryRun: false
+    });
+    
+    logger.info('Orphaned image cleanup complete');
+  } catch (error) {
+    logger.error('Error running orphaned image cleanup:', error);
   }
 }, {
   scheduled: true,

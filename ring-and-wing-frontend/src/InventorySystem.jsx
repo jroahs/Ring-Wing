@@ -4,6 +4,7 @@ import { BarChart, PieChart, Bar, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Leg
 import { saveAs } from 'file-saver';
 import axios from 'axios';
 import { API_URL } from './App';  // Import API_URL from App.jsx
+import { Button } from './components/ui/Button'; // Import Button component
 
 const colors = {
   primary: '#2e0304',
@@ -42,16 +43,15 @@ const AlertCard = ({ alert, onRestock }) => {
       <div className="font-medium truncate" title={alert.message}>
         {alert.message}
       </div>
-      <div className="mt-2 flex justify-between items-center text-xs text-gray-600">
-        <span>{new Date(alert.date).toLocaleDateString()}</span>
+      <div className="mt-2 flex justify-between items-center text-xs text-gray-600">        <span>{new Date(alert.date).toLocaleDateString()}</span>
         {isStockAlert && (
-          <button
+          <Button
             onClick={() => onRestock(alert.id)}
-            className="px-2 py-1 bg-white rounded-md shadow-sm hover:bg-gray-50"
-            style={{ color: colors.accent }}
+            variant="accent"
+            size="sm"
           >
             Restock Now
-          </button>
+          </Button>
         )}
       </div>
     </div>
@@ -92,31 +92,32 @@ const AlertDashboard = ({ alerts, onRestock }) => {
          style={{ borderColor: colors.muted }}>
       <div className="flex items-center justify-between p-3 bg-gray-50 border-b"
            style={{ borderColor: colors.muted }}>
-        <div className="flex items-center">
-          <h3 className="font-medium" style={{ color: colors.primary }}>
+        <div className="flex items-center">          <h3 className="font-medium" style={{ color: colors.primary }}>
             Inventory Alerts ({alerts.length})
           </h3>
           <div className="ml-4 flex space-x-2">
-            <button 
+            <Button 
               onClick={() => setFilterType('all')}
-              className={`px-2 py-1 rounded text-xs ${filterType === 'all' ? 'bg-blue-100 text-blue-700' : 'text-gray-600'}`}>
+              variant={filterType === 'all' ? 'accent' : 'ghost'}
+              size="sm">
               All ({alertCounts.all})
-            </button>
-            <button 
+            </Button>
+            <Button 
               onClick={() => setFilterType('stock')}
-              className={`px-2 py-1 rounded text-xs ${filterType === 'stock' ? 'bg-orange-100 text-orange-700' : 'text-gray-600'}`}>
+              variant={filterType === 'stock' ? 'accent' : 'ghost'}
+              size="sm">
               Stock ({alertCounts.stock})
-            </button>
-            <button 
+            </Button>
+            <Button 
               onClick={() => setFilterType('expiration')}
-              className={`px-2 py-1 rounded text-xs ${filterType === 'expiration' ? 'bg-red-100 text-red-700' : 'text-gray-600'}`}>
+              variant={filterType === 'expiration' ? 'accent' : 'ghost'}
+              size="sm">
               Expiration ({alertCounts.expiration})
-            </button>
+            </Button>
           </div>
-        </div>
-        <button 
+        </div>        <button 
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-1 rounded hover:bg-gray-100"
+          className="p-1 rounded-full hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-900/50"
         >
           {isCollapsed ? '▼' : '▲'}
         </button>
@@ -191,6 +192,14 @@ const InventorySystem = () => {
     quantity: '',
     expirationDate: ''
   });
+
+  // State for bulk end-of-day inventory
+  const [showBulkEndDayModal, setShowBulkEndDayModal] = useState(false);
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [bulkEndDayQuantities, setBulkEndDayQuantities] = useState([]);
+
+  // Add loading state for bulk operations
+  const [bulkOperationLoading, setBulkOperationLoading] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -432,6 +441,46 @@ const InventorySystem = () => {
     }
   };
 
+  // Handle bulk end-of-day update
+  const handleBulkEndDayUpdate = async (e) => {
+    e.preventDefault();
+    setBulkOperationLoading(true);
+    try {
+      const { data } = await axios.post(
+        `${API_URL}/api/items/bulk-end-day`,
+        { itemQuantities: bulkEndDayQuantities }
+      );
+      
+      if (data.success) {
+        // Update the items with the new data
+        const updatedItems = [...items];
+        data.updated.forEach(update => {
+          const index = updatedItems.findIndex(item => item._id === update.itemId);
+          if (index !== -1) {
+            updatedItems[index] = {
+              ...updatedItems[index],
+              status: update.status
+            };
+          }
+        });
+        
+        setItems(updatedItems);
+        setShowBulkEndDayModal(false);
+        setSelectedItems([]);
+        setBulkEndDayQuantities([]);
+        
+        logAction(`Updated end-of-day quantities for ${data.updated.length} items`, 'bulk');
+      } else {
+        setError(`Some items failed to update: ${data.message}`);
+      }
+    } catch (err) {
+      console.error('Bulk end day update error:', err);
+      setError('Failed to update bulk end-of-day quantities: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setBulkOperationLoading(false);
+    }
+  };
+
   // Start day for all inventory items
   const handleStartDay = async () => {
     try {
@@ -481,6 +530,13 @@ const InventorySystem = () => {
     const newInventory = [...newItem.inventory];
     newInventory[index][field] = value;
     setNewItem({ ...newItem, inventory: newInventory });
+  };
+
+  // Update a batch quantity in bulk end-day mode
+  const updateBulkEndDayQuantity = (itemIndex, batchIndex, newQuantity) => {
+    const newBulkQuantities = [...bulkEndDayQuantities];
+    newBulkQuantities[itemIndex].endQuantities[batchIndex].quantity = newQuantity;
+    setBulkEndDayQuantities(newBulkQuantities);
   };
 
   // Handle item form submission
@@ -590,6 +646,29 @@ const InventorySystem = () => {
     setShowDailyInventoryModal(true);
   };
 
+  // Handle preparing for bulk end-day inventory count
+  const prepareBulkEndDayCount = () => {
+    // Filter out items with no inventory
+    const itemsWithInventory = filteredItems.filter(item => item.inventory && item.inventory.length > 0);
+    
+    setSelectedItems(itemsWithInventory);
+    
+    // Initialize the bulk end day quantities structure
+    const initialBulkQuantities = itemsWithInventory.map(item => ({
+      itemId: item._id,
+      name: item.name,
+      unit: item.unit,
+      endQuantities: item.inventory.map(batch => ({
+        batchId: batch._id,
+        quantity: batch.quantity,
+        expirationDate: new Date(batch.expirationDate).toLocaleDateString()
+      }))
+    }));
+    
+    setBulkEndDayQuantities(initialBulkQuantities);
+    setShowBulkEndDayModal(true);
+  };
+
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: colors.background }}>
       
@@ -652,67 +731,61 @@ const InventorySystem = () => {
               }}
             >
               <option value="All">All Categories</option>
-              {['Food', 'Beverages', 'Ingredients', 'Packaging'].map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
+              {['Food', 'Beverages', 'Ingredients', 'Packaging'].map(cat => (                <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
-            <button
+            <Button
               onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 rounded-lg font-semibold"
-              style={{
-                backgroundColor: colors.accent,
-                color: colors.background
-              }}
+              variant="primary"
             >
               Add New Item
-            </button>
+            </Button>
           </div>
         </div>
 
-        {/* Inventory Management Actions */}
-        <div className="px-6 mb-4 flex flex-wrap gap-2">
-          <button
+        {/* Inventory Management Actions */}        <div className="px-6 mb-4 flex flex-wrap gap-2">
+          <Button
             onClick={handleStartDay}
-            className="px-4 py-2 rounded border"
-            style={{ borderColor: colors.accent, color: colors.accent, backgroundColor: colors.activeBg }}
+            variant="accent"
           >
             Start Day (Record Beginning Inventory)
-          </button>
-          <button
+          </Button>
+          <Button
+            onClick={prepareBulkEndDayCount}
+            variant="accent"
+          >
+            Bulk End-of-Day Count
+          </Button>
+          <Button
             onClick={() => setShowConversionModal(true)}
-            className="px-4 py-2 rounded border"
-            style={{ borderColor: colors.muted, color: colors.primary }}
+            variant="secondary"
           >
             Convert Units
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setShowReports(true)}
-            className="px-4 py-2 rounded border"
-            style={{ borderColor: colors.muted, color: colors.primary }}
+            variant="secondary"
           >
             View Reports
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setShowAuditLog(true)}
-            className="px-4 py-2 rounded border"
-            style={{ borderColor: colors.muted, color: colors.primary }}
+            variant="secondary"
           >
             Audit Log
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => exportData('json')}
-            className="px-4 py-2 rounded border"
-            style={{ borderColor: colors.muted, color: colors.primary }}
+            variant="ghost"
           >
             Export JSON
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => exportData('csv')}
-            className="px-4 py-2 rounded border"
-            style={{ borderColor: colors.muted, color: colors.primary }}
+            variant="ghost"
           >
             Export CSV
-          </button>
+          </Button>
         </div>
 
         <div className="rounded-lg overflow-hidden border mx-6" style={{ borderColor: colors.muted }}>
@@ -743,32 +816,31 @@ const InventorySystem = () => {
                     <td className="px-4 py-3" style={{ color: colors.secondary }}>{item.unit}</td>
                     <td className="px-4 py-3" style={{ color: colors.primary }}>{formatPeso(item.cost)}</td>
                     <td className="px-4 py-3" style={{ color: colors.primary }}>{formatPeso(item.price)}</td>
-                    <td className="px-4 py-3" style={{ color: colors.secondary }}>{item.vendor}</td>
-                    <td className="px-4 py-3 flex gap-2">
-                      <button
+                    <td className="px-4 py-3" style={{ color: colors.secondary }}>{item.vendor}</td>                    <td className="px-4 py-3 flex gap-2">
+                      <Button
                         onClick={() => prepareEndDayCount(item)}
-                        className="p-1 rounded hover:bg-opacity-20 text-sm"
-                        style={{ color: colors.accent, backgroundColor: colors.activeBg }}
+                        variant="accent"
+                        size="sm"
                       >
                         End-Day Count
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         onClick={() => {
                           setSelectedItem(item);
                           setShowRestockModal(true);
                         }}
-                        className="p-1 rounded hover:bg-opacity-20"
-                        style={{ color: colors.secondary }}
+                        variant="secondary"
+                        size="sm"
                       >
                         Restock
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         onClick={() => handleDelete(item._id)}
-                        className="p-1 rounded hover:bg-opacity-20"
-                        style={{ color: colors.secondary }}
+                        variant="ghost"
+                        size="sm"
                       >
                         Delete
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -824,18 +896,16 @@ const InventorySystem = () => {
                         style={{ borderColor: colors.muted }}
                       >
                         <option value="">Select Vendor</option>
-                        {vendors.map(vendor => (
-                          <option key={vendor._id} value={vendor.name}>{vendor.name}</option>
+                        {vendors.map(vendor => (                        <option key={vendor._id} value={vendor.name}>{vendor.name}</option>
                         ))}
                       </select>
-                      <button
-                        type="button"
+                      <Button
                         onClick={() => setShowVendorAccordion(!showVendorAccordion)}
-                        className="px-3 py-2 rounded shrink-0"
-                        style={{ backgroundColor: colors.accent, color: colors.background }}
+                        variant="accent"
+                        size="sm"
                       >
                         {showVendorAccordion ? '−' : '+'}
-                      </button>
+                      </Button>
                     </div>
                   </div>
 
@@ -908,24 +978,24 @@ const InventorySystem = () => {
                             onChange={(e) => handleBatchChange(index, 'expirationDate', e.target.value)}
                             className="p-2 border rounded flex-1"
                             style={{ borderColor: colors.muted }}
-                          />
-                          <button
-                            type="button"
+                          />                          <Button
                             onClick={() => removeBatch(index)}
-                            className="px-3 py-2 rounded bg-red-100 text-red-700"
+                            variant="ghost"
+                            size="sm"
                           >
                             Remove
-                          </button>
+                          </Button>
                         </div>
                       ))}
                     </div>
-                    <button
-                      type="button"
+                    <Button
                       onClick={addBatch}
-                      className="mt-2 px-4 py-2 rounded bg-green-100 text-green-700"
+                      variant="accent"
+                      size="sm"
+                      className="mt-2"
                     >
                       Add Batch
-                    </button>
+                    </Button>
                   </div>
 
                   {/* Cost & Price */}
@@ -1004,47 +1074,38 @@ const InventorySystem = () => {
                             style={{ borderColor: colors.muted }}
                           />
                         </div>
-                      </div>
-
-                      <div className="flex justify-end gap-2 mt-4">
-                        <button
-                          type="button"
+                      </div>                      <div className="flex justify-end gap-2 mt-4">
+                        <Button
                           onClick={() => setShowVendorAccordion(false)}
-                          className="px-3 py-1 rounded text-sm"
-                          style={{ borderColor: colors.muted, color: colors.primary }}
+                          variant="ghost"
+                          size="sm"
                         >
                           Cancel
-                        </button>
-                        <button
-                          type="button"
+                        </Button>
+                        <Button
                           onClick={handleVendorSubmit}
-                          className="px-3 py-1 rounded text-sm"
-                          style={{ backgroundColor: colors.accent, color: colors.background }}
+                          variant="accent"
+                          size="sm"
                         >
                           Add Vendor
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   </div>
-                )}
-
-                <div className="mt-6 flex justify-between">
-                  <div>
-                    <button
-                      type="button"
+                )}                <div className="mt-6 flex justify-between">
+                  <div className="flex gap-2">
+                    <Button
                       onClick={() => setShowAddModal(false)}
-                      className="px-4 py-2 rounded border"
-                      style={{ borderColor: colors.muted, color: colors.primary }}
+                      variant="secondary"
                     >
                       Cancel
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="submit"
-                      className="px-4 py-2 rounded font-medium"
-                      style={{ backgroundColor: colors.accent, color: colors.background }}
+                      variant="primary"
                     >
                       Add Item
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </form>
@@ -1086,23 +1147,19 @@ const InventorySystem = () => {
               style={{ borderColor: colors.muted }}
             />
           </div>
-        </div>
-        <div className="flex justify-end gap-2 mt-6">
-          <button
-            type="button"
+        </div>        <div className="flex justify-end gap-2 mt-6">
+          <Button
             onClick={() => setShowRestockModal(false)}
-            className="px-4 py-2 rounded border"
-            style={{ borderColor: colors.muted, color: colors.primary }}
+            variant="secondary"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
-            className="px-4 py-2 rounded font-medium"
-            style={{ backgroundColor: colors.accent, color: colors.background }}
+            variant="primary"
           >
             Confirm Restock
-          </button>
+          </Button>
         </div>
       </form>
     </div>
@@ -1151,23 +1208,19 @@ const InventorySystem = () => {
               </div>
             </div>
           ))}
-        </div>
-        <div className="flex justify-end gap-2 mt-6">
-          <button
-            type="button"
+        </div>        <div className="flex justify-end gap-2 mt-6">
+          <Button
             onClick={() => setShowDailyInventoryModal(false)}
-            className="px-4 py-2 rounded border"
-            style={{ borderColor: colors.muted, color: colors.primary }}
+            variant="secondary"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
-            className="px-4 py-2 rounded font-medium"
-            style={{ backgroundColor: colors.accent, color: colors.background }}
+            variant="primary"
           >
             Save End-of-Day Count
-          </button>
+          </Button>
         </div>
       </form>
     </div>
@@ -1240,30 +1293,97 @@ const InventorySystem = () => {
             </div>
           )}
         </div>
-        
-        <div className="flex justify-end gap-2 mt-6">
-          <button
-            type="button"
+          <div className="flex justify-end gap-2 mt-6">
+          <Button
             onClick={() => setShowConversionModal(false)}
-            className="px-4 py-2 rounded border"
-            style={{ borderColor: colors.muted, color: colors.primary }}
+            variant="secondary"
           >
             Close
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
-            className="px-4 py-2 rounded font-medium"
-            style={{ backgroundColor: colors.accent, color: colors.background }}
+            variant="primary"
           >
             Convert
-          </button>
+          </Button>
         </div>
       </form>
     </div>
   </div>
 )}
 
-{showReports && (
+{/* Bulk End-of-Day Inventory Modal */}
+{showBulkEndDayModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="bg-white p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <h2 className="text-xl font-bold mb-4">
+        Bulk End-of-Day Inventory Count
+      </h2>
+      <p className="mb-4 text-sm text-gray-600">
+        Record the actual remaining quantities for all items in one go based on your physical count.
+      </p>
+      
+      <form onSubmit={handleBulkEndDayUpdate}>
+        <div className="space-y-6">
+          {bulkEndDayQuantities.map((item, itemIndex) => (
+            <div key={item.itemId} className="p-4 border rounded" style={{ borderColor: colors.muted }}>
+              <h3 className="font-medium mb-2" style={{ color: colors.primary }}>
+                {item.name}
+              </h3>
+              
+              <div className="space-y-3">
+                {item.endQuantities.map((batch, batchIndex) => (
+                  <div key={batch.batchId} className="p-3 border rounded bg-gray-50" style={{ borderColor: colors.muted }}>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm font-medium">Batch #{batchIndex + 1}</span>
+                      <span className="text-sm text-gray-500">Expires: {batch.expirationDate}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-grow">
+                        <label className="block text-sm mb-1">End-of-Day Quantity</label>
+                        <input
+                          type="number"
+                          required
+                          min="0"
+                          step={item.unit === 'kilograms' || item.unit === 'liters' ? '0.1' : '1'}
+                          value={batch.quantity}
+                          onChange={(e) => updateBulkEndDayQuantity(itemIndex, batchIndex, e.target.value)}
+                          className="w-full p-2 border rounded"
+                          style={{ borderColor: colors.muted }}
+                        />
+                      </div>
+                      <div className="text-sm text-gray-600 pt-6">
+                        {item.unit}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>          <div className="flex justify-end gap-2 mt-6">
+          <Button
+            onClick={() => setShowBulkEndDayModal(false)}
+            variant="secondary"
+            disabled={bulkOperationLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={bulkOperationLoading}
+            isLoading={bulkOperationLoading}
+          >
+            Save All End-of-Day Counts
+          </Button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+        {showReports && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
             <div className="bg-white p-6 rounded-lg w-full max-w-2xl">
               <h2 className="text-xl font-bold mb-4">Inventory Analytics</h2>
@@ -1318,15 +1438,13 @@ const InventorySystem = () => {
                     </Bar>
                   </BarChart>
                 </div>
-              </div>
-
-              <button
+              </div>              <Button
                 onClick={() => setShowReports(false)}
-                className="mt-4 px-4 py-2 rounded"
-                style={{ backgroundColor: colors.accent, color: colors.background }}
+                variant="primary"
+                className="mt-4"
               >
                 Close
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -1356,14 +1474,13 @@ const InventorySystem = () => {
                     ))}
                   </tbody>
                 </table>
-              </div>
-              <button
+              </div>              <Button
                 onClick={() => setShowAuditLog(false)}
-                className="mt-4 px-4 py-2 rounded"
-                style={{ backgroundColor: colors.accent, color: colors.background }}
+                variant="primary"
+                className="mt-4"
               >
                 Close
-              </button>
+              </Button>
             </div>
           </div>
         )}

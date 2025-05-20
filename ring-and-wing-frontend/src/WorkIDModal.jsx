@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { FiX, FiCamera, FiChevronDown, FiUser, FiDownload } from 'react-icons/fi';
 import { motion } from 'framer-motion';
+import StaffAvatar from './components/StaffAvatar';
 
-const WorkIDModal = ({ staff, onClose, colors }) => {
+function WorkIDModal({ staff, onClose, colors }) {
   const [showGovtDetails, setShowGovtDetails] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -98,31 +99,18 @@ const WorkIDModal = ({ staff, onClose, colors }) => {
                   backgroundImage: `linear-gradient(135deg, ${colors.accent} 0%, transparent 30%)`,
                   mixBlendMode: 'multiply'
                 }}
-              />
-
-              {/* Photo Area */}
+              />              {/* Photo Area */}
               <div className="relative z-10">
                 <div 
                   className="w-full aspect-square rounded-lg overflow-hidden mb-4"
                   style={{ border: `3px solid ${colors.primary}` }}
                 >
-                  {staff.profilePicture && !imageError ? (
-                    <img
-                      src={staff.profilePicture}
-                      alt="Staff"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        console.log('Image failed to load, using placeholder');
-                        setImageError(true);
-                        // Prevent infinite error loops
-                        e.target.onerror = null;
-                      }}
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                      <FiCamera className="text-4xl" style={{ color: colors.muted }} />
-                    </div>
-                  )}
+                  <StaffAvatar
+                    imagePath={staff.profilePicture}
+                    alt={`${staff.name}'s photo`}
+                    size="100%"
+                    className="w-full h-full"
+                  />
                 </div>
 
                 {/* ID Number */}
@@ -336,8 +324,7 @@ const WorkIDModal = ({ staff, onClose, colors }) => {
           <FiX className="text-2xl" />
         </button>
       </div>
-    </div>
-  );
-};
+    </div>  );
+}
 
 export default WorkIDModal;

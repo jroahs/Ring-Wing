@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiPlus, FiMinus, FiX, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import MenuItemImage from './components/MenuItemImage';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -48,7 +49,6 @@ const OrderModal = ({ isOpen, onClose, item, onAddToOrder }) => {
       opacity: 1,
       x: 0,
       transition: {
-        delay: i * 0.05,
         type: "spring",
         stiffness: 100,
         damping: 20
@@ -169,16 +169,23 @@ const OrderModal = ({ isOpen, onClose, item, onAddToOrder }) => {
                 className="h-40 bg-gradient-to-r from-orange-500 to-red-600 rounded-t-lg flex items-center justify-center overflow-hidden"
                 initial={{ opacity: 0, scale: 1.2 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5 }}
-              >
+                transition={{ duration: 0.5 }}              >
                 {item.image ? (
                   <img 
                     src={item.image.startsWith('http') ? item.image : `${API_URL}/${item.image}`}
                     alt={item.name}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // If image fails to load, use category-specific placeholder
+                      e.target.src = item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png';
+                    }}
                   />
                 ) : (
-                  <div className="text-white text-4xl font-bold">{item.name.substring(0, 2).toUpperCase()}</div>
+                  <img 
+                    src={item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png'} 
+                    alt={item.name} 
+                    className="w-full h-full object-cover"
+                  />
                 )}
               </motion.div>
               

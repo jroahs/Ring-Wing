@@ -7,6 +7,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import Webcam from 'react-webcam';
 import { API_URL } from './App';
 import { motion, AnimatePresence } from 'framer-motion';
+import StaffAvatar from './components/StaffAvatar';
 
 const TimeClock = () => {
   // Colors for consistent styling
@@ -558,17 +559,13 @@ const TimeClock = () => {
                                 color: colors.primary,
                                 ringColor: colors.accent
                               }}
-                            >
-                              <div className="flex items-center gap-3">
-                                <div 
-                                  className="w-10 h-10 bg-cover bg-center border rounded-full"
-                                  style={{ 
-                                    backgroundImage: `url(${person.profilePicture || 'https://via.placeholder.com/150'})`,
-                                    borderColor: colors.muted,
-                                    backgroundSize: 'cover',
-                                    backgroundPosition: 'center',
-                                  }}
-                                ></div>
+                            >                              <div className="flex items-center gap-3">
+                                <StaffAvatar 
+                                  imagePath={person.profilePicture}
+                                  alt={`${person.name}'s photo`}
+                                  size={40}
+                                  className="border rounded-full"
+                                />
                                 <div>
                                   <p className="font-medium">{person.name}</p>
                                   <p className="text-sm" style={{ color: colors.muted }}>
