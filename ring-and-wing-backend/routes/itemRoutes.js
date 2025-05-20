@@ -455,4 +455,41 @@ router.patch('/:id/sell', async (req, res) => {
   }
 });
 
+// Dispose expired batches
+router.patch('/:id/dispose-expired', async (req, res) => {
+  try {
+    const { batchIds } = req.body;
+    
+    if (!batchIds || !Array.isArray(batchIds)) {
+      return res.status(400).json({ message: 'Batch IDs must be provided as an array' });
+    }
+
+    const item = await Item.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+
+    // Track how many batches were disposed
+    let disposedCount = 0;
+
+    // Remove the specified expired batches
+    item.inventory = item.inventory.filter(batch => {
+      const shouldDispose = batchIds.includes(batch._id.toString());
+      if (shouldDispose) disposedCount++;
+      return !shouldDispose;
+    });
+
+    const updatedItem = await item.save();
+
+    res.json({
+      message: `Successfully disposed of ${disposedCount} expired batches`,
+      ...updatedItem.toObject(),
+      totalQuantity: updatedItem.totalQuantity,
+      status: updatedItem.status
+    });
+  } catch (err) {
+    res.status(400).json({ message: 'Disposal Error: ' + err.message });
+  }
+});
+
 module.exports = router;
