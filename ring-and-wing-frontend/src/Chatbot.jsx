@@ -3,6 +3,7 @@ import { ArrowUpIcon } from '@heroicons/react/24/solid';
 import { FiShoppingCart, FiClock, FiCheckCircle, FiInfo, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import logo from './assets/rw.jpg';
 import MenuItemImage from './components/MenuItemImage';
+import { detectLanguage } from './utils/languagePatterns';
 
 function ChatbotPage() {
   const colors = {
@@ -57,24 +58,38 @@ function ChatbotPage() {
       />
     </div>
   );
-
   const [messages, setMessages] = useState([
     {
       id: 1,
       text: "Hello! I'm the Ring & Wing Café assistant. How can I help you today?",
       sender: 'bot',
       timestamp: new Date()
+    }  ]);
+  
+  // Update welcome message when language changes
+  useEffect(() => {
+    // Only update if we have just the initial message
+    if (messages.length === 1 && messages[0].id === 1) {
+      // Always use English for the welcome message in the UI
+      const welcomeMessage = "Hello! I'm the Ring & Wing Café assistant. How can I help you today?";
+      
+      setMessages([{
+        id: 1,
+        text: welcomeMessage,
+        sender: 'bot',
+        timestamp: new Date()
+      }]);
     }
-  ]);
+  }, [messages.length]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [menuData, setMenuData] = useState([]);
   const [revenueData, setRevenueData] = useState(null);
-  const messagesEndRef = useRef(null);
-  const [rateLimitMessage, setRateLimitMessage] = useState('');
-  const lastRequestTime = useRef(Date.now());
-  const [isProcessing, setIsProcessing] = useState(false);
+  const messagesEndRef = useRef(null);  const [rateLimitMessage, setRateLimitMessage] = useState('');
+  const lastRequestTime = useRef(Date.now());  const [isProcessing, setIsProcessing] = useState(false);
   const abortControllerRef = useRef(null);
+  const [currentLanguage, setCurrentLanguage] = useState('english');
+  const [pendingOrder, setPendingOrder] = useState(null);
 
   // Order management state variables
   const [currentOrder, setCurrentOrder] = useState([]);
@@ -86,13 +101,19 @@ function ChatbotPage() {
     tableNumber: ''
   });
   const [showCheckout, setShowCheckout] = useState(false);
-
   const menuSuggestions = [
     { id: 1, text: "What's today's special?" },
     { id: 2, text: "What do you recommend?" },
     { id: 3, text: "Place an order" },
     { id: 4, text: "Where's my order?" },
     { id: 5, text: "Can i see the full menu?" }
+  ];
+  const tagalogSuggestions = [
+    { id: 1, text: "Ano ang special ngayon?" },
+    { id: 2, text: "Ano ang marerecommend mo?" },
+    { id: 3, text: "Gusto kong umorder" },
+    { id: 4, text: "Kumusta na yung order ko?" },
+    { id: 5, text: "Pwede bang makita ang menu?" }
   ];
 
   const orderSuggestions = [
@@ -105,13 +126,21 @@ function ChatbotPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
   useEffect(() => {
     fetch("http://localhost:5000/api/menu")
       .then((res) => res.json())
       .then((data) => {
         const items = data.items || [];
         setMenuData(items);
+        console.log(`Successfully loaded ${items.length} menu items for chatbot`);
+        
+        // Validate that we have the menu data available for the chatbot
+        if (items.length > 0) {
+          const sampleMenu = getMenuContext().substring(0, 200) + '...';
+          console.log('Sample menu context loaded:', sampleMenu);
+        } else {
+          console.error('No menu items loaded from the database!');
+        }
       })
       .catch((err) => console.error("Error fetching menu items:", err));
       
@@ -121,6 +150,7 @@ function ChatbotPage() {
       .then((data) => {
         if (data.success) {
           setRevenueData(data.data);
+          console.log('Successfully loaded revenue data for recommendations');
         }
       })
       .catch((err) => console.error("Error fetching revenue data:", err));
@@ -138,15 +168,17 @@ function ChatbotPage() {
       
       return `- ${menuItem.name}: ${menuItem.description || 'No description'}. Prices: ${prices}. Category: ${menuItem.category || 'Uncategorized'}`;
     }).join('\n');
-  };
-
-  const sanitizeAIResponse = (text) => {
+  };  const sanitizeAIResponse = (text, userQuery = '') => {
     if (!text || text.trim().length < 2) {
       return "Let me check that for you...";
     }
   
     const sanitizedText = text.replace(/\*/g, '');
     const lowerText = sanitizedText.toLowerCase();
+    const lowerUserQuery = userQuery.toLowerCase();
+    
+    // Detect language of the user query
+    const userLanguage = detectLanguage(userQuery);
   
     const genericResponses = [
       "i can help with",
@@ -158,78 +190,321 @@ function ChatbotPage() {
     const isGeneric = genericResponses.some(phrase =>
       lowerText.includes(phrase)
     );
+    
+    // If the user is speaking in a non-English language but the AI response is in English,
+    // we'll still send it through to preserve the model's output
+    if (userLanguage !== 'english') {
+      // Skip further customization to preserve the non-English response
+      // Just sanitize asterisks and return
+      return sanitizedText;
+    }
   
+    // Extract menu item names for better recognition
     const menuNames = menuData.map(item => item.name.toLowerCase());
     const mentionedItems = sanitizedText.split(/[\s.,]+/).filter(word =>
       menuNames.includes(word.toLowerCase())
     );
-  
+    
+    // Categorize menu items by type for better contextual recommendations
+    const coldDrinks = menuData.filter(item => 
+      (item.category === 'Beverages' && 
+      (item.subCategory === 'Cold Drinks' || 
+       item.name.toLowerCase().includes('iced') || 
+       item.name.toLowerCase().includes('cold') ||
+       item.name.toLowerCase().includes('frappe') ||
+       item.name.toLowerCase().includes('milkshake') ||
+       item.name.toLowerCase().includes('milktea')))
+    );
+    
+    const desserts = menuData.filter(item => 
+      item.category === 'Desserts' || 
+      item.name.toLowerCase().includes('cake') || 
+      item.name.toLowerCase().includes('ice cream')
+    );
+    
+    const lightMeals = menuData.filter(item => 
+      (item.category === 'Food' && 
+      (item.subCategory === 'Sandwiches' || 
+       item.subCategory === 'Salads' || 
+       item.name.toLowerCase().includes('wrap')))
+    );
+
+    // Weather-related queries
+    if (
+      lowerUserQuery.includes('hot') || 
+      lowerUserQuery.includes('warm') || 
+      lowerUserQuery.includes('heat') || 
+      lowerUserQuery.includes('sunny')
+    ) {
+      // Get 2-3 cold drinks and a refreshing food item
+      const recommendedDrinks = coldDrinks
+        .sort(() => 0.5 - Math.random())
+        .slice(0, Math.min(3, coldDrinks.length));
+        
+      const drinkNames = recommendedDrinks.map(item => item.name);
+      
+      let responseText = `For this hot day, I'd recommend something refreshing! `;
+      
+      if (drinkNames.length > 0) {
+        responseText += `Our ${drinkNames.join(', ')} would be perfect to cool you down. `;
+      }
+      
+      if (desserts.length > 0) {
+        const randomDessert = desserts[Math.floor(Math.random() * desserts.length)];
+        responseText += `You might also enjoy our ${randomDessert.name} for a sweet treat.`;
+      } else if (lightMeals.length > 0) {
+        const randomMeal = lightMeals[Math.floor(Math.random() * lightMeals.length)];
+        responseText += `Pair it with our ${randomMeal.name} for a light, refreshing meal.`;
+      }
+      
+      return responseText;
+    }
+    
+    // Cold weather related queries
+    if (
+      lowerUserQuery.includes('cold') || 
+      lowerUserQuery.includes('chilly') || 
+      lowerUserQuery.includes('rainy') ||
+      lowerUserQuery.includes('rain')
+    ) {
+      // Get hot drinks and comfort food
+      const hotDrinks = menuData.filter(item => 
+        (item.category === 'Beverages' && 
+        (item.subCategory === 'Hot Drinks' || 
+         item.subCategory === 'Coffee' ||
+         item.name.toLowerCase().includes('hot') ||
+         item.name.toLowerCase().includes('tea') && !item.name.toLowerCase().includes('iced')))
+      );
+      
+      const comfortFood = menuData.filter(item => 
+        item.category === 'Food' && 
+        (item.name.toLowerCase().includes('soup') || 
+         item.name.toLowerCase().includes('stew') ||
+         item.name.toLowerCase().includes('pasta') ||
+         item.subCategory === 'Main Dishes')
+      );
+      
+      const drinkOptions = hotDrinks
+        .sort(() => 0.5 - Math.random())
+        .slice(0, Math.min(2, hotDrinks.length))
+        .map(item => item.name);
+        
+      const foodOptions = comfortFood
+        .sort(() => 0.5 - Math.random())
+        .slice(0, Math.min(2, comfortFood.length))
+        .map(item => item.name);
+      
+      let responseText = `For this cold weather, I'd suggest something warming! `;
+      
+      if (drinkOptions.length > 0) {
+        responseText += `Our ${drinkOptions.join(' or ')} would warm you right up. `;
+      }
+      
+      if (foodOptions.length > 0) {
+        responseText += `It pairs perfectly with our ${foodOptions.join(' or ')} for a comforting meal.`;
+      }
+      
+      return responseText;
+    }
+    
+    // Handle time-of-day related queries
+    if (lowerUserQuery.includes('breakfast') || lowerUserQuery.includes('morning')) {
+      const breakfastItems = menuData.filter(item => 
+        item.subCategory === 'Breakfast' || 
+        item.name.toLowerCase().includes('breakfast') ||
+        item.name.toLowerCase().includes('egg') ||
+        item.name.toLowerCase().includes('bacon') ||
+        item.name.toLowerCase().includes('toast')
+      );
+      
+      const morningDrinks = menuData.filter(item => 
+        item.category === 'Beverages' && 
+        (item.subCategory === 'Coffee' || 
+         item.name.toLowerCase().includes('juice') ||
+         item.name.toLowerCase().includes('tea'))
+      );
+      
+      if (breakfastItems.length > 0 || morningDrinks.length > 0) {
+        const foodRecs = breakfastItems
+          .slice(0, Math.min(2, breakfastItems.length))
+          .map(item => item.name);
+          
+        const drinkRecs = morningDrinks
+          .slice(0, Math.min(2, morningDrinks.length))
+          .map(item => item.name);
+        
+        let responseText = `For a delicious morning meal, `;
+        
+        if (foodRecs.length > 0) {
+          responseText += `I recommend our ${foodRecs.join(' or ')}. `;
+        }
+        
+        if (drinkRecs.length > 0) {
+          responseText += `Pair it with a refreshing ${drinkRecs.join(' or ')} to start your day right!`;
+        }
+        
+        return responseText;
+      }
+    }
+
     // Handle special items
     if (isGeneric && lowerText.includes('special')) {
       const special = menuData.find(item => item.isSpecial) || menuData[0];
-      return `Today's special is ${special.name} - ${special.description}`;
+      return `Today's special is ${special.name} - ${special.description}. It's a customer favorite and I highly recommend it!`;
     }
   
-    // Enhanced recommendations using revenue data
-    if ((mentionedItems.length === 0 && lowerText.includes('recommend')) || 
-        lowerText.includes('popular') || 
-        lowerText.includes('best seller') ||
-        lowerText.includes('bestseller')) {
+    // Enhanced personalized recommendations 
+    if ((mentionedItems.length === 0 && (lowerUserQuery.includes('recommend') || lowerUserQuery.includes('suggest'))) || 
+        lowerUserQuery.includes('popular') || 
+        lowerUserQuery.includes('best seller') ||
+        lowerUserQuery.includes('bestseller')) {
       
-      // If we have revenue data, use it for recommendations
+      // If we have revenue data, use it for personalized recommendations
       if (revenueData?.topItems?.length > 0) {
-        const topSellers = revenueData.topItems.slice(0, 3).map(item => item.name);
-        return `Based on our sales data, our most popular items are: ${topSellers.join(', ')}. Would you like to try any of these?`;
+        const topSellers = revenueData.topItems.slice(0, 3);
+        
+        // Build a more personalized and engaging response
+        let responseText = `Based on what our customers love most, I'd recommend: `;
+        
+        topSellers.forEach((item, index) => {
+          responseText += `${item.name}`;
+          
+          // Add a brief descriptor if possible
+          const menuItem = menuData.find(mi => mi.name === item.name);
+          if (menuItem && menuItem.description) {
+            const shortDesc = menuItem.description.split('.')[0]; // Just first sentence
+            responseText += ` (${shortDesc})`;
+          }
+          
+          if (index < topSellers.length - 2) {
+            responseText += `, `;
+          } else if (index === topSellers.length - 2) {
+            responseText += ` and `;
+          }
+        });
+        
+        responseText += `. Would you like to try any of these today?`;
+        return responseText;
       } else {
-        // Fall back to simple recommendations if no revenue data
-        const popularItems = menuData.slice(0, 3).map(i => i.name);
-        return `${sanitizedText}\n\nPopular choices: ${popularItems.join(', ')}`;
+        // Fall back to curated recommendations if no revenue data
+        const categories = [...new Set(menuData.map(item => item.category))];
+        let responseText = `I'd be happy to recommend some of our most popular items! `;
+        
+        // Try to recommend one item from each main category
+        const recommendations = [];
+        
+        for (const category of categories) {
+          const itemsInCategory = menuData.filter(item => item.category === category);
+          if (itemsInCategory.length > 0) {
+            const randomItem = itemsInCategory[Math.floor(Math.random() * itemsInCategory.length)];
+            recommendations.push({
+              name: randomItem.name,
+              category: category
+            });
+            
+            if (recommendations.length >= 3) break;
+          }
+        }
+        
+        if (recommendations.length > 0) {
+          responseText += `From our menu, I suggest trying: `;
+          recommendations.forEach((rec, index) => {
+            responseText += `${rec.name} from our ${rec.category} selection`;
+            if (index < recommendations.length - 2) {
+              responseText += `, `;
+            } else if (index === recommendations.length - 2) {
+              responseText += ` and `;
+            }
+          });
+          responseText += `. These are customer favorites!`;
+        } else {
+          // Absolute fallback
+          const popularItems = menuData.slice(0, 3).map(i => i.name);
+          responseText += `Some great choices would be: ${popularItems.join(', ')}.`;
+        }
+        
+        return responseText;
       }
     }
-  
+    
+    // Check for specific dietary preferences
+    if (
+      lowerUserQuery.includes('vegetarian') || 
+      lowerUserQuery.includes('vegan') ||
+      lowerUserQuery.includes('gluten free') ||
+      lowerUserQuery.includes('gluten-free') ||
+      lowerUserQuery.includes('healthy')
+    ) {
+      // Extract the dietary preference
+      let dietaryType = '';
+      if (lowerUserQuery.includes('vegetarian')) dietaryType = 'vegetarian';
+      else if (lowerUserQuery.includes('vegan')) dietaryType = 'vegan';
+      else if (lowerUserQuery.includes('gluten')) dietaryType = 'gluten-free';
+      else dietaryType = 'healthy';
+      
+      // Filter menu for these items - this is simplified and would need proper tagging in the database
+      const dietaryItems = menuData.filter(item => 
+        (item.tags && item.tags.includes(dietaryType)) ||
+        (item.description && item.description.toLowerCase().includes(dietaryType)) ||
+        (dietaryType === 'healthy' && 
+         (item.category === 'Salads' || 
+          (item.description && (
+            item.description.toLowerCase().includes('fresh') ||
+            item.description.toLowerCase().includes('healthy') ||
+            item.description.toLowerCase().includes('nutritious')
+          ))))
+      );
+      
+      if (dietaryItems.length > 0) {
+        const recommendations = dietaryItems
+          .sort(() => 0.5 - Math.random())
+          .slice(0, Math.min(3, dietaryItems.length))
+          .map(item => item.name);
+          
+        return `For ${dietaryType} options, I recommend: ${recommendations.join(', ')}. Would you like to know more about any of these items?`;
+      }
+    }
+    // If we couldn't create a more personalized response, return the sanitized text
     return sanitizedText;
   };
-
-  // Updated AI response function with proxy implementation
-  const getAIResponse = async (userInput, chatHistory = []) => {
-    // Create popular items list from revenue data if available
-    let popularItemsInfo = '';
-    if (revenueData?.topItems?.length > 0) {
-      const topSellers = revenueData.topItems.slice(0, 3).map(item => 
-        `${item.name} (${item.quantity} sold, ₱${Math.round(item.revenue)} revenue)`
-      );
-      popularItemsInfo = `\n\nOur current best-selling items are: ${topSellers.join(', ')}.`;
+  
+  // Using the imported detectLanguage function from languagePatterns.js
+    // Generate AI description for a menu item
+  const generateMenuItemDescription = async (itemName, basicDescription, language = 'english') => {    // Customize instructions based on language
+    let languageInstructions = '';
+    let wordCountRange = '';      if (language === 'tagalog') {
+      languageInstructions = 'Write the description in natural Taglish (mixed Tagalog/English). Use a 60% Tagalog, 40% English mix that feels authentic. Keep menu item names in English but describe them in Taglish. Use a casual, friendly tone like talking to a friend - avoid formal terms like "po" and "opo".';
+      wordCountRange = 'Keep descriptions between 25-45 words';
+    } else {
+      languageInstructions = 'Write the description in English.';
+      wordCountRange = 'Keep descriptions between 20-40 words';
     }
     
     const systemMessage = {
       role: "system",
-      content: `You are Ring & Wing Café's helpful assistant. Rules:
-1. Menu items (never invent new ones):
-${getMenuContext()}
-2. refrain from using bold letters as the chatbot doesn't support boldfaces.
-3. using asterisk is probihited *.
-3. Keep responses friendly but professional,
-4. Never mention competitors
-5. If the customer initiates a fun or playful interaction, the AI can engage in a lighthearted and friendly way while maintaining professionalism.
-6. If asked about something not in the menu, respond: "I'm sorry, that item isn't available. Would you like me to suggest something from our menu?"
-7. Format prices exactly as: "Small: ₱99 | Medium: ₱120
-8. For recommendations, suggest 1 specific item first${popularItemsInfo}`
+      content: `You are a professional food writer who creates appetizing, appealing food descriptions for cafe menus.
+- ${wordCountRange}
+- Highlight flavors, textures, and key ingredients
+- Use vivid, sensory language that makes the dish sound delicious
+- Focus on what makes this item special
+- Be authentic and accurate to the actual food described
+- Never use markdown or special formatting
+- ${languageInstructions}`
     };
-
+    
+    const userPrompt = `Create a short, appealing menu description for "${itemName}" based on this basic description: "${basicDescription}"`;
+    
     const payload = {
-      model: "deepseek/deepseek-chat:free",
+      model: "gemini-1.5-flash",
       messages: [
         systemMessage,
-        ...chatHistory,
-        { role: "user", content: userInput }
+        { role: "user", content: userPrompt }
       ],
-      temperature: 0.85,
-      max_tokens: 200,
-      presence_penalty: 0.6
+      temperature: 0.7,
+      max_tokens: 100
     };
-
+    
     try {
-      // Updated to use proxy endpoint
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -243,12 +518,157 @@ ${getMenuContext()}
       }
       
       const data = await res.json();
+      
+      if (data.error || !data.choices || !data.choices[0] || !data.choices[0].message) {
+        console.error("Error generating menu description:", data.error || "Invalid response format");
+        return basicDescription;
+      }
+      
+      const description = data.choices[0].message.content.trim();
+      console.log('Generated menu description:', description);
+      
+      return description;
+    } catch (error) {
+      console.error("Error generating menu description:", error);
+      return basicDescription;
+    }
+  };
+  // Updated AI response function with proxy implementation
+  const getAIResponse = async (userInput, chatHistory = []) => {
+    // Detect the language of the user input
+    const detectedLanguage = detectLanguage(userInput);
+    console.log('Detected language:', detectedLanguage);
+    
+    // Create popular items list from revenue data if available
+    let popularItemsInfo = '';
+    if (revenueData?.topItems?.length > 0) {
+      const topSellers = revenueData.topItems.slice(0, 3).map(item => 
+        `${item.name} (${item.quantity} sold, ₱${Math.round(item.revenue)} revenue)`
+      );
+      popularItemsInfo = `\n\nOur current best-selling items are: ${topSellers.join(', ')}.`;
+    }    // Language-specific instructions
+    let languageInstructions = '';    if (detectedLanguage === 'tagalog') {      languageInstructions = `
+6. Language preferences:
+   - Respond with natural Taglish (mixed Tagalog and English)
+   - CRITICAL: Never acknowledge or mention language changes - continue conversation naturally
+   - Use a 60% Tagalog, 40% English mix that sounds authentic and conversational 
+   - Mix languages mid-sentence as Filipinos naturally do in everyday speech
+   - Keep tone casual and friendly - like talking to a friend or colleague
+   - Use Tagalog for conversational phrases, but keep menu items in English
+   - Examples of natural Taglish:
+     * "Ang bestseller namin is yung Caramel Macchiato. Gusto mo bang i-try?"
+     * "Masarap din yung Signature Blend Coffee namin with our Chocolate Cake."
+     * "Available pa rin yung seasonal drinks namin hanggang next week."
+   - Avoid using formal terms like "po" and "opo" to maintain a friendly atmosphere   - Keep monetary values as: "₱99"
+   - DO NOT say things like "Oh, you're speaking Tagalog!" or anything that acknowledges the language`;
+    } else {
+      languageInstructions = `
+6. Language preferences:
+   - Respond in English by default
+   - If the customer switches to another language, switch seamlessly without any acknowledgment
+   - For Tagalog, use natural Taglish (mixed Tagalog-English) as it's more authentic
+   - CRITICAL: Never comment on language changes in your response - maintain conversational flow`;
+    }
+    
+    const systemMessage = {
+      role: "system",      
+      content: `You are Ring & Wing Café's helpful, friendly, and attentive assistant. Here are your guidelines:
+
+1. Available menu items (only talk about these actual items):
+${getMenuContext()}
+
+2. Conversation style:
+   - Be warm, personable, and sound like a knowledgeable café staff member
+   - Keep responses friendly, professional, and concise (2-3 sentences max)
+   - Use a conversational tone that's engaging but not overly casual
+   - Add character with occasional café-appropriate expressions like "Absolutely!" or "Perfect choice!"
+
+3. Contextual awareness:
+   - For weather-related queries (hot/cold days), recommend appropriate items
+   - For time-of-day queries, suggest fitting menu items (breakfast/lunch/dinner)
+   - Consider dietary needs when mentioned (vegetarian/vegan/gluten-free)
+
+4. Formatting and content rules:
+   - Do not use asterisks or markdown formatting
+   - Never mention competitor restaurants or cafes
+   - Format prices as: "Small: ₱99 | Medium: ₱120"
+   - If asked about unavailable items, say: "I'm sorry, that item isn't available. Would you like me to suggest something similar from our menu?"
+
+5. Recommendations:
+   - Always recommend specific items from our actual menu
+   - If suggesting multiple items, recommend complementary pairings (drink + food)
+   - Highlight special features or ingredients when relevant
+
+${languageInstructions}
+
+${popularItemsInfo}`
+    };
+      const payload = {
+      model: "gemini-1.5-flash", // Using the 1.5 model which has better performance
+      messages: [
+        systemMessage,
+        ...chatHistory,
+        { role: "user", content: userInput }
+      ],
+      temperature: 0.7,
+      max_tokens: 800
+    };
+    
+    try {
+      // Using proxy endpoint that now connects to Gemini API
+      console.log('Sending chat request with payload:', {
+        model: payload.model,
+        messageCount: payload.messages.length,
+        temperature: payload.temperature,
+        max_tokens: payload.max_tokens
+      });
+      
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!res.ok) {
+        console.error(`API error: Status ${res.status}`);
+        const errorText = await res.text();
+        console.error('Error response:', errorText);
+        throw new Error(`API error: ${res.status} - ${errorText}`);
+      }
+      
+      const data = await res.json();
+      console.log('Chat API response:', data);
+        // Check if there's an error in the response
+      if (data.error) {
+        console.error("Gemini API error:", data.error);
+        return "Sorry, I'm having trouble answering that question. Could you try rephrasing?";
+      }
+      
+      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+        console.error("Invalid response format from API:", data);
+        return "Sorry, I received an invalid response format. Please try again.";
+      }
+        
       let aiText = data.choices[0].message.content;
-      aiText = sanitizeAIResponse(aiText);
+      console.log('Raw AI response:', aiText);
+      
+      // For non-English queries, preserve the response as is to maintain the language integrity
+      if (detectedLanguage !== 'english') {
+        console.log(`Preserving ${detectedLanguage} response without extra sanitization`);
+        // Remove asterisks but preserve the original language response
+        return aiText.replace(/\*/g, '');
+      }
+      
+      // For English responses, apply fuller sanitization
+      aiText = sanitizeAIResponse(aiText, userInput);
+      console.log('Sanitized AI response:', aiText);
+      
       return aiText;
     } catch (error) {
       console.error("Error with AI service:", error);
-      return "Sorry, I'm having trouble connecting to the AI service.";
+      return "Sorry, I'm having trouble connecting to the AI service. Please try again in a moment.";
     }
   };
 
@@ -279,19 +699,50 @@ ${getMenuContext()}
           quantity: 1,
           image: item.image
         }
-      ]);
-    }
+      ]);    }
+  };
+    // Get multilingual response text based on language detection
+    const getLocalizedText = (key, language = 'english') => {    
+      const localizedStrings = {      orderAdded: {
+        english: "I've started an order for you. You can say 'show my cart' anytime to see your current order.",
+        tagalog: "Na-start ko na yung order mo. Sabihin mo lang 'show my cart' kung gusto mong makita yung order mo anytime."
+      },      noItemsInCart: {
+        english: "You don't have any items in your order yet. Would you like to see our menu?",
+        tagalog: "Wala ka pang items sa cart mo. Gusto mo bang makita yung menu namin?"
+      },      itemsInCart: {
+        english: (count) => `You have ${count} item${count > 1 ? 's' : ''} in your order. You can view your cart below.`,
+        tagalog: (count) => `May ${count} item${count > 1 ? 's' : ''} ka sa cart mo. Nasa baba yung order mo para ma-check mo.`
+      },      checkoutDetails: {
+        english: "Great! I'll need a few details to process your order.",
+        tagalog: "Perfect! Kailangan ko lang ng konting details para ma-process natin yung order mo."
+      },      orderCancelled: {
+        english: "I've canceled your current order. Feel free to start over whenever you're ready!",
+        tagalog: "Na-cancel ko na yung order mo. Just start over nalang kapag ready ka na ulit!"
+      },      noOrderToCancel: {
+        english: "You don't have an active order to cancel.",
+        tagalog: "Wala ka pang active order na pwedeng i-cancel."
+      },      itemAdded: {
+        english: (name) => `Added ${name} to your order. Would you like anything else?`,
+        tagalog: (name) => `Na-add ko na yung ${name} sa order mo. May gusto ka pa bang iba?`
+      }
+    };
     
+    return localizedStrings[key][language] || localizedStrings[key]['english'];
+  };
+    const addMessageToCart = (userMessage) => {
     // Show cart message if this is the first item
     if (currentOrder.length === 0) {
+      // Detect language from user input or use English as default
+      const detectedLang = userMessage?.text ? detectLanguage(userMessage.text) : 'english';
+      
       setMessages(prev => [...prev, {
         id: Date.now(),
-        text: "I've started an order for you. You can say 'show my cart' anytime to see your current order.",
+        text: getLocalizedText('orderAdded', detectedLang),
         sender: 'bot',
         timestamp: new Date()
       }]);
     }
-  };
+  }
 
   const updateOrderQuantity = (itemId, change) => {
     const updatedOrder = currentOrder.map(item => {
@@ -329,9 +780,7 @@ ${getMenuContext()}
     const variance = Math.floor(Math.random() * 4);
     
     return baseTime + variance;
-  };
-
-  const handleOrderItem = (item) => {
+  };  const handleOrderItem = (item) => {
     // Get first available size or default to 'base'
     const size = item.pricing ? Object.keys(item.pricing)[0] : 'base';
     
@@ -350,45 +799,54 @@ ${getMenuContext()}
     
     setMessages(prev => [...prev, userMessage]);
     setIsTyping(true);
+    
+    // Detect language from the user message
+    const detectedLang = detectLanguage(userMessage.text);
 
     setTimeout(() => {
       setMessages(prev => [...prev, {
         id: Date.now(),
-        text: `Added ${item.name} to your order. Would you like anything else?`,
+        text: getLocalizedText('itemAdded', detectedLang)(item.name),
         sender: 'bot',
         timestamp: new Date()
       }]);
       setIsTyping(false);
     }, 1000);
   };
-
   // Order management action handlers
   const handleShowCart = () => {
     setShowCart(true);
     setIsTyping(false);
     
+    // Detect language from the last user message if available
+    const lastUserMsg = messages.filter(m => m.sender === 'user').pop();
+    const detectedLang = lastUserMsg ? detectLanguage(lastUserMsg.text) : 'english';
+    
     if (currentOrder.length === 0) {
       setMessages(prev => [...prev, {
         id: Date.now(),
-        text: "You don't have any items in your order yet. Would you like to see our menu?",
+        text: getLocalizedText('noItemsInCart', detectedLang),
         sender: 'bot',
         timestamp: new Date()
       }]);
     } else {
       setMessages(prev => [...prev, {
         id: Date.now(),
-        text: `You have ${currentOrder.length} item${currentOrder.length > 1 ? 's' : ''} in your order. You can view your cart below.`,
+        text: getLocalizedText('itemsInCart', detectedLang)(currentOrder.length),
         sender: 'bot',
         timestamp: new Date()
       }]);
     }
   };
-  
-  const handleCheckout = () => {
+    const handleCheckout = () => {
+    // Detect language from the last user message if available
+    const lastUserMsg = messages.filter(m => m.sender === 'user').pop();
+    const detectedLang = lastUserMsg ? detectLanguage(lastUserMsg.text) : 'english';
+    
     if (currentOrder.length === 0) {
       setMessages(prev => [...prev, {
         id: Date.now(),
-        text: "You don't have any items in your order yet. Would you like to see our menu?",
+        text: getLocalizedText('noItemsInCart', detectedLang),
         sender: 'bot',
         timestamp: new Date()
       }]);
@@ -399,7 +857,7 @@ ${getMenuContext()}
     
     setMessages(prev => [...prev, {
       id: Date.now(),
-      text: "Great! I'll need a few details to process your order.",
+      text: getLocalizedText('checkoutDetails', detectedLang),
       sender: 'bot',
       timestamp: new Date()
     }]);
@@ -561,12 +1019,15 @@ ${getMenuContext()}
       order: latestOrder
     }]);
   };
-  
   const handleCancelOrder = () => {
+    // Detect language from the last user message if available
+    const lastUserMsg = messages.filter(m => m.sender === 'user').pop();
+    const detectedLang = lastUserMsg ? detectLanguage(lastUserMsg.text) : 'english';
+    
     if (currentOrder.length === 0) {
       setMessages(prev => [...prev, {
         id: Date.now(),
-        text: "You don't have an active order to cancel.",
+        text: getLocalizedText('noOrderToCancel', detectedLang),
         sender: 'bot',
         timestamp: new Date()
       }]);
@@ -579,7 +1040,7 @@ ${getMenuContext()}
     
     setMessages(prev => [...prev, {
       id: Date.now(),
-      text: "I've canceled your current order. Feel free to start over whenever you're ready!",
+      text: getLocalizedText('orderCancelled', detectedLang),
       sender: 'bot',
       timestamp: new Date()
     }]);
@@ -658,58 +1119,93 @@ ${getMenuContext()}
       </div>
     );
   };
-  
-  // Checkout form component
+    // Localized form labels and buttons
+  const formStrings = {
+    english: {
+      completeOrder: "Complete Your Order",
+      yourName: "Your Name",
+      phoneNumber: "Phone Number",
+      tableNumber: "Table Number (if dining in)",
+      orderSummary: "Order Summary",
+      estimatedTime: "Estimated preparation time",
+      minutes: "minutes",
+      cancel: "Cancel",
+      placeOrder: "Place Order",
+      namePlaceholder: "Enter your name",
+      phonePlaceholder: "Enter your phone number",
+      tablePlaceholder: "Optional"
+    },
+    tagalog: {
+      completeOrder: "Complete Your Order",
+      yourName: "Name mo",
+      phoneNumber: "Phone Number mo",
+      tableNumber: "Table Number (kung dine-in ka)",
+      orderSummary: "Order Summary",
+      estimatedTime: "Estimated preparation time",
+      minutes: "minutes",
+      cancel: "Cancel",
+      placeOrder: "Place Order",      namePlaceholder: "Enter your name",
+      phonePlaceholder: "Enter your phone number",
+      tablePlaceholder: "Optional"
+    }
+  };
+    // Checkout form component
   const CheckoutForm = () => {
     if (!showCheckout) return null;
+    
+    // Detect language from the last user message
+    const lastUserMsg = messages.filter(m => m.sender === 'user').pop();
+    const detectedLang = lastUserMsg ? detectLanguage(lastUserMsg.text) : 'english';
+    
+    const labels = formStrings[detectedLang] || formStrings.english;
     
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-20">
         <div className="bg-white rounded-lg w-full max-w-md p-4">
-          <h2 className="text-xl font-bold mb-4" style={{ color: colors.primary }}>Complete Your Order</h2>
+          <h2 className="text-xl font-bold mb-4" style={{ color: colors.primary }}>{labels.completeOrder}</h2>
           
           <div className="space-y-3 mb-4">
             <div>
-              <label className="block text-sm mb-1" style={{ color: colors.secondary }}>Your Name</label>
+              <label className="block text-sm mb-1" style={{ color: colors.secondary }}>{labels.yourName}</label>
               <input
                 type="text"
                 value={customerInfo.name}
                 onChange={(e) => setCustomerInfo({...customerInfo, name: e.target.value})}
                 className="w-full p-2 border rounded"
                 style={{ borderColor: colors.muted }}
-                placeholder="Enter your name"
+                placeholder={labels.namePlaceholder}
                 required
               />
             </div>
             
             <div>
-              <label className="block text-sm mb-1" style={{ color: colors.secondary }}>Phone Number</label>
+              <label className="block text-sm mb-1" style={{ color: colors.secondary }}>{labels.phoneNumber}</label>
               <input
                 type="tel"
                 value={customerInfo.phone}
                 onChange={(e) => setCustomerInfo({...customerInfo, phone: e.target.value})}
                 className="w-full p-2 border rounded"
                 style={{ borderColor: colors.muted }}
-                placeholder="Enter your phone number"
+                placeholder={labels.phonePlaceholder}
                 required
               />
             </div>
             
             <div>
-              <label className="block text-sm mb-1" style={{ color: colors.secondary }}>Table Number (if dining in)</label>
+              <label className="block text-sm mb-1" style={{ color: colors.secondary }}>{labels.tableNumber}</label>
               <input
                 type="text"
                 value={customerInfo.tableNumber}
                 onChange={(e) => setCustomerInfo({...customerInfo, tableNumber: e.target.value})}
                 className="w-full p-2 border rounded"
                 style={{ borderColor: colors.muted }}
-                placeholder="Optional"
+                placeholder={labels.tablePlaceholder}
               />
             </div>
           </div>
           
           <div className="border-t pt-3 mb-3" style={{ borderColor: colors.muted }}>
-            <h3 className="font-bold mb-2" style={{ color: colors.primary }}>Order Summary</h3>
+            <h3 className="font-bold mb-2" style={{ color: colors.primary }}>{labels.orderSummary}</h3>
             <div className="space-y-1 max-h-32 overflow-y-auto mb-2">
               {currentOrder.map(item => (
                 <div key={item.id} className="flex justify-between text-sm">
@@ -727,7 +1223,7 @@ ${getMenuContext()}
               <span>₱{calculateOrderTotal().toFixed(2)}</span>
             </div>
             <div className="text-xs mt-1" style={{ color: colors.secondary }}>
-              Estimated preparation time: {getEstimatedPrepTime()} minutes
+              {labels.estimatedTime}: {getEstimatedPrepTime()} {labels.minutes}
             </div>
           </div>
           
@@ -737,22 +1233,20 @@ ${getMenuContext()}
               className="px-4 py-2 rounded border text-sm"
               style={{ borderColor: colors.muted, color: colors.primary }}
             >
-              Cancel
+              {labels.cancel}
             </button>
             <button
               onClick={handlePlaceOrder}
               className="px-4 py-2 rounded text-sm"
               style={{ backgroundColor: colors.accent, color: colors.background }}
             >
-              Place Order
+              {labels.placeOrder}
             </button>
           </div>
         </div>
       </div>
     );
-  };
-
-  const handleSendMessage = async (e) => {
+  };  const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;
   
@@ -774,6 +1268,13 @@ ${getMenuContext()}
   
     lastRequestTime.current = now;
   
+    // Detect language and update current language state
+    const detectedLang = detectLanguage(inputMessage);
+    if (detectedLang !== currentLanguage) {
+      console.log(`Language changed from ${currentLanguage} to ${detectedLang}`);
+      setCurrentLanguage(detectedLang);
+    }
+
     const userMessage = {
       id: Date.now(),
       text: inputMessage,
@@ -785,8 +1286,11 @@ ${getMenuContext()}
     setInputMessage('');
     setIsTyping(true);
   
+    // Use only the last few messages in the chat history to avoid
+    // exceeding context limits, but ensure we keep the menu context
     const chatHistory = [...messages, userMessage]
       .slice(-5)
+      .filter(msg => msg.sender === 'user' || msg.sender === 'bot')
       .map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'assistant',
         content: msg.text
@@ -887,12 +1391,52 @@ ${getMenuContext()}
         setIsTyping(false);
         staticResponseSent = true;
       }
-    }
-
-    // Only get AI response if no static response was sent
+    }    // Only get AI response if no static response was sent
     if (!staticResponseSent) {
       try {
-        const aiText = await getAIResponse(userMessage.text, chatHistory);
+        // Process contextual keywords to help guide the AI response
+        let enhancedInput = userMessage.text;
+        
+        // Check for time-of-day related context
+        const currentHour = new Date().getHours();
+        if (currentHour >= 6 && currentHour < 11 && 
+            !enhancedInput.toLowerCase().includes('breakfast') && 
+            !enhancedInput.toLowerCase().includes('morning')) {
+          enhancedInput = `[Context: Morning time] ${enhancedInput}`;
+        } else if (currentHour >= 11 && currentHour < 15 && 
+                  !enhancedInput.toLowerCase().includes('lunch')) {
+          enhancedInput = `[Context: Lunch time] ${enhancedInput}`;
+        } else if (currentHour >= 17 && currentHour < 21 && 
+                  !enhancedInput.toLowerCase().includes('dinner')) {
+          enhancedInput = `[Context: Dinner time] ${enhancedInput}`;
+        }
+        
+        // Add previous order context if available
+        if (orderHistory.length > 0) {
+          const recentItems = orderHistory[orderHistory.length - 1].items
+            .map(item => item.name)
+            .filter((value, index, self) => self.indexOf(value) === index); // Unique items
+          
+          if (recentItems.length > 0 && 
+             (enhancedInput.toLowerCase().includes('recommend') || 
+              enhancedInput.toLowerCase().includes('suggest') || 
+              enhancedInput.toLowerCase().includes('like'))) {
+            enhancedInput = `[Context: Customer previously ordered ${recentItems.join(', ')}] ${enhancedInput}`;
+          }
+        }
+        
+        console.log('Enhanced input with context:', enhancedInput);
+        
+        const aiText = await getAIResponse(enhancedInput, chatHistory);
+        
+        // For recommendations or menu queries, show actual menu items with images
+        const shouldShowMenuItems = 
+          enhancedInput.toLowerCase().includes('recommend') || 
+          enhancedInput.toLowerCase().includes('suggest') || 
+          enhancedInput.toLowerCase().includes('menu') ||
+          enhancedInput.toLowerCase().includes('what') && enhancedInput.toLowerCase().includes('have');
+        
+        // Text response
         const botResponse = {
           id: Date.now(),
           text: aiText,
@@ -901,6 +1445,83 @@ ${getMenuContext()}
         };
         
         setMessages(prev => [...prev, botResponse]);
+        
+        // Add carousel of suggested items based on the query for certain types of questions
+        if (shouldShowMenuItems && !staticResponseSent) {
+          // Extract categories and filter relevant items
+          // Determine which category to show based on the query
+          const query = enhancedInput.toLowerCase();
+          let relevantItems = [];
+          
+          if (query.includes('drink') || query.includes('beverage') || query.includes('thirsty')) {
+            relevantItems = menuData.filter(item => item.category === 'Beverages');
+          } else if (query.includes('food') || query.includes('meal') || query.includes('hungry')) {
+            relevantItems = menuData.filter(item => item.category === 'Food');
+          } else if (query.includes('dessert') || query.includes('sweet')) {
+            relevantItems = menuData.filter(item => item.category === 'Desserts');
+          } else if (query.includes('hot') || query.includes('warm')) {
+            // Suggests cold drinks and light foods for hot weather
+            relevantItems = menuData.filter(item => 
+              (item.category === 'Beverages' && 
+               (item.name.toLowerCase().includes('iced') || 
+                item.name.toLowerCase().includes('cold'))) || 
+              item.category === 'Desserts'
+            );
+          } else if (query.includes('cold')) {
+            // Suggests hot drinks and comfort foods for cold weather
+            relevantItems = menuData.filter(item => 
+              (item.category === 'Beverages' && 
+               (item.name.toLowerCase().includes('hot') || 
+                item.subCategory === 'Coffee')) || 
+              (item.category === 'Food' && item.subCategory === 'Main Dishes')
+            );
+          } else {
+            // Default: Show popular or random items across categories
+            if (revenueData?.topItems?.length > 0) {
+              // Get names of top selling items
+              const topSellerNames = revenueData.topItems.map(item => item.name);
+              // Find these items in the menu data
+              relevantItems = menuData.filter(item => topSellerNames.includes(item.name));
+            } else {
+              // If no revenue data, get a sampling of items across categories
+              const categories = [...new Set(menuData.map(item => item.category))];
+              for (const category of categories) {
+                const itemsInCategory = menuData.filter(item => item.category === category);
+                if (itemsInCategory.length > 0) {
+                  // Get 1-2 random items from each category
+                  const randomItems = itemsInCategory
+                    .sort(() => 0.5 - Math.random())
+                    .slice(0, Math.min(2, itemsInCategory.length));
+                  relevantItems.push(...randomItems);
+                }
+              }
+            }
+          }
+          
+          // Limit to a reasonable number of items for display
+          relevantItems = relevantItems.slice(0, Math.min(6, relevantItems.length));
+          
+          if (relevantItems.length > 0) {
+            // Add a small delay so the text appears first
+            setTimeout(() => {
+              const menuMessage = {
+                id: Date.now() + 100,
+                text: "",
+                sender: 'bot',
+                type: 'menu-items',
+                items: relevantItems.map(item => ({
+                  name: item.name,
+                  price: item.pricing ? "₱" + Object.values(item.pricing)[0] : "",
+                  description: item.description || "",
+                  image: item.image || "",
+                  category: item.category || ""
+                })),
+                timestamp: new Date()
+              };
+              setMessages(prev => [...prev, menuMessage]);
+            }, 800);
+          }
+        }
       } catch (error) {
         console.error("Error getting AI response:", error);
         // Provide a fallback response in case of error
@@ -920,6 +1541,28 @@ ${getMenuContext()}
     setInputMessage(suggestion);
   };
 
+  // Suggestion buttons component
+  const SuggestionButtons = ({ suggestions, onClick }) => {
+    return (
+      <div className="flex flex-wrap gap-2 mt-3">
+        {suggestions.map(suggestion => (
+          <button
+            key={suggestion.id}
+            onClick={() => onClick(suggestion.text)}
+            className="px-3 py-1.5 text-xs md:text-sm rounded-full transition-colors"
+            style={{
+              backgroundColor: colors.primary + '10',
+              color: colors.primary,
+              border: `1px solid ${colors.primary}30`
+            }}
+          >
+            {suggestion.text}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-screen" style={{ backgroundColor: colors.background }}>
       <header className="flex items-center justify-between p-4 border-b" style={{ backgroundColor: colors.primary, borderColor: colors.muted }}>
@@ -928,19 +1571,20 @@ ${getMenuContext()}
           <div>
             <h1 className="text-xl font-bold" style={{ color: colors.background }}>Café Assistant</h1>
             <p className="text-xs" style={{ color: colors.muted }}>Powered by Ring & Wing</p>
+          </div>        </div>
+        <div className="flex items-center">
+          <div className="flex items-center relative">
+            <span
+              className="h-3 w-3 rounded-full mr-1 absolute -left-5"
+              style={{
+                backgroundColor: '#4ade80',
+                animation: 'ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite'
+              }}
+            ></span>
+            <span className="text-sm" style={{ color: colors.background }}>
+              Online
+            </span>
           </div>
-        </div>
-        <div className="flex items-center relative">
-          <span
-            className="h-3 w-3 rounded-full mr-1 absolute -left-5"
-            style={{
-              backgroundColor: '#4ade80',
-              animation: 'ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite'
-            }}
-          ></span>
-          <span className="text-sm" style={{ color: colors.background }}>
-            Online
-          </span>
         </div>
       </header>
 
@@ -1196,9 +1840,7 @@ ${getMenuContext()}
       </div>
 
       <ShoppingCart />
-      <CheckoutForm />
-
-      <div className="px-4 pb-2">
+      <CheckoutForm />      <div className="px-4 pb-2">
         <div className="max-w-3xl mx-auto flex flex-wrap gap-2">
           {menuSuggestions.map((suggestion) => (
             <button
@@ -1215,13 +1857,11 @@ ${getMenuContext()}
             </button>
           ))}
         </div>
-      </div>
-
-      <form onSubmit={handleSendMessage} className="p-4 border-t" style={{ borderColor: colors.muted }}>
-        <div className="max-w-3xl mx-auto flex">
-          <input
+      </div><form onSubmit={handleSendMessage} className="p-4 border-t" style={{ borderColor: colors.muted }}>
+        <div className="max-w-3xl mx-auto flex">          <input
             type="text"
             value={inputMessage}
+
             onChange={(e) => setInputMessage(e.target.value)}
             placeholder="Type your message or choose a suggestion below..."
             className="chat-input"

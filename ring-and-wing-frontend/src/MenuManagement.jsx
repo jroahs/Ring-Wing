@@ -2,6 +2,61 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import MenuItemImage from './components/MenuItemImage';
 
+// Function to generate AI descriptions for menu items
+const generateMenuItemDescription = async (itemName, basicDescription) => {
+  const systemMessage = {
+    role: "system",
+    content: `You are a professional food writer who creates appetizing, appealing food descriptions for cafe menus.
+- Keep descriptions between 20-40 words
+- Highlight flavors, textures, and key ingredients
+- Use vivid, sensory language that makes the dish sound delicious
+- Focus on what makes this item special
+- Be authentic and accurate to the actual food described
+- Never use markdown or special formatting`
+  };
+  
+  const userPrompt = `Create a short, appealing menu description for "${itemName}" based on this basic description: "${basicDescription}"`;
+  
+  const payload = {
+    model: "gemini-1.5-flash",
+    messages: [
+      systemMessage,
+      { role: "user", content: userPrompt }
+    ],
+    temperature: 0.7,
+    max_tokens: 100
+  };
+  
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    if (!res.ok) {
+      throw new Error(`API error: ${res.status}`);
+    }
+    
+    const data = await res.json();
+    
+    if (data.error || !data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error("Error generating menu description:", data.error || "Invalid response format");
+      return basicDescription;
+    }
+    
+    const description = data.choices[0].message.content.trim();
+    console.log('Generated menu description:', description);
+    
+    return description;
+  } catch (error) {
+    console.error("Error generating menu description:", error);
+    return basicDescription;
+  }
+};
+
 
 
 const colors = {
@@ -170,7 +225,7 @@ const MenuPage = () => {
     category: 'Beverages'
   });
 
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm({
+  const { register, handleSubmit, reset, watch, setValue, getValues, formState: { errors } } = useForm({
     defaultValues: initialItem
   });
 
@@ -808,21 +863,80 @@ const MenuPage = () => {
               </div>
             )}
           </div>
-        </div>
-
-        {/* Description */}
+        </div>        {/* Description */}
         <div className="mb-8">
-          <label className="block text-lg font-medium mb-2" style={{ color: colors.primary }}>
-            Description
-          </label>
+          <div className="flex justify-between items-center mb-2">
+            <label className="block text-lg font-medium" style={{ color: colors.primary }}>
+              Description
+            </label>
+            <div className="relative">
+              <button
+                type="button"
+                className="px-3 py-1.5 rounded-lg flex items-center gap-1.5 hover:opacity-90 transition-opacity text-sm"
+                style={{ backgroundColor: colors.accent, color: colors.background }}
+                onClick={async () => {
+                  // Get current values from the form
+                  const itemName = getValues('name');
+                  const basicDesc = getValues('description') || 'A delicious menu item';
+                  
+                  if (!itemName) {
+                    alert('Please enter an item name first');
+                    return;
+                  }
+                  
+                  // Show loading state
+                  const descField = document.querySelector('textarea[name="description"]');
+                  const originalDesc = descField.value;
+                  descField.value = 'Generating AI description...';
+                  descField.disabled = true;
+                  
+                  try {
+                    // Call the AI description generator
+                    const aiDescription = await generateMenuItemDescription(itemName, basicDesc);
+                    
+                    // Update the form with the AI-generated description
+                    setValue('description', aiDescription);
+                  } catch (error) {
+                    console.error('Error generating AI description:', error);
+                    // Restore original on error
+                    descField.value = originalDesc;
+                    alert('Failed to generate AI description. Please try again.');
+                  } finally {
+                    // Re-enable the field
+                    descField.disabled = false;
+                  }
+                }}
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  width="16" 
+                  height="16" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 2a4 4 0 0 1 4 4v4a4 4 0 1 1-8 0V6a4 4 0 0 1 4-4Z"/>
+                  <path d="M18 8h2a2 2 0 0 1 2 2v2a8 8 0 0 1-16 0v-2a2 2 0 0 1 2-2h2"/>
+                  <path d="M10 18v.27a2 2 0 0 0 4 0V18"/>
+                </svg>
+                Generate AI Description
+              </button>
+            </div>
+          </div>
           <textarea
             {...register('description')}
             className="w-full p-3 text-sm border rounded-lg"
             style={{ borderColor: colors.muted }}
             rows="3"
-            placeholder="Add a delicious description for this item..."
+            placeholder="Add a delicious description for this item or use the AI button to generate one..."
           />
-        </div>        {/* Actions */}
+          <div className="mt-1 text-xs text-gray-500">
+            Tip: If you're not sure what to write, enter a simple description or ingredients, then click "Generate AI Description"
+          </div>
+        </div>{/* Actions */}
         <div className="sticky bottom-0 bg-white pt-4 pb-2 border-t shadow-md"
           style={{ borderColor: colors.muted + '40', backgroundColor: colors.background }}>
           <div className="flex justify-end gap-3">
