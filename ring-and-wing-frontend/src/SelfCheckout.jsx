@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { API_URL } from './App'; // Import centralized API_URL
+import { API_URL } from './App';
 
 const colors = {
   primary: '#2e0304',
@@ -53,12 +53,6 @@ const Receipt = React.forwardRef(({ order, totals }, ref) => {
         <span>Subtotal:</span>
         <span>₱{totals.subtotal}</span>
       </div>
-      {parseFloat(totals.discount) > 0 && (
-        <div className="flex justify-between text-sm" style={{ color: colors.secondary }}>
-          <span>Discount (10%):</span>
-          <span>-₱{totals.discount}</span>
-        </div>
-      )}
       <div className="flex justify-between font-bold mt-1" style={{ color: colors.primary }}>
         <span>TOTAL</span>
         <span>₱{totals.total}</span>
@@ -76,7 +70,6 @@ Receipt.propTypes = {
 };
 
 const SelfCheckout = () => {
-  const [isDiscountApplied, setIsDiscountApplied] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
   const [menuItems, setMenuItems] = useState([]);
   const [currentOrder, setCurrentOrder] = useState([]);
@@ -92,7 +85,6 @@ const SelfCheckout = () => {
       (item.code && item.code.toLowerCase().includes(searchTerm.toLowerCase()))
     )
   , [menuItems, searchTerm]);
-  
 
   useEffect(() => {
     const fetchMenuItems = async () => {
@@ -161,14 +153,12 @@ const SelfCheckout = () => {
 
   const calculateTotal = () => {
     const subtotal = currentOrder.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const discount = isDiscountApplied ? subtotal * 0.1 : 0;
     return {
       subtotal: subtotal,
-      discount: discount,
-      total: subtotal - discount
+      discount: 0,
+      total: subtotal
     };
   };
-  
 
   const saveOrderToDB = async () => {
     const calculatedTotals = calculateTotal();
@@ -182,12 +172,11 @@ const SelfCheckout = () => {
       })),
       totals: {
         subtotal: calculatedTotals.subtotal,
-        discount: calculatedTotals.discount,
         total: calculatedTotals.total
       },
       paymentMethod: 'pending',
       orderType: 'self_checkout',
-      status: 'pending' // Explicitly mark as pending for POS to handle payment
+      status: 'pending'
     };
   
     try {
@@ -197,7 +186,7 @@ const SelfCheckout = () => {
         body: JSON.stringify(orderData)
       });
       const data = await response.json();
-      setOrderNumber(data.data.receiptNumber); // Match backend response structure
+      setOrderNumber(data.data.receiptNumber);
       setOrderSubmitted(true);
     } catch (error) {
       alert('Failed to submit order. Please try again.');
@@ -244,116 +233,174 @@ const SelfCheckout = () => {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
-      {/* Search Bar */}
-      <div className="sticky top-0 bg-white p-4 shadow-sm z-10">
-        <div className="relative">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white">
+      {/* Search Bar with enhanced styling */}
+      <div className="sticky top-0 bg-white/80 backdrop-blur-lg p-4 shadow-lg z-10">
+        <div className="relative max-w-md mx-auto">
           <input
             type="text"
-            className="w-full h-12 pl-12 pr-4 rounded-2xl border-2"
+            className="w-full h-12 pl-12 pr-4 rounded-full border-2 transition-all duration-300 focus:ring-4 focus:ring-orange-100 focus:border-orange-500"
             style={{ borderColor: colors.muted }}
-            placeholder="Search or scan item..."
+            placeholder="Search menu or scan item..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
-            className="h-6 w-6 absolute left-4 top-3" 
+            className="h-6 w-6 absolute left-4 top-3 transition-colors duration-300" 
             fill="none" 
             viewBox="0 0 24 24" 
-            stroke={colors.accent}
+            stroke={searchTerm ? colors.accent : colors.muted}
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
               d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
-      </div>
-  
-      {/* Tabs */}
-      <div className="flex justify-around p-2 bg-white shadow-sm sticky top-14 z-10">
+      </div>      {/* Enhanced Tabs */}
+      <div className="flex justify-around p-2 bg-white/80 backdrop-blur-lg shadow-sm sticky top-[68px] z-10 -mt-2">
         <button
           onClick={() => setActiveTab('menu')}
-          className={`px-4 py-2 rounded-full ${activeTab === 'menu' ? 'bg-orange-100' : ''}`}
+          className={`px-6 py-2 rounded-full font-medium transition-all duration-300 ${
+            activeTab === 'menu' 
+              ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg scale-105' 
+              : 'bg-white text-gray-600 hover:bg-orange-50'
+          }`}
         >
           Menu
         </button>
         <button
           onClick={() => setActiveTab('cart')}
-          className={`px-4 py-2 rounded-full ${activeTab === 'cart' ? 'bg-orange-100' : ''}`}
+          className={`px-6 py-2 rounded-full font-medium transition-all duration-300 ${
+            activeTab === 'cart'
+              ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg scale-105'
+              : 'bg-white text-gray-600 hover:bg-orange-50'
+          }`}
         >
           Cart ({currentOrder.length})
         </button>
       </div>
   
-      {/* Discount Toggle */}
-      {currentOrder.length > 0 && (
-        <div className="sticky top-28 z-10 p-2 bg-white shadow-sm">
-          <button
-            onClick={() => setIsDiscountApplied(!isDiscountApplied)}
-            className={`w-full py-3 rounded-xl font-medium ${
-              isDiscountApplied 
-                ? 'bg-orange-500 text-white'
-                : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            {isDiscountApplied ? '✓ Discount Applied (10%)' : 'Apply PWD/Senior Discount'}
-          </button>
-        </div>
-      )}
-  
-      {/* Menu Grid */}
+      {/* Enhanced Menu Grid */}
       {activeTab === 'menu' && (
-        <div className="p-4 grid grid-cols-2 gap-3">
-          {filteredItems.map(item => (
-            <button
-              key={item._id}
-              className="text-left p-3 rounded-xl shadow-sm"
-              style={{ backgroundColor: colors.background }}
-              onClick={() => addToOrder(item)}
-            >              {item.image ? (
-                <img 
-                  src={item.image} 
-                  alt={item.name} 
-                  className="w-full h-32 object-cover rounded-lg mb-2"
-                  onError={(e) => {
-                    // If image fails to load, use category-specific placeholder
-                    e.target.src = item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png';
-                  }}
-                />
-              ) : (
-                <img 
-                  src={item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png'} 
-                  alt={item.name} 
-                  className="w-full h-32 object-cover rounded-lg mb-2"
-                />
-              )}
-              <h3 className="font-semibold truncate" style={{ color: colors.primary }}>
-                {item.name}
-              </h3>
-              <p className="text-sm" style={{ color: colors.accent }}>
-                ₱{Math.min(...Object.values(item.pricing)).toFixed(2)}
-              </p>
-            </button>
-          ))}
+        <div className="pt-4"> {/* Added padding-top */}
+          {/* Meals Section */}
+          <div className="mb-6">
+            <div className="mb-2 bg-white rounded-lg py-1 px-3 shadow-sm mx-4">
+              <div className="flex items-center">
+                <span className="font-medium text-sm" style={{ color: colors.primary }}>
+                  Meals
+                </span>
+              </div>
+            </div>
+            <div className="p-4 grid grid-cols-2 gap-4">
+              {menuItems
+                .filter(item => item.category === 'Meals')
+                .filter(item => 
+                  searchTerm === '' || 
+                  item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  (item.code && item.code.toLowerCase().includes(searchTerm.toLowerCase()))
+                )
+                .map(item => (
+                  <button
+                    key={item._id}
+                    className="text-left p-3 rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-95 bg-white"
+                    onClick={() => addToOrder(item)}
+                  >
+                    <div className="relative">
+                      <img 
+                        src={item.image || '/placeholders/meal.png'} 
+                        alt={item.name} 
+                        className="w-full h-36 object-cover rounded-xl mb-2 shadow-inner"
+                        onError={(e) => { e.target.src = '/placeholders/meal.png'; }}
+                      />
+                      <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full shadow-lg">
+                        <span className="text-sm font-bold text-orange-600">
+                          ₱{Math.min(...Object.values(item.pricing)).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                    <h3 className="font-bold text-gray-800 truncate">
+                      {item.name}
+                    </h3>
+                    <p className="text-sm text-gray-500 truncate">
+                      {item.description || "No description available"}
+                    </p>
+                  </button>
+                ))}
+            </div>
+          </div>
+
+          {/* Beverages Section */}
+          <div>
+            <div className="mb-2 bg-white rounded-lg py-1 px-3 shadow-sm mx-4">
+              <div className="flex items-center">
+                <span className="font-medium text-sm" style={{ color: colors.primary }}>
+                  Beverages
+                </span>
+              </div>
+            </div>
+            <div className="p-4 grid grid-cols-2 gap-4">
+              {menuItems
+                .filter(item => item.category === 'Beverages')
+                .filter(item => 
+                  searchTerm === '' || 
+                  item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  (item.code && item.code.toLowerCase().includes(searchTerm.toLowerCase()))
+                )
+                .map(item => (
+                  <button
+                    key={item._id}
+                    className="text-left p-3 rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-95 bg-white"
+                    onClick={() => addToOrder(item)}
+                  >
+                    <div className="relative">
+                      <img 
+                        src={item.image || '/placeholders/drinks.png'} 
+                        alt={item.name} 
+                        className="w-full h-36 object-cover rounded-xl mb-2 shadow-inner"
+                        onError={(e) => { e.target.src = '/placeholders/drinks.png'; }}
+                      />
+                      <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full shadow-lg">
+                        <span className="text-sm font-bold text-orange-600">
+                          ₱{Math.min(...Object.values(item.pricing)).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                    <h3 className="font-bold text-gray-800 truncate">
+                      {item.name}
+                    </h3>
+                    <p className="text-sm text-gray-500 truncate">
+                      {item.description || "No description available"}
+                    </p>
+                  </button>
+                ))}
+            </div>
+          </div>
         </div>
       )}
   
-      {/* Cart Items */}
+      {/* Enhanced Cart Items */}
       {activeTab === 'cart' && (
-        <div className="p-4 space-y-3">
+        <div className="p-4 space-y-3 mb-24">
           {currentOrder.map(item => (
             <div key={`${item._id}-${item.selectedSize}`} 
-              className="p-3 rounded-lg bg-gray-50">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-semibold" style={{ color: colors.primary }}>
+              className="p-4 rounded-2xl bg-white shadow-lg transition-all duration-300">
+              <div className="flex items-center gap-4">
+                <div className="w-20 h-20 rounded-xl overflow-hidden shadow-inner">
+                  <img 
+                    src={item.image || (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png')}
+                    alt={item.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-gray-800">
                     {item.name}
                   </h4>
                   <select
                     value={item.selectedSize}
                     onChange={(e) => updateSize(item, e.target.value)}
-                    className="text-sm mt-1 p-1 rounded"
-                    style={{ borderColor: colors.muted }}
+                    className="mt-1 p-2 rounded-lg bg-orange-50 text-orange-600 border-orange-200 focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
                   >
                     {item.availableSizes.map(size => (
                       <option key={size} value={size}>
@@ -361,36 +408,53 @@ const SelfCheckout = () => {
                       </option>
                     ))}
                   </select>
+                  <div className="flex items-center gap-3 mt-2">
+                    <button 
+                      onClick={() => updateQuantity(item, -1)}
+                      className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center transition-all hover:bg-orange-200"
+                    >
+                      -
+                    </button>
+                    <span className="w-8 text-center font-medium">{item.quantity}</span>
+                    <button
+                      onClick={() => updateQuantity(item, 1)}
+                      className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center transition-all hover:bg-orange-200"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => updateQuantity(item, -1)}
-                    className="px-3 py-1 rounded-lg bg-orange-500 text-white"
-                  >
-                    -
-                  </button>
-                  <span className="w-8 text-center">{item.quantity}</span>
-                  <button
-                    onClick={() => updateQuantity(item, 1)}
-                    className="px-3 py-1 rounded-lg bg-orange-500 text-white"
-                  >
-                    +
-                  </button>
+                <div className="text-right">
+                  <p className="font-bold text-orange-600">
+                    ₱{(item.price * item.quantity).toFixed(2)}
+                  </p>
                 </div>
               </div>
             </div>
           ))}
+          {currentOrder.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-500">Your cart is empty</p>
+              <button
+                onClick={() => setActiveTab('menu')}
+                className="mt-4 px-6 py-2 bg-orange-100 text-orange-600 rounded-full hover:bg-orange-200 transition-colors"
+              >
+                Browse Menu
+              </button>
+            </div>
+          )}
         </div>
       )}
   
-      {/* Order Summary */}
+      {/* Enhanced Order Summary */}
       {currentOrder.length > 0 && (
-        <div className="fixed bottom-4 left-4 right-4 p-4 rounded-2xl shadow-lg flex justify-between items-center"
-          style={{ backgroundColor: colors.primary, color: colors.background }}>
-          <span>{currentOrder.length} items</span>
-          <span>₱{calculateTotal().total.toFixed(2)}</span>
+        <div className="fixed bottom-4 left-4 right-4 p-4 rounded-2xl shadow-xl bg-gradient-to-r from-orange-600 to-orange-500 text-white backdrop-blur-lg">
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-medium">{currentOrder.length} items</span>
+            <span className="font-bold text-xl">₱{calculateTotal().total.toFixed(2)}</span>
+          </div>
           <button 
-            className="px-4 py-2 rounded-xl bg-white text-orange-600"
+            className="w-full py-3 rounded-xl bg-white text-orange-600 font-bold transform transition-all duration-300 hover:scale-[1.02] active:scale-95"
             onClick={processOrder}
           >
             Submit Order

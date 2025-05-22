@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ring & Wing Chatbot Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #chat-container {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            height: 400px;
+            overflow-y: auto;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .user-message {
+            background-color: #e1f5fe;
+            margin-left: 50px;
+        }
+        .bot-message {
+            background-color: #f5f5f5;
+            margin-right: 50px;
+        }
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+        #user-input {
+            flex-grow: 1;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #853619;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #2e0304;
+        }
+        h2 {
+            color: #2e0304;
+        }
+        .test-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .system-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 12px;
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h2>Ring & Wing Chatbot Direct Test</h2>
+    
+    <div class="test-buttons">
+        <button onclick="askPredefinedQuestion('What chicken wings do you have?')">
+            Ask about wings
+        </button>
+        <button onclick="askPredefinedQuestion('What is today\'s special?')">
+            Ask about specials
+        </button>
+        <button onclick="askPredefinedQuestion('What are your best-selling items?')">
+            Ask about best sellers
+        </button>
+        <button onclick="askPredefinedQuestion('What is the price of Classic Fried Chicken?')">
+            Ask about prices
+        </button>
+        <button onclick="getMenuData()">
+            Refresh menu data
+        </button>
+    </div>
+
+    <div id="chat-container"></div>
+    
+    <div class="input-container">
+        <input type="text" id="user-input" placeholder="Type your message here...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <div class="system-info">
+        <h3>System Information</h3>
+        <div>Menu data status: <span id="menu-status">Not loaded</span></div>
+        <div>API model: <span id="api-model">gemini-1.5-flash</span></div>
+        <h4>Menu Context:</h4>
+        <pre id="menu-context">Loading...</pre>
+    </div>
+
+    <script>
+        // Global variables
+        let menuData = [];
+        
+        // Load menu data on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            getMenuData();
+            
+            // Add event listener for enter key
+            document.getElementById('user-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        });
+
+        // Function to get menu data from the API
+        async function getMenuData() {
+            try {
+                const response = await fetch('http://localhost:5000/api/menu');
+                const data = await response.json();
+                menuData = data.items || [];
+                
+                document.getElementById('menu-status').textContent = 
+                    `Loaded ${menuData.length} items`;
+                
+                // Update menu context display
+                const menuContext = getMenuContext();
+                document.getElementById('menu-context').textContent = menuContext;
+                
+                // Add system message
+                addMessage('Menu data refreshed. Try asking a question about our menu!', 'bot');
+            } catch (error) {
+                console.error('Error fetching menu data:', error);
+                document.getElementById('menu-status').textContent = 
+                    `Error: ${error.message}`;
+            }
+        }
+
+        // Function to get menu context string
+        function getMenuContext() {
+            if (!menuData.length) return "No menu items available";
+            
+            return menuData.map(menuItem => {
+                const prices = menuItem.pricing 
+                    ? Object.entries(menuItem.pricing)
+                        .map(([size, price]) => `${size}: ₱${price}`)
+                        .join(', ')
+                    : 'Price not available';
+                
+                return `- ${menuItem.name}: ${menuItem.description || 'No description'}. Prices: ${prices}. Category: ${menuItem.category || 'Uncategorized'}`;
+            }).join('\n');
+        }
+
+        // Function to send user message
+        async function sendMessage() {
+            const userInput = document.getElementById('user-input').value.trim();
+            if (!userInput) return;
+            
+            // Add user message to chat
+            addMessage(userInput, 'user');
+            
+            // Clear input field
+            document.getElementById('user-input').value = '';
+            
+            // Show loading message
+            const loadingId = addMessage('Thinking...', 'bot');
+            
+            try {
+                // Create system message with menu context
+                const systemMessage = {
+                    role: "system",
+                    content: `You are Ring & Wing Café's helpful assistant. Here are your guidelines:
+1. Available menu items (only talk about these actual items):
+${getMenuContext()}
+2. Keep responses friendly, professional, and concise.
+3. Do not use asterisks or markdown formatting.
+4. Never mention competitor restaurants or cafes.
+5. Be cheerful and helpful while remaining professional.
+6. If asked about unavailable items, say: "I'm sorry, that item isn't available. Would you like me to suggest something from our menu?"
+7. Format prices as: "Small: ₱99 | Medium: ₱120"
+8. For recommendations, suggest specific items from our menu`
+                };
+                
+                // Create payload
+                const payload = {
+                    model: "gemini-1.5-flash",
+                    messages: [
+                        systemMessage,
+                        { role: "user", content: userInput }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 800
+                };
+                
+                // Send request to API
+                const response = await fetch('http://localhost:5000/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Remove loading message
+                removeMessage(loadingId);
+                
+                // Add bot response to chat
+                if (data.error) {
+                    addMessage(`Error: ${data.error}`, 'bot');
+                } else {
+                    const botResponse = data.choices[0].message.content;
+                    addMessage(botResponse, 'bot');
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                
+                // Remove loading message
+                removeMessage(loadingId);
+                
+                // Add error message
+                addMessage(`Sorry, there was an error: ${error.message}`, 'bot');
+            }
+        }
+
+        // Function to add a message to the chat
+        function addMessage(text, sender) {
+            const chatContainer = document.getElementById('chat-container');
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            messageElement.classList.add(sender === 'user' ? 'user-message' : 'bot-message');
+            
+            // Generate a unique ID for the message
+            const messageId = Date.now().toString();
+            messageElement.id = `msg-${messageId}`;
+            
+            messageElement.textContent = text;
+            chatContainer.appendChild(messageElement);
+            
+            // Scroll to bottom
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            return messageId;
+        }
+
+        // Function to remove a message by ID
+        function removeMessage(messageId) {
+            const messageElement = document.getElementById(`msg-${messageId}`);
+            if (messageElement) {
+                messageElement.remove();
+            }
+        }
+
+        // Function to ask a predefined question
+        function askPredefinedQuestion(question) {
+            document.getElementById('user-input').value = question;
+            sendMessage();
+        }
+    </script>
+</body>
+</html>

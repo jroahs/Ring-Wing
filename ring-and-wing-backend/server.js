@@ -298,27 +298,104 @@ app.use('/api/health', healthRoutes);
 // Database status route for frontend
 app.use('/api/db-status', require('./routes/dbStatusRoutes'));
 
-// Chat proxy route
+// Chat proxy route - Final fix for menu context
 app.post('/api/chat', async (req, res) => {
   try {
-    const response = await axios.post(
-      'https://openrouter.ai/api/v1/chat/completions',
-      req.body,
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://ring-wing-cafe.com',
-          'X-Title': 'Ring & Wing Café Assistant'
+    // Extract what we need from the incoming request
+    const { messages, temperature = 0.7, max_tokens = 800 } = req.body;
+    
+    // Find the system message (contains menu data) and the last user message
+    const systemMessage = messages.find(msg => msg.role === 'system');
+    const lastUserMessage = [...messages].reverse().find(msg => msg.role === 'user');
+    
+    if (!lastUserMessage) {
+      throw new Error("No user message found in the request");
+    }
+    
+    // Create a combined prompt that includes system info and user query
+    const combinedPrompt = systemMessage 
+      ? `${systemMessage.content}\n\nUser question: ${lastUserMessage.content}`
+      : lastUserMessage.content;
+    
+    // Construct proper Gemini API request format
+    const geminiPayload = {
+      contents: [
+        {
+          parts: [
+            { text: combinedPrompt }
+          ]
         }
+      ],
+      generationConfig: {
+        temperature: temperature,
+        maxOutputTokens: max_tokens
       }
-    );
-    res.json(response.data);
+    };
+    
+    // Hardcoding the API key for now to ensure it works
+    // In production, this should be in an environment variable
+    const GEMINI_API_KEY = 'AIzaSyC4bXFF2azww8LD_uONuXJKF9Gqg2D9XCI';
+    
+    logger.info('Sending request to Gemini API with menu context');
+    
+    try {
+      const response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        geminiPayload,
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          timeout: 10000 // 10 second timeout
+        }
+      );
+      
+      // Log successful response for debugging
+      logger.debug('Gemini API response status:', response.status);
+      
+      // Check if the response is valid
+      if (!response.data || !response.data.candidates || !response.data.candidates[0]) {
+        logger.error('Invalid Gemini API response structure:', response.data);
+        throw new Error('Invalid response structure from Gemini API');
+      }
+      
+      // Transform Gemini response to match OpenAI/DeepSeek format expected by frontend
+      const transformedResponse = {
+        choices: [{
+          message: {
+            content: response.data.candidates[0].content.parts[0].text,
+            role: 'assistant'
+          }
+        }]
+      };
+      
+      logger.debug('Transformed response:', transformedResponse);
+      res.json(transformedResponse);
+    } catch (apiError) {
+      logger.error('Gemini API error:', apiError.message);
+      
+      // Specific error handling for API request failures
+      if (apiError.response) {
+        logger.error('Gemini API error response:', {
+          status: apiError.response.status,
+          data: apiError.response.data
+        });
+      }
+      
+      res.status(500).json({ 
+        success: false,
+        message: 'Chat service temporarily unavailable',
+        error: apiError.message,
+        details: apiError.response?.data || 'API request failed'
+      });
+    }
   } catch (error) {
-    logger.error('Chat proxy error:', error);
+    logger.error('Chat proxy general error:', error.message);
+    
     res.status(500).json({ 
       success: false,
-      message: 'Chat service temporarily unavailable' 
+      message: 'Chat service encountered an error',
+      error: error.message
     });
   }
 });
