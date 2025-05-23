@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 import { default as WorkIDModal } from './WorkIDModal';
 import TimeLogHistory from './components/TimeLogHistory';
 import StaffAvatar from './components/StaffAvatar';
+import PayrollSchedule from './components/PayrollSchedule';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
@@ -61,38 +62,55 @@ const PayrollSystem = () => {
   const [hoursData, setHoursData] = useState(null);
   const [showManualAdjustments, setShowManualAdjustments] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  
+  const [selectedSchedule, setSelectedSchedule] = useState(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+    // Define fetchEmployees outside of useEffect so it can be called from other functions
+  const fetchEmployees = async () => {
+    try {
+      // Add auth token to request headers
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      };
+      
+      // Get staff with their payroll schedule information
+      const { data } = await axios.get('/api/staff?populate=payrollScheduleId', config);
+      // Ensure data is an array before mapping
+      if (!Array.isArray(data)) {
+        throw new Error('Invalid staff data format');
+      }
+      
+      const formattedEmployees = data.map(emp => ({
+        ...emp,
+        dailyRate: Number(emp.dailyRate) || 0,
+        allowances: Number(emp.allowances) || 0
+      }));
+      setEmployees(formattedEmployees);
+      
+      // If we have a selected employee, refresh their data
+      if (selectedEmployee) {
+        const updatedEmployee = formattedEmployees.find(emp => emp._id === selectedEmployee._id);
+        if (updatedEmployee) {
+          setSelectedEmployee(updatedEmployee);
+          
+          // If this employee has a schedule, set it as selected
+          if (updatedEmployee.payrollScheduleId) {
+            setSelectedSchedule(updatedEmployee.payrollScheduleId);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+      toast.error(error.response?.data?.message || 'Failed to fetch staff data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Fetch employees from backend
   useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        // Add auth token to request headers
-        const token = localStorage.getItem('authToken');
-        const config = {
-          headers: { 
-            'Authorization': `Bearer ${token}`
-          }
-        };
-        
-        const { data } = await axios.get('/api/staff', config);
-        // Ensure data is an array before mapping
-        if (!Array.isArray(data)) {
-          throw new Error('Invalid staff data format');
-        }
-        const formattedEmployees = data.map(emp => ({
-          ...emp,
-          dailyRate: Number(emp.dailyRate) || 0,
-          allowances: Number(emp.allowances) || 0
-        }));
-        setEmployees(formattedEmployees);
-      } catch (error) {
-        console.error('Error fetching employees:', error);
-        toast.error(error.response?.data?.message || 'Failed to fetch staff data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchEmployees();
   }, []);
 
@@ -204,13 +222,15 @@ const PayrollSystem = () => {
     
     // Calculate regular hours (total - overtime)
     const regularHours = Math.max(0, totalHours - overtimeHours);
-    
-    // Calculate hourly rate from daily rate
+      // Calculate hourly rate from daily rate
     const hourlyRate = dailyRate / 8; // Assuming 8-hour standard day for rate calculation
+    
+    // Get overtime multiplier from schedule or use default 1.25
+    const overtimeMultiplier = selectedEmployee.payrollScheduleId?.overtimeMultiplier || 1.25;
     
     // Payment components
     const regularPay = regularHours * hourlyRate;
-    const overtimePay = overtimeHours * (hourlyRate * 1.25); // 1.25x for overtime
+    const overtimePay = overtimeHours * (hourlyRate * overtimeMultiplier); // Use schedule's OT multiplier
     
     // Deductions
     const lateMinutes = Number(deductions.lateMinutes) || 0;
@@ -365,6 +385,41 @@ const PayrollSystem = () => {
     }
   };
 
+  // Handle schedule selection
+  const handleScheduleSelect = (schedule) => {
+    setSelectedSchedule(schedule);
+    setShowScheduleModal(false);
+    
+    // If we have a selected employee, update their payroll schedule
+    if (selectedEmployee && schedule) {
+      updateEmployeeSchedule(selectedEmployee._id, schedule._id);
+    }
+    
+    toast.success(`Payroll schedule "${schedule.name}" selected`);
+  };
+    // Update employee's payroll schedule
+  const updateEmployeeSchedule = async (employeeId, scheduleId) => {
+    try {
+      // Add auth token to request headers
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      };
+
+      await axios.put(`/api/staff/${employeeId}`, {
+        payrollScheduleId: scheduleId
+      }, config);
+      
+      // Refresh employees list to get updated data
+      fetchEmployees();
+    } catch (error) {
+      console.error('Error updating employee schedule:', error);
+      toast.error(error.response?.data?.message || 'Failed to update employee schedule');
+    }
+  };
+
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: colors.background }}>
       <Sidebar 
@@ -459,20 +514,35 @@ const PayrollSystem = () => {
                       Payroll Period
                     </h2>
                     
-                    {/* Test Data Generator Button - For testing only */}
-                    <button
-                      onClick={generateTestTimeLogData}
-                      className="px-3 py-1 rounded text-sm font-medium flex items-center"
-                      style={{ 
-                        backgroundColor: '#666', 
-                        color: 'white',
-                        fontSize: '0.75rem'
-                      }}
-                      title="Generate test time log data for the selected period"
-                    >
-                      <FaWrench className="mr-1" />
-                      Generate Test Data
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setShowScheduleModal(true)}
+                        className="px-3 py-1 rounded text-sm font-medium flex items-center"
+                        style={{ 
+                          backgroundColor: colors.secondary, 
+                          color: 'white',
+                          fontSize: '0.75rem'
+                        }}
+                        title="Manage payroll schedules"
+                      >
+                        <FiCalendar className="mr-1" />
+                        Manage Schedules
+                      </button>
+                      
+                      <button
+                        onClick={generateTestTimeLogData}
+                        className="px-3 py-1 rounded text-sm font-medium flex items-center"
+                        style={{ 
+                          backgroundColor: '#666', 
+                          color: 'white',
+                          fontSize: '0.75rem'
+                        }}
+                        title="Generate test time log data for the selected period"
+                      >
+                        <FaWrench className="mr-1" />
+                        Generate Test Data
+                      </button>
+                    </div>
                   </div>
                   
                   <input
@@ -486,6 +556,50 @@ const PayrollSystem = () => {
 
                   {selectedEmployee && (
                     <>
+                      {/* Schedule Information */}
+                      <div className="bg-opacity-10 p-4 rounded mb-4" style={{ backgroundColor: colors.primary + '15' }}>
+                        <div className="flex justify-between items-center mb-2">
+                          <h3 className="font-medium" style={{ color: colors.primary }}>
+                            <FiCalendar className="inline mr-2" />
+                            Payroll Schedule
+                          </h3>
+                          {selectedEmployee.payrollScheduleId && (
+                            <button
+                              onClick={() => setShowScheduleModal(true)}
+                              className="text-xs px-2 py-1 rounded"
+                              style={{ backgroundColor: colors.secondary + '20', color: colors.secondary }}
+                            >
+                              Change Schedule
+                            </button>
+                          )}
+                        </div>
+                        
+                        {selectedEmployee.payrollScheduleId ? (
+                          <div className="text-sm">
+                            <p className="font-medium" style={{ color: colors.secondary }}>
+                              {selectedEmployee.payrollScheduleId.name || "Schedule information not available"}
+                            </p>
+                            {selectedEmployee.payrollScheduleId.type && (
+                              <p style={{ color: colors.muted }}>
+                                Type: {selectedEmployee.payrollScheduleId.type.charAt(0).toUpperCase() + 
+                                      selectedEmployee.payrollScheduleId.type.slice(1)} payment
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm italic" style={{ color: colors.muted }}>No schedule assigned</p>
+                            <button
+                              onClick={() => setShowScheduleModal(true)}
+                              className="text-xs px-2 py-1 rounded"
+                              style={{ backgroundColor: colors.primary, color: 'white' }}
+                            >
+                              Assign Schedule
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    
                       {/* Hours Summary - New Section */}
                       {hoursData && (
                         <div className="bg-opacity-10 p-4 rounded mb-6" style={{ backgroundColor: colors.secondary + '15' }}>
@@ -737,6 +851,32 @@ const PayrollSystem = () => {
           onClose={() => setIsModalOpen(false)} 
           colors={colors} 
         />
+      )}
+      
+      {showScheduleModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-11/12 md:w-3/4 lg:w-2/3 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold" style={{ color: colors.primary }}>
+                <FiCalendar className="inline mr-2" />
+                Payroll Schedule Management
+              </h2>
+              <button 
+                onClick={() => setShowScheduleModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <PayrollSchedule 
+              colors={colors} 
+              onScheduleSelect={handleScheduleSelect}
+            />
+          </div>
+        </div>
       )}
 
       <style>

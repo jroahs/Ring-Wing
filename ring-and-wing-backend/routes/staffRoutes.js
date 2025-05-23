@@ -51,11 +51,11 @@ router.get('/time-clock', async (req, res) => {
 
 // Get all staff members with optional filters - requires authentication
 router.get('/', auth, async (req, res) => {
-  try {
-    const { userId, status } = req.query;
+  try {    const { userId, status, populate } = req.query;
     let query = {};
     
     console.log('[Staff Debug] GET request received with auth:', req.user?.username);
+    console.log('[Staff Debug] Query params:', req.query);
     
     if (userId) {
       query.userId = userId;
@@ -65,10 +65,22 @@ router.get('/', auth, async (req, res) => {
       query.status = status;
     }
     
-    const staff = await Staff.find(query)
-      .populate('userId', 'username email role')
-      .populate('payrollRecords')
-      .lean();
+    // Start building the query
+    let staffQuery = Staff.find(query)
+      .populate('userId', 'username email role');
+    
+    // Add optional populations
+    if (populate) {
+      const fieldsToPopulate = populate.split(',');
+      if (fieldsToPopulate.includes('payrollScheduleId')) {
+        staffQuery = staffQuery.populate('payrollScheduleId');
+      }
+    }
+    
+    // Always populate payroll records
+    staffQuery = staffQuery.populate('payrollRecords');
+    
+    const staff = await staffQuery.lean();
 
     console.log('Fetched staff (GET):', staff.length, 'records');
     res.json(staff);
@@ -193,9 +205,28 @@ router.post('/', auth, validateStaffCreation, async (req, res) => {
 // Update staff member
 router.put('/:id', auth, async (req, res) => {
   try {
+    // Check if the user has permission to update (either manager or updating their own record)
+    const isOwnRecord = req.staff && req.params.id === req.staff._id.toString();
+    const isManager = req.user.role === 'manager';
+    
+    // For payrollScheduleId updates, require manager role
+    if (req.body.payrollScheduleId && !isManager) {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Manager permissions required to update payroll schedules' 
+      });
+    }
+    
+    // For other updates, either must be manager or updating own record
+    if (!isManager && !isOwnRecord) {
+      return res.status(403).json({ 
+        success: false,
+        message: 'You do not have permission to update this staff member' 
+      });
+    }
+    
     // Check whether we're doing a staff-only or account-only update
     const { staffOnly, accountOnly } = req.body;
-    
     // Extract user and staff data from request
     const { username, email, password, ...staffUpdates } = req.body;
     

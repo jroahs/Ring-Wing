@@ -15,9 +15,9 @@ const ImageDisplay = ({
 }) => {
   const [imageError, setImageError] = useState(false);
   const [imageSrc, setImageSrc] = useState('');
-  
-  useEffect(() => {
-    if (!imagePath) {
+    useEffect(() => {
+    // If imagePath is null, undefined, or empty string
+    if (!imagePath || imagePath === '') {
       const placeholder = getPlaceholder(type);
       setImageSrc(placeholder);
       return;
@@ -39,7 +39,7 @@ const ImageDisplay = ({
     const path = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
     setImageSrc(`${baseUrl}${path}`);
     
-    console.log(`[${new Date().toISOString()}] ImageDisplay - Setting image source to: ${imageSrc} (from: ${imagePath})`);
+    console.log(`[${new Date().toISOString()}] ImageDisplay - Setting image source to: ${baseUrl}${path} (from: ${imagePath})`);
   }, [imagePath, type, placeholderImage, baseUrl]);
   
   // Get appropriate placeholder based on image type
