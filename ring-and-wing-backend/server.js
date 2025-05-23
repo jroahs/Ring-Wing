@@ -271,6 +271,7 @@ app.get('/api/database-status', async (req, res) => {
 // Route imports
 const timeLogRoutes = require('./routes/timeLogRoutes');
 const payrollRoutes = require('./routes/payrollRoutes');
+const payrollScheduleRoutes = require('./routes/payrollScheduleRoutes');
 const staffRoutes = require('./routes/staffRoutes');
 const revenueRoutes = require('./routes/revenueRoutes');
 const healthRoutes = require('./routes/healthRoutes');
@@ -281,6 +282,7 @@ app.use('/api/time-logs', timeLogRoutes);
 logger.info('[Setup] Time-log routes registered');
 
 app.use('/api/payroll', payrollRoutes);
+app.use('/api/payroll-schedules', payrollScheduleRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/expenses', require('./routes/expenseRoutes'));
 app.use('/api/auth', require('./routes/authRoutes'));

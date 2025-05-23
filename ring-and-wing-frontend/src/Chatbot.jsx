@@ -4,6 +4,8 @@ import { FiShoppingCart, FiClock, FiCheckCircle, FiInfo, FiChevronLeft, FiChevro
 import logo from './assets/rw.jpg';
 import MenuItemImage from './components/MenuItemImage';
 import { detectLanguage } from './utils/languagePatterns';
+import { parseOrderText, findBestMenuItemMatch } from './utils/orderParser';
+import { detectOrderIntentWithAI } from './utils/aiOrderDetection';
 
 function ChatbotPage() {
   const colors = {
@@ -12,6 +14,11 @@ function ChatbotPage() {
     accent: '#f1670f',
     secondary: '#853619',
     muted: '#ac9c9b'
+  };
+  
+  // ID generation to prevent duplicate keys
+  const generateUniqueId = () => {
+    return `id-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   };
   
   // Carousel scroll refs
@@ -65,7 +72,7 @@ function ChatbotPage() {
       sender: 'bot',
       timestamp: new Date()
     }  ]);
-  
+    
   // Update welcome message when language changes
   useEffect(() => {
     // Only update if we have just the initial message
@@ -99,8 +106,12 @@ function ChatbotPage() {
     name: '',
     phone: '',
     tableNumber: ''
-  });
-  const [showCheckout, setShowCheckout] = useState(false);
+  });  const [showCheckout, setShowCheckout] = useState(false);
+  
+  // State for tracking AI suggested items
+  const [recentlySuggestedItems, setRecentlySuggestedItems] = useState([]);
+  const [lastSuggestionTime, setLastSuggestionTime] = useState(null);
+  
   const menuSuggestions = [
     { id: 1, text: "What's today's special?" },
     { id: 2, text: "What do you recommend?" },
@@ -671,9 +682,14 @@ ${popularItemsInfo}`
       return "Sorry, I'm having trouble connecting to the AI service. Please try again in a moment.";
     }
   };
-
   // Order management functions
-  const addToCurrentOrder = (item, size = 'base') => {
+  const addToCurrentOrder = (item, size = 'base', quantity = 1) => {
+    // Ensure item object is complete
+    if (!item) {
+      console.error("Cannot add undefined item to order");
+      return;
+    }
+
     const existingItemIndex = currentOrder.findIndex(
       orderItem => orderItem.name === item.name && orderItem.selectedSize === size
     );
@@ -681,25 +697,27 @@ ${popularItemsInfo}`
     if (existingItemIndex !== -1) {
       // Update quantity if item already in order
       const updatedOrder = [...currentOrder];
-      updatedOrder[existingItemIndex].quantity += 1;
+      updatedOrder[existingItemIndex].quantity += quantity;
       setCurrentOrder(updatedOrder);
+      setShowCart(true); // Ensure cart is visible when adding items
     } else {
       // Add new item to order
       const sizePrice = item.pricing && item.pricing[size] 
         ? item.pricing[size] 
         : (item.pricing && Object.values(item.pricing)[0]) || 0;
-        
-      setCurrentOrder([
+          setCurrentOrder([
         ...currentOrder,
         {
-          id: Date.now(),
+          id: generateUniqueId(),
           name: item.name,
           selectedSize: size,
           price: sizePrice,
-          quantity: 1,
-          image: item.image
+          quantity: quantity,
+          image: item.image || ""
         }
-      ]);    }
+      ]);
+      setShowCart(true); // Ensure cart is visible when adding items
+    }
   };
     // Get multilingual response text based on language detection
     const getLocalizedText = (key, language = 'english') => {    
@@ -734,9 +752,8 @@ ${popularItemsInfo}`
     if (currentOrder.length === 0) {
       // Detect language from user input or use English as default
       const detectedLang = userMessage?.text ? detectLanguage(userMessage.text) : 'english';
-      
-      setMessages(prev => [...prev, {
-        id: Date.now(),
+        setMessages(prev => [...prev, {
+        id: generateUniqueId(),
         text: getLocalizedText('orderAdded', detectedLang),
         sender: 'bot',
         timestamp: new Date()
@@ -781,8 +798,15 @@ ${popularItemsInfo}`
     
     return baseTime + variance;
   };  const handleOrderItem = (item) => {
+    if (!item || !item.name) {
+      console.error("Attempted to order an invalid item:", item);
+      return;
+    }
+    
     // Get first available size or default to 'base'
-    const size = item.pricing ? Object.keys(item.pricing)[0] : 'base';
+    const size = item.pricing && Object.keys(item.pricing).length > 0 
+      ? Object.keys(item.pricing)[0] 
+      : 'base';
     
     // Find the matching menu item with full data
     const menuItem = menuData.find(menuItem => menuItem.name === item.name) || item;
@@ -790,8 +814,9 @@ ${popularItemsInfo}`
     // Add to order
     addToCurrentOrder(menuItem, size);
     
+    // Create a user message about ordering this item
     const userMessage = {
-      id: Date.now(),
+      id: generateUniqueId(),
       text: `I'd like to order ${item.name}`,
       sender: 'user',
       timestamp: new Date()
@@ -801,11 +826,9 @@ ${popularItemsInfo}`
     setIsTyping(true);
     
     // Detect language from the user message
-    const detectedLang = detectLanguage(userMessage.text);
-
-    setTimeout(() => {
+    const detectedLang = detectLanguage(userMessage.text);    setTimeout(() => {
       setMessages(prev => [...prev, {
-        id: Date.now(),
+        id: generateUniqueId(),
         text: getLocalizedText('itemAdded', detectedLang)(item.name),
         sender: 'bot',
         timestamp: new Date()
@@ -821,17 +844,16 @@ ${popularItemsInfo}`
     // Detect language from the last user message if available
     const lastUserMsg = messages.filter(m => m.sender === 'user').pop();
     const detectedLang = lastUserMsg ? detectLanguage(lastUserMsg.text) : 'english';
-    
-    if (currentOrder.length === 0) {
+      if (currentOrder.length === 0) {
       setMessages(prev => [...prev, {
-        id: Date.now(),
+        id: generateUniqueId(),
         text: getLocalizedText('noItemsInCart', detectedLang),
         sender: 'bot',
         timestamp: new Date()
       }]);
     } else {
       setMessages(prev => [...prev, {
-        id: Date.now(),
+        id: generateUniqueId(),
         text: getLocalizedText('itemsInCart', detectedLang)(currentOrder.length),
         sender: 'bot',
         timestamp: new Date()
@@ -842,10 +864,9 @@ ${popularItemsInfo}`
     // Detect language from the last user message if available
     const lastUserMsg = messages.filter(m => m.sender === 'user').pop();
     const detectedLang = lastUserMsg ? detectLanguage(lastUserMsg.text) : 'english';
-    
-    if (currentOrder.length === 0) {
+      if (currentOrder.length === 0) {
       setMessages(prev => [...prev, {
-        id: Date.now(),
+        id: generateUniqueId(),
         text: getLocalizedText('noItemsInCart', detectedLang),
         sender: 'bot',
         timestamp: new Date()
@@ -856,7 +877,7 @@ ${popularItemsInfo}`
     setShowCheckout(true);
     
     setMessages(prev => [...prev, {
-      id: Date.now(),
+      id: generateUniqueId(),
       text: getLocalizedText('checkoutDetails', detectedLang),
       sender: 'bot',
       timestamp: new Date()
@@ -940,10 +961,9 @@ ${popularItemsInfo}`
     setCurrentOrder([]);
     setShowCheckout(false);
     setShowCart(false);
-    
-    // Send confirmation message
+      // Send confirmation message
     setMessages(prev => [...prev, {
-      id: Date.now(),
+      id: generateUniqueId(),
       text: `Thank you for your order! Your order #${orderNumber} has been placed successfully. Please proceed to the counter for payment. After payment, your order should be ready in approximately ${estimatedTime} minutes. You can ask "Where's my order?" anytime to check the status.`,
       sender: 'bot',
       timestamp: new Date(),
@@ -952,10 +972,9 @@ ${popularItemsInfo}`
     }]);
   };
   
-  const handleTrackOrder = () => {
-    if (orderHistory.length === 0) {
+  const handleTrackOrder = () => {    if (orderHistory.length === 0) {
       setMessages(prev => [...prev, {
-        id: Date.now(),
+        id: generateUniqueId(),
         text: "You don't have any recent orders to track. Would you like to place an order?",
         sender: 'bot',
         timestamp: new Date()
@@ -1008,9 +1027,8 @@ ${popularItemsInfo}`
       default:
         statusMessage = `Your order #${latestOrder.id} status is: ${status}`;
     }
-    
-    setMessages(prev => [...prev, {
-      id: Date.now(),
+      setMessages(prev => [...prev, {
+      id: generateUniqueId(),
       text: statusMessage,
       sender: 'bot',
       timestamp: new Date(),
@@ -1023,10 +1041,9 @@ ${popularItemsInfo}`
     // Detect language from the last user message if available
     const lastUserMsg = messages.filter(m => m.sender === 'user').pop();
     const detectedLang = lastUserMsg ? detectLanguage(lastUserMsg.text) : 'english';
-    
-    if (currentOrder.length === 0) {
+      if (currentOrder.length === 0) {
       setMessages(prev => [...prev, {
-        id: Date.now(),
+        id: generateUniqueId(),
         text: getLocalizedText('noOrderToCancel', detectedLang),
         sender: 'bot',
         timestamp: new Date()
@@ -1039,16 +1056,16 @@ ${popularItemsInfo}`
     setShowCheckout(false);
     
     setMessages(prev => [...prev, {
-      id: Date.now(),
+      id: generateUniqueId(),
       text: getLocalizedText('orderCancelled', detectedLang),
       sender: 'bot',
       timestamp: new Date()
     }]);
   };
-  
-  // Shopping Cart component
+    // Shopping Cart component
   const ShoppingCart = () => {
-    if (currentOrder.length === 0) {
+    // Don't render if cart is not visible or empty
+    if (!showCart || currentOrder.length === 0) {
       return null;
     }
     
@@ -1244,48 +1261,163 @@ ${popularItemsInfo}`
             </button>
           </div>
         </div>
-      </div>
-    );
+      </div>    );
+  };
+
+  // Enhanced order detection function for AI suggestions
+  const detectOrderFromSuggestion = (input) => {
+    if (!recentlySuggestedItems.length) return null;
+    
+    // Clear suggestions older than 5 minutes
+    if (lastSuggestionTime && (Date.now() - lastSuggestionTime > 300000)) {
+      setRecentlySuggestedItems([]);
+      return null;
+    }
+    
+    const lowerInput = input.trim().toLowerCase();    // Enhanced confirmation patterns including pricing queries
+    const confirmationPatterns = [
+      /(?:i'?ll\s+)?(?:take|get|want|have|order|need|give\s+me)\s+(?:that|those|it|them)/i,
+      /(?:yes|yeah|yep|sure|okay|ok|alright),?\s*(?:i'?ll\s+)?(?:take|get|want|have|order|need|give\s+me)?/i,
+      /(?:i\s+)?(?:want|need|like)\s+(?:that|those|it|them)/i,
+      /(?:add|put)\s+(?:that|those|it|them)\s+(?:to\s+)?(?:my\s+)?(?:order|cart)/i,
+      /(?:the\s+)?(?:first|second|third|1st|2nd|3rd|\d+(?:st|nd|rd|th)?)\s+(?:one|item|option)/i,
+      /(?:number|#)\s*(\d+)/i,
+      /(?:\d+\s+)?(?:of\s+)?(?:that|those|it|them)/i
+    ];
+    
+    // Pricing inquiry patterns - these should return price info, not add to cart
+    const pricingPatterns = [
+      /(?:how\s+much|what'?s\s+the\s+price|price|cost)\s+(?:for|of)?\s*(?:\d+\s+)?(?:of\s+)?(?:that|those|it|them)/i,
+      /(?:how\s+much)\s+(?:is|are|would|will|does|do)\s*(?:\d+\s+)?(?:of\s+)?(?:that|those|it|them)/i,
+      /(?:what\s+does)\s*(?:\d+\s+)?(?:of\s+)?(?:that|those|it|them)\s+cost/i
+    ];
+      const isConfirmation = confirmationPatterns.some(pattern => pattern.test(lowerInput));
+    const isPricingQuery = pricingPatterns.some(pattern => pattern.test(lowerInput));
+    
+    if (!isConfirmation && !isPricingQuery) return null;
+    
+    // Extract quantity
+    const quantityWords = {
+      'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+      'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
+    };
+    
+    let quantity = 1;
+    const quantityMatch = lowerInput.match(/(\d+|one|two|three|four|five|six|seven|eight|nine|ten)/i);
+    if (quantityMatch) {
+      const matched = quantityMatch[1].toLowerCase();
+      quantity = quantityWords[matched] || parseInt(matched) || 1;
+    }
+    
+    // Extract size
+    const sizeMatch = lowerInput.match(/(small|medium|large|regular)/i);
+    const size = sizeMatch ? sizeMatch[1].toLowerCase() : null;
+    
+    // Determine which item was referenced
+    let selectedItem = null;
+    
+    // Check for specific item number/position
+    const itemNumberMatch = lowerInput.match(/(?:the\s+)?(?:first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th|\d+(?:st|nd|rd|th)?)/i);
+    if (itemNumberMatch) {
+      let itemIndex = 0;
+      const match = itemNumberMatch[0].toLowerCase();
+      
+      if (match.includes('first') || match.includes('1st')) itemIndex = 0;
+      else if (match.includes('second') || match.includes('2nd')) itemIndex = 1;
+      else if (match.includes('third') || match.includes('3rd')) itemIndex = 2;
+      else if (match.includes('fourth') || match.includes('4th')) itemIndex = 3;
+      else if (match.includes('fifth') || match.includes('5th')) itemIndex = 4;
+      else {
+        const num = parseInt(match.match(/\d+/)?.[0]);
+        if (num) itemIndex = num - 1;
+      }
+      
+      if (itemIndex >= 0 && itemIndex < recentlySuggestedItems.length) {
+        selectedItem = recentlySuggestedItems[itemIndex];
+      }
+    }
+    
+    // If no specific item mentioned and only one suggestion, use it
+    if (!selectedItem && recentlySuggestedItems.length === 1) {
+      selectedItem = recentlySuggestedItems[0];
+    }
+    
+    // If multiple items and no specific selection, ask for clarification
+    if (!selectedItem && recentlySuggestedItems.length > 1) {
+      return {
+        type: 'clarification',
+        message: "Which item would you like? Please specify by number (e.g., 'the first one' or 'number 2')."
+      };
+    }
+      if (selectedItem) {
+      // Get the menu item to determine available sizes and pricing
+      const menuItem = selectedItem.fullItem || menuData.find(item => item.name === selectedItem.name);
+      
+      if (menuItem && menuItem.pricing) {
+        const availableSizes = Object.keys(menuItem.pricing);
+        let finalSize = size;
+        
+        // If no size specified, default to first available size
+        if (!finalSize && availableSizes.length > 0) {
+          finalSize = availableSizes[0];
+        }
+        
+        // Validate size exists, if not use first available
+        if (!availableSizes.includes(finalSize)) {
+          finalSize = availableSizes[0];
+        }
+          return {
+          type: isPricingQuery ? 'pricing' : 'order',
+          item: menuItem,
+          itemName: selectedItem.name,
+          quantity: quantity,
+          size: finalSize,
+          availableSizes: availableSizes,
+          pricing: menuItem.pricing
+        };
+      }
+    }
+    
+    return null;
   };  const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;
-  
+
     const now = Date.now();
     const timeSinceLast = now - lastRequestTime.current;
-    
+
     if (timeSinceLast < 1500) {
       const remaining = (1500 - timeSinceLast) / 1000;
       setRateLimitMessage(`Just a moment... (${remaining.toFixed(1)}s)`);
       setIsTyping(true);
-      
+
       setTimeout(() => {
         setIsTyping(false);
         setRateLimitMessage('');
       }, 1500 - timeSinceLast);
-      
+
       return;
     }
-  
+
     lastRequestTime.current = now;
-  
+
     // Detect language and update current language state
     const detectedLang = detectLanguage(inputMessage);
     if (detectedLang !== currentLanguage) {
       console.log(`Language changed from ${currentLanguage} to ${detectedLang}`);
       setCurrentLanguage(detectedLang);
     }
-
     const userMessage = {
-      id: Date.now(),
+      id: generateUniqueId(),
       text: inputMessage,
       sender: 'user',
       timestamp: new Date()
     };
-    
+
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
     setIsTyping(true);
-  
+
     // Use only the last few messages in the chat history to avoid
     // exceeding context limits, but ensure we keep the menu context
     const chatHistory = [...messages, userMessage]
@@ -1295,9 +1427,175 @@ ${popularItemsInfo}`
         role: msg.sender === 'user' ? 'user' : 'assistant',
         content: msg.text
       }));
-  
+
     const input = userMessage.text.toLowerCase();
     let staticResponseSent = false;
+
+    // Use AI to detect order intent instead of regex patterns
+    try {
+      const orderIntentResult = await detectOrderIntentWithAI(
+        userMessage.text,
+        menuData,
+        chatHistory,
+        detectedLang
+      );
+
+      if (orderIntentResult.hasOrderIntent && orderIntentResult.items?.length > 0) {
+        // Handle high confidence orders directly
+        const highConfidenceItems = orderIntentResult.items.filter(
+          item => item.confidence === 'high'
+        );
+
+        if (highConfidenceItems.length > 0) {
+          // Add items to order with original logic
+          for (const match of highConfidenceItems) {
+            const { menuItem, quantity, size } = match;
+            addToCurrentOrder(menuItem, size, quantity);
+          }
+
+          addMessageToCart(userMessage);
+
+          const itemDescriptions = highConfidenceItems.map(match =>
+            `${match.quantity} ${match.menuItem.name} (${match.size})`
+          );
+
+          setMessages(prev => [...prev, {
+            id: generateUniqueId(),
+            text: `Added ${itemDescriptions.join(", ")} to your order. Would you like anything else?`,
+            sender: 'bot',
+            timestamp: new Date()
+          }]);
+
+          setIsTyping(false);
+          staticResponseSent = true;
+        }
+        // For medium/low confidence, ask for confirmation
+        else if (orderIntentResult.items.length > 0) { // Ensure there are items before asking for confirmation
+          setPendingOrder(orderIntentResult.items);
+
+          const confirmationItems = orderIntentResult.items.map(match =>
+            `${match.quantity} × ${match.menuItem.name} (${match.size})`
+          ).join("\\n");
+
+          setMessages(prev => [...prev, {
+            id: generateUniqueId(),
+            text: `I think you want to order:\\n${confirmationItems}\\n\\nIs that correct? Please confirm.`,
+            sender: 'bot',
+            timestamp: new Date(),
+            type: 'order-confirmation-request'
+          }]);
+
+          setIsTyping(false);
+          staticResponseSent = true;
+        }
+      }    } catch (error) {
+      console.error("Error in AI order detection:", error);
+      // Continue with other message handling if AI detection fails
+    }
+
+    // Check for order confirmations from AI suggestions
+    if (!staticResponseSent && recentlySuggestedItems.length > 0) {
+      const suggestionOrder = detectOrderFromSuggestion(input);
+      
+      if (suggestionOrder) {
+        if (suggestionOrder.type === 'clarification') {
+          setMessages(prev => [...prev, {
+            id: generateUniqueId(),
+            text: suggestionOrder.message,
+            sender: 'bot',
+            timestamp: new Date()
+          }]);
+          setIsTyping(false);
+          staticResponseSent = true;        } else if (suggestionOrder.type === 'pricing') {
+          const { item, itemName, quantity, availableSizes } = suggestionOrder;
+          
+          if (availableSizes.length > 1) {
+            // Multiple sizes available - show pricing for each
+            const sizeOptions = availableSizes.map(s => `${s}: ₱${item.pricing[s]}`).join(', ');
+            const totalForEach = availableSizes.map(s => `${quantity} ${s}: ₱${item.pricing[s] * quantity}`).join(', ');
+            
+            setMessages(prev => [...prev, {
+              id: generateUniqueId(),
+              text: `Our ${itemName} pricing: ${sizeOptions}. For ${quantity} pieces: ${totalForEach}. Which size would you like?`,
+              sender: 'bot',
+              timestamp: new Date()
+            }]);
+          } else {
+            // Single size available
+            const size = availableSizes[0];
+            const unitPrice = item.pricing[size];
+            const totalPrice = unitPrice * quantity;
+            
+            setMessages(prev => [...prev, {
+              id: generateUniqueId(),
+              text: `${quantity} ${itemName} would be ₱${totalPrice} (₱${unitPrice} each). Would you like to add this to your order?`,
+              sender: 'bot',
+              timestamp: new Date()
+            }]);
+          }
+          
+          setIsTyping(false);
+          staticResponseSent = true;
+        } else if (suggestionOrder.type === 'order') {
+          const { item, itemName, quantity, size } = suggestionOrder;
+          
+          // Determine the appropriate size and pricing
+          let finalSize = size;
+          let finalPrice = 0;
+          let availableSizes = [];
+          
+          if (item && item.pricing) {
+            availableSizes = Object.keys(item.pricing);
+            
+            // If no size specified but user asked about pricing, show available sizes
+            if (!finalSize && availableSizes.length > 1) {
+              const sizeOptions = availableSizes.map(s => `${s} (₱${item.pricing[s]})`).join(', ');
+              setMessages(prev => [...prev, {
+                id: generateUniqueId(),
+                text: `Our ${itemName} comes in: ${sizeOptions}. Which size would you prefer?`,
+                sender: 'bot',
+                timestamp: new Date()
+              }]);
+              setIsTyping(false);
+              staticResponseSent = true;
+              return;
+            }
+            
+            // If no size specified and only one size available, use it
+            if (!finalSize) {
+              finalSize = availableSizes[0];
+            }
+            
+            // Validate size exists
+            if (!availableSizes.includes(finalSize)) {
+              finalSize = availableSizes[0];
+            }
+            
+            finalPrice = item.pricing[finalSize];
+          }
+          
+          // Add to order using your existing function
+          if (typeof addToCurrentOrder === 'function') {
+            addToCurrentOrder(item, finalSize, quantity);
+          }
+          
+          const totalPrice = finalPrice * quantity;
+          const sizeText = finalSize && finalSize !== 'base' && availableSizes.length > 1 ? ` ${finalSize}` : '';
+          
+          setMessages(prev => [...prev, {
+            id: generateUniqueId(),
+            text: `Perfect! I've added ${quantity}${sizeText} ${itemName} to your order. That's ₱${totalPrice}. Would you like anything else?`,
+            sender: 'bot',
+            timestamp: new Date()
+          }]);
+          
+          // Clear suggestions after successful order
+          setRecentlySuggestedItems([]);
+          setIsTyping(false);
+          staticResponseSent = true;
+        }
+      }
+    }
 
     // Order management commands
     if (input.includes('show') && (input.includes('cart') || input.includes('order'))) {
@@ -1316,18 +1614,34 @@ ${popularItemsInfo}`
       handleCancelOrder();
       staticResponseSent = true;
     }
+    // Handle order confirmation
+    else if (pendingOrder && pendingOrder.length > 0) {
+      // Check for confirmation responses
+      const affirmativeResponses = ['yes', 'yeah', 'yep', 'correct', 'right', 'sure', 'ok', 'okay', 'confirm'];
+      const negativeResponses = ['no', 'nope', 'wrong', 'incorrect', 'cancel'];
+      
+      const isAffirmative = affirmativeResponses.some(resp => input.includes(resp));
+      const isNegative = negativeResponses.some(resp => input.includes(resp));
+      
+      if (isAffirmative) {
+        handleOrderConfirmation(true);
+        staticResponseSent = true;
+      } else if (isNegative) {
+        handleOrderConfirmation(false);
+        staticResponseSent = true;
+      }
+    }
     // Menu-related queries
-    else if (input.includes('menu')) {
-      const aiText = await getAIResponse(userMessage.text, chatHistory);
+    else if (input.includes('menu')) {      const aiText = await getAIResponse(userMessage.text, chatHistory);
       setMessages(prev => [...prev, {
-        id: Date.now(),
+        id: generateUniqueId(),
         text: aiText,
         sender: 'bot',
         timestamp: new Date()
       }]);
   
       const menuMessage = {
-        id: Date.now() + 1,
+        id: generateUniqueId(),
         text: "",
         sender: 'bot',
         type: 'menu-items',
@@ -1358,11 +1672,9 @@ ${popularItemsInfo}`
             })) : [],
           description: menuItem.description || "",
           image: menuItem.image || ""
-        }));
-  
-      if (coffeeItems.length === 0) {
+        }));      if (coffeeItems.length === 0) {
         setMessages(prev => [...prev, {
-          id: Date.now(),
+          id: generateUniqueId(),
           text: "We currently don't have coffee items available. Please check back later!",
           sender: 'bot',
           timestamp: new Date()
@@ -1374,13 +1686,13 @@ ${popularItemsInfo}`
         setMessages(prev => [
           ...prev,
           {
-            id: Date.now(),
+            id: generateUniqueId(),
             text: aiText,
             sender: 'bot',
             timestamp: new Date()
           },
           {
-            id: Date.now() + 1,
+            id: generateUniqueId(),
             text: "",
             sender: 'bot',
             type: 'menu-items',
@@ -1434,11 +1746,39 @@ ${popularItemsInfo}`
           enhancedInput.toLowerCase().includes('recommend') || 
           enhancedInput.toLowerCase().includes('suggest') || 
           enhancedInput.toLowerCase().includes('menu') ||
-          enhancedInput.toLowerCase().includes('what') && enhancedInput.toLowerCase().includes('have');
+          enhancedInput.toLowerCase().includes('what') && enhancedInput.toLowerCase().includes('have');        // Extract item names mentioned in AI response for suggestion tracking
+        const extractMentionedItems = (responseText) => {
+          const mentionedItems = [];
+          const lowerResponse = responseText.toLowerCase();
+          
+          // Check each menu item to see if it's mentioned in the response
+          menuData.forEach(item => {
+            const itemNameLower = item.name.toLowerCase();
+            if (lowerResponse.includes(itemNameLower)) {
+              mentionedItems.push({
+                name: item.name,
+                price: item.pricing ? "₱" + Object.values(item.pricing)[0] : "",
+                description: item.description || "",
+                image: item.image || "",
+                category: item.category || "",
+                fullItem: item // Store the complete item data
+              });
+            }
+          });
+          
+          return mentionedItems;
+        };
+        
+        // Track mentioned items as suggestions
+        const mentionedItems = extractMentionedItems(aiText);
+        if (mentionedItems.length > 0) {
+          setRecentlySuggestedItems(mentionedItems);
+          setLastSuggestionTime(Date.now());
+        }
         
         // Text response
         const botResponse = {
-          id: Date.now(),
+          id: generateUniqueId(),
           text: aiText,
           sender: 'bot',
           timestamp: new Date()
@@ -1499,23 +1839,28 @@ ${popularItemsInfo}`
           }
           
           // Limit to a reasonable number of items for display
-          relevantItems = relevantItems.slice(0, Math.min(6, relevantItems.length));
-          
-          if (relevantItems.length > 0) {
+          relevantItems = relevantItems.slice(0, Math.min(6, relevantItems.length));          if (relevantItems.length > 0) {
+            // Track suggested items for order confirmation
+            const suggestedItems = relevantItems.map(item => ({
+              name: item.name,
+              price: item.pricing ? "₱" + Object.values(item.pricing)[0] : "",
+              description: item.description || "",
+              image: item.image || "",
+              category: item.category || "",
+              fullItem: item // Store the complete item data
+            }));
+            
+            setRecentlySuggestedItems(suggestedItems);
+            setLastSuggestionTime(Date.now());
+            
             // Add a small delay so the text appears first
             setTimeout(() => {
               const menuMessage = {
-                id: Date.now() + 100,
+                id: generateUniqueId(),
                 text: "",
                 sender: 'bot',
                 type: 'menu-items',
-                items: relevantItems.map(item => ({
-                  name: item.name,
-                  price: item.pricing ? "₱" + Object.values(item.pricing)[0] : "",
-                  description: item.description || "",
-                  image: item.image || "",
-                  category: item.category || ""
-                })),
+                items: suggestedItems,
                 timestamp: new Date()
               };
               setMessages(prev => [...prev, menuMessage]);
@@ -1526,7 +1871,7 @@ ${popularItemsInfo}`
         console.error("Error getting AI response:", error);
         // Provide a fallback response in case of error
         setMessages(prev => [...prev, {
-          id: Date.now(),
+          id: generateUniqueId(),
           text: "I'm sorry, I'm having trouble processing your request right now. Please try again later.",
           sender: 'bot',
           timestamp: new Date()
@@ -1535,6 +1880,42 @@ ${popularItemsInfo}`
         setIsTyping(false);
       }
     }
+  };
+
+  const handleOrderConfirmation = (confirmed) => {
+    if (!pendingOrder || pendingOrder.length === 0) return;
+    
+    if (confirmed) {
+      // Add all pending items to the order
+      for (const match of pendingOrder) {
+        const { menuItem, quantity, size } = match;
+        // Add the item to the order with quantity
+        addToCurrentOrder(menuItem, size, quantity);
+      }
+      
+      // Show confirmation
+      const itemDescriptions = pendingOrder.map(match => 
+        `${match.quantity} ${match.menuItem.name} (${match.size})`
+      );
+      
+      setMessages(prev => [...prev, {
+        id: generateUniqueId(),
+        text: `Great! I've added ${itemDescriptions.join(", ")} to your order.`,
+        sender: 'bot',
+        timestamp: new Date()
+      }]);
+    } else {
+      // Rejection
+      setMessages(prev => [...prev, {
+        id: generateUniqueId(),
+        text: `No problem. What would you like to order instead?`,
+        sender: 'bot',
+        timestamp: new Date()
+      }]);
+    }
+    
+    // Clear pending order
+    setPendingOrder(null);
   };
 
   const handleSuggestionClick = (suggestion) => {
@@ -1603,9 +1984,7 @@ ${popularItemsInfo}`
                   color: message.sender === 'user' ? colors.background : colors.primary
                 }}
               >
-                <p>{message.text}</p>
-
-                {message.type === 'menu-items' && (
+                <p>{message.text}</p>                {message.type === 'menu-items' && (
                   <div className="mt-4">
                     <div className="flex justify-between items-center mb-2">
                       <h3 className="font-medium text-sm" style={{ color: colors.primary }}>
@@ -1630,7 +2009,7 @@ ${popularItemsInfo}`
                         >
                           {message.items.map((item, index) => (
                             <div
-                              key={index}
+                              key={`menu-item-${index}-${item.name}`}
                               className="w-52 rounded-lg overflow-hidden shadow-md flex-shrink-0 transition-all hover:shadow-lg"
                               style={{ 
                                 backgroundColor: colors.background, 
@@ -1639,7 +2018,7 @@ ${popularItemsInfo}`
                                 transition: 'all 0.2s ease',
                                 scrollSnapAlign: 'start'
                               }}
-                            >                              <div className="h-32 overflow-hidden relative">
+                            ><div className="h-32 overflow-hidden relative">
                                 <MenuItemImage
                                   image={item.image}
                                   category={item.category}
@@ -1884,10 +2263,9 @@ ${popularItemsInfo}`
           >
             <ArrowUpIcon className="w-4 h-4" />
           </button>
-        </div>
-      </form>
+        </div>      </form>
 
-      <style jsx>{`
+      <style>{`
         @keyframes ping {
           0% { transform: scale(1); opacity: 1; }
           100% { transform: scale(2.5); opacity: 0; }

@@ -19,9 +19,12 @@ const MenuItemImage = ({
     return '/placeholders/meal.png';
   };
   
+  // If image is empty string, null, or undefined, use placeholder
+  const imageSrc = (!image || image === '') ? null : image;
+  
   return (
     <ImageDisplay 
-      imagePath={image}
+      imagePath={imageSrc}
       alt={alt}
       size={size}
       className={className}

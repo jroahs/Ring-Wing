@@ -52,6 +52,10 @@ const staffSchema = new mongoose.Schema({
       },
       message: props => `${props.value} is not a valid PIN. PIN must be 4-6 digits only.`
     }
+  },  payrollScheduleId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'PayrollSchedule',
+    required: false
   }
 }, { 
   timestamps: true,
