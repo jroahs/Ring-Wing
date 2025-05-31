@@ -64,14 +64,14 @@ function ChatbotPage() {
         className="object-cover w-full h-full"
       />
     </div>
-  );
-  const [messages, setMessages] = useState([
+  );  const [messages, setMessages] = useState([
     {
       id: 1,
       text: "Hello! I'm the Ring & Wing Café assistant. How can I help you today?",
       sender: 'bot',
       timestamp: new Date()
-    }  ]);
+    }
+  ]);
     
   // Update welcome message when language changes
   useEffect(() => {
@@ -681,42 +681,57 @@ ${popularItemsInfo}`
       console.error("Error with AI service:", error);
       return "Sorry, I'm having trouble connecting to the AI service. Please try again in a moment.";
     }
-  };
-  // Order management functions
-  const addToCurrentOrder = (item, size = 'base', quantity = 1) => {
+  };  // Order management functions
+  const addToCurrentOrder = (item, size = 'base', quantity = 1, showCartImmediately = true) => {
     // Ensure item object is complete
     if (!item) {
       console.error("Cannot add undefined item to order");
       return;
     }
 
-    const existingItemIndex = currentOrder.findIndex(
-      orderItem => orderItem.name === item.name && orderItem.selectedSize === size
-    );
-
-    if (existingItemIndex !== -1) {
-      // Update quantity if item already in order
-      const updatedOrder = [...currentOrder];
-      updatedOrder[existingItemIndex].quantity += quantity;
-      setCurrentOrder(updatedOrder);
-      setShowCart(true); // Ensure cart is visible when adding items
+    // Ensure quantity is properly handled - improved handling for numeric quantities
+    let validQuantity;
+    if (typeof quantity === 'number' && !isNaN(quantity)) {
+      validQuantity = quantity > 0 ? quantity : 1;
     } else {
-      // Add new item to order
-      const sizePrice = item.pricing && item.pricing[size] 
-        ? item.pricing[size] 
-        : (item.pricing && Object.values(item.pricing)[0]) || 0;
-          setCurrentOrder([
-        ...currentOrder,
-        {
-          id: generateUniqueId(),
-          name: item.name,
-          selectedSize: size,
-          price: sizePrice,
-          quantity: quantity,
-          image: item.image || ""
-        }
-      ]);
-      setShowCart(true); // Ensure cart is visible when adding items
+      const parsedQuantity = parseInt(quantity, 10);
+      validQuantity = !isNaN(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : 1;
+    }
+    
+    console.log(`Adding to order: ${validQuantity}x ${item.name} (${size})`);
+
+    setCurrentOrder(prevOrder => { // Functional update form
+      const existingItemIndex = prevOrder.findIndex(
+        orderItem => orderItem.name === item.name && orderItem.selectedSize === size
+      );
+
+      if (existingItemIndex !== -1) {
+        // Update quantity if item already in order
+        const updatedOrder = [...prevOrder];
+        updatedOrder[existingItemIndex].quantity += validQuantity;
+        return updatedOrder;
+      } else {
+        // Add new item to order
+        const sizePrice = item.pricing && item.pricing[size] 
+          ? item.pricing[size] 
+          : (item.pricing && Object.values(item.pricing)[0]) || 0;
+        return [
+          ...prevOrder,
+          {
+            id: generateUniqueId(),
+            name: item.name,
+            selectedSize: size,
+            price: sizePrice,
+            quantity: validQuantity,
+            image: item.image || ""
+          }
+        ];
+      }
+    });
+    
+    // Only show cart immediately if specified (default behavior)
+    if (showCartImmediately) {
+      setShowCart(true);
     }
   };
     // Get multilingual response text based on language detection
@@ -797,7 +812,7 @@ ${popularItemsInfo}`
     const variance = Math.floor(Math.random() * 4);
     
     return baseTime + variance;
-  };  const handleOrderItem = (item) => {
+  };  const handleOrderItem = (item, quantity = 1) => {
     if (!item || !item.name) {
       console.error("Attempted to order an invalid item:", item);
       return;
@@ -811,13 +826,24 @@ ${popularItemsInfo}`
     // Find the matching menu item with full data
     const menuItem = menuData.find(menuItem => menuItem.name === item.name) || item;
     
+    // Ensure quantity is properly handled - improved handling for numeric quantities
+    let validQuantity;
+    if (typeof quantity === 'number' && !isNaN(quantity)) {
+      validQuantity = quantity > 0 ? quantity : 1;
+    } else {
+      const parsedQuantity = parseInt(quantity, 10);
+      validQuantity = !isNaN(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : 1;
+    }
+    
+    console.log(`handleOrderItem: Adding ${validQuantity}x ${menuItem.name} (${size})`);
+    
     // Add to order
-    addToCurrentOrder(menuItem, size);
+    addToCurrentOrder(menuItem, size, validQuantity);
     
     // Create a user message about ordering this item
     const userMessage = {
       id: generateUniqueId(),
-      text: `I'd like to order ${item.name}`,
+      text: `I'd like to order ${validQuantity > 1 ? validQuantity + ' ' : ''}${item.name}`,
       sender: 'user',
       timestamp: new Date()
     };
@@ -827,9 +853,10 @@ ${popularItemsInfo}`
     
     // Detect language from the user message
     const detectedLang = detectLanguage(userMessage.text);    setTimeout(() => {
+      const quantityText = validQuantity > 1 ? `${validQuantity} ` : '';
       setMessages(prev => [...prev, {
         id: generateUniqueId(),
-        text: getLocalizedText('itemAdded', detectedLang)(item.name),
+        text: getLocalizedText('itemAdded', detectedLang)(`${quantityText}${item.name}`),
         sender: 'bot',
         timestamp: new Date()
       }]);
@@ -1282,7 +1309,14 @@ ${popularItemsInfo}`
       /(?:add|put)\s+(?:that|those|it|them)\s+(?:to\s+)?(?:my\s+)?(?:order|cart)/i,
       /(?:the\s+)?(?:first|second|third|1st|2nd|3rd|\d+(?:st|nd|rd|th)?)\s+(?:one|item|option)/i,
       /(?:number|#)\s*(\d+)/i,
-      /(?:\d+\s+)?(?:of\s+)?(?:that|those|it|them)/i
+      /(?:\d+\s+)?(?:of\s+)?(?:that|those|it|them)/i,
+      /(?:ok|okay)\s+(?:add|get|take)\s+(?:that|it)/i,
+      /add\s+(?:that|it|them)/i,
+      // Size specification patterns - when user specifies size for suggested items
+      /(?:all|everything|both)\s+(?:small|medium|large|regular|hot|cold|float)/i,
+      /(?:make\s+)?(?:it|them|those|that)\s+(?:all\s+)?(?:small|medium|large|regular|hot|cold|float)/i,
+      /(?:small|medium|large|regular|hot|cold|float)\s+(?:for\s+)?(?:all|everything|both|them|those)/i,
+      /(?:small|medium|large|regular|hot|cold|float)\s+(?:please|pls|plz)/i
     ];
     
     // Pricing inquiry patterns - these should return price info, not add to cart
@@ -1294,24 +1328,26 @@ ${popularItemsInfo}`
       const isConfirmation = confirmationPatterns.some(pattern => pattern.test(lowerInput));
     const isPricingQuery = pricingPatterns.some(pattern => pattern.test(lowerInput));
     
-    if (!isConfirmation && !isPricingQuery) return null;
-    
-    // Extract quantity
+    if (!isConfirmation && !isPricingQuery) return null;    // Extract quantity - use suggested quantity if available
     const quantityWords = {
       'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
-      'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
+      'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+      'all': 'all', 'everything': 'all', 'both': 'all'
     };
     
     let quantity = 1;
-    const quantityMatch = lowerInput.match(/(\d+|one|two|three|four|five|six|seven|eight|nine|ten)/i);
+    const quantityMatch = lowerInput.match(/(\d+|one|two|three|four|five|six|seven|eight|nine|ten|all|everything|both)/i);
     if (quantityMatch) {
       const matched = quantityMatch[1].toLowerCase();
-      quantity = quantityWords[matched] || parseInt(matched) || 1;
+      if (matched === 'all') {
+        quantity = 'all'; // Will be resolved later based on context
+      } else {
+        quantity = quantityWords[matched] || parseInt(matched) || 1;
+      }
     }
-    
-    // Extract size
-    const sizeMatch = lowerInput.match(/(small|medium|large|regular)/i);
-    const size = sizeMatch ? sizeMatch[1].toLowerCase() : null;
+      // Extract size - use suggested size if available
+    const sizeMatch = lowerInput.match(/(small|medium|large|regular|hot|cold|float)/i);
+    let size = sizeMatch ? sizeMatch[1].toLowerCase() : null;
     
     // Determine which item was referenced
     let selectedItem = null;
@@ -1335,11 +1371,23 @@ ${popularItemsInfo}`
       if (itemIndex >= 0 && itemIndex < recentlySuggestedItems.length) {
         selectedItem = recentlySuggestedItems[itemIndex];
       }
-    }
-    
-    // If no specific item mentioned and only one suggestion, use it
+    }    // If no specific item mentioned and only one suggestion, use it
     if (!selectedItem && recentlySuggestedItems.length === 1) {
       selectedItem = recentlySuggestedItems[0];
+      
+      // Use suggested quantity and size if not specified by user and this is a simple confirmation
+      // OR if user said "all" meaning they want the suggested quantity
+      if ((!quantityMatch && selectedItem.suggestedQuantity && 
+          (lowerInput.includes('yes') || lowerInput.includes('ok') || lowerInput.includes('add that') || 
+           lowerInput.includes('medium') || lowerInput.includes('large') || lowerInput.includes('small') ||
+           lowerInput.includes('hot') || lowerInput.includes('cold') || lowerInput.includes('float'))) ||
+          (quantity === 'all' && selectedItem.suggestedQuantity)) {
+        quantity = selectedItem.suggestedQuantity;
+      }
+      
+      if (!sizeMatch && selectedItem.suggestedSize) {
+        size = selectedItem.suggestedSize;
+      }
     }
     
     // If multiple items and no specific selection, ask for clarification
@@ -1348,14 +1396,25 @@ ${popularItemsInfo}`
         type: 'clarification',
         message: "Which item would you like? Please specify by number (e.g., 'the first one' or 'number 2')."
       };
-    }
-      if (selectedItem) {
+    }      if (selectedItem) {
       // Get the menu item to determine available sizes and pricing
       const menuItem = selectedItem.fullItem || menuData.find(item => item.name === selectedItem.name);
       
       if (menuItem && menuItem.pricing) {
         const availableSizes = Object.keys(menuItem.pricing);
         let finalSize = size;
+        let finalQuantity = quantity;
+          // If user specified a size but no quantity, and we have a suggested quantity, use it
+        // OR if user said "all" meaning they want the suggested quantity
+        if ((sizeMatch && !quantityMatch && selectedItem.suggestedQuantity) ||
+            (quantity === 'all' && selectedItem.suggestedQuantity)) {
+          finalQuantity = selectedItem.suggestedQuantity;
+        }
+        
+        // If finalQuantity is still 'all' (no suggested quantity), default to 1
+        if (finalQuantity === 'all') {
+          finalQuantity = 1;
+        }
         
         // If no size specified, default to first available size
         if (!finalSize && availableSizes.length > 0) {
@@ -1370,16 +1429,159 @@ ${popularItemsInfo}`
           type: isPricingQuery ? 'pricing' : 'order',
           item: menuItem,
           itemName: selectedItem.name,
-          quantity: quantity,
+          quantity: finalQuantity,
           size: finalSize,
           availableSizes: availableSizes,
           pricing: menuItem.pricing
         };
       }
-    }
-    
+    }    
     return null;
-  };  const handleSendMessage = async (e) => {
+  };  // Handle size selection for pending items
+  const handleSizeSelection = (input, pendingItems) => {
+    const lowerInput = input.toLowerCase();
+    
+    // Enhanced size keywords with more variations
+    const sizeKeywords = {
+      'small': ['small', 'sm', 's', 'smol', 'smaller'],
+      'medium': ['medium', 'med', 'm', 'middle', 'mid', 'regular'],
+      'large': ['large', 'lg', 'l', 'big', 'biggest', 'grande'],
+      'regular': ['regular', 'reg', 'normal', 'standard'],
+      'hot': ['hot', 'heated', 'warm'],
+      'cold': ['cold', 'iced', 'ice', 'cool', 'chilled'],
+      'float': ['float', 'floating']
+    };
+
+    const processedItems = [];
+    const unprocessedItems = [];
+
+    // Extract any numbers from the input for quantity
+    const quantityMatches = input.match(/\d+/g);
+    const newQuantity = quantityMatches ? parseInt(quantityMatches[0], 10) : null;
+    
+    // Check if the input has quantity indicators like "all" or "everything"
+    const hasAllIndicator = lowerInput.includes('all') || 
+                           lowerInput.includes('everything') || 
+                           lowerInput.includes('both') ||
+                           lowerInput.includes('each');
+    
+    console.log(`Size selection input: "${input}", detected quantity: ${newQuantity}, all indicator: ${hasAllIndicator}`);
+
+    for (const item of pendingItems) {
+      if (!item.needsSizeSelection) {
+        // Item already has size, add as-is
+        processedItems.push(item);
+        continue;
+      }
+
+      let selectedSize = null;
+      
+      // First try to find case-insensitive direct match in available sizes
+      const lowerAvailableSizes = item.availableSizes.map(size => size.toLowerCase());
+      for (const word of lowerInput.split(/\s+/)) {
+        const lowerWord = word.toLowerCase().trim();
+        if (lowerWord) {
+          const directMatchIndex = lowerAvailableSizes.findIndex(size => 
+            size === lowerWord || size.replace(/[()]/g, '') === lowerWord
+          );
+          if (directMatchIndex >= 0) {
+            // Use the original case version from availableSizes
+            selectedSize = item.availableSizes[directMatchIndex];
+            break;
+          }
+        }
+      }
+      
+      // If no direct match, look for size keywords in the user input
+      if (!selectedSize) {
+        for (const [size, keywords] of Object.entries(sizeKeywords)) {
+          // Check if any of the item's available sizes match this size category (case-insensitive)
+          const matchingAvailableSize = item.availableSizes.find(availSize => 
+            availSize.toLowerCase() === size.toLowerCase() || 
+            availSize.toLowerCase().includes(size.toLowerCase())
+          );
+          
+          if (matchingAvailableSize && 
+              keywords.some(keyword => lowerInput.includes(keyword))) {
+            selectedSize = matchingAvailableSize; // Use the actual case from availableSizes
+            break;
+          }
+        }
+      }
+
+      // If no size found and only one available, use it
+      if (!selectedSize && item.availableSizes.length === 1) {
+        selectedSize = item.availableSizes[0];
+      }      // Make sure the quantity is a valid number
+      let finalQuantity = item.quantity;
+      if (typeof finalQuantity !== 'number' || isNaN(finalQuantity)) {
+        finalQuantity = parseInt(finalQuantity, 10) || 1;
+      }
+      
+      // Apply new quantity if provided in this response or use all indicator
+      if (newQuantity !== null) {
+        finalQuantity = newQuantity;
+      }
+      
+      console.log(`Processing item: ${item.menuItem?.name}, original quantity: ${item.quantity}, final quantity: ${finalQuantity}`);
+
+      // If we found a size, add to processed items
+      if (selectedSize) {
+        console.log(`Found size match: "${selectedSize}" for ${item.menuItem?.name}`);
+        processedItems.push({
+          ...item,
+          size: selectedSize,
+          quantity: finalQuantity,
+          needsSizeSelection: false
+        });
+      } else if (lowerInput.includes('medium') || lowerInput.includes('med') || lowerInput.includes('m')) {
+        // Default to medium if the user mentions medium in any form
+        const mediumSize = item.availableSizes.find(s => 
+          s.toLowerCase() === 'medium' || 
+          s.toLowerCase().includes('medium') || 
+          s.toLowerCase().includes('med') ||
+          s === 'Medium' || s === 'M' || s.includes('(M)')
+        );
+        
+        if (mediumSize) {
+          console.log(`Using medium size: "${mediumSize}" for ${item.menuItem?.name}`);
+          processedItems.push({
+            ...item,
+            size: mediumSize,
+            quantity: finalQuantity,
+            needsSizeSelection: false
+          });
+        } else {
+          unprocessedItems.push(item);
+        }
+      } else {
+        unprocessedItems.push(item);
+      }
+    }
+
+    // If all items processed successfully
+    if (unprocessedItems.length === 0) {
+      return {
+        success: true,
+        items: processedItems
+      };
+    }
+
+    // If some items still need size selection
+    const remainingSizeQuestions = unprocessedItems.map(item => {
+      const sizeOptions = item.availableSizes.map(size => 
+        `${size} (₱${item.menuItem.pricing[size]})`
+      ).join(', ');
+      return `For ${item.quantity} ${item.menuItem.name}: ${sizeOptions}`;
+    }).join('\n');
+
+    return {
+      success: false,
+      message: `I still need to know the sizes for:\n\n${remainingSizeQuestions}\n\nPlease specify the sizes.`
+    };
+  };
+
+  const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;
 
@@ -1426,10 +1628,77 @@ ${popularItemsInfo}`
       .map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'assistant',
         content: msg.text
-      }));
+      }));    const input = userMessage.text.toLowerCase();
+    let staticResponseSent = false;    // FIRST: Handle pending order and size selection before AI detection
+    if (pendingOrder && pendingOrder.length > 0) {
+      // Check if this is a size selection response
+      const hasSizeSelection = pendingOrder.some(item => item.needsSizeSelection);
+        if (hasSizeSelection) {
+        // Handle size selection response
+        const sizeSelectionResult = handleSizeSelection(input, pendingOrder);
+        if (sizeSelectionResult.success) {
+          // Flag to prevent double order processing
+          staticResponseSent = true;
+          
+          // Clear the current order before adding the new items to avoid double counting
+          const wasOrderEmpty = currentOrder.length === 0;
+          
+          // Add items with selected sizes to cart
+          for (const item of sizeSelectionResult.items) {
+            // Make sure to pass the quantity as an actual number
+            const qty = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity, 10) || 1;
+            console.log(`From size selection, adding ${qty}x ${item.menuItem.name} (${item.size})`);
+            addToCurrentOrder(item.menuItem, item.size, qty);
+          }
 
-    const input = userMessage.text.toLowerCase();
-    let staticResponseSent = false;
+          const itemDescriptions = sizeSelectionResult.items.map(item => {
+            const qty = typeof item.quantity === 'number' ? item.quantity : parseInt(item.quantity, 10) || 1;
+            return `${qty} ${item.menuItem.name} (${item.size})`;
+          });
+          
+          // Only show "started order" message for first item
+          if (wasOrderEmpty) {
+            addMessageToCart(userMessage);
+          }
+
+          setMessages(prev => [...prev, {
+            id: generateUniqueId(),
+            text: `Added ${itemDescriptions.join(", ")} to your order. Would you like anything else?`,
+            sender: 'bot',
+            timestamp: new Date()
+          }]);
+
+          setPendingOrder(null);
+          setIsTyping(false);
+          return; // Prevent further processing after size selection
+        } else {
+          // Ask for clarification on size selection
+          setMessages(prev => [...prev, {
+            id: generateUniqueId(),
+            text: sizeSelectionResult.message,
+            sender: 'bot',
+            timestamp: new Date()
+          }]);
+          setIsTyping(false);
+          return; // Prevent further processing after clarification
+        }
+      } else {
+        // Handle regular order confirmation
+        const affirmativeResponses = ['yes', 'yeah', 'yep', 'correct', 'right', 'sure', 'ok', 'okay', 'confirm'];
+        const negativeResponses = ['no', 'nope', 'wrong', 'incorrect', 'cancel'];
+        
+        const isAffirmative = affirmativeResponses.some(resp => input.includes(resp));
+        const isNegative = negativeResponses.some(resp => input.includes(resp));
+        
+        if (isAffirmative) {
+          handleOrderConfirmation(true);
+          return; // Prevent further processing after confirmation
+        } else if (isNegative) {
+          handleOrderConfirmation(false);
+          return; // Prevent further processing after cancellation
+        }
+      }
+    }
 
     // Use AI to detect order intent instead of regex patterns
     try {
@@ -1438,26 +1707,112 @@ ${popularItemsInfo}`
         menuData,
         chatHistory,
         detectedLang
-      );
-
-      if (orderIntentResult.hasOrderIntent && orderIntentResult.items?.length > 0) {
-        // Handle high confidence orders directly
-        const highConfidenceItems = orderIntentResult.items.filter(
-          item => item.confidence === 'high'
+      );      if (orderIntentResult.hasOrderIntent && orderIntentResult.items?.length > 0) {
+        // Check if any items need size selection
+        const itemsNeedingSize = orderIntentResult.items.filter(item => item.needsSizeSelection);
+        const readyToAddItems = orderIntentResult.items.filter(
+          item => !item.needsSizeSelection && (item.confidence === 'high' || item.confidence === 'medium')
         );
 
-        if (highConfidenceItems.length > 0) {
-          // Add items to order with original logic
-          for (const match of highConfidenceItems) {
-            const { menuItem, quantity, size } = match;
+        // If some items need size selection, ask for size preferences
+        if (itemsNeedingSize.length > 0) {
+          const sizeQuestions = itemsNeedingSize.map(item => {
+            const sizeOptions = item.availableSizes.map(size => 
+              `${size} (₱${item.menuItem.pricing[size]})`
+            ).join(', ');
+            return `For ${item.quantity} ${item.menuItem.name}: ${sizeOptions}`;
+          }).join('\n');
+
+          setMessages(prev => [...prev, {
+            id: generateUniqueId(),
+            text: `I'd be happy to add those items to your order! Just need to know which sizes you'd prefer:\n\n${sizeQuestions}\n\nPlease let me know your size preferences.`,
+            sender: 'bot',
+            timestamp: new Date()
+          }]);          // Add items that don't need size selection immediately but don't show cart yet
+          for (const match of readyToAddItems) {
+            const { menuItem } = match;
+            let quantity = match.quantity;
+            if (typeof quantity !== 'number') {
+              quantity = parseInt(quantity, 10) || 1;
+            }
+            let size = match.size;
+            if (size && menuItem.pricing) {
+              const availableSizes = Object.keys(menuItem.pricing);
+              let properCaseSize = availableSizes.find(
+                availableSize => availableSize.toLowerCase() === size.toLowerCase()
+              );
+              if (!properCaseSize) {
+                properCaseSize = availableSizes.find(
+                  availableSize =>
+                    availableSize.toLowerCase().includes(size.toLowerCase()) ||
+                    size.toLowerCase().includes(availableSize.toLowerCase().replace(/[()\s]/g, ''))
+                );
+              }
+              if (properCaseSize) {
+                size = properCaseSize;
+              }
+            }
+            // Don't show cart immediately since we're waiting for size selection
+            addToCurrentOrder(menuItem, size, quantity, false);
+          }
+
+          // Store the items needing size selection for later processing
+          setPendingOrder(itemsNeedingSize);
+          setIsTyping(false);
+          staticResponseSent = true;
+        }        // If we have items ready to add (with sizes specified), add them directly
+        else if (readyToAddItems.length > 0) {          // Add items to order with case-sensitivity handling
+          for (const match of readyToAddItems) {
+            const { menuItem } = match;
+            
+            // Ensure quantity is a valid number 
+            let quantity = match.quantity;
+            if (typeof quantity !== 'number') {
+              quantity = parseInt(quantity, 10) || 1;
+            }
+            
+            // Handle size with case sensitivity correction
+            let size = match.size;
+            if (size && menuItem.pricing) {
+              // Get the available sizes with proper casing from the menu item
+              const availableSizes = Object.keys(menuItem.pricing);
+              
+              // First try direct case-insensitive match
+              let properCaseSize = availableSizes.find(
+                availableSize => availableSize.toLowerCase() === size.toLowerCase()
+              );
+              
+              // If not found, try more flexible matching
+              if (!properCaseSize) {
+                properCaseSize = availableSizes.find(
+                  availableSize =>
+                    availableSize.toLowerCase().includes(size.toLowerCase()) ||
+                    size.toLowerCase().includes(availableSize.toLowerCase().replace(/[()\s]/g, ''))
+                );
+              }
+              
+              // Use the properly cased size if found
+              if (properCaseSize) {
+                size = properCaseSize;
+              }
+            }
+            
+            console.log(`From AI intent detection, adding ${quantity}x ${menuItem.name} (${size})`);
             addToCurrentOrder(menuItem, size, quantity);
           }
 
-          addMessageToCart(userMessage);
+          // Only add cart message after the first item if order was empty before
+          if (currentOrder.length === 0) {
+            addMessageToCart(userMessage);
+          }
 
-          const itemDescriptions = highConfidenceItems.map(match =>
-            `${match.quantity} ${match.menuItem.name} (${match.size})`
-          );
+          const itemDescriptions = readyToAddItems.map(match => {
+            let qty = match.quantity;
+            if (typeof qty !== 'number') {
+              qty = parseInt(qty, 10) || 1;
+            }
+            return `${qty} ${match.menuItem.name} (${match.size})`;
+          });
 
           setMessages(prev => [...prev, {
             id: generateUniqueId(),
@@ -1469,17 +1824,15 @@ ${popularItemsInfo}`
           setIsTyping(false);
           staticResponseSent = true;
         }
-        // For medium/low confidence, ask for confirmation
+        // For low confidence only, ask for confirmation
         else if (orderIntentResult.items.length > 0) { // Ensure there are items before asking for confirmation
-          setPendingOrder(orderIntentResult.items);
-
-          const confirmationItems = orderIntentResult.items.map(match =>
-            `${match.quantity} × ${match.menuItem.name} (${match.size})`
-          ).join("\\n");
+          setPendingOrder(orderIntentResult.items);const confirmationItems = orderIntentResult.items.map(match =>
+            `${match.quantity} × ${match.menuItem.name} (${match.size || 'size to be specified'})`
+          ).join("\n");
 
           setMessages(prev => [...prev, {
             id: generateUniqueId(),
-            text: `I think you want to order:\\n${confirmationItems}\\n\\nIs that correct? Please confirm.`,
+            text: `I think you want to order:\n${confirmationItems}\n\nIs that correct? Please confirm.`,
             sender: 'bot',
             timestamp: new Date(),
             type: 'order-confirmation-request'
@@ -1488,7 +1841,7 @@ ${popularItemsInfo}`
           setIsTyping(false);
           staticResponseSent = true;
         }
-      }    } catch (error) {
+      }} catch (error) {
       console.error("Error in AI order detection:", error);
       // Continue with other message handling if AI detection fails
     }
@@ -1521,14 +1874,28 @@ ${popularItemsInfo}`
               timestamp: new Date()
             }]);
           } else {
-            // Single size available
+            // Single size available - update the suggestion with the specific size and quantity
             const size = availableSizes[0];
             const unitPrice = item.pricing[size];
             const totalPrice = unitPrice * quantity;
             
+            // Update the suggestion to include the specific quantity and size for easy ordering
+            const updatedSuggestion = [{
+              name: item.name,
+              price: `₱${unitPrice}`,
+              description: item.description || "",
+              image: item.image || "",
+              category: item.category || "",
+              fullItem: item,
+              suggestedQuantity: quantity,
+              suggestedSize: size
+            }];
+            setRecentlySuggestedItems(updatedSuggestion);
+            setLastSuggestionTime(Date.now());
+            
             setMessages(prev => [...prev, {
               id: generateUniqueId(),
-              text: `${quantity} ${itemName} would be ₱${totalPrice} (₱${unitPrice} each). Would you like to add this to your order?`,
+              text: `${quantity} ${itemName} (${size}) would be ₱${totalPrice} (₱${unitPrice} each). Would you like to add this to your order?`,
               sender: 'bot',
               timestamp: new Date()
             }]);
@@ -1601,38 +1968,26 @@ ${popularItemsInfo}`
     if (input.includes('show') && (input.includes('cart') || input.includes('order'))) {
       handleShowCart();
       staticResponseSent = true;
+      return; // Prevent further processing after showing cart
     }
     else if (input.includes('place order') || input.includes('checkout')) {
       handleCheckout();
       staticResponseSent = true;
+      return; // Prevent further processing after checkout
     }
     else if (input.includes("where") && input.includes("order")) {
       handleTrackOrder();
       staticResponseSent = true;
+      return; // Prevent further processing after tracking order
     }
     else if ((input.includes("clear") || input.includes("cancel")) && input.includes("order")) {
       handleCancelOrder();
       staticResponseSent = true;
-    }
-    // Handle order confirmation
-    else if (pendingOrder && pendingOrder.length > 0) {
-      // Check for confirmation responses
-      const affirmativeResponses = ['yes', 'yeah', 'yep', 'correct', 'right', 'sure', 'ok', 'okay', 'confirm'];
-      const negativeResponses = ['no', 'nope', 'wrong', 'incorrect', 'cancel'];
-      
-      const isAffirmative = affirmativeResponses.some(resp => input.includes(resp));
-      const isNegative = negativeResponses.some(resp => input.includes(resp));
-      
-      if (isAffirmative) {
-        handleOrderConfirmation(true);
-        staticResponseSent = true;
-      } else if (isNegative) {
-        handleOrderConfirmation(false);
-        staticResponseSent = true;
-      }
+      return; // Prevent further processing after cancelling order
     }
     // Menu-related queries
-    else if (input.includes('menu')) {      const aiText = await getAIResponse(userMessage.text, chatHistory);
+    else if (input.includes('menu')) {
+      const aiText = await getAIResponse(userMessage.text, chatHistory);
       setMessages(prev => [...prev, {
         id: generateUniqueId(),
         text: aiText,
@@ -1880,23 +2235,51 @@ ${popularItemsInfo}`
         setIsTyping(false);
       }
     }
-  };
-
-  const handleOrderConfirmation = (confirmed) => {
+  };  const handleOrderConfirmation = (confirmed) => {
     if (!pendingOrder || pendingOrder.length === 0) return;
     
     if (confirmed) {
       // Add all pending items to the order
       for (const match of pendingOrder) {
-        const { menuItem, quantity, size } = match;
-        // Add the item to the order with quantity
-        addToCurrentOrder(menuItem, size, quantity);
+        const { menuItem } = match;
+        
+        // Ensure quantity is a valid number 
+        let quantity = match.quantity;
+        if (typeof quantity !== 'number') {
+          quantity = parseInt(quantity, 10) || 1;
+        }
+        
+        // Handle size with case sensitivity correction
+        let size = match.size;
+        if (size && menuItem.pricing) {
+          // Get the available sizes with proper casing from the menu item
+          const availableSizes = Object.keys(menuItem.pricing);
+          
+          // Find a case-insensitive match
+          const properCaseSize = availableSizes.find(
+            availableSize => availableSize.toLowerCase() === size.toLowerCase()
+          );
+          
+          // Use the properly cased size if found, otherwise fallback
+          if (properCaseSize) {
+            size = properCaseSize;
+          }
+        }
+        
+        console.log(`From order confirmation, adding ${quantity}x ${menuItem.name} (${size || 'default size'})`);
+        
+        // Add the item to the order with quantity, defaulting to medium if no size specified
+        addToCurrentOrder(menuItem, size || 'medium', quantity);
       }
       
       // Show confirmation
-      const itemDescriptions = pendingOrder.map(match => 
-        `${match.quantity} ${match.menuItem.name} (${match.size})`
-      );
+      const itemDescriptions = pendingOrder.map(match => {
+        let qty = match.quantity;
+        if (typeof qty !== 'number') {
+          qty = parseInt(qty, 10) || 1;
+        }
+        return `${qty} ${match.menuItem.name} (${match.size || 'medium'})`;
+      });
       
       setMessages(prev => [...prev, {
         id: generateUniqueId(),
@@ -1904,8 +2287,7 @@ ${popularItemsInfo}`
         sender: 'bot',
         timestamp: new Date()
       }]);
-    } else {
-      // Rejection
+    } else {      // Rejection
       setMessages(prev => [...prev, {
         id: generateUniqueId(),
         text: `No problem. What would you like to order instead?`,
@@ -1913,9 +2295,10 @@ ${popularItemsInfo}`
         timestamp: new Date()
       }]);
     }
-    
-    // Clear pending order
+
+    // Clear pending order AND recent suggestions to prevent double processing
     setPendingOrder(null);
+    setRecentlySuggestedItems([]);
   };
 
   const handleSuggestionClick = (suggestion) => {
@@ -1984,7 +2367,7 @@ ${popularItemsInfo}`
                   color: message.sender === 'user' ? colors.background : colors.primary
                 }}
               >
-                <p>{message.text}</p>                {message.type === 'menu-items' && (
+                <p style={{ whiteSpace: 'pre-wrap' }}>{message.text}</p>                {message.type === 'menu-items' && (
                   <div className="mt-4">
                     <div className="flex justify-between items-center mb-2">
                       <h3 className="font-medium text-sm" style={{ color: colors.primary }}>
@@ -2038,9 +2421,8 @@ ${popularItemsInfo}`
                                 </h4>
                                 <p className="text-xs mt-1 h-8 overflow-hidden" style={{ color: colors.secondary }}>
                                   {item.description || "No description available"}
-                                </p>
-                                <button
-                                  onClick={() => handleOrderItem(item)}
+                                </p>                                <button
+                                  onClick={() => handleOrderItem(item, item.suggestedQuantity || 1)}
                                   className="w-full mt-2 py-1.5 text-sm font-medium rounded-md transition-all"
                                   style={{ 
                                     backgroundColor: colors.accent,
@@ -2322,8 +2704,7 @@ ${popularItemsInfo}`
         .hide-scrollbar {
           -ms-overflow-style: none;  /* IE and Edge */
           scrollbar-width: none;  /* Firefox */
-        }
-        .hide-scrollbar::-webkit-scrollbar {
+        }        .hide-scrollbar::-webkit-scrollbar {
           display: none; /* Chrome, Safari, Opera */
         }
       `}</style>

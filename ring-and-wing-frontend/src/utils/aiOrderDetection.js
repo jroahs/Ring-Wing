@@ -4,13 +4,13 @@
  */
 import { findBestMenuItemMatch } from './orderParser'; // Assuming findBestMenuItemMatch is in orderParser.js
 
-export const detectOrderIntentWithAI = async (message, menuItems, chatHistory = [], detectedLanguage = 'english') => {
-  // Early rejection of obvious non-order messages
+export const detectOrderIntentWithAI = async (message, menuItems, chatHistory = [], detectedLanguage = 'english') => {  // Early rejection of obvious non-order messages
   const quickCheck = message.toLowerCase();
-  if (quickCheck.length < 3 || 
-      quickCheck.endsWith('?') ||
-      quickCheck.includes('what') || 
-      quickCheck.includes('how') ||
+  if (quickCheck.length < 2 || 
+      (quickCheck.endsWith('?') && !quickCheck.includes('can i get') && !quickCheck.includes('can i have')) ||
+      (quickCheck.includes('what') && !quickCheck.includes('what about')) || 
+      quickCheck.includes('how much') ||
+      quickCheck.includes('how many') ||
       quickCheck.includes('why')) {
     return { hasOrderIntent: false, items: [] };
   }
@@ -22,19 +22,40 @@ export const detectOrderIntentWithAI = async (message, menuItems, chatHistory = 
     
     Available menu items:
     ${menuItems.map(item => `- ${item.name} (${item.category || 'Uncategorized'})`).join('\n')}
-    
-    Instructions:
+      Instructions:
     1. ONLY identify actual ordering intent (customer wants to add items to their order)
     2. Asking about an item is NOT an order intent
     3. Simple mentions of menu items are NOT orders
-    4. Look for phrases like "I want", "I'll have", "give me", "can I get", etc.
+    4. Look for phrases like "I want", "I'll have", "give me", "can I get", "add", "order", etc.
     5. Return a structured response with confidence level
-    6. If ordering intent is detected, extract the specific items, quantities, and sizes`
+    6. If ordering intent is detected, extract the specific items, quantities, and sizes
+    7. Be generous with "high" confidence for clear ordering phrases
+    8. Use "medium" confidence for implicit orders (just item names with quantities)
+    9. Only use "low" confidence when uncertain`
   };
-
   const userPrompt = {
     role: "user",
     content: `Message: "${message}"
+    
+    Examples of HIGH confidence orders:
+    - "I want 2 milkteas"
+    - "Give me a burger"
+    - "I'll have 3 coffees"
+    - "Can I get pizza"
+    - "Add a sandwich"
+    - "Order milktea"
+    - "2 milkteas please"
+    - "milktea medium"
+    
+    Examples of MEDIUM confidence orders:
+    - "milktea" (just item name)
+    - "2 milkteas" (quantity + item)
+    - "large coffee" (size + item)
+    
+    Examples of NO order intent:
+    - "What's in the burger?"
+    - "How much is coffee?"
+    - "Do you have milktea?"
     
     Respond ONLY with valid JSON in this exact format:
     {
@@ -101,18 +122,77 @@ export const detectOrderIntentWithAI = async (message, menuItems, chatHistory = 
         return { hasOrderIntent: false, items: [] };
     }
     
-    const result = JSON.parse(jsonStr);
-    
-    // Map AI detected items to actual menu items
+    const result = JSON.parse(jsonStr);    // Map AI detected items to actual menu items
     if (result.hasOrderIntent && result.items?.length > 0) {
       result.items = result.items.map(item => {
         const menuItem = findBestMenuItemMatch(item.name, menuItems);
         if (menuItem) {
+          const availableSizes = menuItem.pricing ? Object.keys(menuItem.pricing) : ['base'];
+          const hasMultipleSizes = availableSizes.length > 1;
+            // If no size specified and multiple sizes available, we need to ask for size preference
+          let finalSize = item.size;
+          let needsSizeSelection = false;
+          
+          // Try to normalize the size if provided
+          if (finalSize) {
+            // Case-insensitive search in available sizes
+            const normalizedSize = availableSizes.find(size => 
+              size.toLowerCase() === finalSize.toLowerCase() ||
+              size.toLowerCase().includes(finalSize.toLowerCase()) ||
+              finalSize.toLowerCase().includes(size.toLowerCase().replace(/[()]/g, ''))
+            );
+            
+            if (normalizedSize) {
+              finalSize = normalizedSize; // Use the proper case from menu data
+            }
+          }
+          
+          if (!finalSize) {
+            if (hasMultipleSizes) {
+              // Check if the menu item has a default size preference
+              const defaultSize = menuItem.defaultSize || null;
+              
+              if (defaultSize && availableSizes.includes(defaultSize)) {
+                finalSize = defaultSize;
+              } else {
+                needsSizeSelection = true;
+                finalSize = null; // Don't default to any size
+              }
+            } else {
+              finalSize = availableSizes[0] || 'base';
+            }
+          }
+            // More robust quantity parsing
+          let quantity = 1;
+          if (item.quantity) {
+            if (typeof item.quantity === 'number') {
+              quantity = item.quantity;
+            } else if (typeof item.quantity === 'string') {
+              // Handle text quantities like "one", "two", etc.
+              const textToNumber = {
+                'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+                'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+                'a': 1, 'an': 1
+              };
+              
+              const cleanQuantity = item.quantity.toLowerCase().trim();
+              if (textToNumber[cleanQuantity]) {
+                quantity = textToNumber[cleanQuantity];
+              } else {
+                quantity = parseInt(item.quantity, 10) || 1;
+              }
+            }
+          }
+          
+          console.log(`AI detected order item: ${quantity}x ${menuItem.name}, size: ${finalSize || 'to be specified'}`);
+          
           return {
             menuItem: menuItem,
-            quantity: parseInt(item.quantity, 10) || 1, // Ensure quantity is a number
-            size: item.size || (menuItem.pricing ? Object.keys(menuItem.pricing)[0] : 'base'),
-            confidence: item.confidence || "medium"
+            quantity: quantity,
+            size: finalSize,
+            confidence: item.confidence || "medium",
+            needsSizeSelection: needsSizeSelection,
+            availableSizes: availableSizes
           };
         }
         return null;

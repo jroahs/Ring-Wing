@@ -14,14 +14,13 @@ export function parseOrderText(orderText) {
     // Match text quantities (one, two, three, etc.)
     /(one|two|three|four|five|six|seven|eight|nine|ten)\s+(.*?)(?=\s+and|\s*$|\s*,)/i
   ];
-  
-  // Size detection patterns
+    // Size detection patterns
   const sizePatterns = [
     // Standard sizes
-    /(small|medium|large|regular)\s+(.*?)(?=\s+and|\s*$|\s*,)/i,
+    /(small|medium|large|regular|hot|cold|float)\s+(.*?)(?=\s+and|\s*$|\s*,)/i,
     
     // Abbreviated sizes (sm, md, lg)
-    /(sm|md|lg)\s+(.*?)(?=\s+and|\s*$|\s*,)/i
+    /(sm|md|lg|s|m|l)\s+(.*?)(?=\s+and|\s*$|\s*,)/i
   ];
   
   // Multiple item detection
@@ -61,19 +60,28 @@ export function parseOrderText(orderText) {
         break;
       }
     }
-    
-    // Check for size
+      // Check for size
     for (const pattern of sizePatterns) {
       const match = name.match(pattern);
       if (match) {
-        // Normalize size abbreviations
+        // Normalize size abbreviations and map to menu sizes
         const sizeMap = {
           'sm': 'small', 
           'md': 'medium', 
-          'lg': 'large'
+          'lg': 'large',
+          's': 'small',
+          'm': 'medium',
+          'l': 'large',
+          'small': 'small',
+          'medium': 'medium',
+          'large': 'large',
+          'regular': 'medium',
+          'hot': 'hot',
+          'cold': 'cold',
+          'float': 'float'
         };
         
-        size = sizeMap[match[1]] || match[1];
+        size = sizeMap[match[1].toLowerCase()] || match[1];
         name = match[2].trim();
         break;
       }
@@ -88,6 +96,87 @@ export function parseOrderText(orderText) {
   
   return items;
 }
+
+/**
+ * Maps user-requested size to the best available size in a menu item
+ * @param {string} requestedSize - The size the user requested
+ * @param {Array<string>} availableSizes - Available sizes for the menu item
+ * @returns {string|null} - The best matching available size, or null if no match
+ */
+export const mapToAvailableSize = (requestedSize, availableSizes) => {
+  if (!requestedSize || !availableSizes || availableSizes.length === 0) {
+    return availableSizes?.[0] || null; // Return first available size if no preference
+  }
+  
+  const lowerRequested = requestedSize.toLowerCase();
+  
+  // Direct match (case-insensitive)
+  const directMatch = availableSizes.find(size => 
+    size.toLowerCase() === lowerRequested
+  );
+  if (directMatch) return directMatch;
+  
+  // Size mapping for complex menu sizes (expanded with more variations)
+  const sizeMapping = {
+    // For simple user requests, map to complex menu sizes
+    'small': ['Hot (S)', 'small', 'Small', 'S', 's'],
+    'medium': ['Hot (M)', 'Cold (M)', 'Float (M)', 'Medium', 'medium', 'M', 'm'],
+    'large': ['Cold (L)', 'Float (L)', 'Large', 'large', 'L', 'l'],
+    'hot': ['Hot (S)', 'Hot (M)', 'hot', 'Hot'],
+    'cold': ['Cold (M)', 'Cold (L)', 'cold', 'Cold'],
+    'float': ['Float (M)', 'Float (L)', 'float', 'Float']
+  };
+    // Find matching size from mapping (more flexible matching)
+  for (const [userSize, menuSizes] of Object.entries(sizeMapping)) {
+    // Check if requested size contains or matches this user size category
+    if (lowerRequested === userSize || lowerRequested.includes(userSize)) {
+      // Try to find a match in available sizes that corresponds to any of the menu sizes for this category
+      const match = availableSizes.find(size => 
+        menuSizes.some(menuSize => 
+          size.toLowerCase().includes(menuSize.toLowerCase()) || 
+          menuSize.toLowerCase().includes(size.toLowerCase())
+        )
+      );
+      if (match) return match;
+    }
+  }
+  
+  // More flexible partial matching
+  // First try to match standard size words like "small", "medium", "large" regardless of case
+  const sizeWords = {
+    'small': ['s', 'sm', 'small'],
+    'medium': ['m', 'md', 'med', 'medium'], 
+    'large': ['l', 'lg', 'large']
+  };
+  
+  for (const [standardSize, variations] of Object.entries(sizeWords)) {
+    // If user input contains any variation of this size
+    if (variations.some(v => lowerRequested.includes(v))) {
+      // Find any available size that might match this standard size
+      const sizeMatch = availableSizes.find(size => 
+        size.toLowerCase().includes(standardSize) || 
+        // Try capitalized version too
+        size.includes(standardSize.charAt(0).toUpperCase() + standardSize.slice(1))
+      );
+      if (sizeMatch) return sizeMatch;
+    }
+  }
+  
+  // General partial match as fallback
+  const partialMatch = availableSizes.find(size => {
+    const lowerSize = size.toLowerCase();
+    return lowerSize.includes(lowerRequested) || 
+           lowerRequested.includes(lowerSize.replace(/[()]/g, '')) ||
+           // Handle plural forms (e.g., "larges" -> "large")
+           (lowerRequested.endsWith('s') && lowerSize.includes(lowerRequested.slice(0, -1)));
+  });
+  
+  if (partialMatch) return partialMatch;
+  
+  // If no match found, return the first available size as default
+  console.log(`No size match found for "${requestedSize}" in available sizes: ${JSON.stringify(availableSizes)}. Defaulting to first available.`);
+  return availableSizes[0];
+};
 
 /**
  * Helper function to find the best menu item match with confidence score
@@ -116,8 +205,7 @@ export const findBestMenuItemMatch = (itemText, menuItems) => {
   if (containsMatch) {
     return {...containsMatch, confidence: 'medium'};
   }
-  
-  // Word match (any word in the item name matches)
+    // Word match (any word in the item name matches)
   for (const item of menuItems) {
     const itemWords = item.name.toLowerCase().split(/\s+/);
     const searchWords = searchText.split(/\s+/);
@@ -130,6 +218,86 @@ export const findBestMenuItemMatch = (itemText, menuItems) => {
       return {...item, confidence: 'low'};
     }
   }
+    // Fuzzy match for misspellings (using Levenshtein distance)
+  const fuzzyMatches = menuItems.map(item => {
+    const itemName = item.name.toLowerCase();
+    
+    // Check full name similarity
+    const fullNameDistance = levenshteinDistance(searchText, itemName);
+    const fullNameMaxLength = Math.max(searchText.length, itemName.length);
+    const fullNameSimilarity = 1 - (fullNameDistance / fullNameMaxLength);
+    
+    // Check word-level similarity for multi-word items
+    const itemWords = itemName.split(/\s+/);
+    const bestWordMatch = itemWords.reduce((best, word) => {
+      if (word.length < 3) return best; // Skip short words
+      
+      const wordDistance = levenshteinDistance(searchText, word);
+      const wordMaxLength = Math.max(searchText.length, word.length);
+      const wordSimilarity = 1 - (wordDistance / wordMaxLength);
+      
+      return wordSimilarity > best ? wordSimilarity : best;
+    }, 0);
+    
+    // Use the better of full name or best word similarity
+    const similarity = Math.max(fullNameSimilarity, bestWordMatch);
+    const distance = Math.min(fullNameDistance, 
+      itemWords.map(word => levenshteinDistance(searchText, word)).reduce((min, d) => Math.min(min, d), Infinity)
+    );
+    
+    return {
+      item,
+      similarity,
+      distance
+    };
+  }).filter(match => 
+    match.similarity >= 0.6 && // At least 60% similar
+    match.distance <= 3 && // Maximum 3 character differences
+    Math.abs(searchText.length - match.item.name.length) <= 6 // Allow slightly larger length difference for multi-word items
+  ).sort((a, b) => b.similarity - a.similarity); // Sort by highest similarity first
+  
+  if (fuzzyMatches.length > 0) {
+    const bestMatch = fuzzyMatches[0];
+    return {...bestMatch.item, confidence: bestMatch.similarity >= 0.8 ? 'medium' : 'low'};
+  }
   
   return null;
 };
+
+/**
+ * Calculate Levenshtein distance between two strings
+ * @param {string} str1 - First string
+ * @param {string} str2 - Second string
+ * @returns {number} - The Levenshtein distance
+ */
+function levenshteinDistance(str1, str2) {
+  const len1 = str1.length;
+  const len2 = str2.length;
+  
+  // Create a matrix to store the distances
+  const matrix = Array(len1 + 1).fill(null).map(() => Array(len2 + 1).fill(0));
+  
+  // Initialize the first row and column
+  for (let i = 0; i <= len1; i++) {
+    matrix[i][0] = i;
+  }
+  for (let j = 0; j <= len2; j++) {
+    matrix[0][j] = j;
+  }
+  
+  // Fill in the matrix
+  for (let i = 1; i <= len1; i++) {
+    for (let j = 1; j <= len2; j++) {
+      if (str1[i - 1] === str2[j - 1]) {
+        matrix[i][j] = matrix[i - 1][j - 1]; // No operation needed
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,     // Deletion
+          matrix[i][j - 1] + 1,     // Insertion
+          matrix[i - 1][j - 1] + 1  // Substitution
+        );
+      }
+    }
+  }
+    return matrix[len1][len2];
+}
