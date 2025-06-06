@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 
 const registerUser = async (req, res) => {
   try {
-    const { username, email, password, role, reportsTo } = req.body;
+    const { username, email, password, role, position, reportsTo } = req.body;
 
     // Check existing user with case-insensitive search
     let user = await User.findOne({
@@ -32,12 +32,19 @@ const registerUser = async (req, res) => {
       }
     }
 
+    // Set default position based on role if not provided
+    let userPosition = position || 'cashier';
+    if (role === 'manager' && !position) {
+      userPosition = 'manager';
+    }
+
     // Create new user
     user = new User({
       username: username.toLowerCase(),
       email: email.toLowerCase(),
       password,
       role: role || 'staff',
+      position: userPosition,
       reportsTo: role === 'staff' ? reportsTo : null
     });
 
@@ -45,13 +52,13 @@ const registerUser = async (req, res) => {
 
     // Generate token
     const token = user.generateAuthToken();
-    
-    res.status(201).json({
+      res.status(201).json({
       token,
       _id: user._id,
       username: user.username,
       email: user.email,
       role: user.role,
+      position: user.position,
       reportsTo: user.reportsTo
     });
   } catch (err) {
@@ -112,9 +119,7 @@ const loginUser = async (req, res) => {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    });
-
-    // Send response
+    });    // Send response
     res.json({
       success: true,
       auth: true,
@@ -123,6 +128,7 @@ const loginUser = async (req, res) => {
       username: user.username,
       email: user.email,
       role: user.role,
+      position: user.position,
       reportsTo: user.reportsTo
     });
   } catch (err) {

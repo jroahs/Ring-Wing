@@ -116,21 +116,36 @@ function Login() {
 
       // Store token
       localStorage.setItem('authToken', data.token);
-      
-      // Store user data
+        // Store user data
       localStorage.setItem('userData', JSON.stringify({
         id: data._id,
         username: data.username,
         email: data.email,
         role: data.role,
+        position: data.position, // Add position field
         reportsTo: data.reportsTo
       }));
 
       // Configure axios defaults for future requests
-      axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
-
-      // Navigate to appropriate page based on role
-      navigate(data.role === 'manager' ? '/dashboard' : '/pos');
+      axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;      // Navigate to appropriate page based on position
+      console.log('User position:', data.position);
+      
+      switch (data.position) {
+        case 'inventory':
+          console.log('Redirecting inventory staff to inventory page');
+          navigate('/inventory');
+          break;
+        case 'manager':
+        case 'admin':
+          console.log('Redirecting manager/admin to dashboard');
+          navigate('/dashboard');
+          break;
+        case 'cashier':
+        default:
+          console.log('Redirecting cashier to POS');
+          navigate('/pos');
+          break;
+      }
     } catch (err) {
       console.error("Login error:", err);
       setError('Server connection error. Please try again.');

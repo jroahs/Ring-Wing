@@ -182,6 +182,28 @@ const RoleProtectedRoute = ({ requiredRole, children }) => {
   return <>{children}</>;
 };
 
+// Position-based protection for inventory access
+const PositionProtectedRoute = ({ requiredPositions, children }) => {
+  const userData = JSON.parse(localStorage.getItem('userData') || '{"position":"cashier"}');
+  const userPosition = userData?.position || 'cashier';
+  
+  // Check if user position is in the required positions array
+  if (requiredPositions && !requiredPositions.includes(userPosition)) {
+    toast.error("You don't have permission to access this feature");
+    
+    // Redirect based on user position
+    if (userPosition === 'cashier') {
+      return <Navigate to="/pos" replace />;
+    } else if (userPosition === 'inventory') {
+      return <Navigate to="/inventory" replace />;
+    } else {
+      return <Navigate to="/dashboard" replace />;
+    }
+  }
+  
+  return <>{children}</>;
+};
+
 const MainLayout = () => {
   const [showTimeClock, setShowTimeClock] = useState(false);
   const [userData, setUserData] = useState(null);
@@ -248,17 +270,45 @@ function App() {
         
         {/* Chatbot is semi-protected - only authenticated users */}
         <Route path="/chatbot" element={<ProtectedRoute><Chatbot /></ProtectedRoute>} />
-        
-        {/* All admin/dashboard routes are protected by MainLayout */}
+          {/* All admin/dashboard routes are protected by MainLayout */}
         <Route element={<MainLayout />}>
-          {/* Routes accessible by both staff and managers */}
-          <Route path="/dashboard" element={<Dashboard colors={colors} />} />
-          <Route path="/pos" element={<PointofSale />} />
-          <Route path="/orders" element={<OrderSystem />} />
+          {/* Routes accessible by managers and admin */}
+          <Route path="/dashboard" element={
+            <PositionProtectedRoute requiredPositions={['manager', 'admin']}>
+              <Dashboard colors={colors} />
+            </PositionProtectedRoute>
+          } />
+          
+          {/* POS routes - accessible by cashiers and managers */}
+          <Route path="/pos" element={
+            <PositionProtectedRoute requiredPositions={['cashier', 'manager', 'admin']}>
+              <PointofSale />
+            </PositionProtectedRoute>
+          } />
+          <Route path="/orders" element={
+            <PositionProtectedRoute requiredPositions={['cashier', 'manager', 'admin']}>
+              <OrderSystem />
+            </PositionProtectedRoute>
+          } />
+          
+          {/* Time clock accessible to all */}
           <Route path="/timeclock" element={<TimeClock />} />
-            {/* Routes accessible to staff (inventory/menu now accessible) */}
-          <Route path="/inventory" element={<InventorySystem />} />
-          <Route path="/menu" element={<MenuManagement colors={colors} />} />          {/* Manager-only routes */}
+          
+          {/* Inventory routes - only for inventory staff and managers */}
+          <Route path="/inventory" element={
+            <PositionProtectedRoute requiredPositions={['inventory', 'manager', 'admin']}>
+              <InventorySystem />
+            </PositionProtectedRoute>
+          } />
+          
+          {/* Menu management - managers only */}
+          <Route path="/menu" element={
+            <PositionProtectedRoute requiredPositions={['manager', 'admin']}>
+              <MenuManagement colors={colors} />
+            </PositionProtectedRoute>
+          } />
+          
+          {/* Manager-only routes */}
           <Route path="/employees" element={
             <RoleProtectedRoute requiredRole="manager">
               <EmployeeManagement colors={colors} />
@@ -268,11 +318,13 @@ function App() {
             <RoleProtectedRoute requiredRole="manager">
               <PayrollSystem />
             </RoleProtectedRoute>
-          } /><Route path="/expenses" element={
+          } />
+          <Route path="/expenses" element={
             <RoleProtectedRoute requiredRole="manager">
               <ExpenseTracker colors={colors} />
             </RoleProtectedRoute>
-          } />          <Route path="/revenue-reports" element={
+          } />
+          <Route path="/revenue-reports" element={
             <RoleProtectedRoute requiredRole="manager">
               <RevenueReportsPage />
             </RoleProtectedRoute>

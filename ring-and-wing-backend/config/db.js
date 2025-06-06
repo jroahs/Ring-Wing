@@ -2,19 +2,25 @@ const mongoose = require('mongoose');
 require('dotenv').config();
 const { logger } = require('./logger');
 
-// Enhanced connection options compatible with Mongoose 8.x
+// Enhanced connection options compatible with modern MongoDB driver - FIXED for 10-minute disconnections
 const mongooseOptions = {
   // Connection pooling
   maxPoolSize: 50,
-  minPoolSize: 10, 
-  socketTimeoutMS: 120000,
+  minPoolSize: 5, 
+  
+  // CRITICAL: These settings prevent 10-minute disconnections
+  socketTimeoutMS: 0, // Disable socket timeout (was causing disconnections)
+  maxIdleTimeMS: 1800000, // 30 minutes - prevent idle disconnections (THIS WAS MISSING!)
   connectTimeoutMS: 30000,
   serverSelectionTimeoutMS: 15000,
-  heartbeatFrequencyMS: 10000,
+  heartbeatFrequencyMS: 10000, // Ping every 10 seconds
+  
+  // Retry settings
   retryWrites: true,
   retryReads: true,
-  family: 4
-  // NOTE: keepAlive is enabled by default in newer MongoDB drivers
+  
+  // Remove unsupported options for newer MongoDB driver
+  // keepAlive, keepAliveInitialDelay, bufferMaxEntries, bufferCommands are not supported
 };
 
 // Track connection status and reconnect attempts
@@ -72,11 +78,10 @@ const setupConnectionHandlers = () => {
     }
     isConnectedBefore = true;
     reconnectAttempts = 0;
-    
-    // Start the keep-alive mechanism if not already started
+      // Start the keep-alive mechanism if not already started
     if (!keepAliveInterval) {
-      keepAliveInterval = setInterval(pingDb, 300000); // Every 5 minutes
-      logger.info('MongoDB keep-alive mechanism activated');
+      keepAliveInterval = setInterval(pingDb, 120000); // Every 2 minutes (was 5 minutes)
+      logger.info('MongoDB keep-alive mechanism activated (2-minute intervals)');
     }
   });
 };
@@ -127,8 +132,10 @@ const connectDB = async () => {
     // Set up connection handlers before attempting to connect
     setupConnectionHandlers();
     
-    // Attempt initial connection
+    // Attempt initial connection with modern options
     await mongoose.connect(process.env.MONGO_URI, mongooseOptions);
+    
+    logger.info('✅ MongoDB initial connection successful');
     
     // Return a database health check function that can be used by the server
     return {
@@ -149,6 +156,40 @@ const connectDB = async () => {
     
   } catch (err) {
     logger.error('MongoDB initial connection error:', err.message);
+    
+    // For unsupported options error, try with minimal options
+    if (err.message.includes('not supported')) {
+      logger.warn('Retrying with minimal connection options...');
+      try {
+        const minimalOptions = {
+          maxPoolSize: 10,
+          serverSelectionTimeoutMS: 15000,
+          socketTimeoutMS: 0,
+          maxIdleTimeMS: 1800000 // 30 minutes - this is the key setting
+        };
+        
+        await mongoose.connect(process.env.MONGO_URI, minimalOptions);
+        logger.info('✅ MongoDB connected with minimal options');
+        
+        return {
+          checkConnection: async () => {
+            if (mongoose.connection.readyState !== 1) {
+              throw new Error('Database connection is not established');
+            }
+            try {
+              await mongoose.connection.db.admin().ping();
+              return true;
+            } catch (error) {
+              logger.error('Database health check failed:', error);
+              throw new Error('Database connection failed health check');
+            }
+          }
+        };
+      } catch (minimalErr) {
+        logger.error('Even minimal connection failed:', minimalErr.message);
+      }
+    }
+    
     // Schedule a retry with initial delay
     setTimeout(() => {
       logger.info('Retrying MongoDB connection...');

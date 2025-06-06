@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 const morgan = require('morgan');
 const connectDB = require('./config/db');
+const connectionMonitor = require('./utils/connectionMonitor');
 const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
@@ -49,6 +50,13 @@ let dbConnection;
   try {
     dbConnection = await connectDB();
     logger.info('Database connection initialized with enhanced resilience');
+    
+    // Start enhanced connection monitoring after successful connection
+    setTimeout(() => {
+      connectionMonitor.startMonitoring();
+      logger.info('🔍 Advanced connection monitoring activated');
+    }, 5000); // Wait 5 seconds to ensure connection is stable
+    
   } catch (error) {
     logger.error('Failed to initialize database connection:', error);
   }
@@ -296,6 +304,52 @@ app.use('/api/revenue', revenueRoutes);
 
 // Health routes for server monitoring
 app.use('/api/health', healthRoutes);
+
+// Enhanced database status endpoints using connection monitor
+app.get('/api/db-status', (req, res) => {
+  try {
+    const connectionInfo = connectionMonitor.getConnectionInfo();
+    const healthSummary = connectionMonitor.getHealthSummary();
+    
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      connection: connectionInfo,
+      health: healthSummary,
+      uptime: process.uptime()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Detailed connection diagnostics endpoint
+app.get('/api/db-diagnostics', (req, res) => {
+  try {
+    const connectionInfo = connectionMonitor.getConnectionInfo();
+    const healthSummary = connectionMonitor.getHealthSummary();
+    
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      connectionDetails: connectionInfo,
+      healthAnalysis: healthSummary,
+      isMonitoring: connectionMonitor.isMonitoring,
+      serverUptime: process.uptime(),
+      memoryUsage: process.memoryUsage()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 // Database status route for frontend
 app.use('/api/db-status', require('./routes/dbStatusRoutes'));
@@ -571,6 +625,8 @@ process.on('SIGINT', () => {
   if (dbDiagnosticsTimer) {
     clearInterval(dbDiagnosticsTimer);
   }
+  // Stop connection monitoring
+  connectionMonitor.stopMonitoring();
   // Other cleanup code follows...
 });
 
@@ -601,8 +657,7 @@ const gracefulShutdown = (signal) => {
     logger.error('Could not close connections in time, forcefully shutting down');
     process.exit(1);
   }, 60000); // Increased from 30s to 60s to give more time for connections to close
-  
-  // First, terminate any scheduled tasks
+    // First, terminate any scheduled tasks
   logger.info('Stopping scheduled tasks...');
   try {
     // Get all scheduled tasks and stop them
@@ -614,6 +669,10 @@ const gracefulShutdown = (signal) => {
   } catch (err) {
     logger.error('Error stopping scheduled tasks:', err);
   }
+  
+  // Stop connection monitoring
+  logger.info('Stopping connection monitoring...');
+  connectionMonitor.stopMonitoring();
   
   // Then stop memory monitoring
   if (typeof stopMemoryMonitoring === 'function') {

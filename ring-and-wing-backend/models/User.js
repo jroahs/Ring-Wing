@@ -26,8 +26,7 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Password is required'],
     minlength: [8, 'Password must be at least 8 characters'],
     select: false
-  },
-  role: {
+  },  role: {
     type: String,
     enum: {
       values: ['staff', 'manager'],
@@ -35,6 +34,15 @@ const userSchema = new mongoose.Schema({
     },
     required: [true, 'User role is required'],
     default: 'staff'
+  },
+  position: {
+    type: String,
+    enum: {
+      values: ['cashier', 'inventory', 'manager', 'admin'],
+      message: 'Invalid position'
+    },
+    required: [true, 'Position is required'],
+    default: 'cashier'
   },
   reportsTo: {
     type: mongoose.Schema.Types.ObjectId,
@@ -87,6 +95,7 @@ userSchema.methods.generateAuthToken = function() {
     {
       _id: this._id,
       role: this.role,
+      position: this.position,
       username: this.username
     },
     process.env.JWT_SECRET,
@@ -95,6 +104,11 @@ userSchema.methods.generateAuthToken = function() {
       issuer: process.env.JWT_ISSUER || 'ring-wing-cafe'
     }
   );
+};
+
+// Check if user has inventory access
+userSchema.methods.hasInventoryAccess = function() {
+  return ['inventory', 'manager', 'admin'].includes(this.position);
 };
 
 // Virtual relationship

@@ -84,111 +84,117 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
   const chevronSize = isLargeScreen ? 20 : 16;
   const logoSize = isLargeScreen ? '1.875rem' : '1.5rem';
   const tooltipTextSize = isLargeScreen ? '1rem' : '0.875rem';
-  const dropdownWidth = isLargeScreen ? '14rem' : '12rem';
-    const userRole = userData?.role || 'staff';
+  const dropdownWidth = isLargeScreen ? '14rem' : '12rem';  const userRole = userData?.role || 'staff';
+  const userPosition = userData?.position || 'cashier';
 
-  // Define navigation items with role-based access - updated structure
+  // Define navigation items with position-based access
   const navigationItems = [
     { 
       path: '/dashboard', 
       icon: <FiGrid size={iconSize} className="text-white" />, 
       label: 'Dashboard',
-      roles: ['manager', 'staff']
+      positions: ['manager', 'admin']
     },
     { 
       path: '/pos', 
       icon: <FiShoppingCart size={iconSize} className="text-white" />, 
       label: 'POS',
-      roles: ['staff']
+      positions: ['cashier', 'manager', 'admin']
     },
     { 
       path: '/sales',
       icon: <FiShoppingBag size={iconSize} className="text-white" />,
       label: 'Sales',
-      roles: ['manager', 'staff'],
+      positions: ['cashier', 'manager', 'admin'],
       subItems: [
         { 
           path: '/self-checkout', 
           icon: <FiTablet size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Self Checkout',
-          roles: ['manager', 'staff']
+          positions: ['cashier', 'manager', 'admin']
         },
         { 
           path: '/orders', 
           icon: <FiShoppingBag size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Orders',
-          roles: ['manager', 'staff']
-        },      ]
+          positions: ['cashier', 'manager', 'admin']
+        },
+      ]
     },
     { 
       path: '/inventory-management',
       icon: <FiDatabase size={iconSize} className="text-white" />,
       label: 'Inventory & Menu',
-      roles: ['manager', 'staff'],
+      positions: ['inventory', 'manager', 'admin'],
       subItems: [
         { 
           path: '/inventory', 
           icon: <FiBox size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Inventory',
-          roles: ['manager', 'staff']
+          positions: ['inventory', 'manager', 'admin']
         },
         { 
           path: '/menu', 
           icon: <FiBookOpen size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Menu',
-          roles: ['manager', 'staff']
+          positions: ['manager', 'admin']
         },
       ]
     },
-    {      path: '/timeclock', 
+    {
+      path: '/timeclock', 
       icon: <FiClock size={iconSize} className="text-white" />, 
       label: 'Time Clock',
-      roles: ['staff']
+      positions: ['cashier', 'inventory', 'manager', 'admin']
     },
     { 
       path: '/staff',
       icon: <FiUsers size={iconSize} className="text-white" />,
-      label: 'Staff',
-      roles: ['manager'],
+      label: 'Staff',      positions: ['manager', 'admin'],
       subItems: [
         { 
           path: '/employees', 
           icon: <FiUser size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Employee Management',
-          roles: ['manager']
-        },        { 
+          positions: ['manager', 'admin']
+        },
+        { 
           path: '/payroll', 
           icon: <FiCreditCard size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Payroll System',
-          roles: ['manager']
-        }]
-    },    { 
+          positions: ['manager', 'admin']
+        }
+      ]
+    },
+    { 
       path: '/expenses', 
       icon: <FiTrendingDown size={iconSize} className="text-white" />, 
       label: 'Expenses',
-      roles: ['manager']
-    },{ 
+      positions: ['manager', 'admin']
+    },
+    { 
       path: '/revenue-reports', 
       icon: <FiPieChart size={iconSize} className="text-white" />, 
       label: 'Revenue Reports',
-      roles: ['manager']
+      positions: ['manager', 'admin']
     },
     { 
       path: '/chatbot', 
       icon: <FiMessageSquare size={iconSize} className="text-white" />, 
       label: 'AI Assistant',
-      roles: ['manager', 'staff']
-    }  ];
+      positions: ['cashier', 'inventory', 'manager', 'admin']
+    }
+  ];
 
-  // Filter navigation items based on user role
+  // Filter navigation items based on user position
   const allowedNavigationItems = navigationItems.map(item => {
-    if (!item.roles.includes(userRole)) {
+    if (!item.positions.includes(userPosition)) {
       return null;
     }
 
     if (item.subItems) {
       const filteredSubItems = item.subItems.filter(subItem => 
-        !subItem.roles || subItem.roles.includes(userRole)
+        !subItem.positions || subItem.positions.includes(userPosition)
       );
       
       if (filteredSubItems.length === 0) {
