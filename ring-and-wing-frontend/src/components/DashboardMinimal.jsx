@@ -25,10 +25,8 @@ const DashboardMinimal = () => {
     bestSellers: [],
     pendingOrders: 0,
     lowStockCount: 0
-  });
-  const [salesSummary, setSalesSummary] = useState({
+  });  const [salesSummary, setSalesSummary] = useState({
     totalSales: 0,
-    paymentMethods: {},
     orderSources: {}
   });
   const [operations, setOperations] = useState({
@@ -40,6 +38,7 @@ const DashboardMinimal = () => {
     activeCount: 0
   });
   const [monthlyExpenses, setMonthlyExpenses] = useState([]);
+  const [revenueData, setRevenueData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
@@ -51,24 +50,47 @@ const DashboardMinimal = () => {
         const ordersResponse = await fetch('http://localhost:5000/api/orders');
         const ordersData = await ordersResponse.json();
         setOrders(ordersData.data || []);
-        
-        // Fetch sales stats - using daily period
-        const statsResponse = await fetch('http://localhost:5000/api/revenue/daily');
+          // Fetch sales stats - using monthly period for consistency with expenses
+        const statsResponse = await fetch('http://localhost:5000/api/revenue/monthly');
         const statsData = await statsResponse.json();
         const revenueData = statsData.data || {};
+          // Fetch historical monthly revenue data for the chart
+        const monthlyHistoricalResponse = await fetch('http://localhost:5000/api/revenue/historical/monthly');
+        const monthlyHistoricalData = await monthlyHistoricalResponse.json();
+          // Prepare revenue data for charts from historical monthly data
+        let chartRevenueData = [];
+        
+        if (monthlyHistoricalData.success && monthlyHistoricalData.data) {
+          chartRevenueData = monthlyHistoricalData.data.map(monthData => ({
+            period: monthData.month,
+            revenue: monthData.revenue,
+            orders: monthData.orders,
+            formattedMonth: monthData.month
+          }));
+        }
+        
+        setRevenueData(chartRevenueData);
         
         // Fetch expenses
         const expensesResponse = await fetch('http://localhost:5000/api/expenses');
         const expensesData = await expensesResponse.json();
-        
-        // Process expenses for monthly disbursements
+          // Process expenses for monthly disbursements (current month only)
         let monthlyDisbursements = 0;
         const monthlyExpenseData = [];
         
         if (Array.isArray(expensesData)) {
-          // Calculate total disbursements
+          // Get current month start and end dates
+          const now = new Date();
+          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+          const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+          
+          // Calculate current month disbursements only
           monthlyDisbursements = expensesData
-            .filter(exp => exp.disbursed)
+            .filter(exp => {
+              if (!exp.disbursed) return false;
+              const disbursementDate = new Date(exp.disbursementDate || exp.date);
+              return disbursementDate >= monthStart && disbursementDate <= monthEnd;
+            })
             .reduce((sum, exp) => sum + (exp.amount || 0), 0);
             
           // Group expenses by month for the chart
@@ -145,11 +167,10 @@ const DashboardMinimal = () => {
           pendingOrders: 0, // This data is not provided by the revenue API
           lowStockCount: 0 // This data is not provided by the revenue API
         });
-        
-        // Set sales summary
+          // Set sales summary (removed paymentMethods since we replaced it with monthly trend)
         setSalesSummary({
           totalSales: revenueData.summary?.totalRevenue || 0,
-          paymentMethods: revenueData.revenueByPayment || {},          orderSources: revenueData.revenueBySource || {}
+          orderSources: revenueData.revenueBySource || {}
         });
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -185,6 +206,7 @@ const DashboardMinimal = () => {
         isLoading={isLoading}
         staffData={staffData}
         monthlyExpenses={monthlyExpenses}
+        revenueData={revenueData}
       />
     </div>
   );

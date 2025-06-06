@@ -98,8 +98,90 @@ router.get('/:period', async (req, res) => {
         revenueBySource,
         hourlyDistribution,
         topItems
+      }    });  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get historical monthly revenue data (last 12 months)
+router.get('/historical/monthly', async (req, res) => {
+  try {
+    const currentDate = new Date();
+    const monthlyData = [];
+
+    // Get data for last 12 months
+    for (let i = 11; i >= 0; i--) {
+      const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() - i + 1, 0, 23, 59, 59);
+      
+      // Get orders for this month
+      const orders = await Order.find({
+        createdAt: { $gte: monthStart, $lte: monthEnd },
+        paymentMethod: { $ne: 'pending' }
+      });
+
+      // Calculate metrics for this month
+      const revenue = orders.reduce((acc, order) => acc + order.totals.total, 0);
+      const orderCount = orders.length;
+      
+      monthlyData.push({
+        month: monthStart.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        revenue: revenue,
+        orders: orderCount,
+        fullDate: monthStart
+      });
+    }
+
+    res.json({
+      success: true,
+      data: monthlyData
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get all-time top items (never resets)
+router.get('/top-items/all-time', async (req, res) => {
+  try {
+    // Get ALL orders ever (no date filter)
+    const orders = await Order.find({
+      paymentMethod: { $ne: 'pending' }  // Only exclude pending payment orders
+    });
+
+    // Calculate all-time item statistics
+    const itemStats = orders.reduce((acc, order) => {
+      order.items.forEach(item => {
+        if (!acc[item.name]) {
+          acc[item.name] = { quantity: 0, revenue: 0 };
+        }
+        acc[item.name].quantity += item.quantity;
+        acc[item.name].revenue += item.price * item.quantity;
+      });
+      return acc;
+    }, {});
+
+    // Get top 10 items by revenue (all-time)
+    const topItems = Object.entries(itemStats)
+      .map(([name, stats]) => ({ name, ...stats }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+
+    res.json({
+      success: true,
+      data: {
+        totalOrders: orders.length,
+        totalRevenue: orders.reduce((acc, order) => acc + order.totals.total, 0),
+        topItems
       }
-    });  } catch (error) {
+    });
+  } catch (error) {
     res.status(500).json({
       success: false,
       error: error.message

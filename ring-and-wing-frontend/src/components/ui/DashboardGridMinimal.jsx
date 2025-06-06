@@ -5,7 +5,7 @@ import {
   FiShoppingBag, FiDollarSign, FiUsers, FiTrendingUp, 
   FiChevronRight, FiBarChart2, FiClock, FiTrendingDown
 } from 'react-icons/fi';
-import { ResponsiveContainer, BarChart, Bar, XAxis, CartesianGrid, Tooltip } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, CartesianGrid, Tooltip, LineChart, Line, YAxis } from 'recharts';
 import PesoIcon from './PesoIcon';
 import { PesoIconSVG } from './PesoIconSVG';
 import { PesoIconClean } from './PesoIconClean';
@@ -22,7 +22,8 @@ export const DashboardGridMinimal = ({
   isLoading = false,
   className = '',
   staffData = { team: [], activeCount: 0 },
-  monthlyExpenses = []
+  monthlyExpenses = [],
+  revenueData = []
 }) => {
   // Get only top 3 best sellers
   const topBestSellers = stats.bestSellers?.slice(0, 3) || [];
@@ -260,13 +261,14 @@ export const DashboardGridMinimal = ({
             )}
           </div>
         </Card>        {/* Financial Health Panel */}
-        <Card className="!p-0 overflow-hidden">          <div className="px-3 py-2 border-b flex justify-between items-center" 
+        <Card className="!p-0 overflow-hidden">
+          <div className="px-3 py-2 border-b flex justify-between items-center" 
                style={{ borderColor: theme.colors.muted + '15' }}>
             <div className="text-xs font-medium flex items-center gap-1" style={{ color: theme.colors.primary }}>
-              <PesoIconSimple width={12} height={12} /> Financial Health
+              <PesoIconSimple width={12} height={12} /> Revenue Overview
             </div>
             <Link 
-              to="/reports" 
+              to="/revenue-reports" 
               className="flex items-center text-[10px] font-medium"
               style={{ color: theme.colors.accent }}
             >
@@ -275,6 +277,42 @@ export const DashboardGridMinimal = ({
           </div>
           
           <div className="p-3">
+            {/* Mini Revenue Chart */}
+            <div className="mb-3">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[10px]" style={{ color: theme.colors.muted }}>Daily Revenue Trend</span>
+                <span className="text-xs font-medium" style={{ color: theme.colors.primary }}>
+                  {formatCurrency(salesSummary.totalSales)}
+                </span>
+              </div>              {revenueData.length > 0 ? (
+                <div className="h-16 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={revenueData.slice(-7)} barSize={8}>
+                      <XAxis 
+                        dataKey="period" 
+                        tick={false}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        formatter={(value) => [`₱${parseFloat(value).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`, 'Revenue']}
+                        contentStyle={{ fontSize: '10px', backgroundColor: theme.colors.background }}
+                        labelStyle={{ fontSize: '10px' }}
+                      />
+                      <Bar 
+                        dataKey="revenue" 
+                        fill={theme.colors.accent}
+                        radius={[2, 2, 0, 0]} 
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>              ) : (
+                <div className="h-16 flex items-center justify-center bg-gray-50 rounded">
+                  <span className="text-[10px]" style={{ color: theme.colors.muted }}>No revenue data available</span>
+                </div>
+              )}
+            </div>
+
             {/* Profit Margin */}
             <div className="mb-3">
               <div className="flex justify-between items-center mb-1">
@@ -343,42 +381,92 @@ export const DashboardGridMinimal = ({
           </div>
         </Card>
       </div>
-      
-      {/* Quick Actions - Compact Icons */}
-      <div className="flex justify-center gap-2 mt-1">
-        <Link 
-          to="/orders/new" 
-          className="p-2 border rounded-full hover:bg-gray-50"
-          style={{ borderColor: theme.colors.muted + '20' }}
-          title="New Order"
-        >
-          <FiShoppingBag className="w-4 h-4" style={{ color: theme.colors.accent }} />
-        </Link>
-        
-        <Link 
-          to="/inventory" 
-          className="p-2 border rounded-full hover:bg-gray-50"
-          style={{ borderColor: theme.colors.muted + '20' }}
-          title="Inventory"
-        >
-          <FiBarChart2 className="w-4 h-4" style={{ color: theme.colors.secondary }} />
-        </Link>        <Link 
-          to="/reports" 
-          className="p-2 border rounded-full hover:bg-gray-50"
-          style={{ borderColor: theme.colors.muted + '20' }}
-          title="Reports"
-        >
-          <PesoIconSVG width={16} height={16} style={{ color: theme.colors.primary }} />
-        </Link>
-        
-        <Link 
-          to="/staff" 
-          className="p-2 border rounded-full hover:bg-gray-50"
-          style={{ borderColor: theme.colors.muted + '20' }}
-          title="Staff"
-        >
-          <FiUsers className="w-4 h-4" style={{ color: theme.colors.muted }} />
-        </Link>
+
+      {/* Additional Revenue Charts Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+        {/* Revenue vs Expenses Chart */}
+        <Card className="!p-0 overflow-hidden">
+          <div className="px-3 py-2 border-b" style={{ borderColor: theme.colors.muted + '15' }}>
+            <div className="text-xs font-medium" style={{ color: theme.colors.primary }}>
+              Revenue vs Expenses
+            </div>
+          </div>
+          <div className="p-3">
+            {monthlyExpenses.length > 0 ? (
+              <div className="h-32 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyExpenses.slice(-6)} barSize={20}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                    <XAxis 
+                      dataKey="formattedMonth" 
+                      tick={{ fontSize: 10 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      formatter={(value, name) => [
+                        `₱${parseFloat(value).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`, 
+                        name
+                      ]}
+                      contentStyle={{ fontSize: '10px', backgroundColor: theme.colors.background }}
+                    />
+                    <Bar dataKey="amount" fill={theme.colors.secondary} name="Expenses" radius={[2, 2, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-32 flex items-center justify-center bg-gray-50 rounded">
+                <span className="text-[10px]" style={{ color: theme.colors.muted }}>No expense data</span>
+              </div>
+            )}
+          </div>
+        </Card>        {/* Monthly Revenue Trend */}
+        <Card className="!p-0 overflow-hidden">
+          <div className="px-3 py-2 border-b" style={{ borderColor: theme.colors.muted + '15' }}>
+            <div className="text-xs font-medium" style={{ color: theme.colors.primary }}>
+              Monthly Revenue Trend
+            </div>
+          </div>
+          <div className="p-3">
+            <div className="h-24">
+              {revenueData && revenueData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={revenueData}>
+                    <XAxis 
+                      dataKey="period" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 9, fill: theme.colors.muted }}
+                    />
+                    <YAxis hide />
+                    <Tooltip 
+                      formatter={(value) => [formatCurrency(value), 'Revenue']}
+                      labelStyle={{ fontSize: '10px' }}
+                      contentStyle={{ 
+                        fontSize: '10px', 
+                        backgroundColor: 'white',
+                        border: `1px solid ${theme.colors.muted}40`,
+                        borderRadius: '4px'
+                      }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="revenue" 
+                      stroke={theme.colors.accent}
+                      strokeWidth={2}
+                      dot={{ fill: theme.colors.accent, strokeWidth: 0, r: 3 }}
+                      activeDot={{ r: 4, fill: theme.colors.primary }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="text-[10px] text-center py-4" style={{ color: theme.colors.muted }}>
+                  No revenue trend data available
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
       </div>
     </div>
   );

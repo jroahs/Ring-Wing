@@ -195,6 +195,8 @@ const InventorySystem = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [showReports, setShowReports] = useState(false);
   const [alerts, setAlerts] = useState([]);
@@ -686,12 +688,40 @@ const InventorySystem = () => {
     newInventory[index][field] = value;
     setNewItem({ ...newItem, inventory: newInventory });
   };
-
   // Update a batch quantity in bulk end-day mode
   const updateBulkEndDayQuantity = (itemIndex, batchIndex, newQuantity) => {
     const newBulkQuantities = [...bulkEndDayQuantities];
     newBulkQuantities[itemIndex].endQuantities[batchIndex].quantity = newQuantity;
     setBulkEndDayQuantities(newBulkQuantities);
+  };
+
+  // Reset form function
+  const resetForm = () => {
+    setNewItem({
+      name: '',
+      category: '',
+      unit: 'pieces',
+      cost: 0,
+      price: 0,
+      vendor: '',
+      inventory: [],
+      isCountBased: true,
+      minimumThreshold: 5
+    });
+  setEditingItem(null);
+    setShowVendorAccordion(false);
+  };
+
+  // Handle vendor selection (for edit modal)
+  const handleVendorSelection = (e) => {
+    const value = e.target.value;
+    if (value === 'new') {
+      setShowVendorAccordion(true);
+      setNewItem({...newItem, vendor: ''});
+    } else {
+      setNewItem({...newItem, vendor: value});
+      setShowVendorAccordion(false);
+    }
   };
 
   // Handle item form submission
@@ -714,23 +744,62 @@ const InventorySystem = () => {
                           newItem.unit === 'milliliters' ? 500 :
                           newItem.unit === 'liters' ? 0.5 : 5)
       };
-      
-      const { data } = await axios.post(`${API_URL}/api/items`, itemToSubmit);
+        const { data } = await axios.post(`${API_URL}/api/items`, itemToSubmit);
       setItems([...items, data]);
       setShowAddModal(false);
-      setNewItem({
-        name: '',
-        category: '',
-        unit: 'pieces',
-        cost: 0,
-        price: 0,
-        vendor: '',
-        inventory: [],
-        isCountBased: true,
-        minimumThreshold: 5
-      });
-    } catch (err) {
+      resetForm();} catch (err) {
       setError('Failed to add new item: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  // Handle editing an item
+  const handleEditItem = (item) => {
+    setEditingItem(item);
+    setNewItem({
+      name: item.name,
+      category: item.category,
+      unit: item.unit,
+      cost: item.cost,
+      price: item.price,
+      vendor: item.vendor,
+      inventory: item.inventory,
+      isCountBased: item.isCountBased,
+      minimumThreshold: item.minimumThreshold
+    });
+    setShowEditModal(true);
+  };
+
+  // Handle edit submission
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      // Validate inventory batches
+      if (newItem.inventory.length === 0) {
+        throw new Error('At least one inventory batch is required');
+      }
+      
+      // Set isCountBased based on unit
+      const isCountBased = newItem.unit === 'pieces';
+      const itemToSubmit = {
+        ...newItem,
+        isCountBased,
+        minimumThreshold: isCountBased ? 5 : 
+                         (newItem.unit === 'grams' ? 500 :
+                          newItem.unit === 'kilograms' ? 0.5 :
+                          newItem.unit === 'milliliters' ? 500 :
+                          newItem.unit === 'liters' ? 0.5 : 5)
+      };
+      
+      const { data } = await axios.put(`${API_URL}/api/items/${editingItem._id}`, itemToSubmit);
+        setItems(items.map(item => 
+        item._id === editingItem._id ? data : item
+      ));
+      setShowEditModal(false);
+      resetForm();
+      
+      logAction(`Updated item: ${data.name}`, editingItem._id);
+    } catch (err) {
+      setError('Failed to update item: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -982,6 +1051,13 @@ const InventorySystem = () => {
                         Restock
                       </Button>
                       <Button
+                        onClick={() => handleEditItem(item)}
+                        variant="primary"
+                        size="sm"
+                      >
+                        Edit
+                      </Button>
+                      <Button
                         onClick={() => handleDelete(item._id)}
                         variant="ghost"
                         size="sm"
@@ -1221,7 +1297,9 @@ const InventorySystem = () => {
                             style={{ borderColor: colors.muted }}
                           />
                         </div>
-                      </div>                      <div className="flex justify-end gap-2 mt-4">
+                      </div>
+                      
+                      <div className="flex justify-end gap-2 mt-4">
                         <Button
                           onClick={() => setShowVendorAccordion(false)}
                           variant="ghost"
@@ -1242,7 +1320,10 @@ const InventorySystem = () => {
                 )}                <div className="mt-6 flex justify-between">
                   <div className="flex gap-2">
                     <Button
-                      onClick={() => setShowAddModal(false)}
+                      onClick={() => {
+                        setShowAddModal(false);
+                        resetForm();
+                      }}
                       variant="secondary"
                     >
                       Cancel
@@ -1261,6 +1342,257 @@ const InventorySystem = () => {
         )}
 
 
+
+        {/* Edit Item Modal */}
+        {showEditModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white p-6 rounded-lg w-full max-w-2xl max-h-[90vh] flex flex-col">
+              <h2 className="text-xl font-bold mb-4">Edit Item</h2>
+              <form onSubmit={handleEditSubmit} className="flex-1 overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  {/* Item Name */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm mb-1">Item Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={newItem.name}
+                      onChange={(e) => setNewItem({...newItem, name: e.target.value})}
+                      className="w-full p-2 border rounded"
+                      style={{ borderColor: colors.muted }}
+                    />
+                  </div>
+
+                  {/* Category & Vendor */}
+                  <div>
+                    <label className="block text-sm mb-1">Category</label>
+                    <select
+                      required
+                      value={newItem.category}
+                      onChange={(e) => setNewItem({...newItem, category: e.target.value})}
+                      className="w-full p-2 border rounded"
+                      style={{ borderColor: colors.muted }}
+                    >
+                      <option value="">Select Category</option>
+                      {['Food', 'Beverages', 'Ingredients', 'Packaging'].map(category => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm mb-1">Vendor</label>
+                    <div className="flex gap-2">
+                      <select
+                        required
+                        value={newItem.vendor}
+                        onChange={handleVendorSelection}
+                        className="flex-1 p-2 border rounded"
+                        style={{ borderColor: colors.muted }}
+                      >                        <option value="">Select Vendor</option>
+                        {vendors.map(vendor => (
+                          <option key={vendor._id} value={vendor.name}>{vendor.name}</option>
+                        ))}
+                        <option value="new">+ Add New Vendor</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Unit */}
+                  <div>
+                    <label className="block text-sm mb-1">Unit</label>
+                    <select
+                      required
+                      value={newItem.unit}
+                      onChange={(e) => setNewItem({...newItem, unit: e.target.value})}
+                      className="w-full p-2 border rounded"
+                      style={{ borderColor: colors.muted }}
+                    >
+                      <option value="">Select Unit</option>
+                      {['pieces', 'kilograms', 'liters', 'packs'].map(unit => (
+                        <option key={unit} value={unit}>{unit}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Minimum Stock */}
+                  <div>
+                    <label className="block text-sm mb-1">Minimum Stock Alert</label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      step={newItem.unit === 'kilograms' || newItem.unit === 'liters' ? '0.1' : '1'}
+                      value={newItem.minimumStock}
+                      onChange={(e) => setNewItem({...newItem, minimumStock: parseFloat(e.target.value)})}
+                      className="w-full p-2 border rounded"
+                      style={{ borderColor: colors.muted }}
+                    />
+                  </div>                  {/* Initial Batches */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm mb-1">Batches</label>
+                    <div className="space-y-2 max-h-40 overflow-y-auto p-2 border rounded" style={{ borderColor: colors.muted }}>
+                      {newItem.inventory.map((batch, index) => (
+                        <div key={index} className="flex gap-2 items-center p-2 bg-gray-50 rounded">
+                          <div className="flex-1">
+                            <input
+                              type="number"
+                              placeholder="Quantity"
+                              required
+                              min="0"                              step={newItem.unit === 'kilograms' || newItem.unit === 'liters' ? '0.1' : '1'}
+                              value={batch.quantity}
+                              onChange={(e) => handleBatchChange(index, 'quantity', parseFloat(e.target.value))}
+                              className="w-full p-1 border rounded text-sm"
+                              style={{ borderColor: colors.muted }}
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <input
+                              type="date"
+                              required
+                              value={batch.expirationDate}
+                              onChange={(e) => handleBatchChange(index, 'expirationDate', e.target.value)}
+                              className="w-full p-1 border rounded text-sm"
+                              style={{ borderColor: colors.muted }}
+                            />
+                          </div>
+                          <Button
+                            onClick={() => removeBatch(index)}
+                            variant="ghost"
+                            size="sm"
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                    <Button
+                      onClick={addBatch}
+                      variant="accent"
+                      size="sm"
+                      className="mt-2"
+                    >
+                      Add Batch
+                    </Button>
+                  </div>
+
+                  {/* Cost & Price */}
+                  <div>
+                    <label className="block text-sm mb-1">Cost (₱) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      min="0"
+                      value={newItem.cost}
+                      onChange={(e) => setNewItem({...newItem, cost: parseFloat(e.target.value)})}
+                      className="w-full p-2 border rounded"
+                      style={{ borderColor: colors.muted }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm mb-1">Price (₱) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      min="0"
+                      value={newItem.price}
+                      onChange={(e) => setNewItem({...newItem, price: parseFloat(e.target.value)})}
+                      className="w-full p-2 border rounded"
+                      style={{ borderColor: colors.muted }}
+                    />
+                  </div>
+                </div>
+
+                {/* Vendor Creation Accordion */}
+                {showVendorAccordion && (
+                  <div className="md:col-span-2 mt-4 p-4 border rounded" style={{ borderColor: colors.muted }}>
+                    <h3 className="text-sm font-medium mb-3">New Vendor Details</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs mb-1">Vendor Name *</label>
+                        <input
+                          type="text"
+                          required
+                          value={newVendor.name}
+                          onChange={(e) => setNewVendor({...newVendor, name: e.target.value})}
+                          className="w-full p-2 border rounded text-sm"
+                          style={{ borderColor: colors.muted }}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs mb-1">Email (optional)</label>
+                          <input
+                            type="email"
+                            value={newVendor.contact.email}
+                            onChange={(e) => setNewVendor({
+                              ...newVendor,
+                              contact: {...newVendor.contact, email: e.target.value}
+                            })}
+                            className="w-full p-2 border rounded text-sm"
+                            style={{ borderColor: colors.muted }}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1">Phone (optional)</label>
+                          <input
+                            type="tel"
+                            value={newVendor.contact.phone}
+                            onChange={(e) => setNewVendor({
+                              ...newVendor,
+                              contact: {...newVendor.contact, phone: e.target.value}
+                            })}
+                            className="w-full p-2 border rounded text-sm"
+                            style={{ borderColor: colors.muted }}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-end gap-2 mt-4">
+                        <Button
+                          onClick={() => setShowVendorAccordion(false)}
+                          variant="ghost"
+                          size="sm"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={handleVendorSubmit}
+                          variant="accent"
+                          size="sm"
+                        >
+                          Add Vendor
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}                <div className="mt-6 flex justify-between">
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => {
+                        setShowEditModal(false);
+                        resetForm();
+                      }}
+                      variant="secondary"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                    >
+                      Update Item
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
 {showRestockModal && (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">

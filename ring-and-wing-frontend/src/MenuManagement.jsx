@@ -216,9 +216,10 @@ const MenuPage = () => {
   const [showAddOnModal, setShowAddOnModal] = useState(false);
   const [addOnToDelete, setAddOnToDelete] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [imageFile, setImageFile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [imageFile, setImageFile] = useState(null);  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('All');
   const [newAddOn, setNewAddOn] = useState({
     name: '',
     price: 0,
@@ -453,6 +454,12 @@ const MenuPage = () => {
       }
     }
   }, [selectedItem, reset]);
+  const filteredMenuItems = menuItems.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.code.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
 
   if (loading) {
     return <div className="p-8 text-center text-gray-500">Loading menu items...</div>;
@@ -480,11 +487,58 @@ const MenuPage = () => {
             <PlusIcon className="w-5 h-5" />
             <span>Add New Item</span>
           </button>
-        </div>
-
-        {/* Menu List Table */}        <div className="overflow-x-auto rounded-xl shadow-lg mx-6" style={{ border: `1px solid ${colors.muted}20`, maxHeight: '520px' }}>
-          <table className="w-full">            <thead style={{ backgroundColor: colors.activeBg, position: 'sticky', top: 0 }}>
-              <tr>
+        </div>        {/* Search and Filter Bar */}
+        <div className="mb-6 mx-6">
+          <div className="flex gap-4 items-center">
+            {/* Search Bar */}
+            <div className="relative flex-1 max-w-md">
+              <input
+                type="text"
+                placeholder="Search by item name or code..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-all"
+                style={{ 
+                  borderColor: colors.muted,
+                  focusRingColor: colors.accent + '40'
+                }}
+              />
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className="h-5 w-5 absolute left-3 top-3.5" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke={searchTerm ? colors.accent : colors.muted}
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            
+            {/* Category Filter */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium whitespace-nowrap" style={{ color: colors.primary }}>
+                Filter by:
+              </label>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="px-3 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-all min-w-[120px]"
+                style={{ 
+                  borderColor: colors.muted,
+                  focusRingColor: colors.accent + '40'
+                }}
+              >
+                <option value="All">All Categories</option>
+                <option value="Beverages">Beverages</option>
+                <option value="Meals">Meals</option>
+              </select>
+            </div>
+          </div>
+        </div>{/* Menu List Table */}
+        <div className="overflow-y-auto rounded-xl shadow-lg mx-6" style={{ border: `1px solid ${colors.muted}20`, maxHeight: '520px' }}>
+          <table className="w-full">            <thead style={{ backgroundColor: colors.background, borderBottom: `2px solid ${colors.activeBg}`, position: 'sticky', top: 0, zIndex: 10 }}>
+              <tr style={{ backgroundColor: colors.activeBg }}>
                 <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Code</th>
                 <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Item</th>
                 <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Category</th>
@@ -492,7 +546,7 @@ const MenuPage = () => {
                 <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Actions</th>
               </tr>
             </thead>
-            <tbody>              {menuItems.length === 0 ? (
+            <tbody>              {filteredMenuItems.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="py-10">
                     <div className="flex flex-col items-center justify-center gap-3">
@@ -512,7 +566,7 @@ const MenuPage = () => {
                   </td>
                 </tr>
               ) : (
-                menuItems.map(item => (                  <tr
+                filteredMenuItems.map(item => (                  <tr
                     key={item._id}
                     style={{ borderColor: colors.muted + '20' }}
                     className="border-t hover:bg-gray-50"

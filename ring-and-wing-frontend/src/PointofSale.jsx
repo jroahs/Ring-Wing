@@ -14,7 +14,9 @@ import { FiClock, FiPlus, FiSettings, FiDollarSign, FiCheckCircle, FiCoffee } fr
 
 const PointOfSale = () => {  
   const [menuItems, setMenuItems] = useState([]);
-  const [currentOrder, setCurrentOrder] = useState([]);
+  const [currentOrder, setCurrentOrder] = useState([]); // Keep this for compatibility
+  const [readyOrderCart, setReadyOrderCart] = useState([]);
+  const [pendingOrderCart, setPendingOrderCart] = useState([]);
   const [activeOrders, setActiveOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   // Separate state for meals and beverages navigation
@@ -67,6 +69,10 @@ const PointOfSale = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);const [showTimeClock, setShowTimeClock] = useState(false);
   const [showTimeClockModal, setShowTimeClockModal] = useState(false);
   const [showOrderProcessingModal, setShowOrderProcessingModal] = useState(false);
+  const [orderViewType, setOrderViewType] = useState('ready');
+  const [editingPendingOrder, setEditingPendingOrder] = useState(null);
+  const [isPendingOrderMode, setIsPendingOrderMode] = useState(false);
+  const [pendingOrderItems, setPendingOrderItems] = useState([]);
   const receiptRef = useRef();
 
   // Check if user is manager
@@ -291,15 +297,20 @@ const PointOfSale = () => {
     } catch (error) {
       console.error('Error fetching orders:', error);
     }
-  };  const processExistingOrderPayment = async (orderId, newStatus) => {
-    try {
-      // Case 1: Payment processing flow from legacy payment component
+  };  const processExistingOrderPayment = async (orderId, newStatus) => {    try {
+      // Case 1: Payment processing flow from legacy payment component or ready orders
       if (typeof orderId === 'object' && orderId._id) {
         const order = orderId;
-        const { method, cashAmount, cardDetails, eWalletDetails } = newStatus;
+        const { method, cashAmount, cardDetails, eWalletDetails, totals } = newStatus;
         
-        const totalDue = parseFloat(order.totals.total);
-        let paymentData = {};
+        const totalDue = parseFloat(totals?.total || order.totals?.total || order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0));
+        let paymentData = {
+          totals: totals || {
+            subtotal: totalDue,
+            discount: 0,
+            total: totalDue
+          }
+        };
 
         if (method === 'cash') {
           if (cashAmount < totalDue) {
@@ -314,6 +325,7 @@ const PointOfSale = () => {
           }
 
           paymentData = {
+            ...paymentData,
             cashReceived: cashAmount,
             change: change.toFixed(2)
           };
@@ -328,83 +340,69 @@ const PointOfSale = () => {
             eWalletName: eWalletDetails.name
           };
         }
+
+        const response = await fetch(`http://localhost:5000/api/orders/${order._id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          },          body: JSON.stringify({
+            status: 'received',
+            paymentMethod: method,
+            ...paymentData
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to update order');
+
+        // Set up receipt data
+        const processedItems = order.items.map(item => ({
+          ...item,
+          availableSizes: item.availableSizes || [item.selectedSize || 'base'],
+          pricing: item.pricing || { [item.selectedSize || 'base']: item.price }
+        }));
         
+        setCurrentOrder(processedItems);
+        setPaymentMethod(method);
+        
+        // Add staff name
+        const userData = localStorage.getItem('userData');
+        const user = userData ? JSON.parse(userData) : null;
+        order.server = user?.username || '';
+        
+        if (method === 'cash') {
+          setCashAmount(cashAmount);
+        } else if (method === 'card' && cardDetails) {
+          setCardDetails(cardDetails);
+        } else if (method === 'e-wallet' && eWalletDetails) {
+          setEWalletDetails(eWalletDetails);
+        }          // Show receipt
+        setShowReceipt(true);
+        await new Promise(resolve => setTimeout(resolve, 100));
         try {
-          const response = await fetch(`http://localhost:5000/api/orders/${order._id}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify({
-              status: 'received',
-              paymentMethod: method,
-              ...paymentData
-            })
-          });
-
-          if (!response.ok) throw new Error('Failed to update order');          // Store current state to restore later
-          const prevCurrentOrder = [...currentOrder];
-          const prevPaymentMethod = paymentMethod;
-          const prevCashAmount = cashAmount;
-          const prevCardDetails = {...cardDetails};
-          const prevEWalletDetails = {...eWalletDetails};          // Instead of using ReactDOM, we'll use the existing state and refs for the receipt          // First, ensure each order item has all the necessary properties for OrderItem component
-          const processedItems = order.items.map(item => ({
-            ...item,
-            // Ensure each item has availableSizes and pricing to prevent the TypeError in OrderItem
-            availableSizes: item.availableSizes || [item.selectedSize || 'base'],
-            pricing: item.pricing || { [item.selectedSize || 'base']: item.price }
-          }));          
-          
-          // Set up temporary state for receipt printing with the processed items
-          setCurrentOrder(processedItems);
-          setPaymentMethod(method);
-          
-          // Add staff name to the order for receipt display
-          order.server = (() => {
-            try {
-              const userData = localStorage.getItem('userData');
-              if (userData) {
-                const user = JSON.parse(userData);
-                return user.username || '';
-              }
-            } catch (error) {
-              console.error('Error getting staff name:', error);
-            }
-            return '';
-          })();
-          
-          if (method === 'cash') {
-            setCashAmount(cashAmount);
-          } else if (method === 'card' && cardDetails) {
-            setCardDetails(cardDetails);
-          } else if (method === 'e-wallet' && eWalletDetails) {
-            setEWalletDetails(eWalletDetails);
-          }
-          
-          // Show the receipt and print
-          setShowReceipt(true);
-          await new Promise(resolve => setTimeout(resolve, 100));
-          await handlePrint();          // No need for cleanup of DOM elements since we're not creating any// Update active orders (remove the one we just processed)
-          setActiveOrders(prev => prev.filter(o => o._id !== order._id));
-          
-          // Reset state for next use
-          setCashAmount(0);
-          setCardDetails({ last4: '', name: '' });
-          setEWalletDetails({ number: '', name: '' });
-          setCurrentOrder([]);
+          await handlePrint();
+        } finally {
           setShowReceipt(false);
-
-          if (method === 'cash') {
-            setCashFloat(prev => prev + cashAmount - (cashAmount - totalDue));
-          }
-
-          alert('Payment processed successfully!');
-        } catch (error) {
-          console.error('Payment processing error:', error);
-          alert('Error processing payment');
         }
-      } 
+        
+        // Update order lists
+        setActiveOrders(prev => prev.filter(o => o._id !== order._id));
+        
+        // Reset state
+        setCurrentOrder([]);
+        setCashAmount(0);
+        setCardDetails({ last4: '', name: '' });
+        setEWalletDetails({ number: '', name: '' });
+
+        if (method === 'cash') {
+          const change = cashAmount - totalDue;
+          setCashFloat(prev => prev + cashAmount - change);
+        }
+
+        // No separate alert here, it's handled by the caller (PaymentPanel's onProcessPayment)
+        // if the API call was successful.
+        return; // Return after successful processing to avoid falling into the 'else' block
+      }
       // Case 2: Order status update from OrderProcessingModal
       else {
         const response = await fetch(`http://localhost:5000/api/orders/${orderId}`, {
@@ -445,9 +443,44 @@ const PointOfSale = () => {
     const timestamp = Date.now().toString().slice(-6);
     const random = Math.floor(100 + Math.random() * 900);
     return `${timestamp}${random}`;
-  };
+  };  const addToOrder = item => {
+    // If in pending orders view, only allow adding items when editing a pending order
+    if (orderViewType === 'pending') {
+      if (!isPendingOrderMode) {
+        alert('Please select a pending order to add items to.');
+        return;
+      }
+      
+      const sizes = Object.keys(item.pricing);
+      const basePrice = item.pricing.base || item.pricing[sizes[0]];
+      const selectedSize = sizes.includes('base') ? 'base' : sizes[0];
 
-  const addToOrder = item => {
+      const orderItem = {
+        ...item,
+        price: basePrice,
+        selectedSize,
+        availableSizes: sizes,
+        quantity: 1
+      };
+
+      // Update pending order items
+      const existing = pendingOrderItems.find(
+        i => i._id === item._id && i.selectedSize === selectedSize
+      );
+
+      if (existing) {
+        setPendingOrderItems(pendingOrderItems.map(i =>
+          i._id === item._id && i.selectedSize === selectedSize
+            ? { ...i, quantity: i.quantity + 1 }
+            : i
+        ));
+      } else {
+        setPendingOrderItems([...pendingOrderItems, orderItem]);
+      }
+      return;
+    }
+
+    // Regular order handling (only for non-pending orders)
     const sizes = Object.keys(item.pricing);
     const basePrice = item.pricing.base || item.pricing[sizes[0]];
     const selectedSize = sizes.includes('base') ? 'base' : sizes[0];
@@ -460,52 +493,68 @@ const PointOfSale = () => {
       quantity: 1
     };
 
-    const existing = currentOrder.find(
+    const [currentCart, setCart] = orderViewType === 'ready' ? 
+      [readyOrderCart, setReadyOrderCart] : 
+      [pendingOrderCart, setPendingOrderCart];
+
+    const existing = currentCart.find(
       i => i._id === item._id && i.selectedSize === selectedSize
     );
 
     if (existing) {
-      setCurrentOrder(
-        currentOrder.map(i =>
+      setCart(
+        currentCart.map(i =>
           i._id === item._id && i.selectedSize === selectedSize
             ? { ...i, quantity: i.quantity + 1 }
             : i
         )
       );
     } else {
-      setCurrentOrder([...currentOrder, orderItem]);
+      setCart([...currentCart, orderItem]);
     }
+
+    // Keep currentOrder in sync for backward compatibility
+    setCurrentOrder(orderViewType === 'ready' ? readyOrderCart : pendingOrderCart);
   };
 
   const updateQuantity = (item, delta) => {
-    setCurrentOrder(
-      currentOrder.map(menuItem => {
-        if (menuItem._id === item._id && menuItem.selectedSize === item.selectedSize) {
-          const newQuantity = menuItem.quantity + delta;
-          return { ...menuItem, quantity: Math.max(1, newQuantity) };
-        }
-        return menuItem;
-      })
+    // Determine which cart to update based on orderViewType
+    const [currentCart, setCart] = orderViewType === 'ready' ? 
+      [readyOrderCart, setReadyOrderCart] : 
+      [pendingOrderCart, setPendingOrderCart];
+
+    setCart(
+      currentCart.map(i =>
+        i._id === item._id && i.selectedSize === item.selectedSize
+          ? { ...i, quantity: Math.max(1, i.quantity + delta) }
+          : i
+      )
     );
+
+    // Keep currentOrder in sync for backward compatibility
+    setCurrentOrder(orderViewType === 'ready' ? readyOrderCart : pendingOrderCart);
   };
 
   const updateSize = (item, newSize) => {
-    setCurrentOrder(
-      currentOrder.map(menuItem => {
-        if (menuItem._id === item._id && menuItem.selectedSize === item.selectedSize) {
-          return {
-            ...menuItem,
-            selectedSize: newSize,
-            price: menuItem.pricing[newSize]
-          };
-        }
-        return menuItem;
-      })
-    );
-  };
+    // Determine which cart to update based on orderViewType
+    const [currentCart, setCart] = orderViewType === 'ready' ? 
+      [readyOrderCart, setReadyOrderCart] : 
+      [pendingOrderCart, setPendingOrderCart];
 
+    setCart(
+      currentCart.map(i =>
+        i._id === item._id && i.selectedSize === item.selectedSize
+          ? { ...i, selectedSize: newSize, price: i.pricing[newSize] }
+          : i
+      )
+    );
+
+    // Keep currentOrder in sync for backward compatibility
+    setCurrentOrder(orderViewType === 'ready' ? readyOrderCart : pendingOrderCart);
+  };
   const calculateTotal = () => {
-    const subtotal = currentOrder.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const currentCart = orderViewType === 'ready' ? readyOrderCart : pendingOrderCart;
+    const subtotal = currentCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const discount = isDiscountApplied ? subtotal * 0.1 : 0;
     const total = subtotal - discount;
 
@@ -516,9 +565,10 @@ const PointOfSale = () => {
     };
   };
 
-  const handlePrint = useReactToPrint({ content: () => receiptRef.current });
-
-  const processPayment = async () => {
+  const handlePrint = useReactToPrint({ content: () => receiptRef.current });  const processPayment = async () => {
+    const currentCart = orderViewType === 'ready' ? readyOrderCart : pendingOrderCart;
+    const setCart = orderViewType === 'ready' ? setReadyOrderCart : setPendingOrderCart;
+    
     const totals = calculateTotal();
     const cashValue = parseFloat(cashAmount);
     const totalDue = parseFloat(totals.total);
@@ -546,7 +596,12 @@ const PointOfSale = () => {
       if (paymentMethod === 'cash') {
         const change = cashValue - totalDue;
         setCashFloat(prev => prev + cashValue - change);
-      }      setCurrentOrder([]);
+      }
+      
+      // Clear both the specific cart and currentOrder
+      setCart([]);
+      setCurrentOrder([]);
+      
       setCashAmount(0);
       setIsDiscountApplied(false);
       setSearchTerm('');
@@ -556,6 +611,117 @@ const PointOfSale = () => {
       setEWalletDetails({ number: '', name: '' });
 
       alert('Order completed successfully!');
+    } catch (error) {
+      console.error('Payment processing error:', error);
+      alert('Error processing payment. Please try again.');
+    }
+  };
+
+  const processPendingOrderPayment = async () => {
+    // Calculate totals for pending order items
+    const pendingTotal = pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const discount = isDiscountApplied ? pendingTotal * 0.1 : 0;
+    const totalDue = pendingTotal - discount;
+    const cashValue = parseFloat(cashAmount);
+
+    // Validate payment
+    if (paymentMethod === 'cash') {
+      if (cashValue < totalDue) {
+        alert('Insufficient cash amount');
+        return;
+      }
+
+      const change = cashValue - totalDue;
+      if (change > cashFloat) {
+        alert(`Insufficient cash float (₱${cashFloat.toFixed(2)}) to give ₱${change.toFixed(2)} change`);
+        return;
+      }
+    }
+
+    setShowReceipt(true);
+
+    try {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await handlePrint();
+      
+      // Update the existing pending order in the database
+      const totals = {
+        subtotal: pendingTotal,
+        discount: discount,
+        total: totalDue
+      };
+
+      let paymentDetails = {};
+      
+      if (paymentMethod === 'cash') {
+        paymentDetails = {
+          cashReceived: cashValue,
+          change: cashValue - totalDue
+        };
+      } else if (paymentMethod === 'card') {
+        paymentDetails = {
+          cardLastFour: cardDetails.last4,
+          cardholderName: cardDetails.name
+        };
+      } else if (paymentMethod === 'e-wallet') {
+        paymentDetails = {
+          eWalletNumber: eWalletDetails.number,
+          eWalletName: eWalletDetails.name
+        };
+      }
+
+      // Update the order with payment details
+      const response = await fetch(`http://localhost:5000/api/orders/${editingPendingOrder._id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          status: 'received',
+          paymentMethod: paymentMethod,
+          totals: {
+            ...totals,
+            ...paymentDetails
+          },
+          items: pendingOrderItems.map(item => ({
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            selectedSize: item.selectedSize,
+            modifiers: item.modifiers
+          })),
+          ...paymentDetails
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update order');
+      }
+
+      if (paymentMethod === 'cash') {
+        const change = cashValue - totalDue;
+        setCashFloat(prev => prev + cashValue - change);
+      }
+        // Reset pending order states
+      setEditingPendingOrder(null);
+      setIsPendingOrderMode(false);
+      setPendingOrderItems([]);
+      setCurrentOrder([]);
+      
+      setCashAmount(0);
+      setIsDiscountApplied(false);
+      setSearchTerm('');
+      // Don't auto-close receipt - let user close manually like in processPayment
+      // Reset payment details
+      setCardDetails({ last4: '', name: '' });
+      setEWalletDetails({ number: '', name: '' });
+
+      // Refresh orders list
+      await fetchActiveOrders();
+
+      alert('Payment processed successfully!');
     } catch (error) {
       console.error('Payment processing error:', error);
       alert('Error processing payment. Please try again.');
@@ -584,8 +750,9 @@ const PointOfSale = () => {
           eWalletNumber: eWalletDetails.number,
           eWalletName: eWalletDetails.name
         };
-      }      const orderData = {
-        items: currentOrder.map(item => ({
+      }      const currentCart = orderViewType === 'ready' ? readyOrderCart : pendingOrderCart;
+      const orderData = {
+        items: currentCart.map(item => ({
           name: item.name,
           price: item.price,
           quantity: item.quantity,
@@ -599,8 +766,7 @@ const PointOfSale = () => {
           ...paymentDetails
         },
         paymentMethod,
-        paymentDetails, // Additional field for payment details
-        status: 'received',
+        paymentDetails, // Additional field for payment details        status: 'received',
         orderType: 'pos',  // Changed from 'self_checkout' to 'pos' for orders created in POS
         server: (() => {
           try {
@@ -636,10 +802,12 @@ const PointOfSale = () => {
       throw error;
     }
   };
-
   const voidItem = itemToRemove => {
-    setCurrentOrder(
-      currentOrder.filter(
+    // Determine which cart to update based on orderViewType
+    const setCart = orderViewType === 'ready' ? setReadyOrderCart : setPendingOrderCart;
+    
+    setCart(prevCart =>
+      prevCart.filter(
         item =>
           !(
             item._id === itemToRemove._id &&
@@ -647,15 +815,24 @@ const PointOfSale = () => {
           )
       )
     );
-  };
-  const cancelOrder = () => {
+
+    // Keep currentOrder in sync for backward compatibility
+    setCurrentOrder(orderViewType === 'ready' ? readyOrderCart : pendingOrderCart);
+  };  const cancelOrder = () => {
+    // Clear the appropriate cart based on order view type
+    if (orderViewType === 'ready') {
+      setReadyOrderCart([]);
+    } else {
+      setPendingOrderCart([]);
+    }
+    // Keep currentOrder in sync
     setCurrentOrder([]);
     setCashAmount(0);
     setIsDiscountApplied(false);
     // Reset payment details
     setCardDetails({ last4: '', name: '' });
     setEWalletDetails({ number: '', name: '' });
-  };  // Filtered items is kept for compatibility with any existing code that might reference it
+  };// Filtered items is kept for compatibility with any existing code that might reference it
   // But filtering is now done directly in the render for each category section
   const filteredItems = useMemo(() => {
     const searchFiltered = menuItems.filter(item =>
@@ -925,26 +1102,27 @@ const PointOfSale = () => {
                     
                     {/* Subcategories in a single row */}
                     {renderSubCategoryTabs('Meals')}
-                  </div>
-
-                  {/* Display Meal Items */}
-                  <div className={`grid ${gridColumns} gap-2 md:gap-3 mx-auto`}>
-                    {menuItems
-                      .filter(item => 
-                        item.category === 'Meals' && 
-                        (!selectedMealSubCategory || item.subCategory === selectedMealSubCategory) &&
-                        (searchTerm === '' || 
-                         item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         item.code.toLowerCase().includes(searchTerm.toLowerCase()))
-                      )
-                      .map(item => (
-                        <MenuItemCard
-                          key={item._id}
-                          item={item}
-                          onClick={() => addToOrder(item)}
-                        />
-                      ))
-                    }
+                  </div>                  {/* Display Meal Items */}
+                  <div className="overflow-x-auto scrollbar-hide" style={{ width: '836px', maxWidth: '100%' }}>
+                    <div className="flex gap-3 pb-2" style={{ width: 'max-content' }}>
+                      {menuItems
+                        .filter(item => 
+                          item.category === 'Meals' && 
+                          (!selectedMealSubCategory || item.subCategory === selectedMealSubCategory) &&
+                          (searchTerm === '' || 
+                           item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           item.code.toLowerCase().includes(searchTerm.toLowerCase()))
+                        )
+                        .map(item => (
+                          <div key={item._id} className="flex-shrink-0" style={{ width: '200px' }}>
+                            <MenuItemCard
+                              item={item}
+                              onClick={() => addToOrder(item)}
+                            />
+                          </div>
+                        ))
+                      }
+                    </div>
                   </div>
                 </div>                {/* Beverages Section */}
                 <div>
@@ -995,26 +1173,27 @@ const PointOfSale = () => {
                     
                     {/* Subcategories in a single row */}
                     {renderSubCategoryTabs('Beverages')}
-                  </div>
-
-                  {/* Display Beverage Items */}
-                  <div className={`grid ${gridColumns} gap-2 md:gap-3 mx-auto`}>
-                    {menuItems
-                      .filter(item => 
-                        item.category === 'Beverages' && 
-                        (!selectedBeverageSubCategory || item.subCategory === selectedBeverageSubCategory) &&
-                        (searchTerm === '' || 
-                         item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         item.code.toLowerCase().includes(searchTerm.toLowerCase()))
-                      )
-                      .map(item => (
-                        <MenuItemCard
-                          key={item._id}
-                          item={item}
-                          onClick={() => addToOrder(item)}
-                        />
-                      ))
-                    }
+                  </div>                  {/* Display Beverage Items */}
+                  <div className="overflow-x-auto scrollbar-hide" style={{ width: '836px', maxWidth: '100%' }}>
+                    <div className="flex gap-3 pb-2" style={{ width: 'max-content' }}>
+                      {menuItems
+                        .filter(item => 
+                          item.category === 'Beverages' && 
+                          (!selectedBeverageSubCategory || item.subCategory === selectedBeverageSubCategory) &&
+                          (searchTerm === '' || 
+                           item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           item.code.toLowerCase().includes(searchTerm.toLowerCase()))
+                        )
+                        .map(item => (
+                          <div key={item._id} className="flex-shrink-0" style={{ width: '200px' }}>
+                            <MenuItemCard
+                              item={item}
+                              onClick={() => addToOrder(item)}
+                            />
+                          </div>
+                        ))
+                      }
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1022,83 +1201,230 @@ const PointOfSale = () => {
 
             {/* Order Panel */}
             <div
-              className="w-full md:w-[45vw] lg:w-[35vw] xl:w-[30vw] max-w-3xl rounded-t-3xl md:rounded-3xl m-0 md:m-4 p-4 md:p-6 shadow-2xl order-1 md:order-2"
-              style={{ backgroundColor: theme.colors.background }}
+              className="w-full md:w-[45vw] lg:w-[35vw] xl:w-[30vw] max-w-3xl rounded-t-3xl md:rounded-3xl m-0 md:m-4 p-4 md:p-6 shadow-2xl order-1 md:order-2 flex flex-col"
+              style={{ backgroundColor: theme.colors.background, maxHeight: 'calc(100vh - 48px)' }}
             >
-              <div className="h-[75vh] md:h-[85vh] flex flex-col">
-                <div className="flex-1 overflow-y-auto space-y-2 md:space-y-3 pb-2">
-                  {currentOrder.map(item => (
-                    <OrderItem
-                      key={`${item._id}-${item.selectedSize}`}
-                      item={item}
-                      onVoid={voidItem}
-                      onUpdateSize={updateSize}
-                      onUpdateQuantity={updateQuantity}
-                    />
-                  ))}                  {/* Pending Orders Section */}
-                  {activeOrders.filter(order => order.paymentMethod === "pending").length > 0 && (
-                    <div className="mt-4 pt-4 border-t-2">
-                      <h3
-                        className="text-base font-bold mb-3"
-                        style={{ color: theme.colors.primary }}
-                      >
-                        Pending Orders ({activeOrders.filter(order => order.paymentMethod === "pending").length})
-                      </h3>
-                      <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-                        {activeOrders
-                          .filter(order => order.paymentMethod === "pending")
-                          .map(order => (
-                            <PendingOrder
-                              key={order._id}
-                              order={order}
-                              processPayment={processExistingOrderPayment}
-                              colors={theme.colors}
-                            />
-                        ))}
+              <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
+                {/* Order View Toggle - move above cart */}
+                <div className="flex justify-center mb-2 gap-2">
+                  <button
+                    className={`px-4 py-1 rounded-lg font-semibold text-sm transition-colors ${orderViewType === 'ready' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}
+                    onClick={() => {
+                      setOrderViewType('ready');
+                      setIsPendingOrderMode(false);
+                      setEditingPendingOrder(null);
+                      setPendingOrderItems([]);
+                    }}
+                  >
+                    Ready Orders
+                  </button>
+                  <button
+                    className={`px-4 py-1 rounded-lg font-semibold text-sm transition-colors ${orderViewType === 'pending' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}
+                    onClick={() => {
+                      setOrderViewType('pending');
+                      // When switching to pending view, if not already editing, ensure isPendingOrderMode is false.
+                      // If the user then selects a pending order, isPendingOrderMode will be set to true.
+                      if (!isPendingOrderMode) {
+                        setEditingPendingOrder(null);
+                        // pendingOrderItems should only be cleared if not actively editing.
+                        // If isPendingOrderMode was true, it means we were editing, and switching to 'pending' tab
+                        // shouldn't clear the items of the order being edited.
+                        // However, if we switch TO 'pending' FROM 'ready', and we were NOT in pendingOrderMode,
+                        // it's safe to ensure pendingOrderItems is clear.
+                        // The main concern is clearing pendingOrderItems when switching TO 'ready'.
+                      }
+                    }}
+                  >
+                    Pending Orders
+                  </button>
+                </div>                {/* Cart (Current Order) - always visible below toggle */}
+                <div className="flex-1 overflow-y-auto space-y-1.5 mb-4">
+                  {/* Editing Order Header: Only shown when editing a specific pending order on the pending tab */}
+                  {orderViewType === 'pending' && isPendingOrderMode && editingPendingOrder && (
+                    <div className="bg-orange-50 p-2 mb-2 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-orange-700">
+                          Editing Order #{editingPendingOrder.receiptNumber || editingPendingOrder._id?.substring(0, 6)}
+                        </span>
+                        <button
+                          onClick={() => {
+                            setEditingPendingOrder(null);
+                            setIsPendingOrderMode(false);
+                            setPendingOrderItems([]);
+                            // Reset payment method or other relevant states if needed
+                            setPaymentMethod('cash'); // Example: reset to default
+                            setCashAmount(0);
+                          }}
+                          className="text-xs px-2 py-1 rounded bg-orange-200 text-orange-700 hover:bg-orange-300"
+                        >
+                          Cancel Edit
+                        </button>
                       </div>
                     </div>
                   )}
-                    {/* Ready Orders Section */}
-                  {activeOrders.filter(order => order.status === "ready").length > 0 && (
-                    <div className="mt-4 pt-4 border-t-2">
-                      <h3
-                        className="text-base font-bold mb-3"
-                        style={{ color: theme.colors.primary }}
-                      >
-                        Ready Orders ({activeOrders.filter(order => order.status === "ready").length})
-                      </h3>
-                      <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-                        {activeOrders
-                          .filter(order => order.status === "ready")
-                          .map(order => (
-                            <div 
-                              key={order._id}
-                              className="p-3 rounded-lg flex justify-between"
-                              style={{ backgroundColor: "#e6f7e6" }}
+
+                  {/* Conditional rendering for PENDING tab */}
+                  {orderViewType === 'pending' ? (
+                    <>
+                      {isPendingOrderMode && editingPendingOrder ? (
+                        // Editing a specific pending order: Show its items (pendingOrderItems)
+                        <>
+                          {pendingOrderItems.length > 0 ? (
+                            pendingOrderItems.map(item => (
+                              <OrderItem
+                                key={`${item._id}-${item.selectedSize}`}
+                                item={item}
+                                onVoid={(item) => setPendingOrderItems(pendingOrderItems.filter(i => 
+                                  !(i._id === item._id && i.selectedSize === item.selectedSize)
+                                ))}
+                                onUpdateSize={(item, newSize) => setPendingOrderItems(pendingOrderItems.map(i => 
+                                  i._id === item._id && i.selectedSize === item.selectedSize
+                                    ? { ...i, selectedSize: newSize, price: i.pricing[newSize] }
+                                    : i
+                                ))}
+                                onUpdateQuantity={(item, delta) => setPendingOrderItems(pendingOrderItems.map(i => 
+                                  i._id === item._id && i.selectedSize === item.selectedSize
+                                    ? { ...i, quantity: Math.max(1, i.quantity + delta) }
+                                    : i
+                                ))}
+                              />
+                            ))
+                          ) : (
+                            <div className="text-center text-gray-400 py-4">No items in this pending order.</div>
+                          )}
+                        </>
+                      ) : (
+                        /* Not editing a specific pending order: Show Pending List first, then New Order Cart (if any) */
+                        <>
+                          {/* Pending Orders List (MOVED HERE) */}
+                          <div className="mt-2 pt-2 border-t">
+                            <h3
+                              className="text-base font-bold mb-3"
+                              style={{ color: theme.colors.primary }}
                             >
-                              <div>
-                                <span className="font-medium" style={{ color: theme.colors.primary }}>
-                                  Order #{order.receiptNumber || order._id?.substring(0, 6)}
-                                </span>
-                                <span className="ml-2 text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">
-                                  Ready
-                                </span>
-                              </div>
-                              <button
-                                onClick={() => setShowOrderProcessingModal(true)}
-                                className="text-xs px-2 py-1 rounded bg-green-500 text-white hover:bg-green-600"
-                              >
-                                Complete
-                              </button>
+                              Pending Orders ({activeOrders.filter(order => order.status === "pending" && order.paymentMethod === "pending").length})
+                            </h3>
+                            <div className="space-y-3">
+                              {activeOrders.filter(order => order.status === "pending" && order.paymentMethod === "pending").length === 0 ? (
+                                <div className="text-center text-gray-400 py-8">No pending orders.</div>
+                              ) : (
+                                activeOrders
+                                  .filter(order => order.status === "pending" && order.paymentMethod === "pending")
+                                  .map(order => (
+                                    <div
+                                      key={order._id}
+                                      className="p-3 rounded-lg hover:bg-gray-50 cursor-pointer"
+                                      onClick={() => {
+                                        setEditingPendingOrder(order);
+                                        setIsPendingOrderMode(true);
+                                        setPendingOrderItems(order.items.map(item => ({
+                                          ...item,
+                                          _id: item._id || item.itemId,
+                                          selectedSize: item.selectedSize || 'base',
+                                          availableSizes: Object.keys(item.pricing || { base: item.price }),
+                                          pricing: item.pricing || { base: item.price }
+                                        })));
+                                        // Reset new order cart when an existing pending order is selected
+                                        setPendingOrderCart([]); 
+                                        // Reset payment method or other relevant states if needed
+                                        setPaymentMethod('cash'); 
+                                        setCashAmount(0);
+                                      }}
+                                    >
+                                      <div className="flex justify-between items-center">
+                                        <span className="font-medium" style={{ color: theme.colors.primary }}>
+                                          Order #{order.receiptNumber || order._id?.substring(0, 6)}
+                                        </span>
+                                        <button
+                                          className="text-xs px-2 py-1 rounded-lg"
+                                          style={{ backgroundColor: theme.colors.accent, color: theme.colors.background }}
+                                        >
+                                          Process
+                                        </button>
+                                      </div>
+                                    </div>
+                                ))
+                              )}
                             </div>
-                          ))}
-                      </div>
-                    </div>
+                          </div>
+
+                          {/* New Order Cart (pendingOrderCart), only if items exist */}
+                          {pendingOrderCart.length > 0 && (
+                            pendingOrderCart.map(item => (
+                              <OrderItem
+                                key={`${item._id}-${item.selectedSize}`}
+                                item={item}
+                                onVoid={voidItem} // Use general voidItem for new orders
+                                onUpdateSize={updateSize} // Use general updateSize for new orders
+                                onUpdateQuantity={updateQuantity} // Use general updateQuantity for new orders
+                              />
+                            ))
+                          )}
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    // === READY Tab === (logic remains as original for readyOrderCart)
+                    <>
+                      {readyOrderCart.length > 0 ? (
+                        readyOrderCart.map(item => (
+                          <OrderItem
+                            key={`${item._id}-${item.selectedSize}`}
+                            item={item}
+                            onVoid={voidItem}
+                            onUpdateSize={updateSize}
+                            onUpdateQuantity={updateQuantity}
+                          />
+                        ))
+                      ) : (
+                        <div className="text-center text-gray-400 py-4">No items in cart.</div>
+                      )}
+                    </>
                   )}
-                </div>                <PaymentPanel
-                  total={calculateTotal().total}
-                  subtotal={calculateTotal().subtotal}
-                  discount={calculateTotal().discount}
+                </div> {/* End of flex-1 overflow-y-auto space-y-1.5 mb-4 */}
+                
+                {/* Ready Orders Section (only render if there are ready orders and tab is selected) */}
+                {orderViewType === 'ready' && activeOrders.filter(order => order.status === "ready").length > 0 && (
+                  <div className="mt-4 pt-4 border-t-2">
+                    <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                      {activeOrders
+                        .filter(order => order.status === "ready")
+                        .map(order => (
+                          <div 
+                            key={order._id}
+                            className="p-3 rounded-lg flex justify-between"
+                            style={{ backgroundColor: "#e6f7e6" }}
+                          >
+                            <div>
+                              <span className="font-medium" style={{ color: theme.colors.primary }}>
+                                Order #{order.receiptNumber || order._id?.substring(0, 6)}
+                              </span>
+                              <span className="ml-2 text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">
+                                Ready
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => setShowOrderProcessingModal(true)}
+                              className="text-xs px-2 py-1 rounded bg-green-500 text-white hover:bg-green-600"
+                            >
+                              Complete
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>              <div className="mt-auto">
+                <PaymentPanel
+                  total={isPendingOrderMode ? 
+                    (pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) * (isDiscountApplied ? 0.9 : 1)).toFixed(2) :
+                    calculateTotal().total}
+                  subtotal={isPendingOrderMode ? 
+                    pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2) :
+                    calculateTotal().subtotal}
+                  discount={isPendingOrderMode ? 
+                    (isDiscountApplied ? (pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 0.1).toFixed(2) : "0.00") :
+                    calculateTotal().discount}
                   cashFloat={cashFloat}
                   paymentMethod={paymentMethod}
                   cashAmount={cashAmount}
@@ -1112,14 +1438,28 @@ const PointOfSale = () => {
                   }}
                   onCashAmountChange={setCashAmount}
                   onDiscountToggle={() => setIsDiscountApplied(!isDiscountApplied)}
-                  onProcessPayment={processPayment}
-                  onCancelOrder={cancelOrder}
+                  onProcessPayment={isPendingOrderMode ? 
+                    () => processPendingOrderPayment() : 
+                    processPayment}
+                  onCancelOrder={() => {
+                    if (isPendingOrderMode) {
+                      setEditingPendingOrder(null);
+                      setIsPendingOrderMode(false);
+                      setPendingOrderItems([]);
+                    } else {
+                      cancelOrder();
+                    }
+                  }}
                   cardDetails={cardDetails}
                   onCardDetailsChange={setCardDetails}
                   eWalletDetails={eWalletDetails}
-                  onEWalletDetailsChange={setEWalletDetails}disabled={
-                    currentOrder.length === 0 ||
-                    (paymentMethod === 'cash' && cashAmount < parseFloat(calculateTotal().total)) ||
+                  onEWalletDetailsChange={setEWalletDetails}
+                  disabled={
+                    (!isPendingOrderMode && (orderViewType === 'ready' ? readyOrderCart : pendingOrderCart).length === 0) ||
+                    (isPendingOrderMode && pendingOrderItems.length === 0) ||
+                    (paymentMethod === 'cash' && cashAmount < parseFloat(isPendingOrderMode ? 
+                      (pendingOrderItems.reduce((sum, item) => sum + item.price * item.quantity, 0) * (isDiscountApplied ? 0.9 : 1)).toFixed(2) :
+                      calculateTotal().total)) ||
                     (paymentMethod === 'card' && (!cardDetails?.last4 || !cardDetails?.name)) ||
                     (paymentMethod === 'e-wallet' && (!eWalletDetails?.number || !eWalletDetails?.name))
                   }
@@ -1127,10 +1467,11 @@ const PointOfSale = () => {
               </div>
             </div>
 
-            {/* Receipt Modal */}            <Modal isOpen={showReceipt} onClose={() => setShowReceipt(false)} size="lg">              <Receipt
+            {/* Receipt Modal */}            <Modal isOpen={showReceipt} onClose={() => setShowReceipt(false)} size="lg">
+              <Receipt
                 ref={receiptRef}
                 order={{
-                  items: currentOrder,
+                  items: isPendingOrderMode ? pendingOrderItems : (orderViewType === 'ready' ? readyOrderCart : pendingOrderCart),
                   receiptNumber: generateReceiptNumber(),
                   server: (() => {
                     try {
@@ -1142,17 +1483,28 @@ const PointOfSale = () => {
                     } catch (error) {
                       console.error('Error getting staff name:', error);
                     }
-                    return '';
                   })()
                 }}
                 totals={{
-                  ...calculateTotal(),
-                  cashReceived: paymentMethod === 'cash' ? cashAmount.toFixed(2) : 0,
-                  change: paymentMethod === 'cash' ? (cashAmount - parseFloat(calculateTotal().total)).toFixed(2) : 0,
-                  cardLastFour: paymentMethod === 'card' ? cardDetails.last4 : '',
-                  cardholderName: paymentMethod === 'card' ? cardDetails.name : '',
-                  eWalletNumber: paymentMethod === 'e-wallet' ? eWalletDetails.number : '',
-                  eWalletName: paymentMethod === 'e-wallet' ? eWalletDetails.name : ''
+                  subtotal: isPendingOrderMode 
+                    ? pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)
+                    : calculateTotal().subtotal,
+                  discount: isPendingOrderMode 
+                    ? (isDiscountApplied ? (pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 0.1).toFixed(2) : "0.00")
+                    : calculateTotal().discount,
+                  total: isPendingOrderMode
+                    ? (pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) * (isDiscountApplied ? 0.9 : 1)).toFixed(2)
+                    : calculateTotal().total,
+                  cashReceived: paymentMethod === 'cash' ? parseFloat(cashAmount).toFixed(2) : "0.00",
+                  change: paymentMethod === 'cash' ? 
+                    (parseFloat(cashAmount) - (isPendingOrderMode 
+                      ? parseFloat((pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) * (isDiscountApplied ? 0.9 : 1)).toFixed(2))
+                      : parseFloat(calculateTotal().total)
+                    )).toFixed(2) : "0.00",
+                  cardLastFour: paymentMethod === 'card' ? cardDetails?.last4 || '' : '',
+                  cardholderName: paymentMethod === 'card' ? cardDetails?.name || '' : '',
+                  eWalletNumber: paymentMethod === 'e-wallet' ? eWalletDetails?.number || '' : '',
+                  eWalletName: paymentMethod === 'e-wallet' ? eWalletDetails?.name || '' : ''
                 }}
                 paymentMethod={paymentMethod}
               />
@@ -1163,7 +1515,13 @@ const PointOfSale = () => {
                     backgroundColor: theme.colors.primary,
                     color: theme.colors.background
                   }}
-                  onClick={() => setShowReceipt(false)}
+                  onClick={async () => {
+                    try {
+                      await handlePrint();
+                    } finally {
+                      setShowReceipt(false);
+                    }
+                  }}
                 >
                   CLOSE
                 </button>

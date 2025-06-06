@@ -19,7 +19,8 @@ import {
   FiUsers,
   FiMessageSquare,
   FiBookOpen,
-  FiDollarSign,
+  FiCreditCard,
+  FiTrendingDown,
   FiShoppingCart,
   FiChevronDown,
   FiChevronUp,
@@ -155,20 +156,18 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
           icon: <FiUser size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Employee Management',
           roles: ['manager']
-        },
-        { 
+        },        { 
           path: '/payroll', 
-          icon: <FiDollarSign size={iconSize} style={{ color: colors.iconBrown }} />, 
+          icon: <FiCreditCard size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Payroll System',
           roles: ['manager']
-        }      ]
-    },
-    { 
+        }]
+    },    { 
       path: '/expenses', 
-      icon: <FiDollarSign size={iconSize} className="text-white" />, 
+      icon: <FiTrendingDown size={iconSize} className="text-white" />, 
       label: 'Expenses',
       roles: ['manager']
-    },    { 
+    },{ 
       path: '/revenue-reports', 
       icon: <FiPieChart size={iconSize} className="text-white" />, 
       label: 'Revenue Reports',

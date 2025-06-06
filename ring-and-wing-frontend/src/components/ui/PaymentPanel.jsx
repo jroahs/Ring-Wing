@@ -1,3 +1,4 @@
+import React from 'react'; // Added React import for Fragment
 import { theme } from '../../theme';
 import { Button } from './Button';
 import { Badge } from './Badge';
@@ -23,62 +24,71 @@ export const PaymentPanel = ({
 }) => {
   const paymentMethods = ['cash', 'card', 'e-wallet'];
 
-  return (
-    <div className="pt-4 border-t-2" style={{ borderColor: theme.colors.muted }}>      <div className="mb-2">
-        <span className="text-sm font-medium" style={{ color: theme.colors.primary }}>
+  return (    <div className="pt-2 border-t" style={{ borderColor: theme.colors.muted }}>
+      <div className="mb-1">
+        <span className="text-xs font-medium" style={{ color: theme.colors.primary }}>
           Payment via:
         </span>
       </div>
-      <div className="flex gap-2 mb-3 flex-wrap">
-        {paymentMethods.map(method => (
-          <Button
-            key={method}
-            variant={paymentMethod === method ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={() => onPaymentMethodChange(method)}
-          >
-            {method.toUpperCase()}
-          </Button>
+      {/* Combined Payment Methods and Discount Button */}      <div className="flex flex-wrap items-center gap-1 mb-1">
+        {paymentMethods.map((method, index) => (
+          <React.Fragment key={method}>
+            <Button
+              variant={paymentMethod === method ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => onPaymentMethodChange(method)}
+              className="h-7 px-2 text-xs font-medium"
+            >
+              {method.toUpperCase()}
+            </Button>
+            {index < paymentMethods.length - 1 && (
+              <span className="mx-0.5 text-xs" style={{ color: theme.colors.muted }}>•</span>
+            )}
+          </React.Fragment>
         ))}
+        <span className="mx-0.5 text-xs" style={{ color: theme.colors.muted }}>/</span>
+        <Button
+          variant={isDiscountApplied ? 'primary' : 'secondary'}
+          size="sm"
+          onClick={onDiscountToggle}
+          className="py-1 px-1.5 text-xs" // Adjusted padding & text size
+        >
+          PWD/Senior (10%)
+        </Button>
       </div>
 
-      <div className="flex justify-between items-center mb-3">
-        <span className="text-sm" style={{ color: theme.colors.primary }}>
+      <div className="flex justify-between items-center mb-2"> {/* Reduced mb-3 to mb-2 */}
+        <span className="text-xs" style={{ color: theme.colors.primary }}> {/* Reduced text-sm to text-xs */}
           Cash Float:
         </span>
-        <Badge variant="accent">₱{cashFloat.toFixed(2)}</Badge>
+        <Badge variant="accent" className="text-xs px-1 py-0.5">₱{cashFloat.toFixed(2)}</Badge> {/* Adjusted padding & text size */}
       </div>
 
-      <Button
-        variant={isDiscountApplied ? 'primary' : 'secondary'}
-        fullWidth
-        className="mb-3"
-        onClick={onDiscountToggle}
-      >
-        PWD/Senior Discount (10%)
-      </Button>
+      {/* Discount button is now in the row above, so this section is removed */}
 
-      <div className="space-y-2 mb-4">
-        <div className="flex justify-between">
-          <span className="text-sm" style={{ color: theme.colors.primary }}>Subtotal:</span>
+      <div className="space-y-1 mb-3"> {/* Reduced space-y-2 to space-y-1 and mb-4 to mb-3 */}
+        <div className="flex justify-between text-sm">
+          <span style={{ color: theme.colors.primary }}>Subtotal:</span>
           <span style={{ color: theme.colors.primary }}>₱{subtotal}</span>
         </div>
         
         {parseFloat(discount) > 0 && (
-          <div className="flex justify-between">
-            <span className="text-sm" style={{ color: theme.colors.secondary }}>
+          <div className="flex justify-between text-sm">
+            <span style={{ color: theme.colors.secondary }}>
               Discount (10%):
             </span>
             <span style={{ color: theme.colors.secondary }}>-₱{discount}</span>
           </div>
         )}
 
-        <div className="flex justify-between text-lg font-bold">
+        <div className="flex justify-between text-base font-bold"> {/* Reduced text-lg to text-base */}
           <span style={{ color: theme.colors.primary }}>TOTAL:</span>
           <span style={{ color: theme.colors.primary }}>₱{total}</span>
         </div>
-      </div>      {paymentMethod === 'cash' && (
-        <div className="mb-3">
+      </div>
+
+      {paymentMethod === 'cash' && (
+        <div className="mb-2"> {/* Reduced mb-3 to mb-2 */}
           <input
             type="number"
             value={cashAmount === 0 ? '' : cashAmount}
@@ -98,7 +108,7 @@ export const PaymentPanel = ({
       )}
       
       {paymentMethod === 'card' && (
-        <div className="space-y-2 mb-3">
+        <div className="space-y-1 mb-2"> {/* Reduced space-y-2 to space-y-1 and mb-3 to mb-2 */}
           <input
             type="text"
             value={cardDetails?.last4 || ''}
@@ -128,7 +138,7 @@ export const PaymentPanel = ({
       )}
       
       {paymentMethod === 'e-wallet' && (
-        <div className="space-y-2 mb-3">
+        <div className="space-y-1 mb-2"> {/* Reduced space-y-2 to space-y-1 and mb-3 to mb-2 */}
           <input
             type="text"
             value={eWalletDetails?.number || ''}
@@ -156,20 +166,25 @@ export const PaymentPanel = ({
         </div>
       )}
 
-      <div className="grid gap-2">
+      <div className="flex gap-2">
         <Button
           variant="danger"
           onClick={onCancelOrder}
           fullWidth
+          size="sm" // Added size sm for consistency
+          className="py-1.5" // Adjusted padding
         >
           Cancel Order
-        </Button>
-        
-        <Button
+        </Button>          <Button
           variant="primary"
-          onClick={onProcessPayment}
+          onClick={() => {
+            if (disabled) return;
+            onProcessPayment();
+          }}
           disabled={disabled}
           fullWidth
+          size="sm"
+          className="py-1.5"
         >
           PROCESS PAYMENT
         </Button>
