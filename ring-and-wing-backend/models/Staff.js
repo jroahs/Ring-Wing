@@ -5,11 +5,10 @@ const staffSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Name is required'],
     trim: true
-  },
-  position: {
+  },  position: {
     type: String,
     required: [true, 'Position is required'],
-    enum: ['Barista', 'Cashier', 'Chef', 'Manager', 'Server', 'Cook']
+    enum: ['Cashier', 'Inventory Staff', 'Shift Manager', 'General Manager', 'Admin', 'Barista', 'Chef', 'Server', 'Cook']
   },
   profilePicture: {
     type: String,
@@ -24,11 +23,51 @@ const staffSchema = new mongoose.Schema({
     type: Number,
     required: [true, 'Daily rate is required'],
     min: [0, 'Daily rate cannot be negative']
-  },
-  status: {
+  },  status: {
     type: String,
-    enum: ['Active', 'On Leave', 'Inactive'],
+    enum: ['Active', 'On Leave', 'Inactive', 'Terminated', 'Resigned', 'Suspended'],
     default: 'Active'
+  },
+  terminationInfo: {
+    terminatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: false
+    },
+    terminationDate: {
+      type: Date,
+      required: false
+    },
+    terminationReason: {
+      type: String,
+      enum: [
+        'Resignation - Personal Reasons',
+        'Resignation - Better Opportunity', 
+        'Resignation - Relocation',
+        'Termination - Performance Issues',
+        'Termination - Misconduct',
+        'Termination - Attendance Issues',
+        'Termination - Policy Violation',
+        'Termination - Redundancy',
+        'Contract Ended',
+        'Mutual Agreement',
+        'Other'
+      ],
+      required: false
+    },
+    terminationNotes: {
+      type: String,
+      required: false,
+      maxlength: 500
+    },
+    isEligibleForRehire: {
+      type: Boolean,
+      default: true
+    },
+    finalWorkDate: {
+      type: Date,
+      required: false
+    }
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -52,7 +91,24 @@ const staffSchema = new mongoose.Schema({
       },
       message: props => `${props.value} is not a valid PIN. PIN must be 4-6 digits only.`
     }
-  },  payrollScheduleId: {
+  },
+  reactivationInfo: {
+    reactivatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: false
+    },
+    reactivationDate: {
+      type: Date,
+      required: false
+    },
+    reactivationNotes: {
+      type: String,
+      required: false,
+      maxlength: 300
+    }
+  },
+  payrollScheduleId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'PayrollSchedule',
     required: false

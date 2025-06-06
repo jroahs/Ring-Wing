@@ -135,7 +135,8 @@ function Login() {
           console.log('Redirecting inventory staff to inventory page');
           navigate('/inventory');
           break;
-        case 'manager':
+        case 'shift_manager':
+        case 'general_manager':
         case 'admin':
           console.log('Redirecting manager/admin to dashboard');
           navigate('/dashboard');

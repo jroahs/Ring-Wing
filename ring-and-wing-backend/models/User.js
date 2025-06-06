@@ -34,11 +34,10 @@ const userSchema = new mongoose.Schema({
     },
     required: [true, 'User role is required'],
     default: 'staff'
-  },
-  position: {
+  },  position: {
     type: String,
     enum: {
-      values: ['cashier', 'inventory', 'manager', 'admin'],
+      values: ['cashier', 'inventory', 'shift_manager', 'general_manager', 'admin'],
       message: 'Invalid position'
     },
     required: [true, 'Position is required'],
@@ -108,7 +107,36 @@ userSchema.methods.generateAuthToken = function() {
 
 // Check if user has inventory access
 userSchema.methods.hasInventoryAccess = function() {
-  return ['inventory', 'manager', 'admin'].includes(this.position);
+  return ['inventory', 'shift_manager', 'general_manager', 'admin'].includes(this.position);
+};
+
+// Check if user can delete inventory items
+userSchema.methods.canDeleteInventory = function() {
+  return ['shift_manager', 'general_manager', 'admin'].includes(this.position);
+};
+
+// Check if user can approve major changes
+userSchema.methods.canApproveChanges = function() {
+  return ['shift_manager', 'general_manager', 'admin'].includes(this.position);
+};
+
+// Map Staff position to User position
+userSchema.statics.mapStaffPositionToUserPosition = function(staffPosition) {
+  const positionMap = {
+    'Cashier': 'cashier',
+    'Inventory Staff': 'inventory',
+    'Shift Manager': 'shift_manager',
+    'General Manager': 'general_manager',
+    'Admin': 'admin',
+    // Legacy mappings for existing data
+    'Barista': 'cashier',
+    'Chef': 'inventory',
+    'Server': 'cashier',
+    'Cook': 'inventory',
+    'Manager': 'general_manager'
+  };
+  
+  return positionMap[staffPosition] || 'cashier';
 };
 
 // Virtual relationship

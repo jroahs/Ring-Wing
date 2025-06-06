@@ -36,12 +36,14 @@ const validateStaffCreation = (req, res, next) => {
 // Public endpoint for time clock - returns limited staff information
 router.get('/time-clock', async (req, res) => {
   try {
-    // Only return active staff with limited fields for the time clock
-    const staff = await Staff.find({ status: { $ne: 'inactive' } })
+    // Only return active staff (exclude terminated, resigned, suspended, and inactive)
+    const staff = await Staff.find({ 
+      status: { $nin: ['Terminated', 'Resigned', 'Suspended', 'Inactive'] } 
+    })
       .select('_id name position profilePicture pinCode')
       .lean();
 
-    console.log('Fetched staff for time clock:', staff.length, 'records');
+    console.log('Fetched active staff for time clock:', staff.length, 'records');
     res.json(staff);
   } catch (error) {
     console.error('Error fetching staff for time clock:', error);
@@ -154,16 +156,18 @@ router.post('/', auth, validateStaffCreation, async (req, res) => {
           ? 'Username already exists' 
           : 'Email already exists' 
       });
-    }
-
-    // Find or create a default manager if reportsTo is not provided
+    }    // Find or create a default manager if reportsTo is not provided
+    // Map staff position to user position
+    const userPosition = User.mapStaffPositionToUserPosition(position);
+    
     const user = new User({ 
       username: username.toLowerCase(), 
       email: email.toLowerCase(), 
       password,
-      role: 'staff'
+      role: ['Shift Manager', 'General Manager', 'Admin'].includes(position) ? 'manager' : 'staff',
+      position: userPosition
     });
-    await user.save();    try {
+    await user.save();try {
       // Handle base64 profile picture if provided
       let processedProfilePicture = profilePicture;
       if (profilePicture && profilePicture.startsWith('data:image')) {
@@ -338,12 +342,24 @@ router.put('/:id', auth, async (req, res) => {
           }
         }
       }
-      
-      updatedStaff = await Staff.findByIdAndUpdate(
+        updatedStaff = await Staff.findByIdAndUpdate(
         req.params.id,
         staffUpdates,
         { new: true, runValidators: true }
       ).populate('userId', 'username email role');
+      
+      // Handle position mapping if position was updated
+      if (staffUpdates.position) {
+        const userPosition = User.mapStaffPositionToUserPosition(staffUpdates.position);
+        const newRole = ['Shift Manager', 'General Manager', 'Admin'].includes(staffUpdates.position) ? 'manager' : 'staff';
+        
+        await User.findByIdAndUpdate(staff.userId, { 
+          position: userPosition,
+          role: newRole
+        });
+        
+        console.log(`Updated user position mapping: ${staffUpdates.position} -> ${userPosition} (role: ${newRole})`);
+      }
       
       console.log('Updated staff information:', {
         name: updatedStaff.name,
@@ -372,24 +388,209 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// Delete staff member
-router.delete('/:id', auth, async (req, res) => {
+// Terminate staff member (soft delete)
+router.put('/:id/terminate', auth, isManager, async (req, res) => {
   try {
+    const { 
+      terminationReason, 
+      terminationNotes, 
+      finalWorkDate,
+      isEligibleForRehire = true 
+    } = req.body;
+
+    // Validate required fields
+    if (!terminationReason) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Termination reason is required' 
+      });
+    }
+
     const staff = await Staff.findById(req.params.id);
     
     if (!staff) {
-      return res.status(404).json({ message: 'Staff member not found' });
-    }    // Delete profile picture if it exists
+      return res.status(404).json({ 
+        success: false,
+        message: 'Staff member not found' 
+      });
+    }
+
+    // Check if already terminated
+    if (staff.status === 'Terminated' || staff.status === 'Resigned') {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Staff member is already terminated/resigned' 
+      });
+    }
+
+    // Update staff status and termination info
+    const updatedStaff = await Staff.findByIdAndUpdate(
+      req.params.id,
+      {
+        status: terminationReason.startsWith('Resignation') ? 'Resigned' : 'Terminated',
+        terminationInfo: {
+          terminatedBy: req.user.id,
+          terminationDate: new Date(),
+          terminationReason,
+          terminationNotes: terminationNotes || '',
+          isEligibleForRehire,
+          finalWorkDate: finalWorkDate ? new Date(finalWorkDate) : new Date()
+        }
+      },
+      { 
+        new: true,
+        runValidators: true 
+      }
+    ).populate('userId', 'username email')
+     .populate('terminationInfo.terminatedBy', 'username');
+
+    res.json({ 
+      success: true,
+      message: `Staff member ${terminationReason.startsWith('Resignation') ? 'resignation' : 'termination'} processed successfully`,
+      data: updatedStaff 
+    });
+  } catch (error) {
+    console.error('Error terminating staff:', error);
+    res.status(500).json({ 
+      success: false,
+      message: error.message 
+    });
+  }
+});
+
+// Reactivate terminated staff member
+router.put('/:id/reactivate', auth, isManager, async (req, res) => {
+  try {
+    const { reactivationNotes } = req.body;
+
+    const staff = await Staff.findById(req.params.id);
+    
+    if (!staff) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Staff member not found' 
+      });
+    }
+
+    // Check if eligible for reactivation
+    if (staff.status !== 'Terminated' && staff.status !== 'Resigned') {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Staff member is not terminated or resigned' 
+      });
+    }
+
+    if (!staff.terminationInfo?.isEligibleForRehire) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Staff member is not eligible for rehire' 
+      });
+    }
+
+    // Update staff status back to active
+    const updatedStaff = await Staff.findByIdAndUpdate(
+      req.params.id,
+      {
+        status: 'Active',
+        $unset: { terminationInfo: 1 }, // Remove termination info
+        reactivationInfo: {
+          reactivatedBy: req.user.id,
+          reactivationDate: new Date(),
+          reactivationNotes: reactivationNotes || 'Staff member rehired'
+        }
+      },
+      { 
+        new: true,
+        runValidators: true 
+      }
+    ).populate('userId', 'username email');
+
+    res.json({ 
+      success: true,
+      message: 'Staff member reactivated successfully',
+      data: updatedStaff 
+    });
+  } catch (error) {
+    console.error('Error reactivating staff:', error);
+    res.status(500).json({ 
+      success: false,
+      message: error.message 
+    });
+  }
+});
+
+// DANGEROUS: Permanently delete staff member (admin only)
+router.delete('/:id/permanent', auth, async (req, res) => {
+  try {
+    // Only allow super admin to permanently delete
+    if (req.user.role !== 'admin' || req.user.position !== 'admin') {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only system administrators can permanently delete staff records' 
+      });
+    }
+
+    const { confirmPassword } = req.body;
+    
+    if (!confirmPassword) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Password confirmation required for permanent deletion' 
+      });
+    }
+
+    // Verify admin password
+    const bcrypt = require('bcryptjs');
+    const User = require('../models/User');
+    const admin = await User.findById(req.user.id);
+    const isPasswordValid = await bcrypt.compare(confirmPassword, admin.password);
+    
+    if (!isPasswordValid) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid password confirmation' 
+      });
+    }
+
+    const staff = await Staff.findById(req.params.id);
+    
+    if (!staff) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Staff member not found' 
+      });
+    }
+
+    // Check if staff has been terminated for at least 30 days
+    const terminationDate = staff.terminationInfo?.terminationDate;
+    if (!terminationDate || (new Date() - terminationDate) < (30 * 24 * 60 * 60 * 1000)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Staff must be terminated for at least 30 days before permanent deletion' 
+      });
+    }
+
+    // Check for existing payroll records
+    const Payroll = require('../models/Payroll');
+    const payrollCount = await Payroll.countDocuments({ staffId: req.params.id });
+    
+    if (payrollCount > 0) {
+      return res.status(400).json({ 
+        success: false,
+        message: `Cannot permanently delete staff with ${payrollCount} payroll record(s). Archive instead.` 
+      });
+    }
+
+    // Delete profile picture if it exists
     if (staff.profilePicture && !staff.profilePicture.includes('placeholders')) {
       try {
-        // Use the deleteStaffProfileImage utility function
+        const { deleteStaffProfileImage } = require('../utils/imageUtils');
         const deleted = deleteStaffProfileImage(staff.profilePicture);
         if (deleted) {
           console.log(`Deleted staff profile picture: ${staff.profilePicture}`);
         }
       } catch (fileError) {
         console.error('Error deleting profile picture:', fileError);
-        // Continue with deletion even if file removal fails
       }
     }
 
@@ -399,11 +600,25 @@ router.delete('/:id', auth, async (req, res) => {
     // Delete staff record
     await Staff.findByIdAndDelete(req.params.id);
     
-    res.json({ message: 'Staff member deleted successfully' });
+    res.json({ 
+      success: true,
+      message: 'Staff member permanently deleted successfully' 
+    });
   } catch (error) {
-    console.error('Error deleting staff:', error);
-    res.status(500).json({ message: error.message });
+    console.error('Error permanently deleting staff:', error);
+    res.status(500).json({ 
+      success: false,
+      message: error.message 
+    });
   }
+});
+
+// Replace the old delete route with a disabled message
+router.delete('/:id', auth, async (req, res) => {
+  res.status(400).json({ 
+    success: false,
+    message: 'Direct deletion is disabled. Use /terminate endpoint instead to properly process staff departure.' 
+  });
 });
 
 // Authenticate staff by PIN code
@@ -416,9 +631,7 @@ router.post('/authenticate-pin', async (req, res) => {
         success: false,
         message: 'PIN code is required'
       });
-    }
-
-    // Find staff member with matching PIN code
+    }    // Find staff member with matching PIN code
     const staff = await Staff.findOne({ pinCode: pin })
       .populate('userId', 'username email role');
     
@@ -426,6 +639,19 @@ router.post('/authenticate-pin', async (req, res) => {
       return res.status(401).json({
         success: false,
         message: 'Invalid PIN code'
+      });
+    }
+    
+    // Check if staff member is terminated, resigned, or suspended
+    if (['Terminated', 'Resigned', 'Suspended'].includes(staff.status)) {
+      return res.status(403).json({
+        success: false,
+        message: staff.status === 'Terminated' 
+          ? 'Access denied: Your employment has been terminated'
+          : staff.status === 'Resigned'
+          ? 'Access denied: You have resigned from your position'
+          : 'Access denied: Your account is suspended',
+        terminationStatus: staff.status
       });
     }
     

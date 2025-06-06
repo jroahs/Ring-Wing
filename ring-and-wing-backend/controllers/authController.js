@@ -30,12 +30,16 @@ const registerUser = async (req, res) => {
       if (!manager || manager.role !== 'manager') {
         return res.status(400).json({ message: 'Invalid manager specified' });
       }
-    }
-
-    // Set default position based on role if not provided
+    }    // Set default position based on role if not provided
     let userPosition = position || 'cashier';
     if (role === 'manager' && !position) {
-      userPosition = 'manager';
+      userPosition = 'general_manager';
+    }
+
+    // Validate position
+    const validPositions = ['cashier', 'inventory', 'shift_manager', 'general_manager', 'admin'];
+    if (!validPositions.includes(userPosition)) {
+      return res.status(400).json({ message: 'Invalid position specified' });
     }
 
     // Create new user

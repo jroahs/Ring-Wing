@@ -6,6 +6,7 @@ import axios from 'axios';
 import { API_URL } from './App';  // Import API_URL from App.jsx
 import { Button } from './components/ui/Button'; // Import Button component
 import { toast } from 'react-toastify';
+import { getCurrentUser, hasInventoryAccess, hasPermission } from './utils/permissions';
 
 const colors = {
   primary: '#2e0304',

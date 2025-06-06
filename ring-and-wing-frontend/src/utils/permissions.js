@@ -2,11 +2,11 @@
 
 /**
  * Check if a user position has inventory access
- * @param {string} position - User position ('cashier', 'inventory', 'manager', 'admin')
+ * @param {string} position - User position ('cashier', 'inventory', 'shift_manager', 'general_manager', 'admin')
  * @returns {boolean} - Whether the position has inventory access
  */
 export const hasInventoryAccess = (position) => {
-  return ['inventory', 'manager', 'admin'].includes(position);
+  return ['inventory', 'shift_manager', 'general_manager', 'admin'].includes(position);
 };
 
 /**
@@ -37,23 +37,22 @@ export const currentUserHasInventoryAccess = () => {
  * @param {string} position - User position
  * @returns {Array} - Array of navigation items
  */
-export const getNavigationItems = (position) => {
-  const baseItems = [
+export const getNavigationItems = (position) => {  const baseItems = [
     { 
       path: '/dashboard', 
       label: 'Dashboard',
       icon: 'grid',
-      positions: ['manager', 'admin']
+      positions: ['shift_manager', 'general_manager', 'admin']
     }
   ];
 
   // POS access for cashiers and managers
-  if (['cashier', 'manager', 'admin'].includes(position)) {
+  if (['cashier', 'shift_manager', 'general_manager', 'admin'].includes(position)) {
     baseItems.push({
       path: '/orders',
       label: 'Orders',
       icon: 'shopping-bag',
-      positions: ['cashier', 'manager', 'admin']
+      positions: ['cashier', 'shift_manager', 'general_manager', 'admin']
     });
   }
 
@@ -63,28 +62,27 @@ export const getNavigationItems = (position) => {
       path: '/inventory',
       label: 'Inventory',
       icon: 'box',
-      positions: ['inventory', 'manager', 'admin'],
+      positions: ['inventory', 'shift_manager', 'general_manager', 'admin'],
       primary: position === 'inventory' // Mark as primary for inventory staff
     });
   }
-
   // Menu management for managers and admin
-  if (['manager', 'admin'].includes(position)) {
+  if (['shift_manager', 'general_manager', 'admin'].includes(position)) {
     baseItems.push({
       path: '/menu',
       label: 'Menu Management',
       icon: 'book-open',
-      positions: ['manager', 'admin']
+      positions: ['shift_manager', 'general_manager', 'admin']
     });
   }
 
   // Staff management for managers and admin
-  if (['manager', 'admin'].includes(position)) {
+  if (['shift_manager', 'general_manager', 'admin'].includes(position)) {
     baseItems.push({
       path: '/staff',
       label: 'Staff Management',
       icon: 'users',
-      positions: ['manager', 'admin']
+      positions: ['shift_manager', 'general_manager', 'admin']
     });
   }
 
@@ -93,7 +91,7 @@ export const getNavigationItems = (position) => {
     path: '/ai-assistant',
     label: 'AI Assistant',
     icon: 'message-circle',
-    positions: ['cashier', 'inventory', 'manager', 'admin']
+    positions: ['cashier', 'inventory', 'shift_manager', 'general_manager', 'admin']
   });
 
   // Filter items based on current position
@@ -115,27 +113,35 @@ export const POSITION_PERMISSIONS = {
   },
   
   inventory: {
-    inventory: { view: true, add: true, edit: true, delete: true, reports: true },
+    inventory: { view: true, add: true, edit: true, delete: false, reports: true },
     pos: { access: false, refunds: false, discounts: false, void_transactions: false },
-    menu: { view: true, edit: false, pricing: false },
+    menu: { view: true, edit: true, pricing: false },
     staff: { view: false, manage: false },
     reports: { own_performance: true, inventory_reports: true, all_data: false }
   },
   
-  manager: {
+  shift_manager: {
     inventory: { view: true, add: true, edit: true, delete: true, reports: true },
-    pos: { access: true, refunds: true, discounts: true, void_transactions: true },
-    menu: { view: true, edit: true, pricing: true },
-    staff: { view: true, manage: true },
-    reports: { own_performance: true, inventory_reports: true, all_data: true }
+    pos: { access: true, refunds: true, discounts: true, void_transactions: false },
+    menu: { view: true, edit: true, pricing: false },
+    staff: { view: true, manage: false },
+    reports: { own_performance: true, inventory_reports: true, staff_reports: true, all_data: false }
   },
   
-  admin: {
+  general_manager: {
     inventory: { view: true, add: true, edit: true, delete: true, reports: true },
     pos: { access: true, refunds: true, discounts: true, void_transactions: true },
     menu: { view: true, edit: true, pricing: true },
     staff: { view: true, manage: true },
-    reports: { own_performance: true, inventory_reports: true, all_data: true }
+    reports: { own_performance: true, inventory_reports: true, staff_reports: true, all_data: true }
+  },
+    admin: {
+    inventory: { view: true, add: true, edit: true, delete: true, reports: true },
+    pos: { access: true, refunds: true, discounts: true, void_transactions: true },
+    menu: { view: true, edit: true, pricing: true },
+    staff: { view: true, manage: true },
+    reports: { own_performance: true, inventory_reports: true, staff_reports: true, all_data: true },
+    system: { settings: true, backups: true, logs: true, maintenance: true }
   }
 };
 
@@ -160,7 +166,8 @@ export const getDefaultRoute = (position) => {
   switch (position) {
     case 'inventory':
       return '/inventory';
-    case 'manager':
+    case 'shift_manager':
+    case 'general_manager':
     case 'admin':
       return '/dashboard';
     case 'cashier':

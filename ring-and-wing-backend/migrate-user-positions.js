@@ -18,15 +18,13 @@ async function migrateUserPositions() {
       position: { $exists: false } 
     });
 
-    console.log(`Found ${usersWithoutPosition.length} users without position field`);
-
-    // Update each user with a default position based on their role
+    console.log(`Found ${usersWithoutPosition.length} users without position field`);    // Update each user with a default position based on their role
     for (const user of usersWithoutPosition) {
       let defaultPosition = 'cashier';
       
-      // If the user is a manager, set position to manager
+      // If the user is a manager, set position to general_manager
       if (user.role === 'manager') {
-        defaultPosition = 'manager';
+        defaultPosition = 'general_manager';
       }
       
       await User.findByIdAndUpdate(user._id, { 
@@ -34,6 +32,21 @@ async function migrateUserPositions() {
       });
       
       console.log(`Updated user ${user.username} with position: ${defaultPosition}`);
+    }
+
+    // Update existing users with old 'manager' position to 'general_manager'
+    const usersWithOldManagerPosition = await User.find({ 
+      position: 'manager' 
+    });
+
+    console.log(`Found ${usersWithOldManagerPosition.length} users with old 'manager' position`);
+
+    for (const user of usersWithOldManagerPosition) {
+      await User.findByIdAndUpdate(user._id, { 
+        position: 'general_manager' 
+      });
+      
+      console.log(`Updated user ${user.username} from 'manager' to 'general_manager'`);
     }
 
     // Also check existing staff records to suggest positions
@@ -44,22 +57,27 @@ async function migrateUserPositions() {
     for (const staff of staffRecords) {
       if (staff.userId) {
         let suggestedPosition = 'cashier';
-        
-        // Map staff positions to user positions
+          // Map staff positions to user positions
         switch (staff.position) {
           case 'Manager':
-            suggestedPosition = 'manager';
+          case 'General Manager':
+            suggestedPosition = 'general_manager';
+            break;
+          case 'Shift Manager':
+            suggestedPosition = 'shift_manager';
+            break;
+          case 'Admin':
+            suggestedPosition = 'admin';
             break;
           case 'Cashier':
+          case 'Server':
+          case 'Barista':
             suggestedPosition = 'cashier';
             break;
-          case 'Barista':
           case 'Chef':
           case 'Cook':
+          case 'Inventory Staff':
             suggestedPosition = 'inventory'; // Kitchen staff often handle inventory
-            break;
-          case 'Server':
-            suggestedPosition = 'cashier';
             break;
           default:
             suggestedPosition = 'cashier';

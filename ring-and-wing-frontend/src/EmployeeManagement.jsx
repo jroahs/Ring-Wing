@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { FiUser, FiPlus, FiEdit, FiTrash, FiSave, FiCamera, FiChevronDown } from 'react-icons/fi';
+import { FiUser, FiPlus, FiEdit, FiTrash, FiSave, FiCamera, FiChevronDown, FiUserX, FiUserCheck } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import Sidebar from './Sidebar';
 import WorkIDModal from './WorkIDModal';
+import TerminationModal from './components/TerminationModal';
 import { toast } from 'react-toastify';
 import { Button } from './components/ui/Button'; // Import Button component
 import StaffAvatar from './components/StaffAvatar'; // Import StaffAvatar component
@@ -18,17 +19,31 @@ const StaffManagement = () => {
   };
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-  const [staff, setStaff] = useState([]);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);  const [staff, setStaff] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [showGovtDetails, setShowGovtDetails] = useState(false);
   const [showAccountDetails, setShowAccountDetails] = useState(false);
-  const [formErrors, setFormErrors] = useState({});
+  const [formErrors, setFormErrors] = useState({});  const [isTerminationModalOpen, setIsTerminationModalOpen] = useState(false);
+  const [staffToTerminate, setStaffToTerminate] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('All'); // Filter for staff status
+  const [searchQuery, setSearchQuery] = useState(''); // Search functionality
   const statusOptions = ['Active', 'On Leave', 'Inactive'];
-  const positionOptions = ['Barista', 'Cashier', 'Chef', 'Manager', 'Server', 'Cook'];
+  const allStatusOptions = ['All', 'Active', 'On Leave', 'Inactive', 'Terminated', 'Resigned', 'Suspended'];
+  const positionOptions = [
+    'Cashier', 
+    'Inventory Staff', 
+    'Shift Manager', 
+    'General Manager', 
+    'Admin',
+    // Legacy positions for existing staff
+    'Barista', 
+    'Chef', 
+    'Server', 
+    'Cook'
+  ];
 
   const [formData, setFormData] = useState({
     // Staff details
@@ -40,13 +55,13 @@ const StaffManagement = () => {
     status: 'Active',
     sssNumber: '',
     tinNumber: '',
-    philHealthNumber: '',
-    pinCode: '0000', // Default PIN
+    philHealthNumber: '',    pinCode: '0000', // Default PIN
     
     // User account details
     username: '',
     email: '',
     password: '',
+    confirmPassword: '',
   });
   
   useEffect(() => {
@@ -83,8 +98,7 @@ const StaffManagement = () => {
         const normalizedStaff = staffData.map(member => {
           // Extract the user data from the nested userId object
           const userData = member.userId || {};
-          
-          return {
+            return {
             _id: member._id || `temp-${Date.now()}-${Math.random()}`,
             name: member.name || '',
             position: member.position || '',
@@ -102,7 +116,10 @@ const StaffManagement = () => {
             profilePicture: member.profilePicture || '',
             sssNumber: member.sssNumber || '',
             tinNumber: member.tinNumber || '',
-            philHealthNumber: member.philHealthNumber || ''
+            philHealthNumber: member.philHealthNumber || '',
+            // Preserve termination and reactivation info for rehire functionality
+            terminationInfo: member.terminationInfo || null,
+            reactivationInfo: member.reactivationInfo || null
           };
         });
         
@@ -212,13 +229,18 @@ const StaffManagement = () => {
       errors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errors.email = 'Invalid email format';
-    }
-
-    // Password validation - minimum 8 characters
+    }    // Password validation - minimum 8 characters
     if (!formData.password.trim()) {
       errors.password = 'Password is required';
     } else if (formData.password.length < 8) {
       errors.password = 'Password must be at least 8 characters';
+    }
+
+    // Confirm Password validation
+    if (!formData.confirmPassword.trim()) {
+      errors.confirmPassword = 'Please confirm your password';
+    } else if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
     }
 
     // PIN validation - must be 4-6 digits and unique
@@ -289,13 +311,18 @@ const StaffManagement = () => {
       errors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errors.email = 'Invalid email format';
-    }
-
-    // Password validation - only required for new accounts
+    }    // Password validation - only required for new accounts
     if (!editMode && !formData.password.trim()) {
       errors.password = 'Password is required';
     } else if (formData.password.trim() && formData.password.length < 8) {
       errors.password = 'Password must be at least 8 characters';
+    }
+
+    // Confirm Password validation - only when password is provided
+    if (formData.password.trim() && !formData.confirmPassword.trim()) {
+      errors.confirmPassword = 'Please confirm your password';
+    } else if (formData.password.trim() && formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
     }
     
     // Show each validation error as a toast notification
@@ -531,12 +558,9 @@ const StaffManagement = () => {
       toast.error(error.response?.data?.message || 'Failed to update account information');
     }
   };
-
-  const handleDeleteStaff = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this staff member?')) return;
-    
+  // Handle staff termination
+  const handleTerminateStaff = async (staffId, terminationData) => {
     try {
-      // Add auth token to request headers
       const token = localStorage.getItem('authToken');
       const config = {
         headers: { 
@@ -544,12 +568,101 @@ const StaffManagement = () => {
         }
       };
       
-      await axios.delete(`/api/staff/${id}`, config);
-      setStaff(prev => prev.filter(s => s._id !== id));
-      toast.success('Staff member deleted successfully');
+      const response = await axios.put(`/api/staff/${staffId}/terminate`, terminationData, config);
+        if (response.data?.success) {
+        // Update the staff in the list with the complete updated data from server
+        const updatedStaffData = response.data.data;
+        setStaff(prev => prev.map(s => 
+          s._id === staffId 
+            ? { 
+                ...s, 
+                status: updatedStaffData.status, 
+                terminationInfo: updatedStaffData.terminationInfo,
+                // Preserve email and username from nested userId object if present
+                email: s.email || updatedStaffData.userId?.email || '',
+                username: s.username || updatedStaffData.userId?.username || ''
+              }
+            : s
+        ));
+        toast.success('Staff termination processed successfully');
+      }
     } catch (error) {
-      console.error('Error deleting staff:', error);
-      toast.error(error.response?.data?.message || 'Failed to delete staff member');
+      console.error('Error terminating staff:', error);
+      toast.error(error.response?.data?.message || 'Failed to process staff termination');
+      throw error;
+    }
+  };
+
+  // Handle staff reactivation
+  const handleReactivateStaff = async (staffId) => {
+    if (!window.confirm('Are you sure you want to reactivate this staff member?')) return;
+    
+    try {
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      };
+      
+      const reactivationNotes = prompt('Enter reactivation notes (optional):') || 'Staff member rehired';
+      
+      const response = await axios.put(`/api/staff/${staffId}/reactivate`, 
+        { reactivationNotes }, 
+        config
+      );
+        if (response.data?.success) {
+        // Update the staff in the list with the complete updated data from server
+        const updatedStaffData = response.data.data;
+        setStaff(prev => prev.map(s => 
+          s._id === staffId 
+            ? { 
+                ...s, 
+                status: updatedStaffData.status, 
+                reactivationInfo: updatedStaffData.reactivationInfo,
+                // Preserve email and username from nested userId object if present
+                email: s.email || updatedStaffData.userId?.email || '',
+                username: s.username || updatedStaffData.userId?.username || ''
+              }
+            : s
+        ));
+        toast.success('Staff member reactivated successfully');
+      }
+    } catch (error) {
+      console.error('Error reactivating staff:', error);
+      toast.error(error.response?.data?.message || 'Failed to reactivate staff member');
+    }
+  };
+
+  // Open termination modal
+  const openTerminationModal = (staffMember) => {
+    setStaffToTerminate(staffMember);
+    setIsTerminationModalOpen(true);
+  };
+  // Filter staff based on status and search query
+  const filteredStaff = staff.filter(staffMember => {
+    // Status filter
+    const statusMatch = statusFilter === 'All' || staffMember.status === statusFilter;
+    
+    // Search filter (name, position, or email)
+    const searchMatch = !searchQuery || 
+      staffMember.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      staffMember.position?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      staffMember.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      staffMember.username?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    return statusMatch && searchMatch;
+  });
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Active': return colors.accent;
+      case 'On Leave': return '#f59e0b';
+      case 'Inactive': return colors.muted;
+      case 'Terminated': return '#ef4444';
+      case 'Resigned': return '#8b5cf6';
+      case 'Suspended': return '#f97316';
+      default: return colors.muted;
     }
   };
 
@@ -645,26 +758,56 @@ const StaffManagement = () => {
               <p>Loading staff members...</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Staff List */}
-              <div className="lg:col-span-1">
-                <div className="rounded-lg p-4 shadow-sm" style={{ backgroundColor: colors.primary }}>
-                  <h2 className="text-xl font-semibold mb-4" style={{ color: colors.background }}>
-                    <FiUser className="inline mr-2" />
-                    Staff Members
-                  </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">              {/* Staff List */}
+              <div className="lg:col-span-1">                <div className="rounded-lg p-4 shadow-sm" style={{ backgroundColor: colors.primary }}>
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-semibold" style={{ color: colors.background }}>
+                      <FiUser className="inline mr-2" />
+                      Staff Members ({filteredStaff.length})
+                    </h2>
+                    {/* Status Filter */}
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="text-xs px-2 py-1 rounded border"
+                      style={{ borderColor: colors.muted }}
+                    >
+                      {allStatusOptions.map(status => (
+                        <option key={status} value={status}>{status}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  {/* Search Input */}
+                  <div className="mb-4">
+                    <input
+                      type="text"
+                      placeholder="Search by name, position, or email..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full px-3 py-2 text-sm rounded border"
+                      style={{ 
+                        borderColor: colors.muted,
+                        backgroundColor: colors.background,
+                        color: colors.primary 
+                      }}
+                    />
+                  </div>
                   
                   <div className="space-y-2">
-                    {staff.length === 0 ? (
+                    {filteredStaff.length === 0 ? (
                       <div 
                         className="text-center py-4" 
                         style={{ color: colors.background }}
                       >
-                        No staff members found. Add your first employee!
+                        {statusFilter === 'All' 
+                          ? 'No staff members found. Add your first employee!'
+                          : `No ${statusFilter.toLowerCase()} staff members found.`
+                        }
                       </div>
                     ) : (
                       <AnimatePresence>
-                        {staff.map((staffMember) => (
+                        {filteredStaff.map((staffMember) => (
                           <motion.div 
                             key={staffMember._id || `staff-${Math.random()}`} 
                             className="p-3 rounded flex justify-between items-center"
@@ -680,7 +823,8 @@ const StaffManagement = () => {
                             animate="visible"
                             exit={{ opacity: 0, x: -10 }}
                             layout
-                          >                            <div className="flex items-center gap-3">
+                          >
+                            <div className="flex items-center gap-3">
                               <StaffAvatar 
                                 imagePath={staffMember.profilePicture}
                                 alt={`${staffMember.name}'s photo`}
@@ -689,13 +833,30 @@ const StaffManagement = () => {
                               />
                               <div>
                                 <p className="font-medium">{staffMember.name}</p>
-                                <p className="text-sm" style={{ color: colors.muted }}>{staffMember.position}</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm" style={{ color: colors.muted }}>
+                                    {staffMember.position}
+                                  </p>
+                                  <span 
+                                    className="text-xs px-2 py-0.5 rounded-full"
+                                    style={{ 
+                                      backgroundColor: getStatusColor(staffMember.status) + '20',
+                                      color: getStatusColor(staffMember.status),
+                                      fontSize: '10px'
+                                    }}
+                                  >
+                                    {staffMember.status}
+                                  </span>
+                                </div>
                               </div>
-                            </div>                            <div className="flex gap-2">
+                            </div>
+                            
+                            <div className="flex gap-2">
                               <Button 
                                 onClick={() => { setSelectedStaff(staffMember); setIsModalOpen(true); }}
                                 variant="ghost"
                                 size="sm"
+                                title="View Work ID"
                               >
                                 <FiUser />
                               </Button>
@@ -703,16 +864,32 @@ const StaffManagement = () => {
                                 onClick={() => handleEditStaff(staffMember)}
                                 variant="ghost"
                                 size="sm"
+                                title="Edit Staff"
                               >
                                 <FiEdit />
                               </Button>
-                              <Button 
-                                onClick={() => handleDeleteStaff(staffMember._id)}
-                                variant="ghost"
-                                size="sm"
-                              >
-                                <FiTrash />
-                              </Button>
+                              {staffMember.status === 'Active' || staffMember.status === 'On Leave' || staffMember.status === 'Inactive' ? (
+                                <Button 
+                                  onClick={() => openTerminationModal(staffMember)}
+                                  variant="ghost"
+                                  size="sm"
+                                  title="Terminate Staff"
+                                  style={{ color: '#ef4444' }}
+                                >
+                                  <FiUserX />
+                                </Button>
+                              ) : (staffMember.status === 'Terminated' || staffMember.status === 'Resigned') && 
+                                 staffMember.terminationInfo?.isEligibleForRehire ? (
+                                <Button 
+                                  onClick={() => handleReactivateStaff(staffMember._id)}
+                                  variant="ghost"
+                                  size="sm"
+                                  title="Reactivate Staff"
+                                  style={{ color: colors.accent }}
+                                >
+                                  <FiUserCheck />
+                                </Button>
+                              ) : null}
                             </div>
                           </motion.div>
                         ))}
@@ -983,8 +1160,7 @@ const StaffManagement = () => {
                             <div className="text-xs text-red-500 mt-1">{formErrors.dailyRate}</div>
                           )}
                         </div>
-                        
-                        <div>
+                          <div>
                           <label className="block text-xs font-medium mb-1" style={{ color: colors.primary }}>
                             Status
                           </label>
@@ -994,11 +1170,21 @@ const StaffManagement = () => {
                             onChange={handleInputChange}
                             className="p-2 rounded border w-full text-sm" 
                             style={{ borderColor: formErrors.status ? colors.accent : colors.muted }}
+                            disabled={formData.status === 'Terminated' || formData.status === 'Resigned' || formData.status === 'Suspended'}
                           >
                             {statusOptions.map(option => (
                               <option key={option} value={option}>{option}</option>
                             ))}
+                            {/* Show current status even if it's a termination status */}
+                            {!statusOptions.includes(formData.status) && (
+                              <option value={formData.status}>{formData.status}</option>
+                            )}
                           </select>
+                          {(formData.status === 'Terminated' || formData.status === 'Resigned' || formData.status === 'Suspended') && (
+                            <div className="text-xs mt-1" style={{ color: colors.muted }}>
+                              Status cannot be changed. Use reactivation for terminated/resigned staff.
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1059,11 +1245,32 @@ const StaffManagement = () => {
                             className="p-2 rounded border w-full text-sm"
                             style={{ borderColor: formErrors.password ? colors.accent : colors.muted }}
                             required={!editMode} 
-                          />
-                          {formErrors.password && (
+                          />                          {formErrors.password && (
                             <div className="text-xs text-red-500 mt-1">{formErrors.password}</div>
                           )}
                         </div>
+
+                        {/* Confirm Password Field - Only show when password is being entered */}
+                        {(formData.password || !editMode) && (
+                          <div>
+                            <label className="block text-xs font-medium mb-1" style={{ color: colors.primary }}>
+                              Confirm Password
+                            </label>
+                            <input 
+                              type="password" 
+                              name="confirmPassword" 
+                              placeholder="Re-enter password" 
+                              value={formData.confirmPassword}
+                              onChange={handleInputChange} 
+                              className="p-2 rounded border w-full text-sm"
+                              style={{ borderColor: formErrors.confirmPassword ? colors.accent : colors.muted }}
+                              required={!editMode || formData.password} 
+                            />
+                            {formErrors.confirmPassword && (
+                              <div className="text-xs text-red-500 mt-1">{formErrors.confirmPassword}</div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>                  </div>
 
@@ -1130,9 +1337,7 @@ const StaffManagement = () => {
             </div>
           )}
         </div>
-      </div>
-
-      {/* Work ID Modal */}
+      </div>      {/* Work ID Modal */}
       <AnimatePresence>
         {isModalOpen && selectedStaff && (
           <WorkIDModal 
@@ -1140,6 +1345,22 @@ const StaffManagement = () => {
             isOpen={isModalOpen} 
             onClose={() => setIsModalOpen(false)} 
             colors={colors}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Termination Modal */}
+      <AnimatePresence>
+        {isTerminationModalOpen && staffToTerminate && (
+          <TerminationModal
+            isOpen={isTerminationModalOpen}
+            onClose={() => {
+              setIsTerminationModalOpen(false);
+              setStaffToTerminate(null);
+            }}
+            staff={staffToTerminate}
+            colors={colors}
+            onTerminate={handleTerminateStaff}
           />
         )}
       </AnimatePresence>

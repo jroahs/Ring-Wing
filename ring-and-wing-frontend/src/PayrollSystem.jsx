@@ -74,15 +74,19 @@ const PayrollSystem = () => {
           'Authorization': `Bearer ${token}`
         }
       };
-      
-      // Get staff with their payroll schedule information
+        // Get staff with their payroll schedule information
       const { data } = await axios.get('/api/staff?populate=payrollScheduleId', config);
       // Ensure data is an array before mapping
       if (!Array.isArray(data)) {
         throw new Error('Invalid staff data format');
       }
       
-      const formattedEmployees = data.map(emp => ({
+      // Filter out terminated, resigned, and suspended staff from payroll system
+      const activeStaff = data.filter(emp => 
+        !['Terminated', 'Resigned', 'Suspended'].includes(emp.status)
+      );
+      
+      const formattedEmployees = activeStaff.map(emp => ({
         ...emp,
         dailyRate: Number(emp.dailyRate) || 0,
         allowances: Number(emp.allowances) || 0

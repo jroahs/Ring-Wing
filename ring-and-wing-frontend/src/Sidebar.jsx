@@ -86,38 +86,37 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
   const tooltipTextSize = isLargeScreen ? '1rem' : '0.875rem';
   const dropdownWidth = isLargeScreen ? '14rem' : '12rem';  const userRole = userData?.role || 'staff';
   const userPosition = userData?.position || 'cashier';
-
   // Define navigation items with position-based access
   const navigationItems = [
     { 
       path: '/dashboard', 
       icon: <FiGrid size={iconSize} className="text-white" />, 
       label: 'Dashboard',
-      positions: ['manager', 'admin']
+      positions: ['shift_manager', 'general_manager', 'admin']
     },
     { 
       path: '/pos', 
       icon: <FiShoppingCart size={iconSize} className="text-white" />, 
       label: 'POS',
-      positions: ['cashier', 'manager', 'admin']
+      positions: ['cashier', 'shift_manager', 'general_manager', 'admin']
     },
     { 
       path: '/sales',
       icon: <FiShoppingBag size={iconSize} className="text-white" />,
       label: 'Sales',
-      positions: ['cashier', 'manager', 'admin'],
+      positions: ['cashier', 'shift_manager', 'general_manager', 'admin'],
       subItems: [
         { 
           path: '/self-checkout', 
           icon: <FiTablet size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Self Checkout',
-          positions: ['cashier', 'manager', 'admin']
+          positions: ['cashier', 'shift_manager', 'general_manager', 'admin']
         },
         { 
           path: '/orders', 
           icon: <FiShoppingBag size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Orders',
-          positions: ['cashier', 'manager', 'admin']
+          positions: ['cashier', 'shift_manager', 'general_manager', 'admin']
         },
       ]
     },
@@ -125,19 +124,18 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
       path: '/inventory-management',
       icon: <FiDatabase size={iconSize} className="text-white" />,
       label: 'Inventory & Menu',
-      positions: ['inventory', 'manager', 'admin'],
-      subItems: [
+      positions: ['inventory', 'shift_manager', 'general_manager', 'admin'],      subItems: [
         { 
           path: '/inventory', 
           icon: <FiBox size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Inventory',
-          positions: ['inventory', 'manager', 'admin']
+          positions: ['inventory', 'shift_manager', 'general_manager', 'admin']
         },
         { 
           path: '/menu', 
           icon: <FiBookOpen size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Menu',
-          positions: ['manager', 'admin']
+          positions: ['shift_manager', 'general_manager', 'admin']
         },
       ]
     },
@@ -145,24 +143,24 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
       path: '/timeclock', 
       icon: <FiClock size={iconSize} className="text-white" />, 
       label: 'Time Clock',
-      positions: ['cashier', 'inventory', 'manager', 'admin']
+      positions: ['cashier', 'inventory', 'shift_manager', 'general_manager', 'admin']
     },
     { 
       path: '/staff',
       icon: <FiUsers size={iconSize} className="text-white" />,
-      label: 'Staff',      positions: ['manager', 'admin'],
+      label: 'Staff',      positions: ['shift_manager', 'general_manager', 'admin'],
       subItems: [
         { 
           path: '/employees', 
           icon: <FiUser size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Employee Management',
-          positions: ['manager', 'admin']
+          positions: ['shift_manager', 'general_manager', 'admin']
         },
         { 
           path: '/payroll', 
           icon: <FiCreditCard size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Payroll System',
-          positions: ['manager', 'admin']
+          positions: ['shift_manager', 'general_manager', 'admin']
         }
       ]
     },
@@ -170,19 +168,18 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
       path: '/expenses', 
       icon: <FiTrendingDown size={iconSize} className="text-white" />, 
       label: 'Expenses',
-      positions: ['manager', 'admin']
+      positions: ['shift_manager', 'general_manager', 'admin']
     },
     { 
       path: '/revenue-reports', 
       icon: <FiPieChart size={iconSize} className="text-white" />, 
       label: 'Revenue Reports',
-      positions: ['manager', 'admin']
-    },
-    { 
+      positions: ['shift_manager', 'general_manager', 'admin']
+    },    { 
       path: '/chatbot', 
       icon: <FiMessageSquare size={iconSize} className="text-white" />, 
       label: 'AI Assistant',
-      positions: ['cashier', 'inventory', 'manager', 'admin']
+      positions: ['cashier', 'inventory', 'shift_manager', 'general_manager', 'admin']
     }
   ];
 

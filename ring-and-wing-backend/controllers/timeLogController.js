@@ -117,9 +117,19 @@ const clockIn = async (req, res) => {
           success: false,
           message: 'No staff record found. Please contact your administrator.'
         });
-      }
+      }      console.log('[TimeLog Debug] Staff found:', staffMember._id);
 
-      console.log('[TimeLog Debug] Staff found:', staffMember._id);
+      // Check if staff member is terminated, resigned, or suspended
+      if (['Terminated', 'Resigned', 'Suspended'].includes(staffMember.status)) {
+        return res.status(403).json({
+          success: false,
+          message: staffMember.status === 'Terminated' 
+            ? 'Access denied: Your employment has been terminated'
+            : staffMember.status === 'Resigned'
+            ? 'Access denied: You have resigned from your position'
+            : 'Access denied: Your account is suspended'
+        });
+      }
 
       // Verify PIN if provided
       if (req.body.pinCode) {
@@ -210,11 +220,22 @@ const clockOut = async (req, res) => {
       } else if (req.staff) {
         staffMember = req.staff;
       }
-      
-      if (!staffMember) {
+        if (!staffMember) {
         return res.status(404).json({
           success: false,
           message: 'No staff record found for this user'
+        });
+      }
+      
+      // Check if staff member is terminated, resigned, or suspended
+      if (['Terminated', 'Resigned', 'Suspended'].includes(staffMember.status)) {
+        return res.status(403).json({
+          success: false,
+          message: staffMember.status === 'Terminated' 
+            ? 'Access denied: Your employment has been terminated'
+            : staffMember.status === 'Resigned'
+            ? 'Access denied: You have resigned from your position'
+            : 'Access denied: Your account is suspended'
         });
       }
       

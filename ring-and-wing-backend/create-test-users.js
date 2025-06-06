@@ -15,29 +15,30 @@ async function createTestUsers() {
         { username: 'teststaff' }
       ] 
     });
-    console.log('Cleaned existing test users');
-
-    // Create Manager with plain text password
+    console.log('Cleaned existing test users');    // Create Manager with plain text password and new position hierarchy
     const manager = await User.create({
       username: 'testmanager',
       email: 'manager@test.com',
       password: 'manager123', // Will be hashed by pre-save hook
-      role: 'manager'
+      role: 'manager',
+      position: 'general_manager' // Use new position hierarchy
     });
-    console.log(`✅ Manager created: ${manager.username}`);
+    console.log(`✅ Manager created: ${manager.username} (Position: ${manager.position})`);
 
-    // Create Staff with plain text password
+    // Create Staff with plain text password and new position hierarchy
     const staff = await User.create({
       username: 'teststaff',
       email: 'staff@test.com',
       password: 'staff123', // Will be hashed by pre-save hook
       role: 'staff',
+      position: 'cashier', // Use new position hierarchy
       reportsTo: manager._id
     });
-    console.log(`✅ Staff created: ${staff.username} reporting to ${manager.username}`);
-
-    // Verify hashes
-    console.log('\nGenerated Hashes:');
+    console.log(`✅ Staff created: ${staff.username} (Position: ${staff.position}) reporting to ${manager.username}`);    // Verify creation details
+    console.log('\n📋 User Details Summary:');
+    console.log(`Manager: ${manager.username} | Role: ${manager.role} | Position: ${manager.position}`);
+    console.log(`Staff: ${staff.username} | Role: ${staff.role} | Position: ${staff.position}`);
+    console.log('\n🔐 Generated Password Hashes:');
     console.log(`Manager Hash: ${manager.password}`);
     console.log(`Staff Hash: ${staff.password}`);
 
