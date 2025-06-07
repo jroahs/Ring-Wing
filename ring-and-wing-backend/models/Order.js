@@ -24,10 +24,9 @@ const orderSchema = new mongoose.Schema({
     total: { type: Number, required: true },
     cashReceived: { type: Number, default: 0 },
     change: { type: Number, default: 0 }
-  },
-  paymentMethod: { 
+  },  paymentMethod: { 
     type: String, 
-    enum: ['cash', 'card', 'e-wallet', 'pending'],
+    enum: ['cash', 'e-wallet', 'pending'],
     required: true 
   },
   orderType: {

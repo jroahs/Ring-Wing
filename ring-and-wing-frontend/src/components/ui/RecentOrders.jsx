@@ -113,7 +113,6 @@ const getOrderStatusVariant = (status) => {
 const getPaymentMethodVariant = (method) => {
   const methodMap = {
     cash: 'success',
-    card: 'primary',
     'e-wallet': 'accent',
     pending: 'warning'
   };

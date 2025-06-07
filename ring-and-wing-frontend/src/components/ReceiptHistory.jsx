@@ -191,11 +191,9 @@ const ReceiptHistory = () => {
           <select
             value={paymentMethodFilter}
             onChange={(e) => setPaymentMethodFilter(e.target.value)}
-            className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 border-none"
-          >
+            className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 border-none"          >
             <option value="all">All Payment Methods</option>
             <option value="cash">Cash</option>
-            <option value="card">Card</option>
             <option value="e-wallet">E-Wallet</option>
           </select>
           

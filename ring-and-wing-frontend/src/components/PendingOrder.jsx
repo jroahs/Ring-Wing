@@ -1,18 +1,78 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button, Badge } from './ui';
 import { theme } from '../theme';
 
-const PendingOrder = ({ order, processPayment, colors = theme.colors }) => {  const [isExpanded, setIsExpanded] = useState(false);
+const PendingOrder = ({ order, processPayment, cashFloat = 0, colors = theme.colors }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
   const [localPaymentMethod, setLocalPaymentMethod] = useState('cash');
   const [localCashAmount, setLocalCashAmount] = useState('');
-  const [cardDetails, setCardDetails] = useState({ last4: '', name: '' });
   const [eWalletDetails, setEWalletDetails] = useState({ number: '', name: '' });
   const [isDiscountApplied, setIsDiscountApplied] = useState(false);
   
+  // Enhanced validation states
+  const [errors, setErrors] = useState({
+    cashAmount: '',
+    eWallet: ''
+  });
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Enhanced utility functions
+  const formatCurrency = (amount) => {
+    if (amount === null || amount === undefined || isNaN(amount)) return '0.00';
+    return Number(amount).toFixed(2);
+  };
+
+  const parseCurrency = (value) => {
+    if (!value || value === '') return 0;
+    const parsed = parseFloat(value.toString().replace(/[^\d.-]/g, ''));
+    return isNaN(parsed) ? 0 : Math.max(0, parsed);
+  };
+
+  // Validation functions
+  const validateCashAmount = (amount, total) => {
+    const numAmount = parseCurrency(amount);
+    const numTotal = parseCurrency(total);
+    
+    if (numAmount <= 0) {
+      return 'Cash amount must be greater than zero';
+    }
+    
+    if (numAmount < numTotal) {
+      return `Insufficient cash. Need ₱${formatCurrency(numTotal - numAmount)} more`;
+    }
+    
+    // Check if change can be provided from current float
+    const change = numAmount - numTotal;
+    const availableFloat = parseCurrency(cashFloat);
+    
+    if (change > availableFloat) {
+      return `Cannot provide ₱${formatCurrency(change)} change. Cash float only has ₱${formatCurrency(availableFloat)}`;
+    }
+    
+    return '';
+  };
+
+  const validateEWalletDetails = (details) => {
+    if (!details?.number || details.number.trim() === '') {
+      return 'E-wallet number is required';
+    }
+    
+    if (!details?.name || details.name.trim() === '') {
+      return 'E-wallet account name is required';
+    }
+    
+    // Basic e-wallet number format validation
+    const numberPattern = /^[0-9+\-\s()]+$/;
+    if (!numberPattern.test(details.number)) {
+      return 'Invalid e-wallet number format';
+    }
+    
+    return '';
+  };  
   const calculateTotal = () => {
     const subtotal = order.totals?.subtotal || 
       order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const discount = isDiscountApplied ? subtotal * 0.1 : (order.totals?.discount || 0);
+    const discount = isDiscountApplied ? subtotal * 0.2 : (order.totals?.discount || 0); // Fixed to 20% PWD/Senior discount
     const total = subtotal - discount;
     
     return {
@@ -27,6 +87,58 @@ const PendingOrder = ({ order, processPayment, colors = theme.colors }) => {  co
   const isCashPayment = localPaymentMethod === 'cash';
   const orderType = order.orderType || 'self_checkout';
   const isFromChatbot = orderType === 'chatbot';
+
+  // Calculate change with precision handling
+  const calculateChange = useMemo(() => {
+    if (localPaymentMethod !== 'cash') return 0;
+    const numCashAmount = parseCurrency(localCashAmount);
+    const numTotal = parseCurrency(orderTotal);
+    const change = numCashAmount - numTotal;
+    return Math.max(0, change);
+  }, [localPaymentMethod, localCashAmount, orderTotal]);
+
+  // Validate cash amount on change
+  useEffect(() => {
+    if (isCashPayment && localCashAmount) {
+      const error = validateCashAmount(localCashAmount, orderTotal);
+      setErrors(prev => ({ ...prev, cashAmount: error }));
+    } else {
+      setErrors(prev => ({ ...prev, cashAmount: '' }));
+    }
+  }, [localCashAmount, orderTotal, cashFloat, isCashPayment]);
+
+  // Validate e-wallet details
+  useEffect(() => {
+    if (localPaymentMethod === 'e-wallet') {
+      const error = validateEWalletDetails(eWalletDetails);
+      setErrors(prev => ({ ...prev, eWallet: error }));
+    } else {
+      setErrors(prev => ({ ...prev, eWallet: '' }));
+    }
+  }, [eWalletDetails, localPaymentMethod]);
+
+  // Check if payment can be processed
+  const canProcessPayment = useMemo(() => {
+    if (isProcessing) return false;
+    
+    if (isCashPayment) {
+      return localCashAmount && errors.cashAmount === '';
+    }
+    
+    if (localPaymentMethod === 'e-wallet') {
+      return errors.eWallet === '';
+    }
+    
+    return false;
+  }, [localPaymentMethod, localCashAmount, errors, isProcessing, isCashPayment]);
+
+  // Enhanced cash amount change handler
+  const handleCashAmountChange = (value) => {
+    // Only allow positive numbers and decimals
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      setLocalCashAmount(value);
+    }
+  };
 
   return (
     <div 
@@ -118,10 +230,9 @@ const PendingOrder = ({ order, processPayment, colors = theme.colors }) => {  co
               <span style={{ color: colors.secondary }}>Subtotal:</span>
               <span style={{ color: colors.secondary }}>₱{totals.subtotal.toFixed(2)}</span>
             </div>
-            
-            {totals.discount > 0 && (
+              {totals.discount > 0 && (
               <div className="flex justify-between text-sm">
-                <span style={{ color: colors.secondary }}>Discount (10%):</span>
+                <span style={{ color: colors.secondary }}>PWD/Senior Discount (20%):</span>
                 <span style={{ color: colors.secondary }}>-₱{totals.discount.toFixed(2)}</span>
               </div>
             )}
@@ -139,7 +250,7 @@ const PendingOrder = ({ order, processPayment, colors = theme.colors }) => {  co
               className="py-3 text-base font-medium"
               onClick={() => setIsDiscountApplied(!isDiscountApplied)}
             >
-              {isDiscountApplied ? '✓ Discount Applied (10%)' : 'PWD/Senior Discount (10%)'}
+              {isDiscountApplied ? '✓ PWD/Senior Discount Applied (20%)' : 'PWD/Senior Discount (20%)'}
             </Button>
           </div>
 
@@ -155,73 +266,58 @@ const PendingOrder = ({ order, processPayment, colors = theme.colors }) => {  co
                 backgroundColor: colors.background,
                 border: '2px solid ' + colors.muted,
                 color: colors.primary
-              }}
-            >
+              }}            >
               <option value="cash">Cash</option>
-              <option value="card">Card</option>
               <option value="e-wallet">E-Wallet</option>
             </select>
           </div>          {isCashPayment && (
-            <input
-              type="number"
-              value={localCashAmount}
-              onChange={(e) => {
-                const value = e.target.value;
-                setLocalCashAmount(value === '' ? '' : Math.max(0, parseFloat(value) || 0));
-              }}
-              placeholder="Enter cash amount"
-              className="w-full p-2 rounded text-sm transition-colors focus:outline-none focus:ring-2"
-              style={{
-                backgroundColor: colors.background,
-                border: '2px solid ' + colors.muted,
-                color: colors.primary
-              }}
-              min="0"
-              step="1"
-            />
-          )}
-          
-          {localPaymentMethod === 'card' && (
-            <div className="space-y-2 mt-3">
+            <div className="mt-3">
               <input
                 type="text"
-                value={cardDetails.last4}
-                onChange={(e) => setCardDetails({...cardDetails, last4: e.target.value})}
-                maxLength={4}
-                placeholder="Last 4 digits of card"
-                className="w-full p-2 rounded text-sm transition-colors focus:outline-none focus:ring-2"
+                value={localCashAmount}
+                onChange={(e) => handleCashAmountChange(e.target.value)}
+                placeholder="Enter cash amount"
+                className={`w-full p-2 rounded text-sm transition-colors focus:outline-none focus:ring-2 ${
+                  errors.cashAmount ? 'border-red-500 focus:ring-red-300' : 'focus:ring-2'
+                }`}
                 style={{
                   backgroundColor: colors.background,
-                  border: '2px solid ' + colors.muted,
+                  border: `2px solid ${errors.cashAmount ? '#ef4444' : colors.muted}`,
                   color: colors.primary
                 }}
               />
-              <input
-                type="text"
-                value={cardDetails.name}
-                onChange={(e) => setCardDetails({...cardDetails, name: e.target.value})}
-                placeholder="Cardholder name"
-                className="w-full p-2 rounded text-sm transition-colors focus:outline-none focus:ring-2"
-                style={{
-                  backgroundColor: colors.background,
-                  border: '2px solid ' + colors.muted,
-                  color: colors.primary
-                }}
-              />
+              {errors.cashAmount && (
+                <div className="text-red-500 text-xs mt-1">{errors.cashAmount}</div>
+              )}
+              {localCashAmount && calculateChange > 0 && !errors.cashAmount && (
+                <div className="flex justify-between items-center mt-2 p-2 rounded-lg" 
+                     style={{ backgroundColor: colors.accent + '20' }}>
+                  <span className="text-sm font-medium" style={{ color: colors.primary }}>
+                    Change:
+                  </span>
+                  <span className="text-sm font-bold" style={{ color: colors.secondary }}>
+                    ₱{formatCurrency(calculateChange)}
+                  </span>
+                </div>
+              )}
             </div>
-          )}
-          
-          {localPaymentMethod === 'e-wallet' && (
+          )}          {localPaymentMethod === 'e-wallet' && (
             <div className="space-y-2 mt-3">
               <input
                 type="text"
                 value={eWalletDetails.number}
                 onChange={(e) => setEWalletDetails({...eWalletDetails, number: e.target.value})}
                 placeholder="E-wallet number"
-                className="w-full p-2 rounded text-sm transition-colors focus:outline-none focus:ring-2"
+                className={`w-full p-2 rounded text-sm transition-colors focus:outline-none focus:ring-2 ${
+                  errors.eWallet && (!eWalletDetails.number || eWalletDetails.number.trim() === '') 
+                    ? 'border-red-500 focus:ring-red-300' : 'focus:ring-2'
+                }`}
                 style={{
                   backgroundColor: colors.background,
-                  border: '2px solid ' + colors.muted,
+                  border: `2px solid ${
+                    errors.eWallet && (!eWalletDetails.number || eWalletDetails.number.trim() === '') 
+                      ? '#ef4444' : colors.muted
+                  }`,
                   color: colors.primary
                 }}
               />
@@ -230,68 +326,85 @@ const PendingOrder = ({ order, processPayment, colors = theme.colors }) => {  co
                 value={eWalletDetails.name}
                 onChange={(e) => setEWalletDetails({...eWalletDetails, name: e.target.value})}
                 placeholder="E-wallet account name"
-                className="w-full p-2 rounded text-sm transition-colors focus:outline-none focus:ring-2"
+                className={`w-full p-2 rounded text-sm transition-colors focus:outline-none focus:ring-2 ${
+                  errors.eWallet && (!eWalletDetails.name || eWalletDetails.name.trim() === '') 
+                    ? 'border-red-500 focus:ring-red-300' : 'focus:ring-2'
+                }`}
                 style={{
                   backgroundColor: colors.background,
-                  border: '2px solid ' + colors.muted,
+                  border: `2px solid ${
+                    errors.eWallet && (!eWalletDetails.name || eWalletDetails.name.trim() === '') 
+                      ? '#ef4444' : colors.muted
+                  }`,
                   color: colors.primary
                 }}
               />
+              {errors.eWallet && (
+                <div className="text-red-500 text-xs mt-1">{errors.eWallet}</div>
+              )}
             </div>
           )}          <Button
             variant="primary"
             fullWidth
-            onClick={() => {
-              if (isCashPayment && (!localCashAmount || parseFloat(localCashAmount) < orderTotal)) {
-                alert('Cash amount must be at least ₱' + orderTotal.toFixed(2));
-                return;
-              }
+            onClick={async () => {
+              if (!canProcessPayment) return;
               
-              if (localPaymentMethod === 'card' && (!cardDetails.last4 || !cardDetails.name)) {
-                alert('Please enter card details');
-                return;
-              }
+              setIsProcessing(true);
               
-              if (localPaymentMethod === 'e-wallet' && (!eWalletDetails.number || !eWalletDetails.name)) {
-                alert('Please enter e-wallet details');
-                return;
-              }                const paymentInfo = {
-                method: localPaymentMethod,
-                cashAmount: parseFloat(localCashAmount) || 0,
-                isDiscountApplied: isDiscountApplied
-              };
-              
-              if (localPaymentMethod === 'card') {
-                paymentInfo.cardDetails = {
-                  last4: cardDetails.last4,
-                  name: cardDetails.name
-                };
-              } else if (localPaymentMethod === 'e-wallet') {
-                paymentInfo.eWalletDetails = {
-                  number: eWalletDetails.number,
-                  name: eWalletDetails.name
-                };
-              }
+              try {
+                // Final validation before processing
+                if (isCashPayment) {
+                  const cashError = validateCashAmount(localCashAmount, orderTotal);
+                  if (cashError) {
+                    setErrors(prev => ({ ...prev, cashAmount: cashError }));
+                    return;
+                  }
+                }
+                
+                if (localPaymentMethod === 'e-wallet') {
+                  const eWalletError = validateEWalletDetails(eWalletDetails);
+                  if (eWalletError) {
+                    setErrors(prev => ({ ...prev, eWallet: eWalletError }));
+                    return;
+                  }
+                }
+
+                const paymentInfo = {
+                  method: localPaymentMethod,
+                  cashAmount: parseCurrency(localCashAmount),
+                  isDiscountApplied: isDiscountApplied
+                };              
+                
+                if (localPaymentMethod === 'e-wallet') {
+                  paymentInfo.eWalletDetails = {
+                    number: eWalletDetails.number.trim(),
+                    name: eWalletDetails.name.trim()
+                  };
+                }
+
                 // Make sure order items have all required fields for OrderItem component
-              const enrichedOrder = {
-                ...order,
-                items: order.items.map(item => ({
-                  ...item,
-                  availableSizes: item.availableSizes || [item.selectedSize || 'base'],
-                  pricing: item.pricing || { [item.selectedSize || 'base']: item.price }
-                })),
-                totals: totals // Use our calculated totals that include the discount
-              };
-              
-              processPayment(enrichedOrder, paymentInfo);
+                const enrichedOrder = {
+                  ...order,
+                  items: order.items.map(item => ({
+                    ...item,
+                    availableSizes: item.availableSizes || [item.selectedSize || 'base'],
+                    pricing: item.pricing || { [item.selectedSize || 'base']: item.price }
+                  })),
+                  totals: totals // Use our calculated totals that include the discount
+                };
+                
+                await processPayment(enrichedOrder, paymentInfo);
+              } catch (error) {
+                console.error('Payment processing error:', error);
+                // Error handling could be enhanced here with toast notifications
+              } finally {
+                setIsProcessing(false);
+              }
             }}
-            disabled={
-              (isCashPayment && !localCashAmount) || 
-              (localPaymentMethod === 'card' && (!cardDetails.last4 || !cardDetails.name)) || 
-              (localPaymentMethod === 'e-wallet' && (!eWalletDetails.number || !eWalletDetails.name))
-            }
+            disabled={!canProcessPayment}
+            className={isProcessing ? 'opacity-75' : ''}
           >
-            {isCashPayment ? 'Process Payment' : 'Confirm Payment'}
+            {isProcessing ? 'Processing...' : (isCashPayment ? 'Process Payment' : 'Confirm Payment')}
           </Button>
         </div>
       </div>

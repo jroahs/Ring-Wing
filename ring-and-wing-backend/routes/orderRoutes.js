@@ -11,8 +11,7 @@ const validateOrder = (req, res, next) => {
   if (!items || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ success: false, message: 'Invalid order items' });
   }
-  
-  if (!['cash', 'card', 'e-wallet', 'pending'].includes(paymentMethod)) {
+    if (!['cash', 'e-wallet', 'pending'].includes(paymentMethod)) {
     return res.status(400).json({ success: false, message: 'Invalid payment method' });
   }
   
@@ -93,10 +92,8 @@ router.patch('/:id', async (req, res, next) => {
         success: false, 
         message: 'Invalid status value' 
       });
-    }
-
-    // Validate payment method
-    if (paymentMethod && !['cash', 'card', 'e-wallet'].includes(paymentMethod)) {
+    }    // Validate payment method
+    if (paymentMethod && !['cash', 'e-wallet'].includes(paymentMethod)) {
       return res.status(400).json({ 
         success: false, 
         message: 'Invalid payment method' 

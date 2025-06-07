@@ -10,6 +10,8 @@ import TimeClockModal from './components/TimeClockModal';
 import CashFloatModal from './components/CashFloatModal';
 import OrderProcessingModal from './components/OrderProcessingModal';
 import PendingOrder from './components/PendingOrder';
+import { CashAlert } from './components/ui/CashAlert';
+import { useCashFloat } from './hooks/useCashFloat';
 import { FiClock, FiPlus, FiSettings, FiDollarSign, FiCheckCircle, FiCoffee } from 'react-icons/fi';
 
 const PointOfSale = () => {  
@@ -38,31 +40,31 @@ const PointOfSale = () => {
       }
     }
   });
-    const [showReceipt, setShowReceipt] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
   const [cashAmount, setCashAmount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   
-  // Cash float state management
-  const [cashFloat, setCashFloat] = useState(() => {
-    const savedFloat = localStorage.getItem('cashFloat');
-    return savedFloat ? parseFloat(savedFloat) : 1000;
-  });
+  // Cash float management using centralized service
+  const {
+    cashFloat,
+    setFloat,
+    processTransaction,
+    configureDailyReset,
+    validateChange,
+    validateAmount,
+    formatCurrency,
+    isLoading: cashFloatLoading,
+    error: cashFloatError
+  } = useCashFloat();
+  
   const [showCashFloatModal, setShowCashFloatModal] = useState(false);
-  const [cashFloatSettings, setCashFloatSettings] = useState(() => {
-    const savedSettings = localStorage.getItem('cashFloatSettings');
-    return savedSettings ? JSON.parse(savedSettings) : {
-      resetDaily: false,
-      resetAmount: 1000,
-      lastReset: null
-    };
-  });
-    const [isUserAdmin, setIsUserAdmin] = useState(false);
+  const [isUserAdmin, setIsUserAdmin] = useState(false);
   // State for managing user role
   const [isManager, setIsManager] = useState(false);
-    const [paymentMethod, setPaymentMethod] = useState('cash');
-  const [cardDetails, setCardDetails] = useState({ last4: '', name: '' });
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+
   const [eWalletDetails, setEWalletDetails] = useState({ number: '', name: '' });
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);const [showTimeClock, setShowTimeClock] = useState(false);
   const [showTimeClockModal, setShowTimeClockModal] = useState(false);
@@ -107,61 +109,8 @@ const PointOfSale = () => {
         console.error('Error checking user role:', err);
       }
     };
-    
-    checkUserRole();
+      checkUserRole();
   }, []);
-
-  // Check for daily reset
-  useEffect(() => {
-    const checkDailyReset = () => {
-      // Safely check if resetDaily is true and resetAmount exists
-      if (!cashFloatSettings?.resetDaily || !cashFloatSettings?.resetAmount) return;
-      
-      const today = new Date().toDateString();
-      const lastReset = cashFloatSettings.lastReset || null;
-      
-      if (lastReset !== today) {
-        // Ensure resetAmount is a number
-        const resetAmount = Number(cashFloatSettings.resetAmount) || 1000;
-        setCashFloat(resetAmount);
-        
-        // Update settings with today's date
-        const updatedSettings = {
-          ...cashFloatSettings,
-          lastReset: today
-        };
-        
-        setCashFloatSettings(updatedSettings);
-        
-        // Save to localStorage with proper string conversion
-        localStorage.setItem('cashFloat', resetAmount.toString());
-        localStorage.setItem('cashFloatSettings', JSON.stringify(updatedSettings));
-      }
-    };
-    
-    checkDailyReset();
-  }, [cashFloatSettings]);
-
-  // Save cash float to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('cashFloat', cashFloat.toString());
-  }, [cashFloat]);
-  
-  // Handle updating cash float settings
-  const updateCashFloatSettings = (newSettings) => {
-    setCashFloatSettings(newSettings);
-    localStorage.setItem('cashFloatSettings', JSON.stringify(newSettings));
-    
-    // If manual adjustment is being made, update the cash float immediately
-    if (newSettings.manualAdjustment !== undefined) {
-      setCashFloat(parseFloat(newSettings.manualAdjustment));
-      // Remove the manualAdjustment from the settings object before saving
-      const { manualAdjustment, ...settingsToSave } = newSettings;
-      localStorage.setItem('cashFloatSettings', JSON.stringify(settingsToSave));
-    }
-    
-    // Don't close the modal automatically - we'll use a separate save button
-  };
 
   const isLargeScreen = windowWidth >= 1920;
   const isMediumScreen = windowWidth >= 768;
@@ -299,7 +248,7 @@ const PointOfSale = () => {
       // Case 1: Payment processing flow from legacy payment component or ready orders
       if (typeof orderId === 'object' && orderId._id) {
         const order = orderId;
-        const { method, cashAmount, cardDetails, eWalletDetails, totals } = newStatus;
+        const { method, cashAmount, eWalletDetails, totals } = newStatus;
         
         const totalDue = parseFloat(totals?.total || order.totals?.total || order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0));
         let paymentData = {
@@ -308,29 +257,16 @@ const PointOfSale = () => {
             discount: 0,
             total: totalDue
           }
-        };
-
-        if (method === 'cash') {
-          if (cashAmount < totalDue) {
-            alert('Insufficient cash amount');
+        };        if (method === 'cash') {
+          // Use centralized cash float validation
+          const changeValidation = validateChange(cashAmount, totalDue);
+          if (!changeValidation.valid) {
+            alert(changeValidation.message);
             return;
-          }
-
-          const change = cashAmount - totalDue;
-          if (change > cashFloat) {
-            alert(`Insufficient cash float (₱${cashFloat.toFixed(2)}) to give ₱${change.toFixed(2)} change`);
-            return;
-          }
-
-          paymentData = {
+          }paymentData = {
             ...paymentData,
             cashReceived: cashAmount,
             change: change.toFixed(2)
-          };
-        } else if (method === 'card' && cardDetails) {
-          paymentData = {
-            cardLastFour: cardDetails.last4,
-            cardholderName: cardDetails.name
           };
         } else if (method === 'e-wallet' && eWalletDetails) {
           paymentData = {
@@ -367,14 +303,11 @@ const PointOfSale = () => {
         const userData = localStorage.getItem('userData');
         const user = userData ? JSON.parse(userData) : null;
         order.server = user?.username || '';
-        
-        if (method === 'cash') {
+          if (method === 'cash') {
           setCashAmount(cashAmount);
-        } else if (method === 'card' && cardDetails) {
-          setCardDetails(cardDetails);
         } else if (method === 'e-wallet' && eWalletDetails) {
           setEWalletDetails(eWalletDetails);
-        }          // Show receipt
+        }// Show receipt
         setShowReceipt(true);
         await new Promise(resolve => setTimeout(resolve, 100));
         try {
@@ -385,16 +318,12 @@ const PointOfSale = () => {
         
         // Update order lists
         setActiveOrders(prev => prev.filter(o => o._id !== order._id));
-        
-        // Reset state
+          // Reset state
         setCurrentOrder([]);
         setCashAmount(0);
-        setCardDetails({ last4: '', name: '' });
-        setEWalletDetails({ number: '', name: '' });
-
-        if (method === 'cash') {
-          const change = cashAmount - totalDue;
-          setCashFloat(prev => prev + cashAmount - change);
+        setEWalletDetails({ number: '', name: '' });        if (method === 'cash') {
+          // Use centralized cash float service to process the transaction
+          await processTransaction(cashAmount, totalDue, `existing_order_${order._id}`);
         }
 
         // No separate alert here, it's handled by the caller (PaymentPanel's onProcessPayment)
@@ -666,14 +595,10 @@ const PointOfSale = () => {
     const totalDue = parseFloat(totals.total);
 
     if (paymentMethod === 'cash') {
-      if (cashValue < totalDue) {
-        alert('Insufficient cash amount');
-        return;
-      }
-
-      const change = cashValue - totalDue;
-      if (change > cashFloat) {
-        alert(`Insufficient cash float (₱${cashFloat.toFixed(2)}) to give ₱${change.toFixed(2)} change`);
+      // Use centralized cash float validation
+      const changeValidation = validateChange(cashValue, totalDue);
+      if (!changeValidation.valid) {
+        alert(changeValidation.message);
         return;
       }
     }
@@ -686,18 +611,16 @@ const PointOfSale = () => {
       await saveOrderToDB();
 
       if (paymentMethod === 'cash') {
-        const change = cashValue - totalDue;
-        setCashFloat(prev => prev + cashValue - change);
+        // Use centralized cash float service to process the transaction
+        await processTransaction(cashValue, totalDue, 'pos_order');
       }
         // Clear both the specific cart and currentOrder
       setCart([]);
       setCurrentOrder([]);
-      
-      setCashAmount(0);
+        setCashAmount(0);
       setSearchTerm('');
       setShowReceipt(false);
       // Reset payment details
-      setCardDetails({ last4: '', name: '' });
       setEWalletDetails({ number: '', name: '' });
 
       alert('Order completed successfully!');
@@ -705,8 +628,7 @@ const PointOfSale = () => {
       console.error('Payment processing error:', error);
       alert('Error processing payment. Please try again.');
     }
-  };
-  const processPendingOrderPayment = async () => {
+  };  const processPendingOrderPayment = async () => {
     // Calculate totals for pending order items
     const pendingTotal = pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     
@@ -728,16 +650,11 @@ const PointOfSale = () => {
     const totalDue = pendingTotal - discountTotal - vatExemptionTotal;
     const cashValue = parseFloat(cashAmount);
 
-    // Validate payment
     if (paymentMethod === 'cash') {
-      if (cashValue < totalDue) {
-        alert('Insufficient cash amount');
-        return;
-      }
-
-      const change = cashValue - totalDue;
-      if (change > cashFloat) {
-        alert(`Insufficient cash float (₱${cashFloat.toFixed(2)}) to give ₱${change.toFixed(2)} change`);
+      // Use centralized cash float validation
+      const changeValidation = validateChange(cashValue, totalDue);
+      if (!changeValidation.valid) {
+        alert(changeValidation.message);
         return;
       }
     }
@@ -756,16 +673,10 @@ const PointOfSale = () => {
       };
 
       let paymentDetails = {};
-      
-      if (paymentMethod === 'cash') {
+        if (paymentMethod === 'cash') {
         paymentDetails = {
           cashReceived: cashValue,
           change: cashValue - totalDue
-        };
-      } else if (paymentMethod === 'card') {
-        paymentDetails = {
-          cardLastFour: cardDetails.last4,
-          cardholderName: cardDetails.name
         };
       } else if (paymentMethod === 'e-wallet') {
         paymentDetails = {
@@ -797,16 +708,14 @@ const PointOfSale = () => {
           })),
           ...paymentDetails
         })
-      });
-
-      if (!response.ok) {
+      });      if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to update order');
       }
 
       if (paymentMethod === 'cash') {
-        const change = cashValue - totalDue;
-        setCashFloat(prev => prev + cashValue - change);
+        // Use centralized cash float service to process the transaction
+        await processTransaction(cashValue, totalDue, `pending_order_${editingPendingOrder._id}`);
       }
         // Reset pending order states
       setEditingPendingOrder(null);
@@ -817,7 +726,6 @@ const PointOfSale = () => {
       setSearchTerm('');
       // Don't auto-close receipt - let user close manually like in processPayment
       // Reset payment details
-      setCardDetails({ last4: '', name: '' });
       setEWalletDetails({ number: '', name: '' });
 
       // Refresh orders list
@@ -836,23 +744,17 @@ const PointOfSale = () => {
 
       // Prepare payment details based on the payment method
       let paymentDetails = {};
-      
-      if (paymentMethod === 'cash') {
+        if (paymentMethod === 'cash') {
         paymentDetails = {
           cashReceived: cashValue,
           change: cashValue - parseFloat(totals.total)
-        };
-      } else if (paymentMethod === 'card') {
-        paymentDetails = {
-          cardLastFour: cardDetails.last4,
-          cardholderName: cardDetails.name
         };
       } else if (paymentMethod === 'e-wallet') {
         paymentDetails = {
           eWalletNumber: eWalletDetails.number,
           eWalletName: eWalletDetails.name
         };
-      }      const currentCart = orderViewType === 'ready' ? readyOrderCart : pendingOrderCart;
+      }const currentCart = orderViewType === 'ready' ? readyOrderCart : pendingOrderCart;
       const orderData = {
         items: currentCart.map(item => ({
           name: item.name,
@@ -926,12 +828,10 @@ const PointOfSale = () => {
       setReadyOrderCart([]);
     } else {
       setPendingOrderCart([]);
-    }
-    // Keep currentOrder in sync
+    }    // Keep currentOrder in sync
     setCurrentOrder([]);
     setCashAmount(0);
     // Reset payment details
-    setCardDetails({ last4: '', name: '' });
     setEWalletDetails({ number: '', name: '' });
   };// Filtered items is kept for compatibility with any existing code that might reference it
   // But filtering is now done directly in the render for each category section
@@ -1526,19 +1426,16 @@ const PointOfSale = () => {
                     calculateTotal().discount}
                   cashFloat={cashFloat}
                   paymentMethod={paymentMethod}
-                  cashAmount={cashAmount}
-                  onPaymentMethodChange={(method) => {
+                  cashAmount={cashAmount}                  onPaymentMethodChange={(method) => {
                     setPaymentMethod(method);
                     // Reset other payment details when changing methods
-                    if (method !== 'card') setCardDetails({ last4: '', name: '' });
                     if (method !== 'e-wallet') setEWalletDetails({ number: '', name: '' });
                     if (method !== 'cash') setCashAmount(0);
                   }}
                   onCashAmountChange={setCashAmount}
                   onProcessPayment={isPendingOrderMode ? 
                     () => processPendingOrderPayment() : 
-                    processPayment}
-                  onCancelOrder={() => {
+                    processPayment}                  onCancelOrder={() => {
                     if (isPendingOrderMode) {
                       setEditingPendingOrder(null);
                       setIsPendingOrderMode(false);
@@ -1547,16 +1444,13 @@ const PointOfSale = () => {
                       cancelOrder();
                     }
                   }}
-                  cardDetails={cardDetails}
-                  onCardDetailsChange={setCardDetails}
                   eWalletDetails={eWalletDetails}
-                  onEWalletDetailsChange={setEWalletDetails}                  disabled={
+                  onEWalletDetailsChange={setEWalletDetails}disabled={
                     (!isPendingOrderMode && (orderViewType === 'ready' ? readyOrderCart : pendingOrderCart).length === 0) ||
                     (isPendingOrderMode && pendingOrderItems.length === 0) ||
                     (paymentMethod === 'cash' && cashAmount < parseFloat(isPendingOrderMode ? 
                       calculatePendingOrderTotal().total :
                       calculateTotal().total)) ||
-                    (paymentMethod === 'card' && (!cardDetails?.last4 || !cardDetails?.name)) ||
                     (paymentMethod === 'e-wallet' && (!eWalletDetails?.number || !eWalletDetails?.name))
                   }
                 />
@@ -1589,15 +1483,12 @@ const PointOfSale = () => {
                     : calculateTotal().discount,
                   total: isPendingOrderMode
                     ? calculatePendingOrderTotal().total
-                    : calculateTotal().total,
-                  cashReceived: paymentMethod === 'cash' ? parseFloat(cashAmount).toFixed(2) : "0.00",
+                    : calculateTotal().total,                  cashReceived: paymentMethod === 'cash' ? parseFloat(cashAmount).toFixed(2) : "0.00",
                   change: paymentMethod === 'cash' ? 
                     (parseFloat(cashAmount) - (isPendingOrderMode 
                       ? parseFloat(calculatePendingOrderTotal().total)
                       : parseFloat(calculateTotal().total)
                     )).toFixed(2) : "0.00",
-                  cardLastFour: paymentMethod === 'card' ? cardDetails?.last4 || '' : '',
-                  cardholderName: paymentMethod === 'card' ? cardDetails?.name || '' : '',
                   eWalletNumber: paymentMethod === 'e-wallet' ? eWalletDetails?.number || '' : '',
                   eWalletName: paymentMethod === 'e-wallet' ? eWalletDetails?.name || '' : ''
                 }}
@@ -1633,28 +1524,25 @@ const PointOfSale = () => {
               isOpen={showCashFloatModal} 
               onClose={() => setShowCashFloatModal(false)} 
               initialCashFloat={cashFloat}
-              theme={theme}
-              onSave={(settings) => {
-                // Update cash float settings
-                if (settings.resetDaily !== undefined) {
-                  setCashFloatSettings({
-                    resetDaily: settings.resetDaily,
-                    resetAmount: settings.resetAmount,
-                    lastReset: cashFloatSettings.lastReset
-                  });
+              theme={theme}              onSave={async (settings) => {
+                try {
+                  // Update daily reset settings using centralized service
+                  if (settings.resetDaily !== undefined) {
+                    await configureDailyReset(settings.resetDaily, settings.resetAmount);
+                  }
                   
-                  localStorage.setItem('cashFloatSettings', JSON.stringify({
-                    resetDaily: settings.resetDaily,
-                    resetAmount: settings.resetAmount,
-                    lastReset: cashFloatSettings.lastReset
-                  }));
+                  // Update manual cash float amount using centralized service
+                  if (settings.manualAmount !== undefined && settings.manualAmount !== '') {
+                    await setFloat(settings.manualAmount, 'manual_adjustment', {
+                      previousAmount: cashFloat,
+                      source: 'cash_float_modal'
+                    });
+                  }
+                } catch (error) {
+                  console.error('Error updating cash float settings:', error);
+                  alert('Error updating cash float settings: ' + error.message);
                 }
-                
-                // Update manual cash float amount
-                if (settings.manualAmount) {
-                  setCashFloat(settings.manualAmount);
-                  localStorage.setItem('cashFloat', settings.manualAmount.toString());
-                }              }}
+              }}
             />
           </div>
         )}        {/* Order Processing Modal */}        {showOrderProcessingModal && (

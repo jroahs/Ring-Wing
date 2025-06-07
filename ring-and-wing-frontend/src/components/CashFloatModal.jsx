@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Modal } from './ui';
-import { FiDollarSign, FiRefreshCw, FiEdit, FiArrowRight } from 'react-icons/fi';
+import { FiDollarSign, FiRefreshCw, FiEdit, FiArrowRight, FiAlertCircle } from 'react-icons/fi';
 import TipsSection from './TipsSection';
 
 const CashFloatModal = ({ isOpen, onClose, initialCashFloat, onSave, theme }) => {
@@ -10,23 +10,118 @@ const CashFloatModal = ({ isOpen, onClose, initialCashFloat, onSave, theme }) =>
     resetAmount: "1000",
     manualAmount: "",
   });
+
+  // Enhanced validation states
+  const [errors, setErrors] = useState({
+    resetAmount: '',
+    manualAmount: ''
+  });
+
+  const [isProcessing, setIsProcessing] = useState(false);
   
-  // Cash float tips
+  // Cash float tips - Enhanced with validation information
   const cashFloatTips = [
     "Use <b>Reset Cash Float Daily</b> to automatically reset the float to a specific amount each day",
     "Use <b>Manual Cash Float Adjustment</b> to directly update the current cash float value",
-    "The cash float affects your ability to give change during cash transactions"
+    "The cash float affects your ability to give change during cash transactions",
+    "Ensure the cash float amount is reasonable for your daily operations (recommended: ₱500-₱5000)",
+    "Manual adjustments should reflect the actual cash available in your register"
   ];
-  
-  // Initialize the component with the current values when opened
+
+  // Enhanced utility functions
+  const formatCurrency = (amount) => {
+    if (amount === null || amount === undefined || isNaN(amount)) return '0.00';
+    return Number(amount).toFixed(2);
+  };
+
+  const parseCurrency = (value) => {
+    if (!value || value === '') return 0;
+    const parsed = parseFloat(value.toString().replace(/[^\d.-]/g, ''));
+    return isNaN(parsed) ? 0 : Math.max(0, parsed);
+  };
+
+  // Validation functions
+  const validateResetAmount = (amount) => {
+    const numAmount = parseCurrency(amount);
+    
+    if (numAmount <= 0) {
+      return 'Reset amount must be greater than zero';
+    }
+    
+    if (numAmount > 50000) {
+      return 'Reset amount seems unusually high (max: ₱50,000)';
+    }
+    
+    if (numAmount < 100) {
+      return 'Reset amount might be too low for daily operations (min: ₱100)';
+    }
+    
+    return '';
+  };
+
+  const validateManualAmount = (amount) => {
+    const numAmount = parseCurrency(amount);
+    
+    if (numAmount < 0) {
+      return 'Cash float cannot be negative';
+    }
+    
+    if (numAmount > 100000) {
+      return 'Cash float amount seems unusually high (max: ₱100,000)';
+    }
+    
+    return '';
+  };
+
+  // Check if form can be saved
+  const canSave = useMemo(() => {
+    if (isProcessing) return false;
+    
+    // Check for any validation errors
+    if (localSettings.resetDaily && errors.resetAmount) return false;
+    if (errors.manualAmount) return false;
+    
+    // Check if manual amount is provided and valid
+    const manualAmount = parseCurrency(localSettings.manualAmount);
+    if (manualAmount < 0) return false;
+    
+    return true;
+  }, [localSettings, errors, isProcessing]);
+    // Initialize the component with the current values when opened
   useEffect(() => {
     if (isOpen) {
       setLocalSettings(prev => ({
         ...prev,
         manualAmount: initialCashFloat ? String(initialCashFloat) : "1000",
       }));
+      // Reset errors when modal opens
+      setErrors({
+        resetAmount: '',
+        manualAmount: ''
+      });
+      setIsProcessing(false);
     }
   }, [isOpen, initialCashFloat]);
+
+  // Validate reset amount on change
+  useEffect(() => {
+    if (localSettings.resetDaily && localSettings.resetAmount) {
+      const error = validateResetAmount(localSettings.resetAmount);
+      setErrors(prev => ({ ...prev, resetAmount: error }));
+    } else {
+      setErrors(prev => ({ ...prev, resetAmount: '' }));
+    }
+  }, [localSettings.resetAmount, localSettings.resetDaily]);
+
+  // Validate manual amount on change
+  useEffect(() => {
+    if (localSettings.manualAmount) {
+      const error = validateManualAmount(localSettings.manualAmount);
+      setErrors(prev => ({ ...prev, manualAmount: error }));
+    } else {
+      setErrors(prev => ({ ...prev, manualAmount: '' }));
+    }
+  }, [localSettings.manualAmount]);
   
   const handleCheckboxChange = (e) => {
     setLocalSettings(prev => ({
@@ -34,34 +129,76 @@ const CashFloatModal = ({ isOpen, onClose, initialCashFloat, onSave, theme }) =>
       resetDaily: e.target.checked
     }));
   };
-  
-  const handleResetAmountChange = (e) => {
-    // Always keep as string in state until submitting
-    setLocalSettings(prev => ({
-      ...prev,
-      resetAmount: e.target.value
-    }));
+    const handleResetAmountChange = (e) => {
+    const value = e.target.value;
+    // Only allow positive numbers and decimals
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      setLocalSettings(prev => ({
+        ...prev,
+        resetAmount: value
+      }));
+    }
   };
   
   const handleManualAmountChange = (e) => {
-    // Always keep as string in state until submitting
-    setLocalSettings(prev => ({
-      ...prev,
-      manualAmount: e.target.value
-    }));
+    const value = e.target.value;
+    // Only allow positive numbers and decimals
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      setLocalSettings(prev => ({
+        ...prev,
+        manualAmount: value
+      }));
+    }
   };
   
-  const handleSave = () => {
-    const resetAmount = parseFloat(localSettings.resetAmount) || 0;
-    const manualAmount = parseFloat(localSettings.manualAmount) || 0;
+  const handleSave = async () => {
+    if (!canSave) return;
     
-    onSave({
-      resetDaily: localSettings.resetDaily,
-      resetAmount,
-      manualAmount
-    });
+    setIsProcessing(true);
     
-    onClose();
+    try {
+      // Final validation before saving
+      if (localSettings.resetDaily) {
+        const resetError = validateResetAmount(localSettings.resetAmount);
+        if (resetError) {
+          setErrors(prev => ({ ...prev, resetAmount: resetError }));
+          return;
+        }
+      }
+      
+      const manualError = validateManualAmount(localSettings.manualAmount);
+      if (manualError) {
+        setErrors(prev => ({ ...prev, manualAmount: manualError }));
+        return;
+      }
+      
+      const resetAmount = parseCurrency(localSettings.resetAmount);
+      const manualAmount = parseCurrency(localSettings.manualAmount);
+      
+      // Ensure valid amounts
+      if (localSettings.resetDaily && resetAmount <= 0) {
+        setErrors(prev => ({ ...prev, resetAmount: 'Reset amount must be greater than zero' }));
+        return;
+      }
+      
+      if (manualAmount < 0) {
+        setErrors(prev => ({ ...prev, manualAmount: 'Cash float cannot be negative' }));
+        return;
+      }
+      
+      await onSave({
+        resetDaily: localSettings.resetDaily,
+        resetAmount,
+        manualAmount
+      });
+      
+      onClose();
+    } catch (error) {
+      console.error('Error saving cash float settings:', error);
+      // Could add toast notification here
+    } finally {
+      setIsProcessing(false);
+    }
   };
   
   // Only render when isOpen is true
@@ -128,9 +265,7 @@ const CashFloatModal = ({ isOpen, onClose, initialCashFloat, onSave, theme }) =>
                     <span className="text-gray-800 font-medium">Reset Cash Float Daily</span>
                     <p className="text-gray-500 text-sm mt-1">Automatically reset to a specific amount each day</p>
                   </div>
-                </label>
-
-                {localSettings.resetDaily && (
+                </label>                {localSettings.resetDaily && (
                   <div className="pl-8 ml-1 border-l-2 border-orange-200">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Reset Amount
@@ -140,14 +275,24 @@ const CashFloatModal = ({ isOpen, onClose, initialCashFloat, onSave, theme }) =>
                         <span className="text-gray-500">₱</span>
                       </div>
                       <input
-                        type="number"
+                        type="text"
                         value={localSettings.resetAmount}
                         onChange={handleResetAmountChange}
-                        className="w-full pl-8 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors"
-                        min="0"
-                        step="any"
+                        className={`w-full pl-8 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none transition-colors ${
+                          errors.resetAmount ? 'border-red-500 focus:ring-red-300 focus:border-red-400' : ''
+                        }`}
+                        placeholder="1000"
                       />
                     </div>
+                    {errors.resetAmount && (
+                      <div className="flex items-center mt-1 text-red-600 text-sm">
+                        <FiAlertCircle className="mr-1" size={14} />
+                        {errors.resetAmount}
+                      </div>
+                    )}
+                    <p className="text-gray-500 text-xs mt-1">
+                      Recommended range: ₱500 - ₱5,000
+                    </p>
                   </div>
                 )}
               </div>
@@ -162,8 +307,7 @@ const CashFloatModal = ({ isOpen, onClose, initialCashFloat, onSave, theme }) =>
                 </div>
               </div>
               
-              <div className="p-4">
-                <div>
+              <div className="p-4">                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Cash Float Amount
                   </label>
@@ -172,17 +316,33 @@ const CashFloatModal = ({ isOpen, onClose, initialCashFloat, onSave, theme }) =>
                       <span className="text-gray-500">₱</span>
                     </div>
                     <input
-                      type="number"
+                      type="text"
                       value={localSettings.manualAmount}
                       onChange={handleManualAmountChange}
-                      className="w-full pl-8 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none transition-colors"
-                      min="0"
-                      step="any"
+                      className={`w-full pl-8 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none transition-colors ${
+                        errors.manualAmount ? 'border-red-500 focus:ring-red-300 focus:border-red-400' : ''
+                      }`}
+                      placeholder={formatCurrency(initialCashFloat)}
                     />
                   </div>
+                  {errors.manualAmount && (
+                    <div className="flex items-center mt-1 text-red-600 text-sm">
+                      <FiAlertCircle className="mr-1" size={14} />
+                      {errors.manualAmount}
+                    </div>
+                  )}
                   <p className="text-gray-500 text-xs mt-2">
-                    This will update the current cash float value for today
+                    Current: ₱{formatCurrency(initialCashFloat)} | This will update the current cash float value
                   </p>
+                  {localSettings.manualAmount && !errors.manualAmount && (
+                    <div className="mt-2 p-2 bg-blue-50 rounded-lg">
+                      <div className="text-sm text-blue-800">
+                        <strong>Change: </strong>
+                        {parseCurrency(localSettings.manualAmount) > initialCashFloat ? '+' : ''}
+                        ₱{formatCurrency(parseCurrency(localSettings.manualAmount) - initialCashFloat)}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -195,17 +355,23 @@ const CashFloatModal = ({ isOpen, onClose, initialCashFloat, onSave, theme }) =>
               className="px-5 py-2 rounded-lg border border-gray-300 font-medium text-gray-700 hover:bg-gray-100 transition-colors"
             >
               Cancel
-            </button>
-            <button
+            </button>            <button
               onClick={handleSave}
-              className="px-5 py-2 rounded-lg shadow-md font-medium flex items-center group"
+              disabled={!canSave}
+              className={`px-5 py-2 rounded-lg shadow-md font-medium flex items-center group transition-all ${
+                canSave 
+                  ? 'hover:shadow-lg' 
+                  : 'opacity-50 cursor-not-allowed'
+              } ${isProcessing ? 'animate-pulse' : ''}`}
               style={{
-                backgroundColor: theme.colors.accent || '#f97316',
+                backgroundColor: canSave ? (theme.colors.accent || '#f97316') : '#9ca3af',
                 color: 'white'
               }}
             >
-              Save Changes
-              <FiArrowRight className="ml-1 group-hover:translate-x-1 transition-transform" />
+              {isProcessing ? 'Saving...' : 'Save Changes'}
+              {!isProcessing && (
+                <FiArrowRight className="ml-1 group-hover:translate-x-1 transition-transform" />
+              )}
             </button>
           </div>
         </div>

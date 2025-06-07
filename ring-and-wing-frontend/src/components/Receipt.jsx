@@ -140,27 +140,7 @@ export const Receipt = React.forwardRef(({ order, totals, paymentMethod }, ref) 
           >
             <span>Change:</span>
             <span>₱{totals.change}</span>
-          </div>
-        </>
-      )}
-
-      {paymentMethod === 'card' && totals.cardLastFour && (
-        <>
-          <div 
-            className="flex justify-between text-sm" 
-            style={{ color: theme.colors.primary }}
-          >
-            <span>Card Number:</span>
-            <span>**** **** **** {totals.cardLastFour}</span>
-          </div>
-          <div 
-            className="flex justify-between text-sm" 
-            style={{ color: theme.colors.primary }}
-          >
-            <span>Cardholder:</span>
-            <span>{totals.cardholderName}</span>
-          </div>
-        </>
+          </div>        </>
       )}
 
       {paymentMethod === 'e-wallet' && totals.eWalletNumber && (

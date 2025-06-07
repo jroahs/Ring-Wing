@@ -11,10 +11,8 @@ export const PaymentSummary = ({
   const {
     totalSales,
     orderCount,
-    averageOrderValue,
-    paymentMethods = {
+    averageOrderValue,    paymentMethods = {
       cash: 0,
-      card: 0,
       'e-wallet': 0
     }
   } = summary;
@@ -117,7 +115,6 @@ export const PaymentSummary = ({
 const getPaymentMethodColor = (method) => {
   const methodColors = {
     cash: theme.colors.success,
-    card: theme.colors.primary,
     'e-wallet': theme.colors.accent
   };
   return methodColors[method] || theme.colors.muted;
