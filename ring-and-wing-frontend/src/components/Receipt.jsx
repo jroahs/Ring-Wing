@@ -109,17 +109,15 @@ export const Receipt = React.forwardRef(({ order, totals, paymentMethod }, ref) 
       >
         <span>Subtotal:</span>
         <span>₱{totals.subtotal}</span>
-      </div>
-
-      {parseFloat(totals.discount) > 0 && (
+      </div>      {parseFloat(totals.discount) > 0 && (
         <div 
           className="flex justify-between text-sm" 
           style={{ color: theme.colors.secondary }}
         >
-          <span>Discount (10%):</span>
+          <span>PWD/Senior Discount (20%):</span>
           <span>-₱{totals.discount}</span>
         </div>
-      )}      <div 
+      )}<div 
         className="flex justify-between text-sm" 
         style={{ color: theme.colors.primary }}
       >

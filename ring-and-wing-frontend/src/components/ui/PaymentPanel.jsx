@@ -10,10 +10,8 @@ export const PaymentPanel = ({
   cashFloat,
   paymentMethod,
   cashAmount,
-  isDiscountApplied,
   onPaymentMethodChange,
   onCashAmountChange,
-  onDiscountToggle,
   onProcessPayment,
   onCancelOrder,
   cardDetails,
@@ -29,8 +27,7 @@ export const PaymentPanel = ({
         <span className="text-xs font-medium" style={{ color: theme.colors.primary }}>
           Payment via:
         </span>
-      </div>
-      {/* Combined Payment Methods and Discount Button */}      <div className="flex flex-wrap items-center gap-1 mb-1">
+      </div>      {/* Payment Methods Row - Remove Discount Button */}      <div className="flex flex-wrap items-center gap-1 mb-1">
         {paymentMethods.map((method, index) => (
           <React.Fragment key={method}>
             <Button
@@ -46,15 +43,6 @@ export const PaymentPanel = ({
             )}
           </React.Fragment>
         ))}
-        <span className="mx-0.5 text-xs" style={{ color: theme.colors.muted }}>/</span>
-        <Button
-          variant={isDiscountApplied ? 'primary' : 'secondary'}
-          size="sm"
-          onClick={onDiscountToggle}
-          className="py-1 px-1.5 text-xs" // Adjusted padding & text size
-        >
-          PWD/Senior (10%)
-        </Button>
       </div>
 
       <div className="flex justify-between items-center mb-2"> {/* Reduced mb-3 to mb-2 */}
@@ -64,18 +52,15 @@ export const PaymentPanel = ({
         <Badge variant="accent" className="text-xs px-1 py-0.5">₱{cashFloat.toFixed(2)}</Badge> {/* Adjusted padding & text size */}
       </div>
 
-      {/* Discount button is now in the row above, so this section is removed */}
-
-      <div className="space-y-1 mb-3"> {/* Reduced space-y-2 to space-y-1 and mb-4 to mb-3 */}
+      {/* Discount button is now in the row above, so this section is removed */}      <div className="space-y-1 mb-3"> {/* Reduced space-y-2 to space-y-1 and mb-4 to mb-3 */}
         <div className="flex justify-between text-sm">
           <span style={{ color: theme.colors.primary }}>Subtotal:</span>
           <span style={{ color: theme.colors.primary }}>₱{subtotal}</span>
         </div>
-        
-        {parseFloat(discount) > 0 && (
+          {parseFloat(discount) > 0 && (
           <div className="flex justify-between text-sm">
             <span style={{ color: theme.colors.secondary }}>
-              Discount (10%):
+              PWD/Senior Discount (20%):
             </span>
             <span style={{ color: theme.colors.secondary }}>-₱{discount}</span>
           </div>

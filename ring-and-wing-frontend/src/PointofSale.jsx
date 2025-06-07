@@ -38,10 +38,8 @@ const PointOfSale = () => {
       }
     }
   });
-  
-  const [showReceipt, setShowReceipt] = useState(false);
+    const [showReceipt, setShowReceipt] = useState(false);
   const [cashAmount, setCashAmount] = useState(0);
-  const [isDiscountApplied, setIsDiscountApplied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
@@ -534,7 +532,6 @@ const PointOfSale = () => {
     // Keep currentOrder in sync for backward compatibility
     setCurrentOrder(orderViewType === 'ready' ? readyOrderCart : pendingOrderCart);
   };
-
   const updateSize = (item, newSize) => {
     // Determine which cart to update based on orderViewType
     const [currentCart, setCart] = orderViewType === 'ready' ? 
@@ -552,15 +549,110 @@ const PointOfSale = () => {
     // Keep currentOrder in sync for backward compatibility
     setCurrentOrder(orderViewType === 'ready' ? readyOrderCart : pendingOrderCart);
   };
-  const calculateTotal = () => {
-    const currentCart = orderViewType === 'ready' ? readyOrderCart : pendingOrderCart;
-    const subtotal = currentCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const discount = isDiscountApplied ? subtotal * 0.1 : 0;
-    const total = subtotal - discount;
+
+  // New function to handle PWD/Senior discount updates
+  const updateItemDiscount = (item, discountedQuantity) => {
+    const [currentCart, setCart] = orderViewType === 'ready' ? 
+      [readyOrderCart, setReadyOrderCart] : 
+      [pendingOrderCart, setPendingOrderCart];
+
+    setCart(
+      currentCart.map(i => {
+        if (i._id === item._id && i.selectedSize === item.selectedSize) {
+          const discountPerItem = i.price * 0.20; // 20% discount
+          const vatRate = 0.12; // 12% VAT rate
+          const priceWithoutVat = i.price / (1 + vatRate);
+          const vatExemptionPerItem = priceWithoutVat * vatRate;
+          
+          return {
+            ...i,
+            pwdSeniorDiscount: {
+              applied: discountedQuantity > 0,
+              discountedQuantity: discountedQuantity,
+              discountAmount: discountPerItem * discountedQuantity,
+              vatExempt: discountedQuantity > 0,
+              vatExemptionAmount: vatExemptionPerItem * discountedQuantity
+            }
+          };
+        }
+        return i;
+      })
+    );    // Keep currentOrder in sync
+    setCurrentOrder(orderViewType === 'ready' ? readyOrderCart : pendingOrderCart);
+  };
+
+  // Function to handle PWD/Senior discount updates for pending order items
+  const updatePendingOrderItemDiscount = (item, discountedQuantity) => {
+    setPendingOrderItems(
+      pendingOrderItems.map(i => {
+        if (i._id === item._id && i.selectedSize === item.selectedSize) {
+          const discountPerItem = i.price * 0.20; // 20% discount
+          const vatRate = 0.12; // 12% VAT rate
+          const priceWithoutVat = i.price / (1 + vatRate);
+          const vatExemptionPerItem = priceWithoutVat * vatRate;
+          
+          return {
+            ...i,
+            pwdSeniorDiscount: {
+              applied: discountedQuantity > 0,
+              discountedQuantity: discountedQuantity,
+              discountAmount: discountPerItem * discountedQuantity,
+              vatExempt: discountedQuantity > 0,
+              vatExemptionAmount: vatExemptionPerItem * discountedQuantity
+            }
+          };
+        }
+        return i;
+      })
+    );
+  };
+
+  // Helper function to calculate pending order totals
+  const calculatePendingOrderTotal = () => {
+    const subtotal = pendingOrderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    
+    // Calculate PWD/Senior discounts
+    const discountTotal = pendingOrderItems.reduce((sum, item) => {
+      if (item.pwdSeniorDiscount?.applied) {
+        return sum + (item.pwdSeniorDiscount.discountAmount || 0);
+      }
+      return sum;
+    }, 0);
+
+    const total = subtotal - discountTotal;
 
     return {
       subtotal: subtotal.toFixed(2),
-      discount: discount.toFixed(2),
+      discount: discountTotal.toFixed(2),
+      total: total.toFixed(2)
+    };
+  };
+
+  const calculateTotal = () => {
+    const currentCart = orderViewType === 'ready' ? readyOrderCart : pendingOrderCart;
+    const subtotal = currentCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    
+    // Calculate PWD/Senior discounts and VAT exemptions
+    const discountTotal = currentCart.reduce((sum, item) => {
+      if (item.pwdSeniorDiscount?.applied) {
+        return sum + (item.pwdSeniorDiscount.discountAmount || 0);
+      }
+      return sum;
+    }, 0);
+
+    const vatExemptionTotal = currentCart.reduce((sum, item) => {
+      if (item.pwdSeniorDiscount?.applied && item.pwdSeniorDiscount?.vatExemptionAmount) {
+        return sum + item.pwdSeniorDiscount.vatExemptionAmount;
+      }
+      return sum;
+    }, 0);
+
+    const total = subtotal - discountTotal - vatExemptionTotal;
+
+    return {
+      subtotal: subtotal.toFixed(2),
+      discount: discountTotal.toFixed(2),
+      vatExemption: vatExemptionTotal.toFixed(2),
       total: total.toFixed(2)
     };
   };
@@ -597,13 +689,11 @@ const PointOfSale = () => {
         const change = cashValue - totalDue;
         setCashFloat(prev => prev + cashValue - change);
       }
-      
-      // Clear both the specific cart and currentOrder
+        // Clear both the specific cart and currentOrder
       setCart([]);
       setCurrentOrder([]);
       
       setCashAmount(0);
-      setIsDiscountApplied(false);
       setSearchTerm('');
       setShowReceipt(false);
       // Reset payment details
@@ -616,12 +706,26 @@ const PointOfSale = () => {
       alert('Error processing payment. Please try again.');
     }
   };
-
   const processPendingOrderPayment = async () => {
     // Calculate totals for pending order items
     const pendingTotal = pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const discount = isDiscountApplied ? pendingTotal * 0.1 : 0;
-    const totalDue = pendingTotal - discount;
+    
+    // Calculate PWD/Senior discounts and VAT exemptions for pending order
+    const discountTotal = pendingOrderItems.reduce((sum, item) => {
+      if (item.pwdSeniorDiscount?.applied) {
+        return sum + (item.pwdSeniorDiscount.discountAmount || 0);
+      }
+      return sum;
+    }, 0);
+
+    const vatExemptionTotal = pendingOrderItems.reduce((sum, item) => {
+      if (item.pwdSeniorDiscount?.applied && item.pwdSeniorDiscount?.vatExemptionAmount) {
+        return sum + item.pwdSeniorDiscount.vatExemptionAmount;
+      }
+      return sum;
+    }, 0);
+
+    const totalDue = pendingTotal - discountTotal - vatExemptionTotal;
     const cashValue = parseFloat(cashAmount);
 
     // Validate payment
@@ -643,11 +747,11 @@ const PointOfSale = () => {
     try {
       await new Promise(resolve => setTimeout(resolve, 100));
       await handlePrint();
-      
-      // Update the existing pending order in the database
+        // Update the existing pending order in the database
       const totals = {
         subtotal: pendingTotal,
-        discount: discount,
+        discount: discountTotal,
+        vatExemption: vatExemptionTotal,
         total: totalDue
       };
 
@@ -707,11 +811,9 @@ const PointOfSale = () => {
         // Reset pending order states
       setEditingPendingOrder(null);
       setIsPendingOrderMode(false);
-      setPendingOrderItems([]);
-      setCurrentOrder([]);
+      setPendingOrderItems([]);      setCurrentOrder([]);
       
       setCashAmount(0);
-      setIsDiscountApplied(false);
       setSearchTerm('');
       // Don't auto-close receipt - let user close manually like in processPayment
       // Reset payment details
@@ -828,7 +930,6 @@ const PointOfSale = () => {
     // Keep currentOrder in sync
     setCurrentOrder([]);
     setCashAmount(0);
-    setIsDiscountApplied(false);
     // Reset payment details
     setCardDetails({ last4: '', name: '' });
     setEWalletDetails({ number: '', name: '' });
@@ -1155,8 +1256,7 @@ const PointOfSale = () => {
                             >
                               {selectedBeverageSubCategory}
                             </span>
-                          </>
-                        )}
+                          </>                        )}
                       </div>
                       
                       {/* Clear selection button */}
@@ -1270,8 +1370,7 @@ const PointOfSale = () => {
                         // Editing a specific pending order: Show its items (pendingOrderItems)
                         <>
                           {pendingOrderItems.length > 0 ? (
-                            pendingOrderItems.map(item => (
-                              <OrderItem
+                            pendingOrderItems.map(item => (                              <OrderItem
                                 key={`${item._id}-${item.selectedSize}`}
                                 item={item}
                                 onVoid={(item) => setPendingOrderItems(pendingOrderItems.filter(i => 
@@ -1287,6 +1386,7 @@ const PointOfSale = () => {
                                     ? { ...i, quantity: Math.max(1, i.quantity + delta) }
                                     : i
                                 ))}
+                                onDiscountUpdate={updatePendingOrderItemDiscount}
                               />
                             ))
                           ) : (
@@ -1350,13 +1450,13 @@ const PointOfSale = () => {
 
                           {/* New Order Cart (pendingOrderCart), only if items exist */}
                           {pendingOrderCart.length > 0 && (
-                            pendingOrderCart.map(item => (
-                              <OrderItem
+                            pendingOrderCart.map(item => (                              <OrderItem
                                 key={`${item._id}-${item.selectedSize}`}
                                 item={item}
                                 onVoid={voidItem} // Use general voidItem for new orders
                                 onUpdateSize={updateSize} // Use general updateSize for new orders
                                 onUpdateQuantity={updateQuantity} // Use general updateQuantity for new orders
+                                onDiscountUpdate={updateItemDiscount}
                               />
                             ))
                           )}
@@ -1367,13 +1467,13 @@ const PointOfSale = () => {
                     // === READY Tab === (logic remains as original for readyOrderCart)
                     <>
                       {readyOrderCart.length > 0 ? (
-                        readyOrderCart.map(item => (
-                          <OrderItem
+                        readyOrderCart.map(item => (                          <OrderItem
                             key={`${item._id}-${item.selectedSize}`}
                             item={item}
                             onVoid={voidItem}
                             onUpdateSize={updateSize}
                             onUpdateQuantity={updateQuantity}
+                            onDiscountUpdate={updateItemDiscount}
                           />
                         ))
                       ) : (
@@ -1414,21 +1514,19 @@ const PointOfSale = () => {
                     </div>
                   </div>
                 )}
-              </div>              <div className="mt-auto">
-                <PaymentPanel
+              </div>              <div className="mt-auto">                <PaymentPanel
                   total={isPendingOrderMode ? 
-                    (pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) * (isDiscountApplied ? 0.9 : 1)).toFixed(2) :
+                    calculatePendingOrderTotal().total :
                     calculateTotal().total}
                   subtotal={isPendingOrderMode ? 
-                    pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2) :
+                    calculatePendingOrderTotal().subtotal :
                     calculateTotal().subtotal}
                   discount={isPendingOrderMode ? 
-                    (isDiscountApplied ? (pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 0.1).toFixed(2) : "0.00") :
+                    calculatePendingOrderTotal().discount :
                     calculateTotal().discount}
                   cashFloat={cashFloat}
                   paymentMethod={paymentMethod}
                   cashAmount={cashAmount}
-                  isDiscountApplied={isDiscountApplied}
                   onPaymentMethodChange={(method) => {
                     setPaymentMethod(method);
                     // Reset other payment details when changing methods
@@ -1437,7 +1535,6 @@ const PointOfSale = () => {
                     if (method !== 'cash') setCashAmount(0);
                   }}
                   onCashAmountChange={setCashAmount}
-                  onDiscountToggle={() => setIsDiscountApplied(!isDiscountApplied)}
                   onProcessPayment={isPendingOrderMode ? 
                     () => processPendingOrderPayment() : 
                     processPayment}
@@ -1453,12 +1550,11 @@ const PointOfSale = () => {
                   cardDetails={cardDetails}
                   onCardDetailsChange={setCardDetails}
                   eWalletDetails={eWalletDetails}
-                  onEWalletDetailsChange={setEWalletDetails}
-                  disabled={
+                  onEWalletDetailsChange={setEWalletDetails}                  disabled={
                     (!isPendingOrderMode && (orderViewType === 'ready' ? readyOrderCart : pendingOrderCart).length === 0) ||
                     (isPendingOrderMode && pendingOrderItems.length === 0) ||
                     (paymentMethod === 'cash' && cashAmount < parseFloat(isPendingOrderMode ? 
-                      (pendingOrderItems.reduce((sum, item) => sum + item.price * item.quantity, 0) * (isDiscountApplied ? 0.9 : 1)).toFixed(2) :
+                      calculatePendingOrderTotal().total :
                       calculateTotal().total)) ||
                     (paymentMethod === 'card' && (!cardDetails?.last4 || !cardDetails?.name)) ||
                     (paymentMethod === 'e-wallet' && (!eWalletDetails?.number || !eWalletDetails?.name))
@@ -1484,21 +1580,20 @@ const PointOfSale = () => {
                       console.error('Error getting staff name:', error);
                     }
                   })()
-                }}
-                totals={{
+                }}                totals={{
                   subtotal: isPendingOrderMode 
-                    ? pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)
+                    ? calculatePendingOrderTotal().subtotal
                     : calculateTotal().subtotal,
                   discount: isPendingOrderMode 
-                    ? (isDiscountApplied ? (pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 0.1).toFixed(2) : "0.00")
+                    ? calculatePendingOrderTotal().discount
                     : calculateTotal().discount,
                   total: isPendingOrderMode
-                    ? (pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) * (isDiscountApplied ? 0.9 : 1)).toFixed(2)
+                    ? calculatePendingOrderTotal().total
                     : calculateTotal().total,
                   cashReceived: paymentMethod === 'cash' ? parseFloat(cashAmount).toFixed(2) : "0.00",
                   change: paymentMethod === 'cash' ? 
                     (parseFloat(cashAmount) - (isPendingOrderMode 
-                      ? parseFloat((pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) * (isDiscountApplied ? 0.9 : 1)).toFixed(2))
+                      ? parseFloat(calculatePendingOrderTotal().total)
                       : parseFloat(calculateTotal().total)
                     )).toFixed(2) : "0.00",
                   cardLastFour: paymentMethod === 'card' ? cardDetails?.last4 || '' : '',

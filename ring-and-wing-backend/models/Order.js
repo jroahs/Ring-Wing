@@ -5,17 +5,22 @@ const orderSchema = new mongoose.Schema({
     type: String, 
     required: true, 
     unique: true 
-  },
-  items: [{
+  },  items: [{
     name: { type: String, required: true },
     price: { type: Number, required: true },
     quantity: { type: Number, required: true },
     selectedSize: { type: String, required: true }, // Keep selectedSize
-    modifiers: [{ type: String }]
-  }],
-  totals: {
+    modifiers: [{ type: String }],
+    pwdSeniorDiscount: {
+      applied: { type: Boolean, default: false },
+      discountedQuantity: { type: Number, default: 0 },
+      discountAmount: { type: Number, default: 0 },
+      vatExempt: { type: Boolean, default: false }
+    }
+  }],  totals: {
     subtotal: { type: Number, required: true },
     discount: { type: Number, default: 0 },
+    vatExemption: { type: Number, default: 0 },
     total: { type: Number, required: true },
     cashReceived: { type: Number, default: 0 },
     change: { type: Number, default: 0 }

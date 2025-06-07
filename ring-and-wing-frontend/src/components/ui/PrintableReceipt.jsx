@@ -146,10 +146,9 @@ export const PrintableReceipt = forwardRef(({
             <span>Tax ({order.totals.taxRate}%):</span>
             <span>{formatCurrency(order.totals.tax)}</span>
           </div>
-        )}
-        {order.totals.discount > 0 && (
+        )}        {order.totals.discount > 0 && (
           <div className="flex justify-between text-sm">
-            <span>Discount:</span>
+            <span>PWD/Senior Discount (20%):</span>
             <span>-{formatCurrency(order.totals.discount)}</span>
           </div>
         )}
