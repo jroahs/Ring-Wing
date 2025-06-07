@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "C:\\Users\\kliean\\Downloads\\Ring-Wing\\logs\\.a7286a79524a229a9f14c57afcb4582ec07db2d8-audit.json",
+    "files": [
+        {
+            "date": 1749237242065,
+            "name": "C:\\Users\\kliean\\Downloads\\Ring-Wing\\logs\\error-2025-06-07.log",
+            "hash": "17af40a7c85c10d49a4ac8e082a1f8112d741862162edbc493fc6807b98c139b"
+        }
+    ],
+    "hashType": "sha256"
+}

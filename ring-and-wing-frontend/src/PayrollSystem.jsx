@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { FiUser, FiDollarSign, FiCalendar, FiClock, FiFileText, FiPrinter, FiEdit } from 'react-icons/fi';
+import { FiUser, FiDollarSign, FiCalendar, FiClock, FiFileText, FiPrinter, FiEdit, FiGift, FiStar } from 'react-icons/fi';
 import { FaWrench } from 'react-icons/fa';
 import Sidebar from './Sidebar';
 import { default as WorkIDModal } from './WorkIDModal';
 import TimeLogHistory from './components/TimeLogHistory';
 import StaffAvatar from './components/StaffAvatar';
 import PayrollSchedule from './components/PayrollSchedule';
+import PayrollReports from './PayrollReports';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
@@ -60,10 +61,22 @@ const PayrollSystem = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [timeLogs, setTimeLogs] = useState([]);
   const [hoursData, setHoursData] = useState(null);
-  const [showManualAdjustments, setShowManualAdjustments] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [showManualAdjustments, setShowManualAdjustments] = useState(false);  const [isEditMode, setIsEditMode] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  
+  // Holiday and bonus states
+  const [holidayData, setHolidayData] = useState(null);
+  const [thirteenthMonthData, setThirteenthMonthData] = useState(null);
+  const [showHolidayDetails, setShowHolidayDetails] = useState(false);
+  const [includeHolidayPay, setIncludeHolidayPay] = useState(true);
+  const [include13thMonth, setInclude13thMonth] = useState(false);  const [manualBonuses, setManualBonuses] = useState({
+    performance: 0,
+    other: 0
+  });
+  
+  // Reports view state
+  const [showReports, setShowReports] = useState(false);
     // Define fetchEmployees outside of useEffect so it can be called from other functions
   const fetchEmployees = async () => {
     try {
@@ -139,20 +152,7 @@ const PayrollSystem = () => {
         }
       }
     };
-    fetchPaymentHistory();
-  }, [selectedEmployee]);
-
-  // Fetch time logs when employee and period change
-  useEffect(() => {
-    if (selectedEmployee && payrollPeriod) {
-      const startDate = new Date(payrollPeriod);
-      startDate.setDate(1); // Start of month
-      const endDate = new Date(payrollPeriod);
-      endDate.setMonth(endDate.getMonth() + 1, 0); // End of month
-      
-      fetchTimeLogs(selectedEmployee._id, startDate, endDate);
-    }
-  }, [selectedEmployee, payrollPeriod]);
+    fetchPaymentHistory();  }, [selectedEmployee]);
 
   const fetchTimeLogs = async (staffId, startDate, endDate) => {
     try {
@@ -203,8 +203,7 @@ const PayrollSystem = () => {
       setAttendance({ totalHoursWorked: '0', overtimeHours: '0' });
     }
   };
-
-  // Salary calculation with flexible hours
+  // Salary calculation with flexible hours and bonuses
   const calculateNetSalary = () => {
     if (!selectedEmployee) return { netPay: 0 };
   
@@ -236,6 +235,13 @@ const PayrollSystem = () => {
     const regularPay = regularHours * hourlyRate;
     const overtimePay = overtimeHours * (hourlyRate * overtimeMultiplier); // Use schedule's OT multiplier
     
+    // Bonus calculations
+    const holidayPay = (includeHolidayPay && holidayData) ? Number(holidayData.totalHolidayPay) || 0 : 0;
+    const thirteenthMonthPay = (include13thMonth && thirteenthMonthData) ? Number(thirteenthMonthData.calculation.amount) || 0 : 0;
+    const performanceBonus = Number(manualBonuses.performance) || 0;
+    const otherBonus = Number(manualBonuses.other) || 0;
+    const totalBonuses = holidayPay + thirteenthMonthPay + performanceBonus + otherBonus;
+    
     // Deductions
     const lateMinutes = Number(deductions.lateMinutes) || 0;
     const absences = Number(deductions.absences) || 0;
@@ -247,7 +253,8 @@ const PayrollSystem = () => {
     const netPay = (
       regularPay +
       overtimePay +
-      allowances -
+      allowances +
+      totalBonuses -
       totalDeductions
     );
 
@@ -255,6 +262,11 @@ const PayrollSystem = () => {
       netPay: isNaN(netPay) ? 0 : Number(netPay.toFixed(2)),
       regularPay,
       overtimePay,
+      holidayPay,
+      thirteenthMonthPay,
+      performanceBonus,
+      otherBonus,
+      totalBonuses,
       lateDeduction,
       absenceDeduction,
       totalDeductions,
@@ -265,7 +277,6 @@ const PayrollSystem = () => {
       totalHours
     };
   };
-
   // Handle payroll submission
   const handlePayslipGeneration = async () => {
     if (!selectedEmployee || !payrollPeriod) return;
@@ -273,6 +284,7 @@ const PayrollSystem = () => {
     try {
       const { 
         netPay, regularPay, overtimePay, 
+        holidayPay, thirteenthMonthPay, performanceBonus, otherBonus,
         lateDeduction, absenceDeduction,
         regularHours, overtimeHours, totalHours
       } = calculateNetSalary();
@@ -285,7 +297,8 @@ const PayrollSystem = () => {
         }
       };
 
-      const { data } = await axios.post('/api/payroll', {
+      // Use the new create-with-bonuses endpoint
+      const { data } = await axios.post('/api/payroll/create-with-bonuses', {
         staffId: selectedEmployee._id,
         payrollPeriod: new Date(payrollPeriod),
         basicPay: regularPay,
@@ -293,6 +306,21 @@ const PayrollSystem = () => {
         totalHoursWorked: totalHours,
         overtimeHours,
         allowances: selectedEmployee.allowances,
+        holidayPay: includeHolidayPay ? holidayPay : 0,
+        thirteenthMonthPay: include13thMonth ? thirteenthMonthPay : 0,
+        bonuses: {
+          holiday: includeHolidayPay ? holidayPay : 0,
+          performance: performanceBonus,
+          other: otherBonus
+        },
+        holidaysWorked: (includeHolidayPay && holidayData?.holidaysInPeriod) ? 
+          holidayData.holidaysInPeriod.map(holiday => ({
+            date: holiday.date,
+            name: holiday.name,
+            type: holiday.type,
+            multiplier: holiday.multiplier,
+            pay: holiday.pay || 0
+          })) : [],
         deductions: {
           late: lateDeduction,
           absence: absenceDeduction
@@ -424,6 +452,78 @@ const PayrollSystem = () => {
     }
   };
 
+  // Fetch holiday pay calculations
+  const fetchHolidayData = async (staffId, startDate, endDate) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      };
+
+      const response = await axios.post('/api/payroll/calculate-holiday-pay', {
+        staffId,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
+      }, config);
+
+      if (response.data?.success) {
+        setHolidayData(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching holiday data:', error);
+      setHolidayData(null);
+    }
+  };
+
+  // Fetch 13th month pay calculation
+  const fetch13thMonthData = async (staffId, year) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      };
+
+      const response = await axios.post('/api/payroll/calculate-13th-month', {
+        staffId,
+        year
+      }, config);
+
+      if (response.data?.success) {
+        setThirteenthMonthData(response.data.data);
+        // Auto-enable 13th month pay if it's December
+        if (response.data.data.calculation.isPayoutPeriod) {
+          setInclude13thMonth(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching 13th month data:', error);
+      setThirteenthMonthData(null);
+    }
+  };
+
+  // Enhanced useEffect to fetch bonus data when employee and period change
+  useEffect(() => {
+    if (selectedEmployee && payrollPeriod) {
+      const startDate = new Date(payrollPeriod);
+      startDate.setDate(1); // Start of month
+      const endDate = new Date(payrollPeriod);
+      endDate.setMonth(endDate.getMonth() + 1, 0); // End of month
+      
+      fetchTimeLogs(selectedEmployee._id, startDate, endDate);
+      
+      // Fetch holiday data for the current period
+      fetchHolidayData(selectedEmployee._id, startDate, endDate);
+      
+      // Fetch 13th month data for current year
+      const currentYear = new Date(payrollPeriod).getFullYear();
+      fetch13thMonthData(selectedEmployee._id, currentYear);
+    }
+  }, [selectedEmployee, payrollPeriod]);
+
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: colors.background }}>
       <Sidebar 
@@ -437,19 +537,25 @@ const PayrollSystem = () => {
           marginLeft: isSidebarOpen && isDesktop ? (windowWidth >= 1920 ? '8rem' : '5rem') : '0',
           paddingTop: windowWidth < 768 ? '4rem' : '0'
         }}
-      >
-        <div className="p-6 md:p-8 pt-24 md:pt-8">
-          <h1 className="text-3xl font-bold mb-6" style={{ color: colors.primary }}>
-            <FiDollarSign className="inline mr-2" />
-            Payroll Management
-          </h1>
-
-          {isLoading ? (
-            <div className="text-center" style={{ color: colors.primary }}>
-              Loading payroll data...
-            </div>
+      >        <div className="p-6 md:p-8 pt-24 md:pt-8">
+          {showReports ? (
+            <PayrollReports 
+              onBack={() => setShowReports(false)}
+              colors={colors}
+            />
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <>
+              <h1 className="text-3xl font-bold mb-6" style={{ color: colors.primary }}>
+                <FiDollarSign className="inline mr-2" />
+                Payroll Management
+              </h1>
+
+              {isLoading ? (
+                <div className="text-center" style={{ color: colors.primary }}>
+                  Loading payroll data...
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Left Column: Employee List and Time Log History */}
               <div className="lg:col-span-1 flex flex-col gap-6">
                 {/* Employee List */}
@@ -517,8 +623,21 @@ const PayrollSystem = () => {
                       <FiCalendar className="inline mr-2" />
                       Payroll Period
                     </h2>
-                    
-                    <div className="flex gap-2">
+                      <div className="flex gap-2">
+                      <button
+                        onClick={() => setShowReports(true)}
+                        className="px-3 py-1 rounded text-sm font-medium flex items-center"
+                        style={{ 
+                          backgroundColor: colors.accent, 
+                          color: 'white',
+                          fontSize: '0.75rem'
+                        }}
+                        title="View payroll reports"
+                      >
+                        <FiFileText className="mr-1" />
+                        Reports
+                      </button>
+                      
                       <button
                         onClick={() => setShowScheduleModal(true)}
                         className="px-3 py-1 rounded text-sm font-medium flex items-center"
@@ -743,13 +862,159 @@ const PayrollSystem = () => {
                                 <span className="font-medium" style={{ color: deductions.absences > 0 ? colors.accent : colors.primary }}>
                                   {deductions.absences}
                                 </span>
-                              )}
-                            </div>
+                              )}                            </div>
                           </div>
                         </div>
                       </div>
 
-                      {/* Pay Breakdown */}
+                      {/* Bonuses and Holiday Pay Section */}
+                      <div className="p-3 rounded mb-4" style={{ backgroundColor: colors.secondary + '10' }}>
+                        <h3 className="font-medium mb-3" style={{ color: colors.secondary }}>
+                          <FiGift className="inline mr-2" />
+                          Bonuses & Holiday Pay
+                        </h3>
+                        
+                        {/* Holiday Pay Controls */}
+                        <div className="space-y-3 mb-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <input
+                                type="checkbox"
+                                id="includeHolidayPay"
+                                checked={includeHolidayPay}
+                                onChange={(e) => setIncludeHolidayPay(e.target.checked)}
+                                className="mr-2"
+                              />
+                              <label htmlFor="includeHolidayPay" className="font-medium">
+                                Include Holiday Pay
+                              </label>
+                            </div>
+                            {holidayData && (
+                              <button
+                                onClick={() => setShowHolidayDetails(!showHolidayDetails)}
+                                className="text-sm px-2 py-1 rounded"
+                                style={{ 
+                                  backgroundColor: colors.accent + '20',
+                                  color: colors.accent
+                                }}
+                              >
+                                {showHolidayDetails ? 'Hide Details' : 'Show Details'}
+                              </button>
+                            )}
+                          </div>
+                          
+                          {holidayData && (
+                            <div className="text-sm" style={{ color: colors.muted }}>
+                              Found {holidayData.holidaysInPeriod?.length || 0} holidays in period
+                              {includeHolidayPay && (
+                                <span className="ml-2 font-medium" style={{ color: colors.secondary }}>
+                                  (₱{holidayData.totalHolidayPay?.toFixed(2) || '0.00'})
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Holiday Details Expandable */}
+                          {showHolidayDetails && holidayData?.holidaysInPeriod && (
+                            <div className="mt-2 p-2 rounded" style={{ backgroundColor: colors.background }}>
+                              <h4 className="text-sm font-medium mb-2" style={{ color: colors.primary }}>
+                                Holiday Details:
+                              </h4>
+                              {holidayData.holidaysInPeriod.map((holiday, index) => (
+                                <div key={index} className="text-xs mb-1 flex justify-between">
+                                  <span>{holiday.name} ({new Date(holiday.date).toLocaleDateString()})</span>
+                                  <span style={{ color: colors.accent }}>
+                                    {holiday.multiplier}x - ₱{(holiday.pay || 0).toFixed(2)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 13th Month Pay Controls */}
+                        <div className="space-y-3 mb-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <input
+                                type="checkbox"
+                                id="include13thMonth"
+                                checked={include13thMonth}
+                                onChange={(e) => setInclude13thMonth(e.target.checked)}
+                                className="mr-2"
+                              />
+                              <label htmlFor="include13thMonth" className="font-medium">
+                                Include 13th Month Pay
+                              </label>
+                            </div>
+                            {thirteenthMonthData?.calculation.isPayoutPeriod && (
+                              <span className="text-xs px-2 py-1 rounded" style={{ 
+                                backgroundColor: colors.accent + '20',
+                                color: colors.accent
+                              }}>
+                                Payout Period
+                              </span>
+                            )}
+                          </div>
+                          
+                          {thirteenthMonthData && (
+                            <div className="text-sm" style={{ color: colors.muted }}>
+                              Annual Basic: ₱{thirteenthMonthData.calculation.annualBasicSalary?.toFixed(2) || '0.00'}
+                              {include13thMonth && (
+                                <span className="ml-2 font-medium" style={{ color: colors.secondary }}>
+                                  (₱{thirteenthMonthData.calculation.amount?.toFixed(2) || '0.00'})
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Manual Bonuses */}
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-medium" style={{ color: colors.primary }}>
+                            <FiStar className="inline mr-1" />
+                            Additional Bonuses
+                          </h4>
+                          
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="text-sm" style={{ color: colors.muted }}>
+                                Performance Bonus:
+                              </label>
+                              <input
+                                type="number"
+                                value={manualBonuses.performance}
+                                onChange={(e) => setManualBonuses({
+                                  ...manualBonuses, 
+                                  performance: Number(e.target.value) || 0
+                                })}
+                                className="w-full p-1 mt-1 border rounded text-right"
+                                style={{ borderColor: colors.muted }}
+                                min="0"
+                                placeholder="0.00"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="text-sm" style={{ color: colors.muted }}>
+                                Other Bonus:
+                              </label>
+                              <input
+                                type="number"
+                                value={manualBonuses.other}
+                                onChange={(e) => setManualBonuses({
+                                  ...manualBonuses, 
+                                  other: Number(e.target.value) || 0
+                                })}
+                                className="w-full p-1 mt-1 border rounded text-right"
+                                style={{ borderColor: colors.muted }}
+                                min="0"
+                                placeholder="0.00"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>                      {/* Pay Breakdown */}
                       <div className="bg-opacity-10 p-4 rounded mb-4" style={{ backgroundColor: colors.accent + '15' }}>
                         <div className="flex justify-between items-center mb-2">
                           <span>Daily Rate:</span>
@@ -767,6 +1032,43 @@ const PayrollSystem = () => {
                           <span>Allowances:</span>
                           <span>₱{selectedEmployee.allowances?.toFixed(2)}</span>
                         </div>
+                        
+                        {/* Bonus Breakdown */}
+                        {(calculateNetSalary().holidayPay > 0 || calculateNetSalary().thirteenthMonthPay > 0 || 
+                          calculateNetSalary().performanceBonus > 0 || calculateNetSalary().otherBonus > 0) && (
+                          <>
+                            <hr className="my-2" style={{ borderColor: colors.muted + '30' }} />
+                            {calculateNetSalary().holidayPay > 0 && (
+                              <div className="flex justify-between items-center mb-2" style={{ color: colors.secondary }}>
+                                <span>Holiday Pay:</span>
+                                <span>₱{calculateNetSalary().holidayPay?.toFixed(2)}</span>
+                              </div>
+                            )}
+                            {calculateNetSalary().thirteenthMonthPay > 0 && (
+                              <div className="flex justify-between items-center mb-2" style={{ color: colors.secondary }}>
+                                <span>13th Month Pay:</span>
+                                <span>₱{calculateNetSalary().thirteenthMonthPay?.toFixed(2)}</span>
+                              </div>
+                            )}
+                            {calculateNetSalary().performanceBonus > 0 && (
+                              <div className="flex justify-between items-center mb-2" style={{ color: colors.secondary }}>
+                                <span>Performance Bonus:</span>
+                                <span>₱{calculateNetSalary().performanceBonus?.toFixed(2)}</span>
+                              </div>
+                            )}
+                            {calculateNetSalary().otherBonus > 0 && (
+                              <div className="flex justify-between items-center mb-2" style={{ color: colors.secondary }}>
+                                <span>Other Bonus:</span>
+                                <span>₱{calculateNetSalary().otherBonus?.toFixed(2)}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between items-center mb-2 font-medium" style={{ color: colors.secondary }}>
+                              <span>Total Bonuses:</span>
+                              <span>₱{calculateNetSalary().totalBonuses?.toFixed(2)}</span>
+                            </div>
+                          </>
+                        )}
+                        
                         <div className="flex justify-between items-center mb-2" style={{ color: colors.accent }}>
                           <span>Deductions:</span>
                           <span>- ₱{(calculateNetSalary().lateDeduction + calculateNetSalary().absenceDeduction).toFixed(2)}</span>
@@ -840,10 +1142,11 @@ const PayrollSystem = () => {
                         No payment history available
                       </div>
                     )}
-                  </div>
-                </div>
+                  </div>                </div>
               </div>
             </div>
+          )}
+            </>
           )}
         </div>
       </div>
