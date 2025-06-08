@@ -1,10 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   LineChart, Line, PieChart, Pie, Cell, AreaChart, Area 
 } from 'recharts';
-import { FiTrendingUp, FiTrendingDown, FiDollarSign, FiShoppingBag, FiClock, FiUsers } from 'react-icons/fi';
+import { FiTrendingUp, FiTrendingDown, FiDollarSign, FiShoppingBag, FiClock, FiUsers, FiDownload, FiFileText, FiPrinter } from 'react-icons/fi';
+import { useReactToPrint } from 'react-to-print';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import { theme } from '../theme';
+import { PrintableRevenueReport } from './ui/PrintableRevenueReport';
+import { generateRevenuePDF } from '../utils/pdfGenerator';
 
 const colors = {
   primary: '#2e0304',
@@ -22,6 +27,264 @@ const RevenueReports = () => {
   const [allTimeTopItems, setAllTimeTopItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+    // Ref for printable report
+  const printableReportRef = useRef(null);
+  
+  // Print handler for browser print
+  const handlePrint = useReactToPrint({
+    content: () => printableReportRef.current,
+    documentTitle: `Revenue Report - ${selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1)} - ${new Date().toLocaleDateString()}`,
+  });
+  // Download PDF handler (using text-based PDF generation)
+  const handleDownloadPDF = () => {
+    try {
+      generateRevenuePDF(revenueData, selectedPeriod);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    }
+  };  // Alternative download with charts (html2canvas method)
+  const handleDownloadPDFWithCharts = async () => {
+    if (!printableReportRef.current || !revenueData) {
+      alert('Report data not available. Please wait for data to load.');
+      return;
+    }
+
+    try {
+      // Get the element to convert
+      const element = printableReportRef.current;
+      
+      // Force the element to be visible and properly sized
+      const originalStyles = {
+        display: element.style.display,
+        position: element.style.position,
+        left: element.style.left,
+        top: element.style.top,
+        zIndex: element.style.zIndex,
+        width: element.style.width,
+        height: element.style.height,
+        visibility: element.style.visibility,
+        opacity: element.style.opacity
+      };
+      
+      // Make element visible and positioned properly
+      element.style.display = 'block';
+      element.style.position = 'absolute';
+      element.style.left = '0px';
+      element.style.top = '0px';
+      element.style.zIndex = '9999';
+      element.style.width = '800px';
+      element.style.height = 'auto';
+      element.style.visibility = 'visible';
+      element.style.opacity = '1';
+      element.style.backgroundColor = 'white';
+      
+      // Force layout recalculation
+      element.offsetHeight;
+      
+      // Wait for any dynamic content (charts) to render
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Get actual height after rendering
+      const actualHeight = element.scrollHeight;
+      console.log('Element dimensions before capture:', element.offsetWidth, 'x', actualHeight);
+      
+      if (actualHeight === 0) {
+        throw new Error('Element has no height - content may not be rendering properly');
+      }
+      
+      // Convert HTML to canvas with specific options for Recharts
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#ffffff',
+        logging: true,
+        width: 800,
+        height: actualHeight,
+        scrollX: 0,
+        scrollY: 0,
+        foreignObjectRendering: false, // Disable for better SVG compatibility
+        imageTimeout: 30000,
+        onclone: (clonedDoc) => {
+          // Process SVG elements in the cloned document
+          const svgElements = clonedDoc.querySelectorAll('svg');
+          svgElements.forEach(svg => {
+            svg.style.backgroundColor = 'white';
+            svg.style.overflow = 'visible';
+            svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+            
+            // Make sure all SVG text is black and visible
+            const textElements = svg.querySelectorAll('text, tspan');
+            textElements.forEach(text => {
+              text.style.fill = '#000000';
+              text.style.fontSize = '12px';
+              text.setAttribute('fill', '#000000');
+            });
+            
+            // Make sure all paths and shapes are visible
+            const shapes = svg.querySelectorAll('path, rect, circle, line');
+            shapes.forEach(shape => {
+              if (shape.style.opacity === '0') {
+                shape.style.opacity = '1';
+              }
+            });
+          });
+          
+          // Ensure all other text is visible
+          const allText = clonedDoc.querySelectorAll('*');
+          allText.forEach(el => {
+            if (el.style.color === 'transparent' || el.style.opacity === '0') {
+              el.style.color = '#000000';
+              el.style.opacity = '1';
+            }
+          });
+        }
+      });      
+      // Restore original styles
+      Object.keys(originalStyles).forEach(key => {
+        element.style[key] = originalStyles[key];
+      });
+      
+      // Validate canvas
+      console.log('Canvas dimensions after capture:', canvas ? `${canvas.width}x${canvas.height}` : 'null');
+      
+      if (!canvas || canvas.width === 0 || canvas.height === 0) {
+        throw new Error('Failed to capture content. Canvas is empty or invalid.');
+      }
+      
+      // Additional validation for canvas data
+      const context = canvas.getContext('2d');
+      if (!context) {
+        throw new Error('Failed to get canvas context.');
+      }
+      
+      // Check if canvas has actual content by sampling pixels
+      const imageData = context.getImageData(0, 0, Math.min(canvas.width, 100), Math.min(canvas.height, 100));
+      const hasContent = Array.from(imageData.data).some((pixel, index) => {
+        // Check if any non-white, non-transparent pixels exist
+        if (index % 4 === 3) return false; // Skip alpha channel
+        return pixel !== 255 && pixel !== 0;
+      });
+      
+      if (!hasContent) {
+        console.warn('Canvas appears to be mostly blank, but proceeding with PDF generation');
+      }
+      
+      // Create PDF
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      // Convert to high-quality JPEG
+      let imgData;
+      try {
+        imgData = canvas.toDataURL('image/jpeg', 0.95);
+        
+        if (!imgData || imgData === 'data:,' || imgData.length < 1000) {
+          throw new Error('Generated image data is invalid or too small.');
+        }
+      } catch (canvasError) {
+        console.error('Canvas conversion error:', canvasError);
+        throw new Error('Failed to convert canvas to image. The content may be too complex.');
+      }
+      
+      // Calculate dimensions to fit A4
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      
+      let position = 0;
+        // Add image to PDF with error handling
+      try {
+        // Add first page
+        if (imgHeight <= pageHeight) {
+          // Single page
+          pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+        } else {
+          // Multiple pages
+          pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+          
+          // Add additional pages if needed
+          while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+          }
+        }
+      } catch (pdfError) {
+        console.error('PDF creation error:', pdfError);
+        throw new Error('Failed to create PDF. The image may be corrupted or too large.');
+      }
+      
+      // Generate filename
+      const fileName = `Revenue_Report_With_Charts_${selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1)}_${new Date().toISOString().split('T')[0]}.pdf`;
+      
+      // Save the PDF with error handling
+      try {
+        pdf.save(fileName);
+      } catch (saveError) {
+        console.error('PDF save error:', saveError);
+        throw new Error('Failed to save PDF file. Please check your browser permissions.');
+      }
+        } catch (error) {
+      console.error('Error generating PDF with charts:', error);
+      
+      // Fallback: Try with simpler canvas options
+      if (error.message.includes('Canvas is empty') || error.message.includes('invalid')) {
+        console.log('Attempting fallback PDF generation...');
+        try {
+          await handleDownloadPDFWithChartsFallback();
+          return;
+        } catch (fallbackError) {
+          console.error('Fallback method also failed:', fallbackError);
+        }
+      }
+      
+      alert(`Failed to generate PDF with charts: ${error.message}. Please try the regular PDF download instead.`);
+    }
+  };
+
+  // Fallback method for PDF with charts
+  const handleDownloadPDFWithChartsFallback = async () => {
+    const element = printableReportRef.current;
+    if (!element) return;
+
+    // Much simpler approach - just capture the visible element
+    element.style.display = 'block';
+    element.style.position = 'relative';
+    element.style.width = '800px';
+    element.style.backgroundColor = 'white';
+    
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait longer
+    
+    const canvas = await html2canvas(element, {
+      scale: 1,
+      useCORS: true,
+      allowTaint: true, // Allow tainted canvas
+      backgroundColor: '#ffffff',
+      logging: false,
+      width: 800,
+      height: element.scrollHeight
+    });
+    
+    element.style.display = 'none'; // Hide again
+    
+    if (canvas && canvas.width > 0 && canvas.height > 0) {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgData = canvas.toDataURL('image/png', 0.8);
+      const imgWidth = 210;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      
+      const fileName = `Revenue_Report_Charts_Fallback_${selectedPeriod}_${new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(fileName);
+    } else {
+      throw new Error('Fallback method also failed to capture content');
+    }
+  };
 
   useEffect(() => {
     const fetchRevenueData = async () => {
@@ -146,25 +409,57 @@ const RevenueReports = () => {
         {value}
       </div>
     </div>
-  );
-  return (
+  );  return (
     <div className="p-6 space-y-6">
-      {/* Period Selection - Minimalist */}
-      <div className="flex gap-2">
-        {['daily', 'weekly', 'monthly'].map(period => (
-          <button
-            key={period}
-            onClick={() => setSelectedPeriod(period)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              selectedPeriod === period 
-                ? 'text-white shadow-md' 
-                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-            }`}
-            style={selectedPeriod === period ? { backgroundColor: colors.accent } : {}}
-          >
-            {period.charAt(0).toUpperCase() + period.slice(1)}
-          </button>
-        ))}
+      {/* Period Selection and Export - Header */}
+      <div className="flex justify-between items-center">
+        <div className="flex gap-2">
+          {['daily', 'weekly', 'monthly'].map(period => (
+            <button
+              key={period}
+              onClick={() => setSelectedPeriod(period)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                selectedPeriod === period 
+                  ? 'text-white shadow-md' 
+                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+              }`}
+              style={selectedPeriod === period ? { backgroundColor: colors.accent } : {}}
+            >
+              {period.charAt(0).toUpperCase() + period.slice(1)}
+            </button>
+          ))}
+        </div>        {/* Export Buttons */}
+        {revenueData && (
+          <div className="flex gap-2">
+            <button
+              onClick={handleDownloadPDF}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: colors.accent }}
+              title="Download PDF Report (Text-based)"
+            >
+              <FiDownload className="w-4 h-4" />
+              Download PDF
+            </button>
+            <button
+              onClick={handleDownloadPDFWithCharts}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: colors.primary }}
+              title="Download PDF with Charts"
+            >
+              <FiFileText className="w-4 h-4" />
+              PDF + Charts
+            </button>
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: colors.secondary }}
+              title="Print Report"
+            >
+              <FiPrinter className="w-4 h-4" />
+              Print
+            </button>
+          </div>
+        )}
       </div>
 
       {revenueData && (
@@ -410,12 +705,29 @@ const RevenueReports = () => {
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                ))}              </div>
             </div>
           </div>
         </>
-      )}
+      )}        {/* Hidden Printable Report - positioned off-screen but still rendered */}
+      <div style={{ 
+        position: 'fixed',
+        left: '-9999px',
+        top: '0px',
+        zIndex: '-1000',
+        width: '800px',
+        backgroundColor: 'white',
+        overflow: 'hidden'
+      }}>
+        {revenueData && (
+          <PrintableRevenueReport
+            ref={printableReportRef}
+            revenueData={revenueData}
+            selectedPeriod={selectedPeriod}
+            reportDate={new Date()}
+          />
+        )}
+      </div>
     </div>
   );
 };

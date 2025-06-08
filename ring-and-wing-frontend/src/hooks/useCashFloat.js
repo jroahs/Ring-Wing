@@ -111,10 +111,14 @@ export const useCashFloat = () => {
       setIsLoading(false);
     }
   }, []);
-
   // Get daily summary
   const getDailySummary = useCallback((date = new Date()) => {
     return cashFloatService.getDailySummary(date);
+  }, []);
+
+  // Get today's starting float
+  const getTodaysStartingFloat = useCallback((date = new Date()) => {
+    return cashFloatService.getTodaysStartingFloat(date);
   }, []);
 
   // Format currency
@@ -152,7 +156,6 @@ export const useCashFloat = () => {
   const clearError = useCallback(() => {
     setError(null);
   }, []);
-
   return {
     // State
     cashFloat,
@@ -175,6 +178,7 @@ export const useCashFloat = () => {
     formatCurrency,
     parseCurrency,
     getDailySummary,
+    getTodaysStartingFloat,
     exportData,
     importData,
     clearError

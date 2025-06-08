@@ -302,6 +302,87 @@ class CashFloatService {
     
     return trail;
   }
+  /**
+   * Get today's starting cash float amount
+   * This is the amount the float started with at the beginning of the day,
+   * before any transactions reduced it by giving change.
+   */
+  getTodaysStartingFloat(date = new Date()) {
+    const dateString = date.toDateString();
+    
+    // Get all entries sorted by timestamp
+    const sortedEntries = [...this.auditTrail].sort((a, b) => 
+      new Date(a.timestamp) - new Date(b.timestamp)
+    );
+    
+    // Find today's entries
+    const todayEntries = sortedEntries.filter(entry => 
+      new Date(entry.timestamp).toDateString() === dateString
+    );
+    
+    if (todayEntries.length === 0) {
+      // No entries for today, check if there was a daily reset or use the current float + all transactions
+      const allTransactions = sortedEntries.filter(entry => entry.action === 'transaction');
+      const todayTransactions = allTransactions.filter(entry => 
+        new Date(entry.timestamp).toDateString() === dateString
+      );
+      
+      // Calculate starting float by adding back all the change given today
+      const totalChangeGivenToday = todayTransactions.reduce((sum, entry) => 
+        sum + Math.abs(entry.change), 0
+      );
+      
+      return this.currentFloat + totalChangeGivenToday;
+    }
+    
+    // Look for the first entry of the day that sets the float amount
+    const firstAdjustment = todayEntries.find(entry => 
+      entry.action === 'set_float' || entry.action === 'daily_reset' || entry.action === 'initialize'
+    );
+    
+    if (firstAdjustment) {
+      // Found an adjustment entry - this is our starting amount
+      return firstAdjustment.newAmount;
+    }
+    
+    // No adjustment found for today, calculate by adding back transactions
+    const todayTransactions = todayEntries.filter(entry => entry.action === 'transaction');
+    const totalChangeGivenToday = todayTransactions.reduce((sum, entry) => 
+      sum + Math.abs(entry.change), 0
+    );
+    
+    // Get the last known float amount from yesterday or before
+    const preTodayEntries = sortedEntries.filter(entry => 
+      new Date(entry.timestamp).toDateString() !== dateString
+    );
+    
+    if (preTodayEntries.length === 0) {
+      // No previous entries, use current + today's transactions
+      return this.currentFloat + totalChangeGivenToday;
+    }
+    
+    // Find the last float-setting entry before today
+    const lastPreTodayAdjustment = [...preTodayEntries]
+      .reverse()
+      .find(entry => entry.action === 'set_float' || entry.action === 'daily_reset' || entry.action === 'initialize');
+    
+    if (lastPreTodayAdjustment) {
+      // Calculate what the float would have been after yesterday's transactions
+      const yesterdayTransactions = preTodayEntries.filter(entry => 
+        entry.action === 'transaction' && 
+        new Date(entry.timestamp) > new Date(lastPreTodayAdjustment.timestamp)
+      );
+      
+      const yesterdayChangeGiven = yesterdayTransactions.reduce((sum, entry) => 
+        sum + Math.abs(entry.change), 0
+      );
+      
+      return lastPreTodayAdjustment.newAmount - yesterdayChangeGiven + totalChangeGivenToday;
+    }
+    
+    // Fallback: current float + today's transactions
+    return this.currentFloat + totalChangeGivenToday;
+  }
 
   /**
    * Get daily summary statistics
@@ -322,13 +403,14 @@ class CashFloatService {
     );
 
     const totalTransactions = transactions.length;
+    const startingFloat = this.getTodaysStartingFloat(date);
 
     return {
       date: dateString,
       totalTransactions,
       totalChangeGiven,
       adjustments: adjustments.length,
-      startingFloat: adjustments.length > 0 ? adjustments[0].newAmount : null,
+      startingFloat,
       endingFloat: this.currentFloat,
       entries: dayEntries
     };

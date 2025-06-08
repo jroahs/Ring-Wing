@@ -12,7 +12,8 @@ import OrderProcessingModal from './components/OrderProcessingModal';
 import PendingOrder from './components/PendingOrder';
 import { CashAlert } from './components/ui/CashAlert';
 import { useCashFloat } from './hooks/useCashFloat';
-import { FiClock, FiPlus, FiSettings, FiDollarSign, FiCheckCircle, FiCoffee } from 'react-icons/fi';
+import { FiClock, FiPlus, FiSettings, FiDollarSign, FiCheckCircle, FiCoffee, FiPieChart } from 'react-icons/fi';
+import EndOfShiftModal from './components/EndOfShiftModal';
 
 const PointOfSale = () => {  
   const [menuItems, setMenuItems] = useState([]);
@@ -58,8 +59,8 @@ const PointOfSale = () => {
     isLoading: cashFloatLoading,
     error: cashFloatError
   } = useCashFloat();
-  
-  const [showCashFloatModal, setShowCashFloatModal] = useState(false);
+    const [showCashFloatModal, setShowCashFloatModal] = useState(false);
+  const [showEndOfShiftModal, setShowEndOfShiftModal] = useState(false);
   const [isUserAdmin, setIsUserAdmin] = useState(false);
   // State for managing user role
   const [isManager, setIsManager] = useState(false);
@@ -74,8 +75,7 @@ const PointOfSale = () => {
   const [isPendingOrderMode, setIsPendingOrderMode] = useState(false);
   const [pendingOrderItems, setPendingOrderItems] = useState([]);
   const receiptRef = useRef();
-
-  // Check if user is manager
+  // Check if user is manager based on position hierarchy
   useEffect(() => {
     const checkUserRole = async () => {
       try {
@@ -83,9 +83,11 @@ const PointOfSale = () => {
         const userData = localStorage.getItem('userData');
         const user = userData ? JSON.parse(userData) : null;
         
-        if (user && user.role === 'manager') {
-          console.log("Found manager in localStorage:", user.role);
-          setIsManager(true);
+        if (user && user.position) {
+          const managerPositions = ['shift_manager', 'general_manager', 'admin'];
+          const isManagerPosition = managerPositions.includes(user.position);
+          console.log("Found user position in localStorage:", user.position, "IsManager:", isManagerPosition);
+          setIsManager(isManagerPosition);
           return;
         }
         
@@ -101,9 +103,10 @@ const PointOfSale = () => {
         
         if (response.ok) {
           const data = await response.json();
-          console.log("User role from API:", data.role);
-          // Set isManager to true if user has manager role
-          setIsManager(data.role === 'manager');
+          console.log("User position from API:", data.position);
+          // Set isManager to true if user has manager position
+          const managerPositions = ['shift_manager', 'general_manager', 'admin'];
+          setIsManager(managerPositions.includes(data.position));
         }
       } catch (err) {
         console.error('Error checking user role:', err);
@@ -1034,9 +1037,7 @@ const PointOfSale = () => {
                   >
                     <FiClock className="mr-2" />
                     <span className="hidden md:inline">Time Clock</span>
-                  </button>
-
-                  {/* Cash Float Settings Button (Manager Only) */}
+                  </button>                  {/* Cash Float Settings Button (Manager Only) */}
                   {isManager && (
                     <button
                       onClick={() => setShowCashFloatModal(true)}
@@ -1046,7 +1047,18 @@ const PointOfSale = () => {
                     >
                       <FiDollarSign className="mr-2" />
                       <span className="hidden md:inline">Cash Float</span>
-                    </button>                  )}                  <button
+                    </button>                  )}                  {/* End of Shift Button (Manager Only) */}
+                  {isManager && (
+                    <button
+                      onClick={() => setShowEndOfShiftModal(true)}
+                      className="h-12 px-4 flex items-center justify-center rounded-lg hover:opacity-90 transition"
+                      style={{ backgroundColor: theme.colors.accent, color: theme.colors.background }}
+                      title="End of Shift Report"
+                    >
+                      <FiPieChart className="mr-2" />
+                      <span className="hidden md:inline">End of Shift</span>
+                    </button>
+                  )}<button
                     onClick={() => setShowOrderProcessingModal(true)}
                     className="h-12 px-4 flex items-center justify-center rounded-lg hover:opacity-90 transition"
                     style={{ backgroundColor: theme.colors.secondary, color: theme.colors.background }}
@@ -1537,9 +1549,7 @@ const PointOfSale = () => {
             {/* Time Clock Modal */}
             {showTimeClockModal && (
               <TimeClockModal onClose={() => setShowTimeClockModal(false)} />
-            )}
-
-            {/* Cash Float Settings Modal - Manager Only */}
+            )}            {/* Cash Float Settings Modal - Manager Only */}
             <CashFloatModal 
               isOpen={showCashFloatModal} 
               onClose={() => setShowCashFloatModal(false)} 
@@ -1563,7 +1573,15 @@ const PointOfSale = () => {
                   alert('Error updating cash float settings: ' + error.message);
                 }
               }}
-            />
+            />            {/* End of Shift Modal - Manager Only */}
+            {isManager && (
+              <EndOfShiftModal 
+                isOpen={showEndOfShiftModal} 
+                onClose={() => setShowEndOfShiftModal(false)} 
+                theme={theme}
+                cashFloat={cashFloat}
+              />
+            )}
           </div>
         )}        {/* Order Processing Modal */}        {showOrderProcessingModal && (
           <div>
