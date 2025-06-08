@@ -651,10 +651,9 @@ const PayrollSystem = () => {
                         <FiCalendar className="mr-1" />
                         Manage Schedules
                       </button>
-                      
-                      <button
+                        <button
                         onClick={generateTestTimeLogData}
-                        className="px-3 py-1 rounded text-sm font-medium flex items-center"
+                        className="px-3 py-1 rounded text-sm font-medium flex items-center hidden"
                         style={{ 
                           backgroundColor: '#666', 
                           color: 'white',

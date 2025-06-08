@@ -621,10 +621,9 @@ const MenuPage = () => {
         )
       ))}
     </button>
-    
-    {expandedItemId === item._id && (
+      {expandedItemId === item._id && (
       <div 
-        className="absolute top-full left-0 z-10 p-3 border rounded-lg shadow-lg mt-1"
+        className="absolute top-full left-0 z-20 p-3 border rounded-lg shadow-lg mt-1"
         style={{
           backgroundColor: colors.background,
           borderColor: colors.muted
@@ -670,11 +669,9 @@ const MenuPage = () => {
               )}
             </tbody>
           </table>
-        </div>
-
-        {/* Add/Edit Form Modal */}
+        </div>        {/* Add/Edit Form Modal */}
         {selectedItem && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center md:pl-20">    <div 
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center md:pl-20 z-50"><div 
       style={{ backgroundColor: colors.background }}
       className="p-6 rounded-lg w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl"
     >
@@ -1029,11 +1026,9 @@ const MenuPage = () => {
       </form>
     </div>
   </div>
-)}
-
-        {/* Add-On Creation Modal */}
+)}        {/* Add-On Creation Modal */}
         {showAddOnModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">            <div
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div
               style={{ backgroundColor: colors.background }}
               className="p-6 rounded-lg w-96 shadow-2xl"
             >
@@ -1114,11 +1109,9 @@ const MenuPage = () => {
               </div>
             </div>
           </div>
-        )}
-
-        {/* Delete Add-On Confirmation Modal */}
+        )}        {/* Delete Add-On Confirmation Modal */}
         {addOnToDelete && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">            <div style={{ backgroundColor: colors.background }} className="p-6 rounded-lg shadow-2xl w-96">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div style={{ backgroundColor: colors.background }} className="p-6 rounded-lg shadow-2xl w-96">
               <div className="flex justify-between items-center mb-4 pb-3 border-b" style={{ borderColor: colors.muted + '40' }}>
                 <h3 className="text-lg font-bold" style={{ color: colors.primary }}>Confirm Delete Add-On</h3>
                 <button 
@@ -1166,11 +1159,9 @@ const MenuPage = () => {
               </div>
             </div>
           </div>
-        )}
-
-        {/* Delete Menu Item Confirmation Modal */}
+        )}        {/* Delete Menu Item Confirmation Modal */}
         {showDeleteModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">            <div style={{ backgroundColor: colors.background }} className="p-6 rounded-lg shadow-2xl w-96">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div style={{ backgroundColor: colors.background }} className="p-6 rounded-lg shadow-2xl w-96">
               <div className="flex justify-between items-center mb-4 pb-3 border-b" style={{ borderColor: colors.muted + '40' }}>
                 <h3 className="text-lg font-bold" style={{ color: colors.primary }}>Confirm Delete</h3>
                 <button 
