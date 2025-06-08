@@ -334,36 +334,30 @@ const calculateTotalHours = async (staffId, startDate, endDate) => {
   let totalHours = 0;
   let regularHours = 0;
   let overtimeHours = 0;
-  let lastClockIn = null;
   
-  // Process logs in pairs (clock-in followed by clock-out)
-  for (let i = 0; i < logs.length; i++) {
-    const log = logs[i];
+  // Use stored values from clock-out records instead of recalculating
+  // This ensures consistency with individual shift calculations
+  const clockOutLogs = logs.filter(log => log.type === 'clockOut' && log.totalHours > 0);
+  
+  for (const log of clockOutLogs) {
+    const shiftHours = log.totalHours || 0;
+    totalHours += shiftHours;
     
-    if (log.type === 'clockIn') {
-      lastClockIn = log;
-    } else if (log.type === 'clockOut' && lastClockIn) {
-      // Calculate hours for this shift with proper limits
-      const shiftHours = calculateHoursWorked(lastClockIn.timestamp, log.timestamp);
-      totalHours += shiftHours;
-      
-      // Track regular and overtime hours (can be made configurable)
-      const OVERTIME_THRESHOLD = 8;
-      if (shiftHours > OVERTIME_THRESHOLD) {
-        regularHours += OVERTIME_THRESHOLD;
-        overtimeHours += (shiftHours - OVERTIME_THRESHOLD);
-      } else {
-        regularHours += shiftHours;
-      }
-      
-      lastClockIn = null;
+    // Use the stored isOvertime flag and totalHours for accurate calculation
+    const OVERTIME_THRESHOLD = 8;
+    if (log.isOvertime && shiftHours > OVERTIME_THRESHOLD) {
+      regularHours += OVERTIME_THRESHOLD;
+      overtimeHours += (shiftHours - OVERTIME_THRESHOLD);
+    } else {
+      regularHours += shiftHours;
     }
   }
   
+  // Round to 2 decimal places for consistency
   return {
-    totalHours,
-    regularHours,
-    overtimeHours
+    totalHours: Number(totalHours.toFixed(2)),
+    regularHours: Number(regularHours.toFixed(2)),
+    overtimeHours: Number(overtimeHours.toFixed(2))
   };
 };
 

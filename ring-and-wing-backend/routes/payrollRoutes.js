@@ -339,6 +339,8 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
       allowances, 
       deductions, 
       timeLogs,
+      totalHoursWorked,
+      overtimeHours,
       includeHolidayCalculation = true,
       include13thMonth = false,
       manualBonuses = {}
@@ -420,8 +422,25 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
       (thirteenthMonthPay || 0);
     const totalDeductions =
       (deductions?.late || 0) +
-      (deductions?.absence || 0);
-    const netPay = grossPay - totalDeductions;
+      (deductions?.absence || 0);    const netPay = grossPay - totalDeductions;
+
+    // Use frontend-provided hours (which include proper holiday compliance and business logic)
+    // If not provided, fall back to backend calculation as a safety measure
+    let finalTotalHours = totalHoursWorked || 0;
+    let finalOvertimeHours = overtimeHours || 0;
+    
+    // Fallback calculation only if frontend didn't provide values
+    if (!totalHoursWorked && !overtimeHours) {
+      const timeLogController = require('../controllers/timeLogController');
+      try {
+        const actualHours = await timeLogController.calculateTotalHours(staffId, startOfMonth, endOfMonth);
+        finalTotalHours = actualHours.totalHours;
+        finalOvertimeHours = actualHours.overtimeHours;
+      } catch (error) {
+        console.error('Error calculating hours from time logs:', error);
+        // Continue with 0 values if calculation fails
+      }
+    }
 
     // Create payroll record
     const payroll = new Payroll({
@@ -440,8 +459,8 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
       },
       holidaysWorked,
       deductions,
-      totalHoursWorked: 0, // Will be calculated from time logs
-      overtimeHours: 0,    // Will be calculated from time logs
+      totalHoursWorked: finalTotalHours, // Use frontend-provided values with fallback
+      overtimeHours: finalOvertimeHours, // Use frontend-provided values with fallback
       grossPay,
       netPay
     });
