@@ -58,22 +58,24 @@ export const PaymentPanel = ({
     }
     
     return '';
-  };
-
-  // Validate e-wallet details
+  };  // Validate e-wallet details
   const validateEWalletDetails = (details) => {
-    if (!details?.number || details.number.trim() === '') {
-      return 'E-wallet number is required';
+    if (!details?.referenceNumber || details.referenceNumber.trim() === '') {
+      return 'Reference number is required';
     }
     
     if (!details?.name || details.name.trim() === '') {
-      return 'E-wallet account name is required';
+      return 'Account name is required';
     }
     
-    // Basic e-wallet number format validation
-    const numberPattern = /^[0-9+\-\s()]+$/;
-    if (!numberPattern.test(details.number)) {
-      return 'Invalid e-wallet number format';
+    // Validate that reference number contains only numbers
+    if (!/^\d+$/.test(details.referenceNumber)) {
+      return 'Reference number must contain only numbers';
+    }
+    
+    // Check minimum length for reference number
+    if (details.referenceNumber.length < 4) {
+      return 'Reference number must be at least 4 digits';
     }
     
     return '';
@@ -241,23 +243,37 @@ export const PaymentPanel = ({
             </div>
           )}
         </div>
-      )}
-        {paymentMethod === 'e-wallet' && (
+      )}        {paymentMethod === 'e-wallet' && (
         <div className="space-y-1 mb-2">
-          <input
+          <select
+            value={eWalletDetails?.provider || 'gcash'}
+            onChange={(e) => onEWalletDetailsChange({...eWalletDetails, provider: e.target.value})}
+            className="w-full p-3 text-sm rounded-lg border-2 focus:outline-none transition-colors"
+            style={{
+              borderColor: theme.colors.muted,
+              backgroundColor: theme.colors.background,
+              color: theme.colors.primary
+            }}
+          >
+            <option value="gcash">GCash</option>
+            <option value="paymaya">PayMaya</option>
+          </select>          <input
             type="text"
-            value={eWalletDetails?.number || ''}
-            onChange={(e) => onEWalletDetailsChange({...eWalletDetails, number: e.target.value})}
+            value={eWalletDetails?.referenceNumber || ''}
+            onChange={(e) => {
+              const value = e.target.value.replace(/[^0-9]/g, '');
+              onEWalletDetailsChange({...eWalletDetails, referenceNumber: value});
+            }}
             className={`w-full p-3 text-sm rounded-lg border-2 focus:outline-none transition-colors ${
-              eWalletError && (!eWalletDetails?.number || eWalletDetails.number.trim() === '') ? 'border-red-500' : ''
+              eWalletError && (!eWalletDetails?.referenceNumber || eWalletDetails.referenceNumber.trim() === '') ? 'border-red-500' : ''
             }`}
             style={{
-              borderColor: eWalletError && (!eWalletDetails?.number || eWalletDetails.number.trim() === '') 
+              borderColor: eWalletError && (!eWalletDetails?.referenceNumber || eWalletDetails.referenceNumber.trim() === '') 
                 ? '#ef4444' : theme.colors.muted,
               backgroundColor: theme.colors.background,
               color: theme.colors.primary
             }}
-            placeholder="E-wallet number"
+            placeholder="Reference number (numbers only)"
           />
           <input
             type="text"
@@ -272,7 +288,7 @@ export const PaymentPanel = ({
               backgroundColor: theme.colors.background,
               color: theme.colors.primary
             }}
-            placeholder="E-wallet account name"
+            placeholder="Account name"
           />
           {eWalletError && (
             <div className="text-red-500 text-xs mt-1">{eWalletError}</div>

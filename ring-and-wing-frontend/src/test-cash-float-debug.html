@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cash Float Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .result { margin: 10px 0; padding: 10px; background: #f5f5f5; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e9; color: #2e7d32; }
+        button { margin: 5px; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Cash Float Service Debug Test</h1>
+    
+    <div class="test-section">
+        <h3>Current localStorage Status</h3>
+        <button onclick="checkLocalStorage()">Check localStorage</button>
+        <button onclick="clearCashFloat()">Clear Cash Float Data</button>
+        <button onclick="setTestData()">Set Test Data (₱2000)</button>
+        <div id="localStorage-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Initialize Test</h3>
+        <button onclick="testInitialization()">Test Service Initialization</button>
+        <div id="init-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Console Logs</h3>
+        <p>Open browser console (F12) to see detailed debug output from the CashFloatService.</p>
+    </div>
+
+    <script>
+        function checkLocalStorage() {
+            const result = document.getElementById('localStorage-result');
+            try {
+                const stored = localStorage.getItem('cashFloatData');
+                if (stored) {
+                    const data = JSON.parse(stored);
+                    result.innerHTML = `
+                        <div class="success">
+                            <strong>Cash Float Data Found:</strong><br>
+                            Current Float: ₱${data.currentFloat || 0}<br>
+                            Daily Reset Enabled: ${data.dailyResetSettings?.enabled || false}<br>
+                            Daily Reset Amount: ₱${data.dailyResetSettings?.amount || 1000}<br>
+                            Audit Trail Entries: ${data.auditTrail?.length || 0}<br>
+                            Last Reset: ${data.lastResetDate || 'Never'}
+                        </div>
+                    `;
+                } else {
+                    result.innerHTML = '<div class="error">No cash float data found in localStorage</div>';
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">Error reading localStorage: ${error.message}</div>`;
+            }
+        }
+
+        function clearCashFloat() {
+            localStorage.removeItem('cashFloatData');
+            document.getElementById('localStorage-result').innerHTML = '<div class="success">Cash float data cleared</div>';
+        }
+
+        function setTestData() {
+            const testData = {
+                currentFloat: 2000,
+                dailyResetSettings: {
+                    enabled: false,
+                    amount: 1000
+                },
+                auditTrail: [{
+                    id: 'init-' + Date.now(),
+                    timestamp: new Date().toISOString(),
+                    action: 'set_float',
+                    reason: 'initial_setup',
+                    amount: 2000,
+                    previousAmount: 0,
+                    metadata: { source: 'debug_test' }
+                }],
+                lastResetDate: null
+            };
+            
+            localStorage.setItem('cashFloatData', JSON.stringify(testData));
+            document.getElementById('localStorage-result').innerHTML = '<div class="success">Test data set (₱2000 cash float)</div>';
+        }
+
+        function testInitialization() {
+            const result = document.getElementById('init-result');
+            try {
+                // This should trigger the console logs we added to the CashFloatService
+                result.innerHTML = `
+                    <div class="success">
+                        Check browser console for initialization logs.<br>
+                        If you see "CashFloatService: Initializing..." logs, the service is working.<br>
+                        Refresh the page after setting test data to see the service load it.
+                    </div>
+                `;
+            } catch (error) {
+                result.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Auto-check on page load
+        window.onload = function() {
+            checkLocalStorage();
+        };
+    </script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 @echo off
-echo Starting Ring & Wing backend server with garbage collection enabled...
+echo Starting Ring and Wing backend server with garbage collection enabled...
 
 REM Set environment variables
 set JWT_SECRET=your-ring-and-wing-jwt-secret-key

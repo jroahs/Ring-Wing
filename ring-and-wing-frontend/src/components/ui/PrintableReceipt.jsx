@@ -156,8 +156,7 @@ export const PrintableReceipt = forwardRef(({
           <span>Total:</span>
           <span>{formatCurrency(order.totals.total)}</span>
         </div>
-        
-        {/* Payment Details */}
+          {/* Payment Details */}
         <div className="border-t pt-2 mt-4 text-sm">
           <div className="flex justify-between">
             <span>Payment Method:</span>
@@ -172,6 +171,22 @@ export const PrintableReceipt = forwardRef(({
               <div className="flex justify-between">
                 <span>Change:</span>
                 <span>{formatCurrency(order.paymentDetails.change)}</span>
+              </div>
+            </>
+          )}
+          {order.paymentMethod === 'e-wallet' && order.paymentDetails?.eWalletReferenceNumber && (
+            <>
+              <div className="flex justify-between">
+                <span>Provider:</span>
+                <span>{(order.paymentDetails.eWalletProvider || 'GCash').toUpperCase()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Reference Number:</span>
+                <span>{order.paymentDetails.eWalletReferenceNumber}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Account Name:</span>
+                <span>{order.paymentDetails.eWalletName}</span>
               </div>
             </>
           )}

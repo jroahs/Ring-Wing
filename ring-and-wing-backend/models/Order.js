@@ -24,7 +24,19 @@ const orderSchema = new mongoose.Schema({
     total: { type: Number, required: true },
     cashReceived: { type: Number, default: 0 },
     change: { type: Number, default: 0 }
-  },  paymentMethod: { 
+  },
+
+  // Payment details for different payment methods
+  paymentDetails: {
+    // Cash payment details
+    cashReceived: { type: Number, default: 0 },
+    change: { type: Number, default: 0 },
+    
+    // E-wallet payment details
+    eWalletProvider: { type: String, enum: ['gcash', 'paymaya'] },
+    eWalletReferenceNumber: { type: String },
+    eWalletName: { type: String }
+  },paymentMethod: { 
     type: String, 
     enum: ['cash', 'e-wallet', 'pending'],
     required: true 

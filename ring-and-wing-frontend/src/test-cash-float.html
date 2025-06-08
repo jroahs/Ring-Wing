@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cash Float Debug</title>
+</head>
+<body>
+    <h1>Cash Float Debug Test</h1>
+    <div id="output"></div>
+    
+    <script>
+        // Test localStorage directly
+        console.log('=== DEBUGGING CASH FLOAT ===');
+        
+        // Check if localStorage has cash float data
+        const storedData = localStorage.getItem('cashFloatData');
+        console.log('Stored cash float data:', storedData);
+        
+        if (storedData) {
+            try {
+                const parsed = JSON.parse(storedData);
+                console.log('Parsed data:', parsed);
+                console.log('Current float from storage:', parsed.currentFloat);
+            } catch (e) {
+                console.error('Error parsing stored data:', e);
+            }
+        } else {
+            console.log('No cash float data in localStorage');
+            
+            // Set initial test data
+            const testData = {
+                currentFloat: 1000,
+                dailyResetSettings: { enabled: false, amount: 1000 },
+                auditTrail: [],
+                lastResetDate: null,
+                lastSaved: new Date().toISOString()
+            };
+            
+            localStorage.setItem('cashFloatData', JSON.stringify(testData));
+            console.log('Set initial test data:', testData);
+        }
+        
+        // Display results
+        const output = document.getElementById('output');
+        output.innerHTML = `
+            <h2>Debug Results:</h2>
+            <p><strong>Stored Data:</strong> ${storedData || 'None'}</p>
+            <p><strong>Current Float:</strong> ${storedData ? JSON.parse(storedData).currentFloat : 'N/A'}</p>
+            <button onclick="clearData()">Clear Cash Float Data</button>
+            <button onclick="setTestData()">Set Test Data (₱2000)</button>
+            <button onclick="location.reload()">Refresh</button>
+        `;
+        
+        window.clearData = function() {
+            localStorage.removeItem('cashFloatData');
+            console.log('Cleared cash float data');
+            location.reload();
+        };
+        
+        window.setTestData = function() {
+            const testData = {
+                currentFloat: 2000,
+                dailyResetSettings: { enabled: false, amount: 1000 },
+                auditTrail: [{
+                    timestamp: new Date().toISOString(),
+                    action: 'set_float',
+                    previousAmount: 0,
+                    newAmount: 2000,
+                    change: 2000,
+                    reason: 'test_initialization'
+                }],
+                lastResetDate: null,
+                lastSaved: new Date().toISOString()
+            };
+            
+            localStorage.setItem('cashFloatData', JSON.stringify(testData));
+            console.log('Set test data with ₱2000 float');
+            location.reload();
+        };
+    </script>
+</body>
+</html>

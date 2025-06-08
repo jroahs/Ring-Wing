@@ -13,11 +13,11 @@ export const useCashFloat = () => {
   const [auditTrail, setAuditTrail] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-
   // Subscribe to cash float service events
   useEffect(() => {
     const unsubscribe = cashFloatService.subscribe((event) => {
       switch (event.type) {
+        case 'service_initialized':
         case 'float_updated':
         case 'transaction_processed':
         case 'daily_reset_performed':
@@ -33,6 +33,7 @@ export const useCashFloat = () => {
     });
 
     // Initial data load
+    setCashFloat(cashFloatService.getCurrentFloat());
     setAuditTrail(cashFloatService.getAuditTrail({ limit: 50 }));
     setDailyResetSettings(cashFloatService.dailyResetSettings);
 

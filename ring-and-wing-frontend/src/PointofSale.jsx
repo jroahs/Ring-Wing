@@ -65,7 +65,7 @@ const PointOfSale = () => {
   const [isManager, setIsManager] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('cash');
 
-  const [eWalletDetails, setEWalletDetails] = useState({ number: '', name: '' });
+  const [eWalletDetails, setEWalletDetails] = useState({ provider: 'gcash', referenceNumber: '', name: '' });
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);const [showTimeClock, setShowTimeClock] = useState(false);
   const [showTimeClockModal, setShowTimeClockModal] = useState(false);
   const [showOrderProcessingModal, setShowOrderProcessingModal] = useState(false);
@@ -267,10 +267,10 @@ const PointOfSale = () => {
             ...paymentData,
             cashReceived: cashAmount,
             change: change.toFixed(2)
-          };
-        } else if (method === 'e-wallet' && eWalletDetails) {
+          };        } else if (method === 'e-wallet' && eWalletDetails) {
           paymentData = {
-            eWalletNumber: eWalletDetails.number,
+            eWalletProvider: eWalletDetails.provider,
+            eWalletReferenceNumber: eWalletDetails.referenceNumber,
             eWalletName: eWalletDetails.name
           };
         }
@@ -317,11 +317,10 @@ const PointOfSale = () => {
         }
         
         // Update order lists
-        setActiveOrders(prev => prev.filter(o => o._id !== order._id));
-          // Reset state
+        setActiveOrders(prev => prev.filter(o => o._id !== order._id));        // Reset state
         setCurrentOrder([]);
         setCashAmount(0);
-        setEWalletDetails({ number: '', name: '' });        if (method === 'cash') {
+        setEWalletDetails({ provider: 'gcash', referenceNumber: '', name: '' });if (method === 'cash') {
           // Use centralized cash float service to process the transaction
           await processTransaction(cashAmount, totalDue, `existing_order_${order._id}`);
         }
@@ -608,20 +607,19 @@ const PointOfSale = () => {
     try {
       await new Promise(resolve => setTimeout(resolve, 100));
       await handlePrint();
-      await saveOrderToDB();
-
-      if (paymentMethod === 'cash') {
+      await saveOrderToDB();      if (paymentMethod === 'cash') {
         // Use centralized cash float service to process the transaction
+        console.log('💳 Processing cash transaction:', { paymentMethod, cashValue, totalDue });
         await processTransaction(cashValue, totalDue, 'pos_order');
+        console.log('💳 Cash transaction processed successfully');
       }
         // Clear both the specific cart and currentOrder
       setCart([]);
-      setCurrentOrder([]);
-        setCashAmount(0);
+      setCurrentOrder([]);      setCashAmount(0);
       setSearchTerm('');
       setShowReceipt(false);
       // Reset payment details
-      setEWalletDetails({ number: '', name: '' });
+      setEWalletDetails({ provider: 'gcash', referenceNumber: '', name: '' });
 
       alert('Order completed successfully!');
     } catch (error) {
@@ -631,7 +629,7 @@ const PointOfSale = () => {
   };  const processPendingOrderPayment = async () => {
     // Calculate totals for pending order items
     const pendingTotal = pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    
+
     // Calculate PWD/Senior discounts and VAT exemptions for pending order
     const discountTotal = pendingOrderItems.reduce((sum, item) => {
       if (item.pwdSeniorDiscount?.applied) {
@@ -659,12 +657,8 @@ const PointOfSale = () => {
       }
     }
 
-    setShowReceipt(true);
-
     try {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      await handlePrint();
-        // Update the existing pending order in the database
+      // Update the existing pending order in the database
       const totals = {
         subtotal: pendingTotal,
         discount: discountTotal,
@@ -673,14 +667,15 @@ const PointOfSale = () => {
       };
 
       let paymentDetails = {};
-        if (paymentMethod === 'cash') {
+      if (paymentMethod === 'cash') {
         paymentDetails = {
           cashReceived: cashValue,
           change: cashValue - totalDue
         };
       } else if (paymentMethod === 'e-wallet') {
         paymentDetails = {
-          eWalletNumber: eWalletDetails.number,
+          eWalletProvider: eWalletDetails.provider,
+          eWalletReferenceNumber: eWalletDetails.referenceNumber,
           eWalletName: eWalletDetails.name
         };
       }
@@ -708,25 +703,38 @@ const PointOfSale = () => {
           })),
           ...paymentDetails
         })
-      });      if (!response.ok) {
+      });
+
+      if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to update order');
-      }
+      }      const orderData = await response.json();
 
       if (paymentMethod === 'cash') {
         // Use centralized cash float service to process the transaction
         await processTransaction(cashValue, totalDue, `pending_order_${editingPendingOrder._id}`);
       }
-        // Reset pending order states
-      setEditingPendingOrder(null);
-      setIsPendingOrderMode(false);
-      setPendingOrderItems([]);      setCurrentOrder([]);
+
+      // Set up receipt data using the actual order details
+      const processedItems = pendingOrderItems.map(item => ({
+        ...item,
+        availableSizes: item.availableSizes || [item.selectedSize || 'base'],
+        pricing: item.pricing || { [item.selectedSize || 'base']: item.price }
+      }));
       
-      setCashAmount(0);
-      setSearchTerm('');
-      // Don't auto-close receipt - let user close manually like in processPayment
-      // Reset payment details
-      setEWalletDetails({ number: '', name: '' });
+      setCurrentOrder(processedItems);
+      setPaymentMethod(paymentMethod);
+      
+      // Update payment details for receipt
+      if (paymentMethod === 'cash') {
+        setCashAmount(cashAmount);
+      } else if (paymentMethod === 'e-wallet') {
+        setEWalletDetails(eWalletDetails);
+      }      // Update the editingPendingOrder with the response data so the receipt shows the correct info
+      setEditingPendingOrder(orderData.data);
+
+      // Show receipt for user review (no automatic print or close)
+      setShowReceipt(true);
 
       // Refresh orders list
       await fetchActiveOrders();
@@ -748,10 +756,10 @@ const PointOfSale = () => {
         paymentDetails = {
           cashReceived: cashValue,
           change: cashValue - parseFloat(totals.total)
-        };
-      } else if (paymentMethod === 'e-wallet') {
+        };      } else if (paymentMethod === 'e-wallet') {
         paymentDetails = {
-          eWalletNumber: eWalletDetails.number,
+          eWalletProvider: eWalletDetails.provider,
+          eWalletReferenceNumber: eWalletDetails.referenceNumber,
           eWalletName: eWalletDetails.name
         };
       }const currentCart = orderViewType === 'ready' ? readyOrderCart : pendingOrderCart;
@@ -832,7 +840,7 @@ const PointOfSale = () => {
     setCurrentOrder([]);
     setCashAmount(0);
     // Reset payment details
-    setEWalletDetails({ number: '', name: '' });
+    setEWalletDetails({ provider: 'gcash', referenceNumber: '', name: '' });
   };// Filtered items is kept for compatibility with any existing code that might reference it
   // But filtering is now done directly in the render for each category section
   const filteredItems = useMemo(() => {
@@ -1429,7 +1437,7 @@ const PointOfSale = () => {
                   cashAmount={cashAmount}                  onPaymentMethodChange={(method) => {
                     setPaymentMethod(method);
                     // Reset other payment details when changing methods
-                    if (method !== 'e-wallet') setEWalletDetails({ number: '', name: '' });
+                    if (method !== 'e-wallet') setEWalletDetails({ provider: 'gcash', referenceNumber: '', name: '' });
                     if (method !== 'cash') setCashAmount(0);
                   }}
                   onCashAmountChange={setCashAmount}
@@ -1451,18 +1459,18 @@ const PointOfSale = () => {
                     (paymentMethod === 'cash' && cashAmount < parseFloat(isPendingOrderMode ? 
                       calculatePendingOrderTotal().total :
                       calculateTotal().total)) ||
-                    (paymentMethod === 'e-wallet' && (!eWalletDetails?.number || !eWalletDetails?.name))
+                    (paymentMethod === 'e-wallet' && (!eWalletDetails?.referenceNumber || !eWalletDetails?.name))
                   }
                 />
               </div>
-            </div>
-
-            {/* Receipt Modal */}            <Modal isOpen={showReceipt} onClose={() => setShowReceipt(false)} size="lg">
+            </div>            {/* Receipt Modal */}            <Modal isOpen={showReceipt} onClose={() => setShowReceipt(false)} size="lg">
               <Receipt
                 ref={receiptRef}
                 order={{
                   items: isPendingOrderMode ? pendingOrderItems : (orderViewType === 'ready' ? readyOrderCart : pendingOrderCart),
-                  receiptNumber: generateReceiptNumber(),
+                  receiptNumber: isPendingOrderMode && editingPendingOrder ? 
+                    editingPendingOrder.receiptNumber : 
+                    generateReceiptNumber(),
                   server: (() => {
                     try {
                       const userData = localStorage.getItem('userData');
@@ -1473,8 +1481,9 @@ const PointOfSale = () => {
                     } catch (error) {
                       console.error('Error getting staff name:', error);
                     }
+                    return '';
                   })()
-                }}                totals={{
+                }}totals={{
                   subtotal: isPendingOrderMode 
                     ? calculatePendingOrderTotal().subtotal
                     : calculateTotal().subtotal,
@@ -1488,8 +1497,8 @@ const PointOfSale = () => {
                     (parseFloat(cashAmount) - (isPendingOrderMode 
                       ? parseFloat(calculatePendingOrderTotal().total)
                       : parseFloat(calculateTotal().total)
-                    )).toFixed(2) : "0.00",
-                  eWalletNumber: paymentMethod === 'e-wallet' ? eWalletDetails?.number || '' : '',
+                    )).toFixed(2) : "0.00",                  eWalletProvider: paymentMethod === 'e-wallet' ? eWalletDetails?.provider || '' : '',
+                  eWalletReferenceNumber: paymentMethod === 'e-wallet' ? eWalletDetails?.referenceNumber || '' : '',
                   eWalletName: paymentMethod === 'e-wallet' ? eWalletDetails?.name || '' : ''
                 }}
                 paymentMethod={paymentMethod}
@@ -1500,12 +1509,23 @@ const PointOfSale = () => {
                   style={{
                     backgroundColor: theme.colors.primary,
                     color: theme.colors.background
-                  }}
-                  onClick={async () => {
+                  }}                  onClick={async () => {
                     try {
                       await handlePrint();
                     } finally {
                       setShowReceipt(false);
+                      
+                      // Reset pending order states when closing receipt
+                      if (isPendingOrderMode) {
+                        setEditingPendingOrder(null);
+                        setIsPendingOrderMode(false);
+                        setPendingOrderItems([]);
+                        setCurrentOrder([]);
+                        setCashAmount(0);
+                        setSearchTerm('');
+                        // Reset payment details
+                        setEWalletDetails({ provider: 'gcash', referenceNumber: '', name: '' });
+                      }
                     }
                   }}
                 >

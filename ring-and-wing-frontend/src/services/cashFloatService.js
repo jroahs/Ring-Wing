@@ -21,6 +21,12 @@ class CashFloatService {
     
     // Check for daily reset on service initialization
     this.checkDailyReset();
+    
+    // Notify listeners that the service has been initialized
+    this.notifyListeners('service_initialized', {
+      currentFloat: this.currentFloat,
+      settings: this.dailyResetSettings
+    });
   }
 
   /**
@@ -137,8 +143,7 @@ class CashFloatService {
 
   /**
    * Process a cash transaction (reduce float for change)
-   */
-  async processTransaction(cashAmount, orderTotal, orderId = null) {
+   */  async processTransaction(cashAmount, orderTotal, orderId = null) {
     const numCashAmount = this.parseCurrency(cashAmount);
     const numTotal = this.parseCurrency(orderTotal);
     
@@ -152,9 +157,7 @@ class CashFloatService {
     const changeValidation = this.validateChange(cashAmount, orderTotal);
     if (!changeValidation.valid) {
       throw new Error(changeValidation.message);
-    }
-
-    // Process the transaction
+    }    // Process the transaction
     const previousFloat = this.currentFloat;
     const newFloat = Math.max(0, this.currentFloat - change);
     
@@ -366,9 +369,7 @@ class CashFloatService {
     } catch (error) {
       console.error('Error saving cash float data:', error);
     }
-  }
-
-  loadFromStorage() {
+  }  loadFromStorage() {
     try {
       const stored = localStorage.getItem('cashFloatData');
       if (stored) {
@@ -380,14 +381,38 @@ class CashFloatService {
         };
         this.auditTrail = data.auditTrail || [];
         this.lastResetDate = data.lastResetDate || null;
+      } else {
+        // Initialize with a reasonable default cash float amount
+        this.currentFloat = 1000; // Default ₱1000 cash float
+        this.dailyResetSettings = {
+          enabled: false,
+          amount: 1000
+        };
+        this.auditTrail = [{
+          id: 'init-' + Date.now(),
+          timestamp: new Date().toISOString(),
+          action: 'initialize',
+          reason: 'first_time_setup',
+          amount: 1000,
+          previousAmount: 0,
+          metadata: {
+            source: 'service_initialization',
+            note: 'Default cash float set for first-time use'
+          }
+        }];
+        this.lastResetDate = null;
+        
+        // Save the initial setup to localStorage
+        this.saveToStorage();
       }
     } catch (error) {
       console.error('Error loading cash float data:', error);
       // Reset to defaults on error
-      this.currentFloat = 0;
+      this.currentFloat = 1000; // Even on error, start with a reasonable default
       this.dailyResetSettings = { enabled: false, amount: 1000 };
       this.auditTrail = [];
       this.lastResetDate = null;
+      this.saveToStorage();
     }
   }
 

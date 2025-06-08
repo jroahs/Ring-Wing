@@ -6,7 +6,7 @@ const PendingOrder = ({ order, processPayment, cashFloat = 0, colors = theme.col
   const [isExpanded, setIsExpanded] = useState(false);
   const [localPaymentMethod, setLocalPaymentMethod] = useState('cash');
   const [localCashAmount, setLocalCashAmount] = useState('');
-  const [eWalletDetails, setEWalletDetails] = useState({ number: '', name: '' });
+  const [eWalletDetails, setEWalletDetails] = useState({ provider: 'gcash', referenceNumber: '', name: '' });
   const [isDiscountApplied, setIsDiscountApplied] = useState(false);
   
   // Enhanced validation states
@@ -50,25 +50,27 @@ const PendingOrder = ({ order, processPayment, cashFloat = 0, colors = theme.col
     }
     
     return '';
-  };
-
-  const validateEWalletDetails = (details) => {
-    if (!details?.number || details.number.trim() === '') {
-      return 'E-wallet number is required';
+  };  const validateEWalletDetails = (details) => {
+    if (!details?.referenceNumber || details.referenceNumber.trim() === '') {
+      return 'Reference number is required';
     }
     
     if (!details?.name || details.name.trim() === '') {
-      return 'E-wallet account name is required';
+      return 'Account name is required';
     }
     
-    // Basic e-wallet number format validation
-    const numberPattern = /^[0-9+\-\s()]+$/;
-    if (!numberPattern.test(details.number)) {
-      return 'Invalid e-wallet number format';
+    // Validate that reference number contains only numbers
+    if (!/^\d+$/.test(details.referenceNumber)) {
+      return 'Reference number must contain only numbers';
+    }
+    
+    // Check minimum length for reference number
+    if (details.referenceNumber.length < 4) {
+      return 'Reference number must be at least 4 digits';
     }
     
     return '';
-  };  
+  };
   const calculateTotal = () => {
     const subtotal = order.totals?.subtotal || 
       order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -303,19 +305,34 @@ const PendingOrder = ({ order, processPayment, cashFloat = 0, colors = theme.col
             </div>
           )}          {localPaymentMethod === 'e-wallet' && (
             <div className="space-y-2 mt-3">
-              <input
+              <select
+                value={eWalletDetails.provider || 'gcash'}
+                onChange={(e) => setEWalletDetails({...eWalletDetails, provider: e.target.value})}
+                className="w-full p-2 rounded text-sm transition-colors focus:outline-none focus:ring-2"
+                style={{
+                  backgroundColor: colors.background,
+                  border: `2px solid ${colors.muted}`,
+                  color: colors.primary
+                }}
+              >
+                <option value="gcash">GCash</option>
+                <option value="paymaya">PayMaya</option>
+              </select>              <input
                 type="text"
-                value={eWalletDetails.number}
-                onChange={(e) => setEWalletDetails({...eWalletDetails, number: e.target.value})}
-                placeholder="E-wallet number"
+                value={eWalletDetails.referenceNumber}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^0-9]/g, '');
+                  setEWalletDetails({...eWalletDetails, referenceNumber: value});
+                }}
+                placeholder="Reference number (numbers only)"
                 className={`w-full p-2 rounded text-sm transition-colors focus:outline-none focus:ring-2 ${
-                  errors.eWallet && (!eWalletDetails.number || eWalletDetails.number.trim() === '') 
+                  errors.eWallet && (!eWalletDetails.referenceNumber || eWalletDetails.referenceNumber.trim() === '') 
                     ? 'border-red-500 focus:ring-red-300' : 'focus:ring-2'
                 }`}
                 style={{
                   backgroundColor: colors.background,
                   border: `2px solid ${
-                    errors.eWallet && (!eWalletDetails.number || eWalletDetails.number.trim() === '') 
+                    errors.eWallet && (!eWalletDetails.referenceNumber || eWalletDetails.referenceNumber.trim() === '') 
                       ? '#ef4444' : colors.muted
                   }`,
                   color: colors.primary
@@ -325,7 +342,7 @@ const PendingOrder = ({ order, processPayment, cashFloat = 0, colors = theme.col
                 type="text"
                 value={eWalletDetails.name}
                 onChange={(e) => setEWalletDetails({...eWalletDetails, name: e.target.value})}
-                placeholder="E-wallet account name"
+                placeholder="Account name"
                 className={`w-full p-2 rounded text-sm transition-colors focus:outline-none focus:ring-2 ${
                   errors.eWallet && (!eWalletDetails.name || eWalletDetails.name.trim() === '') 
                     ? 'border-red-500 focus:ring-red-300' : 'focus:ring-2'
@@ -374,10 +391,10 @@ const PendingOrder = ({ order, processPayment, cashFloat = 0, colors = theme.col
                   cashAmount: parseCurrency(localCashAmount),
                   isDiscountApplied: isDiscountApplied
                 };              
-                
-                if (localPaymentMethod === 'e-wallet') {
+                  if (localPaymentMethod === 'e-wallet') {
                   paymentInfo.eWalletDetails = {
-                    number: eWalletDetails.number.trim(),
+                    provider: eWalletDetails.provider,
+                    referenceNumber: eWalletDetails.referenceNumber.trim(),
                     name: eWalletDetails.name.trim()
                   };
                 }

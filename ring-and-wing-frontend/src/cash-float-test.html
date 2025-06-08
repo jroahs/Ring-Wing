@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cash Float Functionality Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .result { margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 3px; }
+        .success { background: #e8f5e9; color: #2e7d32; }
+        .error { background: #ffebee; color: #c62828; }
+        .warning { background: #fff3e0; color: #f57c00; }
+        input, button { margin: 5px; padding: 8px 12px; }
+        button { background: #1976d2; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #1565c0; }
+        .status { font-weight: bold; font-size: 1.2em; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Cash Float Functionality Test</h1>
+    
+    <div id="status" class="status">Checking cash float status...</div>
+    
+    <div class="test-section">
+        <h3>Current Cash Float Information</h3>
+        <div id="current-float" class="result">Loading...</div>
+        <button onclick="refreshStatus()">Refresh Status</button>
+    </div>
+
+    <div class="test-section">
+        <h3>Change Calculation Test</h3>
+        <p>Test if the cash float can provide change for transactions:</p>
+        <div>
+            <label>Order Total: ₱</label>
+            <input type="number" id="orderTotal" value="250" step="0.01" min="0">
+        </div>
+        <div>
+            <label>Cash Received: ₱</label>
+            <input type="number" id="cashReceived" value="500" step="0.01" min="0">
+        </div>
+        <button onclick="testChangeCalculation()">Test Change Calculation</button>
+        <div id="change-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Cash Float Management</h3>
+        <p>Test setting a custom cash float amount:</p>
+        <div>
+            <label>New Cash Float: ₱</label>
+            <input type="number" id="newFloat" value="2000" step="0.01" min="0">
+            <button onclick="setCashFloat()">Set Cash Float</button>
+        </div>
+        <div id="float-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Transaction Simulation</h3>
+        <p>Simulate a complete cash transaction:</p>
+        <div>
+            <label>Transaction Total: ₱</label>
+            <input type="number" id="transactionTotal" value="150" step="0.01" min="0">
+        </div>
+        <div>
+            <label>Cash Payment: ₱</label>
+            <input type="number" id="cashPayment" value="200" step="0.01" min="0">
+        </div>
+        <button onclick="simulateTransaction()">Process Transaction</button>
+        <div id="transaction-result" class="result"></div>
+    </div>
+
+    <script>
+        // Note: This test page tests localStorage directly since we can't import the actual service
+        // In the real app, the service handles all this logic
+        
+        function getCurrentFloat() {
+            try {
+                const stored = localStorage.getItem('cashFloatData');
+                if (stored) {
+                    const data = JSON.parse(stored);
+                    return data.currentFloat || 0;
+                }
+                return 0;
+            } catch (error) {
+                console.error('Error reading cash float:', error);
+                return 0;
+            }
+        }
+        
+        function formatCurrency(amount) {
+            return Number(amount || 0).toFixed(2);
+        }
+        
+        function refreshStatus() {
+            const currentFloat = getCurrentFloat();
+            const statusDiv = document.getElementById('status');
+            const currentFloatDiv = document.getElementById('current-float');
+            
+            if (currentFloat > 0) {
+                statusDiv.innerHTML = `✅ Cash Float System Active: ₱${formatCurrency(currentFloat)}`;
+                statusDiv.className = 'status success';
+            } else {
+                statusDiv.innerHTML = `⚠️ Cash Float Not Set: ₱${formatCurrency(currentFloat)}`;
+                statusDiv.className = 'status warning';
+            }
+            
+            try {
+                const stored = localStorage.getItem('cashFloatData');
+                if (stored) {
+                    const data = JSON.parse(stored);
+                    currentFloatDiv.innerHTML = `
+                        <div class="success">
+                            <strong>Current Cash Float:</strong> ₱${formatCurrency(data.currentFloat)}<br>
+                            <strong>Daily Reset Enabled:</strong> ${data.dailyResetSettings?.enabled ? 'Yes' : 'No'}<br>
+                            <strong>Daily Reset Amount:</strong> ₱${formatCurrency(data.dailyResetSettings?.amount)}<br>
+                            <strong>Audit Trail Entries:</strong> ${data.auditTrail?.length || 0}<br>
+                            <strong>Last Reset:</strong> ${data.lastResetDate || 'Never'}
+                        </div>
+                    `;
+                } else {
+                    currentFloatDiv.innerHTML = '<div class="warning">No cash float data found. The app should initialize with ₱1000 on first use.</div>';
+                }
+            } catch (error) {
+                currentFloatDiv.innerHTML = `<div class="error">Error reading data: ${error.message}</div>`;
+            }
+        }
+        
+        function testChangeCalculation() {
+            const orderTotal = parseFloat(document.getElementById('orderTotal').value || 0);
+            const cashReceived = parseFloat(document.getElementById('cashReceived').value || 0);
+            const currentFloat = getCurrentFloat();
+            const resultDiv = document.getElementById('change-result');
+            
+            const change = cashReceived - orderTotal;
+            
+            if (cashReceived < orderTotal) {
+                resultDiv.innerHTML = `<div class="error">❌ Insufficient Payment: Need ₱${formatCurrency(orderTotal - cashReceived)} more</div>`;
+                return;
+            }
+            
+            if (change === 0) {
+                resultDiv.innerHTML = `<div class="success">✅ Exact Payment: No change needed</div>`;
+                return;
+            }
+            
+            if (change > currentFloat) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        ❌ Cannot Provide Change<br>
+                        Change Required: ₱${formatCurrency(change)}<br>
+                        Cash Float Available: ₱${formatCurrency(currentFloat)}<br>
+                        Shortfall: ₱${formatCurrency(change - currentFloat)}
+                    </div>
+                `;
+            } else {
+                const newFloat = currentFloat - change;
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        ✅ Transaction Possible<br>
+                        Change to Give: ₱${formatCurrency(change)}<br>
+                        Cash Float Before: ₱${formatCurrency(currentFloat)}<br>
+                        Cash Float After: ₱${formatCurrency(newFloat)}
+                    </div>
+                `;
+            }
+        }
+        
+        function setCashFloat() {
+            const newFloat = parseFloat(document.getElementById('newFloat').value || 0);
+            const resultDiv = document.getElementById('float-result');
+            
+            if (newFloat < 0) {
+                resultDiv.innerHTML = '<div class="error">❌ Cash float cannot be negative</div>';
+                return;
+            }
+            
+            try {
+                const data = {
+                    currentFloat: newFloat,
+                    dailyResetSettings: { enabled: false, amount: 1000 },
+                    auditTrail: [{
+                        timestamp: new Date().toISOString(),
+                        action: 'set_float',
+                        previousAmount: getCurrentFloat(),
+                        newAmount: newFloat,
+                        reason: 'manual_test',
+                        metadata: { source: 'test_page' }
+                    }],
+                    lastResetDate: null
+                };
+                
+                localStorage.setItem('cashFloatData', JSON.stringify(data));
+                resultDiv.innerHTML = `<div class="success">✅ Cash float set to ₱${formatCurrency(newFloat)}</div>`;
+                refreshStatus();
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error setting cash float: ${error.message}</div>`;
+            }
+        }
+        
+        function simulateTransaction() {
+            const total = parseFloat(document.getElementById('transactionTotal').value || 0);
+            const payment = parseFloat(document.getElementById('cashPayment').value || 0);
+            const currentFloat = getCurrentFloat();
+            const resultDiv = document.getElementById('transaction-result');
+            
+            const change = payment - total;
+            
+            if (payment < total) {
+                resultDiv.innerHTML = `<div class="error">❌ Insufficient payment</div>`;
+                return;
+            }
+            
+            if (change > currentFloat) {
+                resultDiv.innerHTML = `<div class="error">❌ Cannot process: Insufficient cash float for change</div>`;
+                return;
+            }
+            
+            try {
+                const newFloat = currentFloat - change;
+                const stored = localStorage.getItem('cashFloatData');
+                const data = stored ? JSON.parse(stored) : {};
+                
+                data.currentFloat = newFloat;
+                data.auditTrail = data.auditTrail || [];
+                data.auditTrail.push({
+                    timestamp: new Date().toISOString(),
+                    action: 'transaction',
+                    previousAmount: currentFloat,
+                    newAmount: newFloat,
+                    change: -change,
+                    reason: 'cash_transaction',
+                    metadata: {
+                        orderTotal: total,
+                        cashReceived: payment,
+                        changeGiven: change,
+                        source: 'test_simulation'
+                    }
+                });
+                
+                localStorage.setItem('cashFloatData', JSON.stringify(data));
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        ✅ Transaction Processed Successfully<br>
+                        Order Total: ₱${formatCurrency(total)}<br>
+                        Cash Received: ₱${formatCurrency(payment)}<br>
+                        Change Given: ₱${formatCurrency(change)}<br>
+                        New Cash Float: ₱${formatCurrency(newFloat)}
+                    </div>
+                `;
+                
+                refreshStatus();
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Transaction failed: ${error.message}</div>`;
+            }
+        }
+        
+        // Initialize on page load
+        window.onload = refreshStatus;
+    </script>
+</body>
+</html>
