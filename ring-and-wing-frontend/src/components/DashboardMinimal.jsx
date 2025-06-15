@@ -29,6 +29,10 @@ const DashboardMinimal = () => {
     totalSales: 0,
     orderSources: {}
   });
+  const [monthlyRevenueSummary, setMonthlyRevenueSummary] = useState({
+    totalSales: 0,
+    orderSources: {}
+  });
   const [operations, setOperations] = useState({
     monthlyDisbursements: 0,
     lowStockItems: 0
@@ -45,15 +49,28 @@ const DashboardMinimal = () => {
     const fetchDashboardData = async () => {
       try {
         setIsLoading(true);
-        
-        // Fetch orders
+          // Fetch orders from today only
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
         const ordersResponse = await fetch('http://localhost:5000/api/orders');
         const ordersData = await ordersResponse.json();
-        setOrders(ordersData.data || []);
-          // Fetch sales stats - using monthly period for consistency with expenses
-        const statsResponse = await fetch('http://localhost:5000/api/revenue/monthly');
+        
+        // Filter orders to show only today's orders
+        const todayOrders = (ordersData.data || []).filter(order => {
+          const orderDate = new Date(order.createdAt);
+          orderDate.setHours(0, 0, 0, 0);
+          return orderDate.getTime() === today.getTime();
+        });
+        
+        setOrders(todayOrders);        // Fetch sales stats - using daily period to show today's data only
+        const statsResponse = await fetch('http://localhost:5000/api/revenue/daily');
         const statsData = await statsResponse.json();
         const revenueData = statsData.data || {};
+
+        // Fetch monthly revenue data for Revenue Overview section
+        const monthlyStatsResponse = await fetch('http://localhost:5000/api/revenue/monthly');
+        const monthlyStatsData = await monthlyStatsResponse.json();
+        const monthlyRevenueData = monthlyStatsData.data || {};
           // Fetch historical monthly revenue data for the chart
         const monthlyHistoricalResponse = await fetch('http://localhost:5000/api/revenue/historical/monthly');
         const monthlyHistoricalData = await monthlyHistoricalResponse.json();
@@ -166,11 +183,16 @@ const DashboardMinimal = () => {
           bestSellers: revenueData.topItems || [],
           pendingOrders: 0, // This data is not provided by the revenue API
           lowStockCount: 0 // This data is not provided by the revenue API
-        });
-          // Set sales summary (removed paymentMethods since we replaced it with monthly trend)
+        });        // Set sales summary (removed paymentMethods since we replaced it with monthly trend)
         setSalesSummary({
           totalSales: revenueData.summary?.totalRevenue || 0,
           orderSources: revenueData.revenueBySource || {}
+        });
+
+        // Set monthly revenue summary for Revenue Overview section
+        setMonthlyRevenueSummary({
+          totalSales: monthlyRevenueData.summary?.totalRevenue || 0,
+          orderSources: monthlyRevenueData.revenueBySource || {}
         });
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -181,12 +203,22 @@ const DashboardMinimal = () => {
     
     fetchDashboardData();
   }, []);
-  
-  const handleRefreshOrders = async () => {
+    const handleRefreshOrders = async () => {
     try {
       const response = await fetch('http://localhost:5000/api/orders');
       const data = await response.json();
-      setOrders(data.data || []);    } catch (error) {
+      
+      // Filter orders to show only today's orders
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayOrders = (data.data || []).filter(order => {
+        const orderDate = new Date(order.createdAt);
+        orderDate.setHours(0, 0, 0, 0);
+        return orderDate.getTime() === today.getTime();
+      });
+      
+      setOrders(todayOrders);
+    } catch (error) {
       console.error('Error refreshing orders:', error);
     }
   };
@@ -200,6 +232,7 @@ const DashboardMinimal = () => {
         stats={stats}
         orders={orders}
         salesSummary={salesSummary}
+        monthlyRevenueSummary={monthlyRevenueSummary}
         operations={operations}
         onRefreshOrders={handleRefreshOrders}
         onViewOrder={handleViewOrder}

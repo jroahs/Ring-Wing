@@ -16,6 +16,7 @@ export const DashboardGridMinimal = ({
   stats,
   orders,
   salesSummary,
+  monthlyRevenueSummary,
   operations = {},
   onRefreshOrders,
   onViewOrder,
@@ -277,14 +278,13 @@ export const DashboardGridMinimal = ({
           </div>
           
           <div className="p-3">
-            {/* Mini Revenue Chart */}
-            <div className="mb-3">
+            {/* Mini Revenue Chart */}            <div className="mb-3">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-[10px]" style={{ color: theme.colors.muted }}>Daily Revenue Trend</span>
                 <span className="text-xs font-medium" style={{ color: theme.colors.primary }}>
-                  {formatCurrency(salesSummary.totalSales)}
+                  {formatCurrency(monthlyRevenueSummary?.totalSales || 0)}
                 </span>
-              </div>              {revenueData.length > 0 ? (
+              </div>{revenueData.length > 0 ? (
                 <div className="h-16 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={revenueData.slice(-7)} barSize={8}>
@@ -316,25 +316,23 @@ export const DashboardGridMinimal = ({
             {/* Profit Margin */}
             <div className="mb-3">
               <div className="flex justify-between items-center mb-1">
-                <span className="text-[10px]" style={{ color: theme.colors.muted }}>Profit Margin</span>
-                <span 
+                <span className="text-[10px]" style={{ color: theme.colors.muted }}>Profit Margin</span>                <span 
                   className="text-xs font-medium"
                   style={{ 
-                    color: calculateProfitMargin(salesSummary.totalSales, monthlyExpenses) >= 25 ? '#16a34a' : 
-                           calculateProfitMargin(salesSummary.totalSales, monthlyExpenses) >= 15 ? theme.colors.accent : 
+                    color: calculateProfitMargin(monthlyRevenueSummary?.totalSales || 0, monthlyExpenses) >= 25 ? '#16a34a' : 
+                           calculateProfitMargin(monthlyRevenueSummary?.totalSales || 0, monthlyExpenses) >= 15 ? theme.colors.accent : 
                            'red'
                   }}
                 >
-                  {calculateProfitMargin(salesSummary.totalSales, monthlyExpenses)}%
+                  {calculateProfitMargin(monthlyRevenueSummary?.totalSales || 0, monthlyExpenses)}%
                 </span>
-              </div>
-              <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              </div>              <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
                 <div 
                   className="h-full rounded-full" 
                   style={{ 
-                    width: `${Math.min(Math.max(calculateProfitMargin(salesSummary.totalSales, monthlyExpenses), 0), 100)}%`,
-                    backgroundColor: calculateProfitMargin(salesSummary.totalSales, monthlyExpenses) >= 25 ? '#16a34a' : 
-                                     calculateProfitMargin(salesSummary.totalSales, monthlyExpenses) >= 15 ? theme.colors.accent : 
+                    width: `${Math.min(Math.max(calculateProfitMargin(monthlyRevenueSummary?.totalSales || 0, monthlyExpenses), 0), 100)}%`,
+                    backgroundColor: calculateProfitMargin(monthlyRevenueSummary?.totalSales || 0, monthlyExpenses) >= 25 ? '#16a34a' : 
+                                     calculateProfitMargin(monthlyRevenueSummary?.totalSales || 0, monthlyExpenses) >= 15 ? theme.colors.accent : 
                                      'red'
                   }}
                 />
@@ -349,24 +347,22 @@ export const DashboardGridMinimal = ({
             {/* Cash Flow */}
             <div>
               <div className="flex justify-between items-center mb-1">
-                <span className="text-[10px]" style={{ color: theme.colors.muted }}>Cash Flow</span>
-                <span 
+                <span className="text-[10px]" style={{ color: theme.colors.muted }}>Cash Flow</span>                <span 
                   className="text-xs font-medium"
                   style={{ 
-                    color: calculateCashFlow(salesSummary.totalSales, monthlyExpenses) > 0 ? '#16a34a' : 'red' 
+                    color: calculateCashFlow(monthlyRevenueSummary?.totalSales || 0, monthlyExpenses) > 0 ? '#16a34a' : 'red' 
                   }}
                 >
-                  {formatCurrency(calculateCashFlow(salesSummary.totalSales, monthlyExpenses))}
+                  {formatCurrency(calculateCashFlow(monthlyRevenueSummary?.totalSales || 0, monthlyExpenses))}
                 </span>
-              </div>
-              <div className="p-2 bg-gray-50 rounded-md border" style={{ borderColor: theme.colors.muted + '20' }}>
+              </div>              <div className="p-2 bg-gray-50 rounded-md border" style={{ borderColor: theme.colors.muted + '20' }}>
                 <div className="flex justify-between items-center text-[9px]">
                   <div className="flex flex-col">
                     <span style={{ color: theme.colors.muted }}>Income</span>
-                    <span className="font-medium">{formatCurrency(salesSummary.totalSales || 0)}</span>
+                    <span className="font-medium">{formatCurrency(monthlyRevenueSummary?.totalSales || 0)}</span>
                   </div>
                   <div className="flex items-center text-xs px-2">
-                    {calculateCashFlow(salesSummary.totalSales, monthlyExpenses) > 0 ? 
+                    {calculateCashFlow(monthlyRevenueSummary?.totalSales || 0, monthlyExpenses) > 0 ? 
                       <FiTrendingUp style={{ color: '#16a34a' }} /> : 
                       <FiTrendingDown style={{ color: 'red' }} />
                     }
