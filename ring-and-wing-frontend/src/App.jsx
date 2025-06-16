@@ -208,22 +208,56 @@ const PositionProtectedRoute = ({ requiredPositions, children }) => {
 const MainLayout = () => {
   const [showTimeClock, setShowTimeClock] = useState(false);
   const [userData, setUserData] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => {
     const storedData = localStorage.getItem('userData');
     if (storedData) {
       setUserData(JSON.parse(storedData));
     }
-  }, []);
-  
+  }, []);  const handleSidebarToggle = (isOpen, mobile) => {
+    setSidebarOpen(isOpen);
+    setIsMobile(mobile);
+  };
+
+  // Small global margin to account for sidebar
+  const getContentMargin = () => {
+    if (isMobile) {
+      return '0'; // No margin on mobile
+    }
+    
+    // Small, consistent margin for desktop
+    if (windowWidth >= 1920) {
+      return '6rem'; // Slightly larger for big screens
+    } else {
+      return '4rem'; // Smaller margin for normal desktop
+    }
+  };
+
   return (
     <ProtectedRoute>
       <div className="flex min-h-screen">
         <Sidebar 
           colors={colors} 
-          onTimeClockClick={() => setShowTimeClock(true)} 
-        />
-        <div className="flex-1">
+          onTimeClockClick={() => setShowTimeClock(true)}
+          onSidebarToggle={handleSidebarToggle}
+        />        <div 
+          className="flex-1 transition-all duration-300 ease-in-out"
+          style={{ 
+            marginLeft: getContentMargin()
+          }}
+        >
           {showTimeClock && (
             <TimeClockInterface 
               onClose={() => setShowTimeClock(false)} 

@@ -25,6 +25,8 @@ const orderSchema = new mongoose.Schema({
     cashReceived: { type: Number, default: 0 },
     change: { type: Number, default: 0 }
   },
+  // Customer information
+  customerName: { type: String, default: '' },
 
   // Payment details for different payment methods
   paymentDetails: {

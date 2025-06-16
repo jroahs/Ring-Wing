@@ -16,6 +16,8 @@ export const PaymentPanel = ({
   onCancelOrder,
   eWalletDetails,
   onEWalletDetailsChange,
+  customerName,
+  onCustomerNameChange,
   disabled
 }) => {
   const [cashInputError, setCashInputError] = useState('');
@@ -210,7 +212,28 @@ export const PaymentPanel = ({
           <span style={{ color: theme.colors.primary }}>TOTAL:</span>
           <span style={{ color: theme.colors.primary }}>₱{total}</span>
         </div>
-      </div>      {paymentMethod === 'cash' && (
+      </div>
+
+      {/* Customer Name Input */}
+      <div className="mb-2">
+        <label className="block text-xs font-medium mb-1" style={{ color: theme.colors.primary }}>
+          Customer Name (Optional):
+        </label>
+        <input
+          type="text"
+          value={customerName || ''}
+          onChange={(e) => onCustomerNameChange && onCustomerNameChange(e.target.value)}
+          className="w-full p-2 text-sm rounded-lg border-2 focus:outline-none transition-colors"
+          style={{
+            borderColor: theme.colors.muted,
+            backgroundColor: theme.colors.background,
+            color: theme.colors.primary
+          }}
+          placeholder="Enter customer name"
+        />
+      </div>
+
+      {paymentMethod === 'cash' && (
         <div className="mb-2">
           <input
             type="number"

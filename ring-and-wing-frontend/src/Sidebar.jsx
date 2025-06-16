@@ -9,7 +9,8 @@ const defaultColors = {
 };
 
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   FiMenu, 
   FiX,
@@ -35,25 +36,48 @@ import {
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
+const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [userData, setUserData] = useState(null);
-
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const dropdownRefs = useRef({});
   useEffect(() => {
     const handleResize = () => {
       const newWidth = window.innerWidth;
       setWindowWidth(newWidth);
-      if (newWidth >= 768) setIsOpen(true);
+      if (newWidth >= 768) {
+        setIsOpen(true);
+      } else {
+        setIsOpen(false);
+      }
     };
 
     window.addEventListener('resize', handleResize);
     handleResize();
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+  // Notify parent component when sidebar state changes
+  useEffect(() => {
+    if (onSidebarToggle) {
+      onSidebarToggle(isOpen, windowWidth < 768);
+    }
+  }, [isOpen, windowWidth, onSidebarToggle]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (openDropdown && !event.target.closest('[data-dropdown]') && !event.target.closest('.fixed')) {
+        setOpenDropdown(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openDropdown]);
 
   useEffect(() => {
     const storedData = localStorage.getItem('userData');
@@ -72,19 +96,30 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
     navigate('/login');
+  };  const handleDropdownToggle = (itemPath, event) => {
+    if (openDropdown === itemPath) {
+      setOpenDropdown(null);
+    } else {
+      const rect = event.currentTarget.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.top,
+        left: isMobile ? rect.right : rect.right + 8
+      });
+      setOpenDropdown(itemPath);
+    }
   };
 
   const isActive = (path) => location.pathname.startsWith(path);
   const isParentActive = (subItems) => 
     subItems.some(subItem => isActive(subItem.path));
-
   const isLargeScreen = windowWidth >= 1920;
   const sidebarWidth = isLargeScreen ? '8rem' : '5rem';
   const iconSize = isLargeScreen ? 32 : 24;
   const chevronSize = isLargeScreen ? 20 : 16;
   const logoSize = isLargeScreen ? '1.875rem' : '1.5rem';
   const tooltipTextSize = isLargeScreen ? '1rem' : '0.875rem';
-  const dropdownWidth = isLargeScreen ? '14rem' : '12rem';  const userRole = userData?.role || 'staff';
+  const dropdownWidth = isLargeScreen ? '14rem' : '12rem';
+  const isMobile = windowWidth < 768;const userRole = userData?.role || 'staff';
   const userPosition = userData?.position || 'cashier';
   // Define navigation items with position-based access
   const navigationItems = [
@@ -223,12 +258,11 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
   
   const shouldRender = allowedRoutes.some(route => location.pathname.startsWith(route));
 
-  if (!shouldRender) return null;
-
-  // Animation variants
+  if (!shouldRender) return null;  // Animation variants
   const sidebarVariants = {
     open: {
-      width: windowWidth < 768 ? "100%" : sidebarWidth,
+      width: isMobile ? "16rem" : sidebarWidth,
+      x: 0,
       transition: { 
         type: "spring", 
         stiffness: 300, 
@@ -236,7 +270,8 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
       }
     },
     closed: {
-      width: windowWidth < 768 ? "0" : '5rem',
+      width: isMobile ? "0" : sidebarWidth,
+      x: isMobile ? "-16rem" : 0,
       transition: {
         type: "spring",
         stiffness: 300,
@@ -316,10 +351,9 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
   };
 
   return (
-    <>
-      {/* Mobile Menu Button */}
+    <>      {/* Mobile Menu Button */}
       <button
-        className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-lg shadow-lg"
+        className="md:hidden fixed top-4 left-4 z-[9999] p-2 rounded-lg shadow-lg"
         onClick={() => setIsOpen(!isOpen)}
         style={{ 
           backgroundColor: colors.accent, 
@@ -328,20 +362,17 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
         aria-label="Toggle menu"
       >
         {isOpen ? <FiX size={24} /> : <FiMenu size={24} />}
-      </button>
-
-      {/* Sidebar Container */}
+      </button>      {/* Sidebar Container */}
       <motion.div
-        className={`fixed inset-y-0 left-0 transform transition-all duration-300 ease-in-out z-40
-          ${isOpen ? 'translate-x-0' : '-translate-x-full'} 
-          md:translate-x-0 flex flex-col`}
+        className={`fixed inset-y-0 left-0 z-[9998] flex flex-col
+          ${isMobile ? '' : 'md:translate-x-0'}`}
         style={{ 
           backgroundColor: colors.primary,
-          width: sidebarWidth,
           borderRight: `1px solid ${colors.muted}`
         }}
         animate={isOpen ? "open" : "closed"}
         variants={sidebarVariants}
+        initial={isMobile ? "closed" : "open"}
       >
         {/* Brand/Logo Section */}
         <div 
@@ -354,22 +385,56 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
             <FiShield size={12} className="text-white opacity-75 mr-1" />
             <span className="text-xs text-white opacity-75 capitalize">{userRole}</span>
           </div>
-        </div>
-        
-        {/* Navigation Links - Now with overflow-y-auto for scrolling but no horizontal overflow */}
+        </div>          {/* Navigation Links - Now with overflow-y-auto for scrolling but no horizontal overflow */}
         <nav className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-y-2 py-4 px-2 scrollbar-none">
           {allowedNavigationItems.map((item, index) => (
-            <div key={item.path} className="relative">
-              {item.subItems ? (
+            <div key={item.path} className="relative">              {item.subItems ? (
                 <div
-                  className="group flex flex-col items-center p-2 rounded-xl cursor-pointer"
+                  className={`group flex ${isMobile ? 'flex-row items-center px-3' : 'flex-col items-center'} p-2 rounded-xl cursor-pointer`}
                   style={{ 
                     backgroundColor: isParentActive(item.subItems) ? colors.activeBg : 'transparent',
                   }}
-                  onClick={() => setOpenDropdown(openDropdown === item.path ? null : item.path)}
+                  onClick={(e) => handleDropdownToggle(item.path, e)}
+                  data-dropdown={item.path}
                 >
                   <div className="flex items-center">
                     {item.icon}
+                    {isMobile && (
+                      <span className="ml-3 text-white font-medium">{item.label}</span>
+                    )}
+                    {!isMobile && (
+                      <div className="absolute left-full ml-4 hidden group-hover:flex items-center">
+                        <div 
+                          className="relative whitespace-nowrap rounded-md bg-white px-4 py-2 font-semibold text-gray-900 drop-shadow-lg border border-gray-200"
+                          style={{ fontSize: tooltipTextSize }}
+                        >
+                          <div className="absolute right-full top-1/2 -translate-y-1/2 w-2 h-2 bg-white border-l border-t border-gray-200 rotate-45" />
+                          {item.label}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                    <FiChevronDown 
+                    size={chevronSize} 
+                    className={`${isMobile ? 'ml-auto' : 'mt-1'} transition-transform text-white ${
+                      openDropdown === item.path ? 'rotate-180' : ''
+                    }`}
+                  />
+                </div>
+              ) : (
+                <Link
+                  to={item.path}
+                  className={`group flex items-center ${isMobile ? 'px-3' : 'justify-center'} p-2 rounded-xl relative`}
+                  style={{ 
+                    backgroundColor: isActive(item.path) ? colors.activeBg : 'transparent',
+                  }}
+                  onClick={() => isMobile && setIsOpen(false)}
+                >
+                  {item.icon}
+                  {isMobile && (
+                    <span className="ml-3 text-white font-medium">{item.label}</span>
+                  )}
+                  {!isMobile && (
                     <div className="absolute left-full ml-4 hidden group-hover:flex items-center">
                       <div 
                         className="relative whitespace-nowrap rounded-md bg-white px-4 py-2 font-semibold text-gray-900 drop-shadow-lg border border-gray-200"
@@ -379,68 +444,7 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
                         {item.label}
                       </div>
                     </div>
-                  </div>
-                  
-                  <FiChevronDown 
-                    size={chevronSize} 
-                    className={`mt-1 transition-transform text-white ${
-                      openDropdown === item.path ? 'rotate-180' : ''
-                    }`}
-                  />
-
-                  {/* Dropdown menu - Fixed positioning to appear correctly outside narrow sidebar */}
-                  {openDropdown === item.path && (
-                    <div 
-                      className="fixed left-[5rem] top-auto bg-white rounded-lg shadow-lg py-2 border border-gray-200 z-50"
-                      style={{ 
-                        width: dropdownWidth,
-                        marginTop: '-2.5rem' // Position vertically aligned with parent icon
-                      }}
-                    >
-                      {item.subItems.map(subItem => (
-                        <div key={subItem.path || subItem.label}>
-                          {subItem.onClick ? (
-                            <button
-                              onClick={subItem.onClick}
-                              className="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-900 w-full text-left"
-                            >
-                              {subItem.icon}
-                              <span className="ml-2 text-sm">{subItem.label}</span>
-                            </button>
-                          ) : (
-                            <Link
-                              to={subItem.path}
-                              className="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-900"
-                              onClick={() => windowWidth < 768 && setIsOpen(false)}
-                            >
-                              {subItem.icon}
-                              <span className="ml-2 text-sm">{subItem.label}</span>
-                            </Link>
-                          )}
-                        </div>
-                      ))}
-                    </div>
                   )}
-                </div>
-              ) : (
-                <Link
-                  to={item.path}
-                  className="group flex items-center justify-center p-2 rounded-xl relative"
-                  style={{ 
-                    backgroundColor: isActive(item.path) ? colors.activeBg : 'transparent',
-                  }}
-                  onClick={() => windowWidth < 768 && setIsOpen(false)}
-                >
-                  {item.icon}
-                  <div className="absolute left-full ml-4 hidden group-hover:flex items-center">
-                    <div 
-                      className="relative whitespace-nowrap rounded-md bg-white px-4 py-2 font-semibold text-gray-900 drop-shadow-lg border border-gray-200"
-                      style={{ fontSize: tooltipTextSize }}
-                    >
-                      <div className="absolute right-full top-1/2 -translate-y-1/2 w-2 h-2 bg-white border-l border-t border-gray-200 rotate-45" />
-                      {item.label}
-                    </div>
-                  </div>
                 </Link>
               )}
             </div>
@@ -455,47 +459,58 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick }) => {
             title="Log Out"
           >
             <FiLogOut size={iconSize} className="text-gray-900" />
-          </button>
-        </div>
-      </motion.div>
-
-      {/* Mobile Header and Overlay - unchanged */}
-      {windowWidth < 768 && (
-        <div 
-          className="fixed top-0 left-0 right-0 z-30 px-4 py-3 flex items-center justify-between shadow-sm"
-          style={{ backgroundColor: colors.background }}
-        >
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex items-center gap-2"
-          >
-            <img src="/vite.svg" alt="Logo" className="h-8" />
-            <div className="flex flex-col">
-              <span className="font-semibold" style={{ color: colors.primary }}>Ring & Wing</span>
-              <span className="text-xs opacity-75 capitalize">{userRole}</span>
-            </div>
-          </motion.div>
-          
-          <motion.button
-            onClick={() => setIsOpen(!isOpen)}
-            whileTap={{ scale: 0.9 }}
-            className="p-2 rounded-full"
-            style={{ color: colors.primary }}
-          >
-            {isOpen ? <FiX size={24} /> : <FiMenu size={24} />}
-          </motion.button>
-        </div>
-      )}
-
-      {windowWidth < 768 && isOpen && (
+          </button>        </div>
+      </motion.div>      {/* Mobile Overlay */}
+      {isMobile && isOpen && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 0.5 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black z-10"
+          className="fixed inset-0 bg-black z-[9990]"
           onClick={() => setIsOpen(false)}
         />
+      )}
+
+      {/* Dropdown Portal - Renders outside sidebar to avoid clipping */}
+      {openDropdown && createPortal(
+        <div 
+          className="fixed bg-white rounded-lg shadow-lg py-2 border border-gray-200 z-[9999]"
+          style={{ 
+            top: dropdownPosition.top,
+            left: dropdownPosition.left,
+            width: dropdownWidth,
+            minWidth: dropdownWidth
+          }}
+        >
+          {allowedNavigationItems
+            .find(item => item.path === openDropdown)
+            ?.subItems?.map(subItem => (
+              <div key={subItem.path || subItem.label}>
+                {subItem.onClick ? (
+                  <button
+                    onClick={subItem.onClick}
+                    className="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-900 w-full text-left"
+                  >
+                    {subItem.icon}
+                    <span className="ml-2 text-sm">{subItem.label}</span>
+                  </button>
+                ) : (
+                  <Link
+                    to={subItem.path}
+                    className="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-900"
+                    onClick={() => {
+                      isMobile && setIsOpen(false);
+                      setOpenDropdown(null);
+                    }}
+                  >
+                    {subItem.icon}
+                    <span className="ml-2 text-sm">{subItem.label}</span>
+                  </Link>
+                )}
+              </div>
+            ))}
+        </div>,
+        document.body
       )}
     </>
   );

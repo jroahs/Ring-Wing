@@ -69,10 +69,14 @@ export const PrintableReceipt = forwardRef(({
             <strong>Receipt #:</strong> {order.receiptNumber}          </div>
           <div>
             <strong>Date:</strong> {formatDate(order.createdAt)}
-          </div>
-          <div>
+          </div>          <div>
             <strong>Server:</strong> {staffName || 'Cashier'}
           </div>
+          {order.customerName && (
+            <div>
+              <strong>Customer:</strong> {order.customerName}
+            </div>
+          )}
           <div>
             <strong>Type:</strong> {order.orderType}
           </div>

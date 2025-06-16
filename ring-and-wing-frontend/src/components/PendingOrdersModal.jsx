@@ -4,7 +4,7 @@ import { FiCheckCircle, FiClock, FiArrowRight } from 'react-icons/fi';
 import PendingOrder from './PendingOrder';
 import TipsSection from './TipsSection';
 
-const PendingOrdersModal = ({ isOpen, onClose, pendingOrders, processPayment, theme }) => {
+const PendingOrdersModal = ({ isOpen, onClose, pendingOrders, processPayment, theme, customerName = '' }) => {
   // Tips for pending orders
   const pendingOrdersTips = [
     "Click on an order to expand it and process the payment",
@@ -60,13 +60,13 @@ const PendingOrdersModal = ({ isOpen, onClose, pendingOrders, processPayment, th
                 <p className="text-gray-500 font-medium">No pending orders</p>
                 <p className="text-gray-400 text-sm mt-1">All orders have been processed</p>
               </div>
-            ) : (
-              pendingOrders.map(order => (
+            ) : (              pendingOrders.map(order => (
                 <PendingOrder
                   key={order._id}
                   order={order}
                   processPayment={processPayment}
                   colors={theme.colors}
+                  customerName={customerName}
                 />
               ))
             )}

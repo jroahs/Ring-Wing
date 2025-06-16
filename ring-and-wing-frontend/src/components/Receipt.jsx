@@ -45,12 +45,19 @@ export const Receipt = React.forwardRef(({ order, totals, paymentMethod }, ref) 
         <div className="flex-grow">No: {order.receiptNumber}</div>
         <div className="mt-1 md:mt-0">{formattedDate}</div>
       </div>
-      
-      {/* Cashier/Staff Name */}
+        {/* Cashier/Staff Name */}
       <div style={{ color: theme.colors.primary }} className="my-1 text-sm">
         <span className="font-medium">Staff: </span>
         <span>{staffName || 'Cashier'}</span>
       </div>
+
+      {/* Customer Name - Only show if provided */}
+      {totals.customerName && (
+        <div style={{ color: theme.colors.primary }} className="my-1 text-sm">
+          <span className="font-medium">Customer: </span>
+          <span>{totals.customerName}</span>
+        </div>
+      )}
 
       <hr className="my-2" style={{ borderColor: theme.colors.muted }}/>
 

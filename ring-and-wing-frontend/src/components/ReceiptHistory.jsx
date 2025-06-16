@@ -6,15 +6,13 @@ import { Receipt } from './Receipt';
 import { useRef } from 'react';
 
 const ReceiptHistory = () => {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState([]);  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all'); // all, today, week, month
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('all');
-  const [sourceFilter, setSourceFilter] = useState('all');
   
   const receiptRef = useRef(null);
   
@@ -77,20 +75,17 @@ const ReceiptHistory = () => {
     } else if (filter === 'month') {
       passesDateFilter = orderDate >= monthAgo;
     }
-    
-    // Payment method filter
+      // Payment method filter
     const passesPaymentFilter = paymentMethodFilter === 'all' || order.paymentMethod === paymentMethodFilter;
-    
-    // Source filter
-    const passesSourceFilter = sourceFilter === 'all' || order.orderType === sourceFilter;
     
     // Search term filter
     const passesSearchFilter = 
       searchTerm === '' || 
       order.receiptNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.items.some(item => item.name.toLowerCase().includes(searchTerm.toLowerCase())));
+      (order.items.some(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()))) ||
+      (order.customerName && order.customerName.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    return passesDateFilter && passesPaymentFilter && passesSourceFilter && passesSearchFilter;
+    return passesDateFilter && passesPaymentFilter && passesSearchFilter;
   }).sort((a, b) => b.createdAt - a.createdAt); // Most recent first
 
   const formatCurrency = (value) => {
@@ -187,25 +182,13 @@ const ReceiptHistory = () => {
           )}
         </div>
         
-        <div className="flex gap-2">
-          <select
+        <div className="flex gap-2">          <select
             value={paymentMethodFilter}
             onChange={(e) => setPaymentMethodFilter(e.target.value)}
             className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 border-none"          >
             <option value="all">All Payment Methods</option>
             <option value="cash">Cash</option>
             <option value="e-wallet">E-Wallet</option>
-          </select>
-          
-          <select
-            value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
-            className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 border-none"
-          >
-            <option value="all">All Sources</option>
-            <option value="pos">POS</option>
-            <option value="self_checkout">Self Checkout</option>
-            <option value="chatbot">Chatbot</option>
           </select>
         </div>
         
@@ -217,7 +200,7 @@ const ReceiptHistory = () => {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by receipt number or item..."
+            placeholder="Search by receipt number, item, or customer name..."
             className="pl-10 px-4 py-2 rounded-lg bg-gray-100 w-full"
           />
         </div>
@@ -227,19 +210,16 @@ const ReceiptHistory = () => {
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead>
-              <tr style={{ backgroundColor: theme.colors.activeBg }}>
-                <th className="text-left p-4" style={{ color: theme.colors.primary }}>Receipt #</th>
-                <th className="text-left p-4" style={{ color: theme.colors.primary }}>Date</th>
+            <thead>              <tr style={{ backgroundColor: theme.colors.activeBg }}>
+                <th className="text-left p-4" style={{ color: theme.colors.primary }}>Receipt #</th>                <th className="text-left p-4" style={{ color: theme.colors.primary }}>Date</th>
+                <th className="text-left p-4" style={{ color: theme.colors.primary }}>Customer</th>
                 <th className="text-left p-4" style={{ color: theme.colors.primary }}>Items</th>
                 <th className="text-right p-4" style={{ color: theme.colors.primary }}>Total</th>
                 <th className="text-left p-4" style={{ color: theme.colors.primary }}>Payment</th>
-                <th className="text-left p-4" style={{ color: theme.colors.primary }}>Source</th>
                 <th className="text-center p-4" style={{ color: theme.colors.primary }}>Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {filteredOrders.length === 0 ? (
+            <tbody>              {filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="text-center p-8" style={{ color: theme.colors.muted }}>
                     No receipts found matching your filters.
@@ -256,21 +236,19 @@ const ReceiptHistory = () => {
                     <td className="p-4" style={{ color: theme.colors.primary }}>{order.receiptNumber}</td>
                     <td className="p-4" style={{ color: theme.colors.secondary }}>{formatDate(order.createdAt)}</td>
                     <td className="p-4" style={{ color: theme.colors.primary }}>
+                      {order.customerName || <span style={{ color: theme.colors.muted, fontStyle: 'italic' }}>No name</span>}
+                    </td>
+                    <td className="p-4" style={{ color: theme.colors.primary }}>
                       {order.items.length} {order.items.length === 1 ? 'item' : 'items'}
                       <span className="block text-xs" style={{ color: theme.colors.muted }}>
                         {order.items.map(item => item.name).slice(0, 2).join(', ')}
                         {order.items.length > 2 ? ', ...' : ''}
                       </span>
-                    </td>
-                    <td className="p-4 text-right" style={{ color: theme.colors.primary }}>
+                    </td>                    <td className="p-4 text-right" style={{ color: theme.colors.primary }}>
                       {formatCurrency(order.totals.total)}
                     </td>
                     <td className="p-4 capitalize" style={{ color: theme.colors.secondary }}>
                       {order.paymentMethod}
-                    </td>
-                    <td className="p-4 capitalize" style={{ color: theme.colors.secondary }}>
-                      {order.orderType === 'self_checkout' ? 'Self Checkout' : 
-                       order.orderType === 'pos' ? 'POS' : order.orderType}
                     </td>
                     <td className="p-4">
                       <div className="flex justify-center gap-2">
@@ -336,16 +314,19 @@ const ReceiptHistory = () => {
                   </button>
                 </div>
               </div>
-              
-              {/* Receipt Component */}
+                {/* Receipt Component */}
               <div className="border rounded-lg overflow-hidden">
                 <Receipt
                   ref={receiptRef}
                   order={{
                     items: selectedOrder.items,
                     receiptNumber: selectedOrder.receiptNumber,
+                    customerName: selectedOrder.customerName
                   }}
-                  totals={selectedOrder.totals}
+                  totals={{
+                    ...selectedOrder.totals,
+                    customerName: selectedOrder.customerName
+                  }}
                   paymentMethod={selectedOrder.paymentMethod}
                 />
               </div>
@@ -363,8 +344,7 @@ const ReceiptHistory = () => {
           </div>
         </div>
       )}
-      
-      {/* Hidden Receipt for Printing */}
+        {/* Hidden Receipt for Printing */}
       <div className="hidden">
         {selectedOrder && (
           <Receipt
@@ -372,8 +352,12 @@ const ReceiptHistory = () => {
             order={{
               items: selectedOrder.items,
               receiptNumber: selectedOrder.receiptNumber,
+              customerName: selectedOrder.customerName
             }}
-            totals={selectedOrder.totals}
+            totals={{
+              ...selectedOrder.totals,
+              customerName: selectedOrder.customerName
+            }}
             paymentMethod={selectedOrder.paymentMethod}
           />
         )}

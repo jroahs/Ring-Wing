@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { FiUser, FiClock, FiSearch, FiCamera, FiCheck, FiX, FiArrowLeft } from 'react-icons/fi';
-import Sidebar from './Sidebar';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -9,8 +8,7 @@ import { API_URL } from './App';
 import { motion, AnimatePresence } from 'framer-motion';
 import StaffAvatar from './components/StaffAvatar';
 
-const TimeClock = () => {
-  // Colors for consistent styling
+const TimeClock = () => {  // Colors for consistent styling
   const colors = {
     primary: '#2e0304',
     background: '#fefdfd',
@@ -20,9 +18,7 @@ const TimeClock = () => {
   };
 
   // Layout state
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-  const isDesktop = windowWidth >= 768;
 
   // Staff data
   const [staff, setStaff] = useState([]);
@@ -39,12 +35,10 @@ const TimeClock = () => {
   const [showCamera, setShowCamera] = useState(false);
   const [capturedImage, setCapturedImage] = useState(null);
   const webcamRef = useRef(null);
-
   // Handle window resize for responsive layout
   useEffect(() => {
     const handleResize = () => {
       setWindowWidth(window.innerWidth);
-      if (window.innerWidth >= 768) setIsSidebarOpen(true);
     };
     window.addEventListener('resize', handleResize);
     handleResize(); // Initialize on component mount
@@ -332,16 +326,8 @@ const TimeClock = () => {
     hover: { scale: 1.05 },
     tap: { scale: 0.95 }
   };
-
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: colors.background }}>
-      
-      <Sidebar 
-        isOpen={isSidebarOpen} 
-        setIsOpen={setIsSidebarOpen} 
-        colors={colors} 
-      />
-      
       <motion.div 
         className="flex-1 transition-all duration-300"
         initial={{ opacity: 0 }}

@@ -7,10 +7,8 @@ const RevenueReportsPage = () => {
   const [activeTab, setActiveTab] = useState('revenue'); // 'revenue' or 'receipts'
   const getPageTitle = () => {
     return activeTab === 'revenue' ? 'Revenue Reports' : 'Receipt History';
-  };
-
-  return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8 ml-0 md:ml-20">
+  };  return (
+    <div className="min-h-screen p-4 sm:p-6 lg:p-8 ml-0 md:ml-20 pt-16 md:pt-4 transition-all duration-300">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <h1 className="text-2xl font-bold text-primary">

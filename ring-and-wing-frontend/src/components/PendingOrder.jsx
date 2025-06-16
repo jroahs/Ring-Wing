@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Button, Badge } from './ui';
 import { theme } from '../theme';
 
-const PendingOrder = ({ order, processPayment, cashFloat = 0, colors = theme.colors }) => {
+const PendingOrder = ({ order, processPayment, cashFloat = 0, colors = theme.colors, customerName = '' }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [localPaymentMethod, setLocalPaymentMethod] = useState('cash');
   const [localCashAmount, setLocalCashAmount] = useState('');
@@ -384,13 +384,12 @@ const PendingOrder = ({ order, processPayment, cashFloat = 0, colors = theme.col
                     setErrors(prev => ({ ...prev, eWallet: eWalletError }));
                     return;
                   }
-                }
-
-                const paymentInfo = {
+                }                const paymentInfo = {
                   method: localPaymentMethod,
                   cashAmount: parseCurrency(localCashAmount),
-                  isDiscountApplied: isDiscountApplied
-                };              
+                  isDiscountApplied: isDiscountApplied,
+                  customerName: customerName || '' // Include customer name in payment info
+                };
                   if (localPaymentMethod === 'e-wallet') {
                   paymentInfo.eWalletDetails = {
                     provider: eWalletDetails.provider,

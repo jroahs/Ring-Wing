@@ -2,15 +2,13 @@ import { useState, useEffect } from 'react';
 import { FiUser, FiPlus, FiEdit, FiTrash, FiSave, FiCamera, FiChevronDown, FiUserX, FiUserCheck } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import Sidebar from './Sidebar';
 import WorkIDModal from './WorkIDModal';
 import TerminationModal from './components/TerminationModal';
 import { toast } from 'react-toastify';
 import { Button } from './components/ui/Button'; // Import Button component
 import StaffAvatar from './components/StaffAvatar'; // Import StaffAvatar component
 
-const StaffManagement = () => {
-  const colors = {
+const StaffManagement = () => {  const colors = {
     primary: '#2e0304',
     background: '#fefdfd',
     accent: '#f1670f',
@@ -18,8 +16,7 @@ const StaffManagement = () => {
     muted: '#ac9c9b'
   };
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);  const [staff, setStaff] = useState([]);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);const [staff, setStaff] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
@@ -726,11 +723,8 @@ const StaffManagement = () => {
       transition: { type: "tween", duration: 0.1 } 
     },
     tap: { scale: 0.99 }
-  };
-  return (
+  };  return (
     <div className="flex min-h-screen" style={{ backgroundColor: colors.background }}>
-      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} colors={colors} />
-      
       <div 
         className="flex-1 transition-all duration-300" 
         style={{

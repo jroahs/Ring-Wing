@@ -223,16 +223,14 @@ export const DashboardGridMinimal = ({
             >
               <FiChevronRight className="w-3 h-3" />
             </Link>
-          </div>
-          
-          <div className="overflow-y-auto" style={{ maxHeight: '150px' }}>
-            {staffData.team.slice(0, 3).map((member) => (
+          </div>          <div className="overflow-y-auto" style={{ maxHeight: '200px' }}>
+            {staffData.team.map((member) => (
               <Link 
                 key={member.id}
                 to={`/employees/${member.id}`}
                 className="px-3 py-1.5 border-b last:border-0 flex items-center justify-between cursor-pointer hover:bg-gray-50"
                 style={{ borderColor: theme.colors.muted + '10' }}
-              >                <div className="flex items-center gap-2">
+              ><div className="flex items-center gap-2">
                   <StaffAvatar 
                     imagePath={member.profilePicture}
                     alt={`${member.name}'s photo`}

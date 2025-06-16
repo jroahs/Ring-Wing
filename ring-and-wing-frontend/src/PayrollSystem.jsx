@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FiUser, FiDollarSign, FiCalendar, FiClock, FiFileText, FiPrinter, FiEdit, FiGift, FiStar } from 'react-icons/fi';
 import { FaWrench } from 'react-icons/fa';
-import Sidebar from './Sidebar';
 import { default as WorkIDModal } from './WorkIDModal';
 import TimeLogHistory from './components/TimeLogHistory';
 import StaffAvatar from './components/StaffAvatar';
@@ -10,8 +9,7 @@ import PayrollReports from './PayrollReports';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
-const PayrollSystem = () => {
-  const colors = {
+const PayrollSystem = () => {  const colors = {
     primary: '#2e0304',
     background: '#fefdfd',
     accent: '#f1670f',
@@ -19,15 +17,11 @@ const PayrollSystem = () => {
     muted: '#ac9c9b'
   };
 
-  // Layout state
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-  const isDesktop = windowWidth >= 768;
 
   useEffect(() => {
     const handleResize = () => {
       setWindowWidth(window.innerWidth);
-      if (window.innerWidth >= 768) setIsSidebarOpen(true);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -523,21 +517,15 @@ const PayrollSystem = () => {
       fetch13thMonthData(selectedEmployee._id, currentYear);
     }
   }, [selectedEmployee, payrollPeriod]);
-
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: colors.background }}>
-      <Sidebar 
-        isOpen={isSidebarOpen} 
-        setIsOpen={setIsSidebarOpen} 
-        colors={colors} 
-      />
       <div 
         className="flex-1 transition-all duration-300"
         style={{
-          marginLeft: isSidebarOpen && isDesktop ? (windowWidth >= 1920 ? '8rem' : '5rem') : '0',
+          marginLeft: getMainContentMargin(),
           paddingTop: windowWidth < 768 ? '4rem' : '0'
         }}
-      >        <div className="p-6 md:p-8 pt-24 md:pt-8">
+      ><div className="p-6 md:p-8 pt-24 md:pt-8">
           {showReports ? (
             <PayrollReports 
               onBack={() => setShowReports(false)}

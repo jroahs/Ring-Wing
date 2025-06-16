@@ -4,7 +4,6 @@ import { useReactToPrint } from 'react-to-print';
 import { MenuItemCard, OrderItem, PaymentPanel, SearchBar, Modal } from './components/ui';
 import { theme } from './theme';
 import { Receipt } from './components/Receipt';
-import Sidebar from './Sidebar';
 import TimeClockInterface from './components/TimeClockInterface';
 import TimeClockModal from './components/TimeClockModal';
 import CashFloatModal from './components/CashFloatModal';
@@ -63,11 +62,11 @@ const PointOfSale = () => {
   const [showEndOfShiftModal, setShowEndOfShiftModal] = useState(false);
   const [isUserAdmin, setIsUserAdmin] = useState(false);
   // State for managing user role
-  const [isManager, setIsManager] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [isManager, setIsManager] = useState(false);  const [paymentMethod, setPaymentMethod] = useState('cash');
 
   const [eWalletDetails, setEWalletDetails] = useState({ provider: 'gcash', referenceNumber: '', name: '' });
-  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);const [showTimeClock, setShowTimeClock] = useState(false);
+  const [customerName, setCustomerName] = useState('');
+  const [showTimeClock, setShowTimeClock] = useState(false);
   const [showTimeClockModal, setShowTimeClockModal] = useState(false);
   const [showOrderProcessingModal, setShowOrderProcessingModal] = useState(false);
   const [orderViewType, setOrderViewType] = useState('ready');
@@ -114,14 +113,8 @@ const PointOfSale = () => {
     };
       checkUserRole();
   }, []);
-
   const isLargeScreen = windowWidth >= 1920;
   const isMediumScreen = windowWidth >= 768;
-  const pageMargin = useMemo(() => {
-    if (isLargeScreen) return '8rem';
-    if (isMediumScreen) return '5rem';
-    return '0';
-  }, [isLargeScreen, isMediumScreen]);
 
   const gridColumns = useMemo(() => {
     if (windowWidth >= 1920) return 'grid-cols-6';
@@ -134,12 +127,9 @@ const PointOfSale = () => {
     fetchActiveOrders();
     const interval = setInterval(fetchActiveOrders, 5000);
     return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
+  }, []);  useEffect(() => {
     const handleResize = () => {
       setWindowWidth(window.innerWidth);
-      setIsSidebarOpen(window.innerWidth >= 768);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -253,13 +243,13 @@ const PointOfSale = () => {
         const order = orderId;
         const { method, cashAmount, eWalletDetails, totals } = newStatus;
         
-        const totalDue = parseFloat(totals?.total || order.totals?.total || order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0));
-        let paymentData = {
+        const totalDue = parseFloat(totals?.total || order.totals?.total || order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0));        let paymentData = {
           totals: totals || {
             subtotal: totalDue,
             discount: 0,
             total: totalDue
-          }
+          },
+          customerName: customerName || '' // Add customer name to payment data
         };        if (method === 'cash') {
           // Use centralized cash float validation
           const changeValidation = validateChange(cashAmount, totalDue);
@@ -272,6 +262,7 @@ const PointOfSale = () => {
             change: change.toFixed(2)
           };        } else if (method === 'e-wallet' && eWalletDetails) {
           paymentData = {
+            ...paymentData,
             eWalletProvider: eWalletDetails.provider,
             eWalletReferenceNumber: eWalletDetails.referenceNumber,
             eWalletName: eWalletDetails.name
@@ -286,6 +277,7 @@ const PointOfSale = () => {
           },          body: JSON.stringify({
             status: 'received',
             paymentMethod: method,
+            customerName: customerName || '', // Add customer name to existing order payment
             ...paymentData
           })
         });
@@ -323,6 +315,7 @@ const PointOfSale = () => {
         setActiveOrders(prev => prev.filter(o => o._id !== order._id));        // Reset state
         setCurrentOrder([]);
         setCashAmount(0);
+        setCustomerName(''); // Reset customer name when payment is processed
         setEWalletDetails({ provider: 'gcash', referenceNumber: '', name: '' });if (method === 'cash') {
           // Use centralized cash float service to process the transaction
           await processTransaction(cashAmount, totalDue, `existing_order_${order._id}`);
@@ -623,6 +616,7 @@ const PointOfSale = () => {
       setShowReceipt(false);
       // Reset payment details
       setEWalletDetails({ provider: 'gcash', referenceNumber: '', name: '' });
+      setCustomerName(''); // Reset customer name
 
       alert('Order completed successfully!');
     } catch (error) {
@@ -689,10 +683,10 @@ const PointOfSale = () => {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
+        },        body: JSON.stringify({
           status: 'received',
           paymentMethod: paymentMethod,
+          customerName: customerName || '', // Add customer name to pending order
           totals: {
             ...totals,
             ...paymentDetails
@@ -781,7 +775,9 @@ const PointOfSale = () => {
           ...paymentDetails
         },
         paymentMethod,
-        paymentDetails, // Additional field for payment details        status: 'received',
+        paymentDetails, // Additional field for payment details        
+        customerName: customerName || '', // Add customer name to order data
+        status: 'received',
         orderType: 'pos',  // Changed from 'self_checkout' to 'pos' for orders created in POS
         server: (() => {
           try {
@@ -844,6 +840,7 @@ const PointOfSale = () => {
     setCashAmount(0);
     // Reset payment details
     setEWalletDetails({ provider: 'gcash', referenceNumber: '', name: '' });
+    setCustomerName(''); // Reset customer name when canceling order
   };// Filtered items is kept for compatibility with any existing code that might reference it
   // But filtering is now done directly in the render for each category section
   const filteredItems = useMemo(() => {
@@ -927,15 +924,12 @@ const PointOfSale = () => {
       </div>
     );
   };
-
   if (loading) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
         style={{
-          backgroundColor: theme.colors.background,
-          marginLeft: pageMargin,
-          transition: 'margin 0.3s ease-in-out'
+          backgroundColor: theme.colors.background
         }}
       >
         <div
@@ -951,9 +945,7 @@ const PointOfSale = () => {
       <div
         className="min-h-screen flex flex-col items-center justify-center p-4"
         style={{
-          backgroundColor: theme.colors.background,
-          marginLeft: pageMargin,
-          transition: 'margin 0.3s ease-in-out'
+          backgroundColor: theme.colors.background
         }}
       >
         <div
@@ -986,20 +978,10 @@ const PointOfSale = () => {
       </div>
     );
   }
-
-  return (
-    <div className="flex min-h-screen" style={{ backgroundColor: theme.colors.background }}>
-      <Sidebar 
-        isOpen={isSidebarOpen} 
-        setIsOpen={setIsSidebarOpen}
-        onTimeClockClick={() => setShowTimeClock(true)}
-        colors={theme.colors}
-      />
-
+  return (    <div className="flex min-h-screen" style={{ backgroundColor: theme.colors.background }}>
       <div
         className="flex-1 transition-all duration-300 relative"
         style={{
-          marginLeft: pageMargin,
           paddingTop: windowWidth < 768 ? '4rem' : '0'
         }}
       >
@@ -1267,13 +1249,13 @@ const PointOfSale = () => {
                           Editing Order #{editingPendingOrder.receiptNumber || editingPendingOrder._id?.substring(0, 6)}
                         </span>
                         <button
-                          onClick={() => {
-                            setEditingPendingOrder(null);
+                          onClick={() => {                            setEditingPendingOrder(null);
                             setIsPendingOrderMode(false);
                             setPendingOrderItems([]);
                             // Reset payment method or other relevant states if needed
                             setPaymentMethod('cash'); // Example: reset to default
                             setCashAmount(0);
+                            setCustomerName(''); // Reset customer name when canceling edit
                           }}
                           className="text-xs px-2 py-1 rounded bg-orange-200 text-orange-700 hover:bg-orange-300"
                         >
@@ -1343,12 +1325,12 @@ const PointOfSale = () => {
                                           selectedSize: item.selectedSize || 'base',
                                           availableSizes: Object.keys(item.pricing || { base: item.price }),
                                           pricing: item.pricing || { base: item.price }
-                                        })));
-                                        // Reset new order cart when an existing pending order is selected
+                                        })));                                        // Reset new order cart when an existing pending order is selected
                                         setPendingOrderCart([]); 
                                         // Reset payment method or other relevant states if needed
                                         setPaymentMethod('cash'); 
                                         setCashAmount(0);
+                                        setCustomerName(''); // Reset customer name when starting to edit pending order
                                       }}
                                     >
                                       <div className="flex justify-between items-center">
@@ -1460,12 +1442,15 @@ const PointOfSale = () => {
                       setEditingPendingOrder(null);
                       setIsPendingOrderMode(false);
                       setPendingOrderItems([]);
+                      setCustomerName(''); // Reset customer name when canceling pending order
                     } else {
                       cancelOrder();
                     }
-                  }}
-                  eWalletDetails={eWalletDetails}
-                  onEWalletDetailsChange={setEWalletDetails}disabled={
+                  }}eWalletDetails={eWalletDetails}
+                  onEWalletDetailsChange={setEWalletDetails}
+                  customerName={customerName}
+                  onCustomerNameChange={setCustomerName}
+                  disabled={
                     (!isPendingOrderMode && (orderViewType === 'ready' ? readyOrderCart : pendingOrderCart).length === 0) ||
                     (isPendingOrderMode && pendingOrderItems.length === 0) ||
                     (paymentMethod === 'cash' && cashAmount < parseFloat(isPendingOrderMode ? 
@@ -1495,7 +1480,7 @@ const PointOfSale = () => {
                     }
                     return '';
                   })()
-                }}totals={{
+                }}                totals={{
                   subtotal: isPendingOrderMode 
                     ? calculatePendingOrderTotal().subtotal
                     : calculateTotal().subtotal,
@@ -1504,12 +1489,15 @@ const PointOfSale = () => {
                     : calculateTotal().discount,
                   total: isPendingOrderMode
                     ? calculatePendingOrderTotal().total
-                    : calculateTotal().total,                  cashReceived: paymentMethod === 'cash' ? parseFloat(cashAmount).toFixed(2) : "0.00",
+                    : calculateTotal().total,
+                  customerName: customerName || '', // Add customer name to receipt
+                  cashReceived: paymentMethod === 'cash' ? parseFloat(cashAmount).toFixed(2) : "0.00",
                   change: paymentMethod === 'cash' ? 
                     (parseFloat(cashAmount) - (isPendingOrderMode 
                       ? parseFloat(calculatePendingOrderTotal().total)
                       : parseFloat(calculateTotal().total)
-                    )).toFixed(2) : "0.00",                  eWalletProvider: paymentMethod === 'e-wallet' ? eWalletDetails?.provider || '' : '',
+                    )).toFixed(2) : "0.00",
+                  eWalletProvider: paymentMethod === 'e-wallet' ? eWalletDetails?.provider || '' : '',
                   eWalletReferenceNumber: paymentMethod === 'e-wallet' ? eWalletDetails?.referenceNumber || '' : '',
                   eWalletName: paymentMethod === 'e-wallet' ? eWalletDetails?.name || '' : ''
                 }}
@@ -1526,8 +1514,7 @@ const PointOfSale = () => {
                       await handlePrint();
                     } finally {
                       setShowReceipt(false);
-                      
-                      // Reset pending order states when closing receipt
+                        // Reset pending order states when closing receipt
                       if (isPendingOrderMode) {
                         setEditingPendingOrder(null);
                         setIsPendingOrderMode(false);
@@ -1537,6 +1524,7 @@ const PointOfSale = () => {
                         setSearchTerm('');
                         // Reset payment details
                         setEWalletDetails({ provider: 'gcash', referenceNumber: '', name: '' });
+                        setCustomerName(''); // Reset customer name when closing receipt
                       }
                     }
                   }}
