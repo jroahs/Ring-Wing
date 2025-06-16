@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiFilter } from 'react-icons/fi';
+import { FiFilter, FiX } from 'react-icons/fi';
 import ExpenseCard from './components/ui/ExpenseCard.jsx';
 import ExpenseFilters from './components/ui/ExpenseFilters.jsx';
 import ExpenseSummary from './components/ui/ExpenseSummary.jsx';
@@ -26,8 +26,7 @@ const ExpenseTracker = ({ colors }) => {
     category: '',
     description: '',
     paymentMethod: 'Cash'
-  });
-  const [showModal, setShowModal] = useState(false);
+  });  const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -36,6 +35,7 @@ const ExpenseTracker = ({ colors }) => {
   const [lastResetCheck, setLastResetCheck] = useState(localStorage.getItem('lastExpenseResetCheck') || '');
   const [resetMessage, setResetMessage] = useState('');
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [expandedChart, setExpandedChart] = useState(null); // 'daily' or 'monthly'
 
   // Responsive margin calculations
   const isLargeScreen = windowWidth >= 1920;
@@ -572,12 +572,22 @@ const ExpenseTracker = ({ colors }) => {
                   Add Expense
                 </button>
               </div>
-            </div>
-
-            <div className="md:col-span-1 space-y-6">
-              <div className="p-4 rounded-lg shadow" style={{ backgroundColor: colors.background }}>
-                <h3 className="text-lg font-semibold mb-4">Daily Payments</h3>
-                <p className="text-sm text-gray-500 mb-3">Expenses paid by day</p>
+            </div>            <div className="md:col-span-1 space-y-6">
+              <div 
+                className="p-4 rounded-lg shadow cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02]" 
+                style={{ backgroundColor: colors.background, border: `2px solid transparent` }}
+                onClick={() => setExpandedChart('daily')}
+                onMouseEnter={(e) => e.target.style.borderColor = colors.accent + '40'}
+                onMouseLeave={(e) => e.target.style.borderColor = 'transparent'}
+              >                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold">Daily Payments</h3>
+                    <p className="text-sm text-gray-500">Expenses paid by day • Click to expand</p>
+                  </div>
+                  <div className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: colors.activeBg, color: colors.accent }}>
+                    Expand
+                  </div>
+                </div>
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={dailyDisbursements}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -598,11 +608,21 @@ const ExpenseTracker = ({ colors }) => {
                     <Bar dataKey="amount" fill={colors.accent} name="Daily Total" />
                   </BarChart>
                 </ResponsiveContainer>
-              </div>
-
-              <div className="p-4 rounded-lg shadow" style={{ backgroundColor: colors.background }}>
-                <h3 className="text-lg font-semibold mb-4">Monthly Payments</h3>
-                <p className="text-sm text-gray-500 mb-3">Expenses summarized by month</p>
+              </div>              <div 
+                className="p-4 rounded-lg shadow cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02]" 
+                style={{ backgroundColor: colors.background, border: `2px solid transparent` }}
+                onClick={() => setExpandedChart('monthly')}
+                onMouseEnter={(e) => e.target.style.borderColor = colors.accent + '40'}
+                onMouseLeave={(e) => e.target.style.borderColor = 'transparent'}
+              >                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold">Monthly Payments</h3>
+                    <p className="text-sm text-gray-500">Expenses summarized by month • Click to expand</p>
+                  </div>
+                  <div className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: colors.activeBg, color: colors.accent }}>
+                    Expand
+                  </div>
+                </div>
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={monthlyDisbursements}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -700,7 +720,160 @@ const ExpenseTracker = ({ colors }) => {
                   Add Expense
                 </button>
               </div>
-            </form>
+            </form>          </div>
+        </div>
+      )}
+
+      {/* Expanded Chart Modal */}
+      {expandedChart && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setExpandedChart(null)}>
+          <div 
+            className="bg-white rounded-xl max-w-6xl w-full max-h-[90vh] overflow-auto relative shadow-2xl"
+            style={{ backgroundColor: colors.background }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div 
+              className="p-6 border-b sticky top-0 z-10 flex items-center justify-between"
+              style={{ backgroundColor: colors.background, borderColor: colors.muted + '20' }}
+            >
+              <div>
+                <h2 className="text-2xl font-bold" style={{ color: colors.primary }}>
+                  {expandedChart === 'daily' ? 'Daily Payments Analysis' : 'Monthly Payments Analysis'}
+                </h2>
+                <p className="text-sm mt-1" style={{ color: colors.muted }}>
+                  {expandedChart === 'daily' 
+                    ? 'Comprehensive view of daily expense patterns'
+                    : 'Detailed monthly expense trends and insights'
+                  }
+                </p>
+              </div>
+              <button
+                onClick={() => setExpandedChart(null)}
+                className="p-3 rounded-lg hover:bg-gray-100 transition-colors"
+                style={{ color: colors.muted }}
+              >
+                <FiX className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              {/* Chart Section */}
+              <div className="bg-white rounded-lg p-6 shadow-sm" style={{ backgroundColor: colors.activeBg }}>
+                <ResponsiveContainer width="100%" height={500}>
+                  <BarChart 
+                    data={expandedChart === 'daily' ? dailyDisbursements : monthlyDisbursements}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke={colors.muted + '40'} />
+                    <XAxis
+                      dataKey={expandedChart === 'daily' ? 'date' : 'monthYear'}
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => {
+                        if (expandedChart === 'daily') {
+                          return new Date(value).toLocaleDateString('en-PH', { 
+                            day: 'numeric', 
+                            month: 'short',
+                            year: '2-digit'
+                          });
+                        } else {
+                          const [year, month] = value.split('-');
+                          return new Date(year, month - 1).toLocaleDateString('en-PH', { 
+                            month: 'short', 
+                            year: 'numeric' 
+                          });
+                        }
+                      }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => `₱${Number(value).toLocaleString('en-PH')}`}
+                    />
+                    <Tooltip
+                      contentStyle={{ 
+                        backgroundColor: colors.background, 
+                        border: `1px solid ${colors.accent}`,
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                      }}
+                      labelStyle={{ color: colors.primary, fontWeight: 'bold' }}
+                      formatter={(value) => [
+                        `₱${Number(value).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                        expandedChart === 'daily' ? 'Daily Total' : 'Monthly Total'
+                      ]}
+                      labelFormatter={(value) => {
+                        if (expandedChart === 'daily') {
+                          return new Date(value).toLocaleDateString('en-PH', { 
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          });
+                        } else {
+                          const [year, month] = value.split('-');
+                          return new Date(year, month - 1).toLocaleDateString('en-PH', { 
+                            month: 'long', 
+                            year: 'numeric' 
+                          });
+                        }
+                      }}
+                    />
+                    <Bar 
+                      dataKey="amount" 
+                      fill={expandedChart === 'daily' ? colors.accent : colors.secondary}
+                      name={expandedChart === 'daily' ? 'Daily Total' : 'Monthly Total'}
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Statistics Section */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {(() => {
+                  const data = expandedChart === 'daily' ? dailyDisbursements : monthlyDisbursements;
+                  const amounts = data.map(item => item.amount);
+                  const total = amounts.reduce((sum, amount) => sum + amount, 0);
+                  const average = amounts.length > 0 ? total / amounts.length : 0;
+                  const highest = Math.max(...amounts, 0);
+                  const lowest = amounts.length > 0 ? Math.min(...amounts) : 0;
+
+                  return [
+                    { label: 'Total Amount', value: total, color: colors.accent },
+                    { label: 'Average', value: average, color: colors.secondary },
+                    { label: 'Highest', value: highest, color: '#059669' },
+                    { label: 'Lowest', value: lowest, color: '#DC2626' }
+                  ].map((stat, index) => (
+                    <div 
+                      key={index}
+                      className="p-4 rounded-lg text-center"
+                      style={{ backgroundColor: stat.color + '10', border: `1px solid ${stat.color}20` }}
+                    >
+                      <div className="text-sm font-medium mb-1" style={{ color: colors.muted }}>
+                        {stat.label}
+                      </div>
+                      <div className="text-xl font-bold" style={{ color: stat.color }}>
+                        ₱{stat.value.toLocaleString('en-PH', { 
+                          minimumFractionDigits: 2, 
+                          maximumFractionDigits: 2 
+                        })}
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+
+              {/* Period Info */}
+              <div className="text-center p-4 rounded-lg" style={{ backgroundColor: colors.activeBg }}>
+                <p className="text-sm" style={{ color: colors.muted }}>
+                  Showing {expandedChart === 'daily' ? dailyDisbursements.length : monthlyDisbursements.length} {expandedChart} periods with expense data
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}
