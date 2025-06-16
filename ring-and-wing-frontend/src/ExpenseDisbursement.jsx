@@ -647,9 +647,106 @@ const ExpenseTracker = ({ colors }) => {
                         return new Date(year, month - 1).toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
                       }}
                     />
-                    <Bar dataKey="amount" fill={colors.secondary} name="Monthly Total" />
-                  </BarChart>
+                    <Bar dataKey="amount" fill={colors.secondary} name="Monthly Total" />                  </BarChart>
                 </ResponsiveContainer>
+              </div>
+
+              {/* Current Month Report */}
+              <div className="p-4 rounded-lg shadow" style={{ backgroundColor: colors.background }}>
+                <h3 className="text-lg font-semibold mb-4">This Month's Report</h3>
+                <p className="text-sm text-gray-500 mb-3">
+                  {new Date().toLocaleDateString('en-PH', { month: 'long', year: 'numeric' })} summary
+                </p>
+                
+                {(() => {
+                  const currentMonth = new Date().getMonth();
+                  const currentYear = new Date().getFullYear();
+                  
+                  const currentMonthExpenses = expenses.filter(expense => {
+                    const expenseDate = new Date(expense.date);
+                    return expenseDate.getMonth() === currentMonth && 
+                           expenseDate.getFullYear() === currentYear;
+                  });
+
+                  const totalAmount = currentMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+                  const paidExpenses = currentMonthExpenses.filter(expense => expense.status === 'Paid');
+                  const pendingExpenses = currentMonthExpenses.filter(expense => expense.status === 'Pending');
+                  
+                  const categoryBreakdown = currentMonthExpenses.reduce((acc, expense) => {
+                    acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
+                    return acc;
+                  }, {});
+
+                  const topCategory = Object.entries(categoryBreakdown)
+                    .sort(([,a], [,b]) => b - a)[0];
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Summary Stats */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="text-center p-3 rounded-lg" style={{ backgroundColor: colors.activeBg }}>
+                          <div className="text-xs font-medium mb-1" style={{ color: colors.muted }}>
+                            Total Expenses
+                          </div>
+                          <div className="text-lg font-bold" style={{ color: colors.accent }}>
+                            {currentMonthExpenses.length}
+                          </div>
+                        </div>
+                        <div className="text-center p-3 rounded-lg" style={{ backgroundColor: colors.activeBg }}>
+                          <div className="text-xs font-medium mb-1" style={{ color: colors.muted }}>
+                            Total Amount
+                          </div>
+                          <div className="text-lg font-bold" style={{ color: colors.accent }}>
+                            ₱{totalAmount.toLocaleString('en-PH')}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Status Breakdown */}
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium" style={{ color: colors.secondary }}>
+                            Paid Expenses
+                          </span>
+                          <span className="text-sm font-bold text-green-600">
+                            {paidExpenses.length} (₱{paidExpenses.reduce((sum, exp) => sum + exp.amount, 0).toLocaleString('en-PH')})
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium" style={{ color: colors.secondary }}>
+                            Pending Expenses
+                          </span>
+                          <span className="text-sm font-bold text-orange-600">
+                            {pendingExpenses.length} (₱{pendingExpenses.reduce((sum, exp) => sum + exp.amount, 0).toLocaleString('en-PH')})
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Top Category */}
+                      {topCategory && (
+                        <div className="p-3 rounded-lg border" style={{ backgroundColor: colors.background, borderColor: colors.accent + '40' }}>
+                          <div className="text-xs font-medium mb-1" style={{ color: colors.muted }}>
+                            Top Category
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-bold" style={{ color: colors.secondary }}>
+                              {topCategory[0]}
+                            </span>
+                            <span className="text-sm font-bold" style={{ color: colors.accent }}>
+                              ₱{topCategory[1].toLocaleString('en-PH')}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {currentMonthExpenses.length === 0 && (
+                        <div className="text-center p-4" style={{ color: colors.muted }}>
+                          <p className="text-sm">No expenses recorded this month</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>
