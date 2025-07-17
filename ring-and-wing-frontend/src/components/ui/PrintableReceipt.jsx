@@ -156,6 +156,11 @@ export const PrintableReceipt = forwardRef(({
             <span>-{formatCurrency(order.totals.discount)}</span>
           </div>
         )}
+        {order.totals.discount > 0 && order.discountCardDetails && (
+          <div className="text-xs text-gray-600 mt-1">
+            {order.discountCardDetails.cardType} - ID: {order.discountCardDetails.cardIdNumber}
+          </div>
+        )}
         <div className="flex justify-between font-bold text-lg border-t pt-2">
           <span>Total:</span>
           <span>{formatCurrency(order.totals.total)}</span>

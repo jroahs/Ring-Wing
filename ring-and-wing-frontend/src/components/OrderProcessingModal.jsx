@@ -30,7 +30,7 @@ const OrderProcessingModal = ({ isOpen, onClose, orders, updateOrderStatus, them
       <div className="relative">        {/* Using the reusable TipsSection with header */}
         <TipsSection 
           tips={orderProcessingTips}
-          accentColor="green"
+          accentColor="orange"
           title="Order Completion Tips:"
           withHeader={true}
           headerTitle="Process Ready Orders"
@@ -40,20 +40,20 @@ const OrderProcessingModal = ({ isOpen, onClose, orders, updateOrderStatus, them
         {/* Main Content Area */}
         <div className="py-4">        {/* Processed Orders Stats */}
           <div className="mb-6">
-            <div className="bg-gradient-to-r from-green-400 to-green-600 rounded-xl p-0.5 shadow-lg">
+            <div className="bg-gradient-to-r from-orange-400 to-orange-600 rounded-xl p-0.5 shadow-lg">
               <div className="bg-white rounded-lg p-4">
                 <h3 className="text-sm font-medium text-gray-500 mb-1">Active Orders</h3>
                 <div className="flex items-center">
-                  <div className="bg-green-100 rounded-full p-2 mr-4">
-                    <FiCoffee size={24} className="text-green-500" />
+                  <div className="bg-orange-100 rounded-full p-2 mr-4">
+                    <FiCoffee size={24} className="text-orange-500" />
                   </div>
                   <div className="flex-1">
-                    <div className="text-3xl font-bold text-green-600">
+                    <div className="text-3xl font-bold text-orange-600">
                       {processedOrders.length} {processedOrders.length === 1 ? 'Order' : 'Orders'}
                     </div>
                     <div className="h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
                       <div 
-                        className="h-full bg-gradient-to-r from-green-400 to-green-500"
+                        className="h-full bg-gradient-to-r from-orange-400 to-orange-500"
                         style={{ width: `${Math.min(100, (processedOrders.length / 10) * 100)}%` }}
                       ></div>
                     </div>
@@ -94,7 +94,7 @@ const OrderProcessingModal = ({ isOpen, onClose, orders, updateOrderStatus, them
                         </span>
                       </div>                      <span className={`text-sm px-3 py-1 rounded-full ${
                         order.status === 'ready' 
-                          ? 'bg-green-100 text-green-700' 
+                          ? 'bg-orange-100 text-orange-700' 
                           : order.status === 'preparing'
                             ? 'bg-yellow-100 text-yellow-700'
                             : 'bg-blue-100 text-blue-700'
@@ -125,7 +125,7 @@ const OrderProcessingModal = ({ isOpen, onClose, orders, updateOrderStatus, them
                       </div>
                     </div>
                       <div className="mt-4 flex gap-2 flex-wrap">                      <button
-                        className="w-full text-base px-4 py-2 rounded-full transition-colors bg-green-500 text-white hover:bg-green-600"
+                        className="w-full text-base px-4 py-2 rounded-full transition-colors bg-orange-500 text-white hover:bg-orange-600"
                         onClick={() => {
                           // Call the updateOrderStatus function to mark the order as completed
                           // This will update the UI and database status

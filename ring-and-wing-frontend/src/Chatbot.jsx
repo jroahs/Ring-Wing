@@ -109,10 +109,12 @@ function ChatbotPage() {
     phone: '',
     tableNumber: ''
   });  const [showCheckout, setShowCheckout] = useState(false);
-  
-  // State for tracking AI suggested items
+    // State for tracking AI suggested items
   const [recentlySuggestedItems, setRecentlySuggestedItems] = useState([]);
   const [lastSuggestionTime, setLastSuggestionTime] = useState(null);
+  
+  // State for tracking pairing context
+  const [pairingContext, setPairingContext] = useState(null); // { mainItem: string, timestamp: number }
   
   const menuSuggestions = [
     { id: 1, text: "What's today's special?" },
@@ -1229,7 +1231,6 @@ ${popularItemsInfo}`
         </div>
       </div>    );
   };
-
   // Enhanced order detection function for AI suggestions
   const detectOrderFromSuggestion = (input) => {
     if (!recentlySuggestedItems.length) return null;
@@ -1240,7 +1241,24 @@ ${popularItemsInfo}`
       return null;
     }
     
-    const lowerInput = input.trim().toLowerCase();    // Enhanced confirmation patterns including pricing queries
+    const lowerInput = input.trim().toLowerCase();
+    
+    // Early rejection for pairing questions - these should NOT be treated as order confirmations
+    if (lowerInput.includes('what drinks') ||
+        lowerInput.includes('what beverages') ||
+        lowerInput.includes('partner it with') ||
+        lowerInput.includes('to partner it with') ||
+        lowerInput.includes('pair it with') ||
+        lowerInput.includes('goes with') ||
+        lowerInput.includes('go with') ||
+        lowerInput.includes('complement') ||
+        lowerInput.includes('to pair') ||
+        lowerInput.includes('drinks you have') ||
+        lowerInput.includes('drinks to') ||
+        lowerInput.includes('beverage to')) {
+      console.log('🚫 detectOrderFromSuggestion - rejected as pairing question');
+      return null;
+    }// Enhanced confirmation patterns including pricing queries
     const confirmationPatterns = [
       /(?:i'?ll\s+)?(?:take|get|want|have|order|need|give\s+me)\s+(?:that|those|it|them)/i,
       /(?:yes|yeah|yep|sure|okay|ok|alright),?\s*(?:i'?ll\s+)?(?:take|get|want|have|order|need|give\s+me)?/i,
@@ -1263,11 +1281,26 @@ ${popularItemsInfo}`
       /(?:how\s+much|what'?s\s+the\s+price|price|cost)\s+(?:for|of)?\s*(?:\d+\s+)?(?:of\s+)?(?:that|those|it|them)/i,
       /(?:how\s+much)\s+(?:is|are|would|will|does|do)\s*(?:\d+\s+)?(?:of\s+)?(?:that|those|it|them)/i,
       /(?:what\s+does)\s*(?:\d+\s+)?(?:of\s+)?(?:that|those|it|them)\s+cost/i
-    ];
-      const isConfirmation = confirmationPatterns.some(pattern => pattern.test(lowerInput));
+    ];    const isConfirmation = confirmationPatterns.some(pattern => pattern.test(lowerInput));
     const isPricingQuery = pricingPatterns.some(pattern => pattern.test(lowerInput));
     
-    if (!isConfirmation && !isPricingQuery) return null;    // Extract quantity - use suggested quantity if available
+    // Check if the input directly matches a suggested menu item name
+    let isDirectItemMention = false;
+    if (!isConfirmation && !isPricingQuery) {
+      // Check if the input is just a menu item name from recent suggestions
+      isDirectItemMention = recentlySuggestedItems.some(item => {
+        const itemName = item.name.toLowerCase();
+        const cleanInput = lowerInput.trim();
+        return itemName === cleanInput || 
+               itemName.includes(cleanInput) || 
+               cleanInput.includes(itemName);
+      });
+    }
+    
+    if (!isConfirmation && !isPricingQuery && !isDirectItemMention) {
+      console.log('🚫 detectOrderFromSuggestion - no confirmation/pricing/direct mention patterns matched');
+      return null;
+    }// Extract quantity - use suggested quantity if available
     const quantityWords = {
       'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
       'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
@@ -1306,11 +1339,22 @@ ${popularItemsInfo}`
         const num = parseInt(match.match(/\d+/)?.[0]);
         if (num) itemIndex = num - 1;
       }
-      
-      if (itemIndex >= 0 && itemIndex < recentlySuggestedItems.length) {
+        if (itemIndex >= 0 && itemIndex < recentlySuggestedItems.length) {
         selectedItem = recentlySuggestedItems[itemIndex];
       }
-    }    // If no specific item mentioned and only one suggestion, use it
+    }
+    
+    // If no item selected by number, check for direct item name mention
+    if (!selectedItem && isDirectItemMention) {
+      selectedItem = recentlySuggestedItems.find(item => {
+        const itemName = item.name.toLowerCase();
+        const cleanInput = lowerInput.trim();
+        return itemName === cleanInput || 
+               itemName.includes(cleanInput) || 
+               cleanInput.includes(itemName);
+      });
+      console.log('🎯 Found direct item mention:', selectedItem?.name);
+    }// If no specific item mentioned and only one suggestion, use it
     if (!selectedItem && recentlySuggestedItems.length === 1) {
       selectedItem = recentlySuggestedItems[0];
       
@@ -1553,11 +1597,33 @@ ${popularItemsInfo}`
       text: inputMessage,
       sender: 'user',
       timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
+    };    setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
     setIsTyping(true);
+
+    // Check for pairing questions and set context
+    const lowerInput = inputMessage.toLowerCase();
+    const pairingPatterns = [
+      /(.+?)\s+what\s+drinks?\s+(?:you\s+have\s+)?(?:to\s+)?partner\s+(?:it\s+)?with/i,
+      /(.+?)\s+what\s+beverages?\s+(?:you\s+have\s+)?(?:to\s+)?partner\s+(?:it\s+)?with/i,
+      /(.+?)\s+what\s+drinks?\s+(?:go\s+with|goes\s+with)/i,
+      /(.+?)\s+what\s+drinks?\s+(?:pair\s+with|pairs\s+with)/i,
+      /what\s+drinks?\s+(?:go\s+with|pair\s+with)\s+(.+)/i
+    ];
+    
+    let detectedMainItem = null;
+    for (const pattern of pairingPatterns) {
+      const match = inputMessage.match(pattern);
+      if (match) {
+        detectedMainItem = match[1].trim();
+        console.log('🍽️ Detected pairing question for:', detectedMainItem);
+        setPairingContext({ 
+          mainItem: detectedMainItem, 
+          timestamp: Date.now() 
+        });
+        break;
+      }
+    }
 
     // Use only the last few messages in the chat history to avoid
     // exceeding context limits, but ensure we keep the menu context
@@ -1637,16 +1703,142 @@ ${popularItemsInfo}`
           return; // Prevent further processing after cancellation
         }
       }
+    }    // SECOND: Check for order confirmations from AI suggestions BEFORE AI detection
+    if (!staticResponseSent && recentlySuggestedItems.length > 0) {
+      console.log('🔍 Checking suggestions for input:', input, 'Recent items:', recentlySuggestedItems.length);
+      const suggestionOrder = detectOrderFromSuggestion(input);
+      
+      if (suggestionOrder) {
+        console.log('🎯 Suggestion order detected:', suggestionOrder.type);
+        if (suggestionOrder.type === 'clarification') {
+          setMessages(prev => [...prev, {
+            id: generateUniqueId(),
+            text: suggestionOrder.message,
+            sender: 'bot',
+            timestamp: new Date()
+          }]);
+          setIsTyping(false);
+          return; // Prevent further processing after clarification
+        } else if (suggestionOrder.type === 'pricing') {
+          const { item, itemName, quantity, availableSizes } = suggestionOrder;
+          
+          if (availableSizes.length > 1) {
+            // Multiple sizes available - show pricing for each
+            const sizeOptions = availableSizes.map(s => `${s}: ₱${item.pricing[s]}`).join(', ');
+            const totalForEach = availableSizes.map(s => `${quantity} ${s}: ₱${item.pricing[s] * quantity}`).join(', ');
+            
+            setMessages(prev => [...prev, {
+              id: generateUniqueId(),
+              text: `Our ${itemName} pricing: ${sizeOptions}. For ${quantity} pieces: ${totalForEach}. Which size would you like?`,
+              sender: 'bot',
+              timestamp: new Date()
+            }]);
+          } else {
+            // Single size available - update the suggestion with the specific size and quantity
+            const size = availableSizes[0];
+            const unitPrice = item.pricing[size];
+            const totalPrice = unitPrice * quantity;
+            
+            // Update the suggestion to include the specific quantity and size for easy ordering
+            const updatedSuggestion = [{
+              name: item.name,
+              price: `₱${unitPrice}`,
+              description: item.description || "",
+              image: item.image || "",
+              category: item.category || "",
+              fullItem: item,
+              suggestedQuantity: quantity,
+              suggestedSize: size
+            }];
+            setRecentlySuggestedItems(updatedSuggestion);
+            setLastSuggestionTime(Date.now());
+            
+            setMessages(prev => [...prev, {
+              id: generateUniqueId(),
+              text: `${quantity} ${itemName} (${size}) would be ₱${totalPrice} (₱${unitPrice} each). Would you like to add this to your order?`,
+              sender: 'bot',
+              timestamp: new Date()
+            }]);
+          }
+          
+          setIsTyping(false);
+          return; // Prevent further processing after pricing
+        } else if (suggestionOrder.type === 'order') {
+          const { item, itemName, quantity, size } = suggestionOrder;
+          
+          // Determine the appropriate size and pricing
+          let finalSize = size;
+          let finalPrice = 0;
+          
+          if (item.pricing) {
+            const availableSizes = Object.keys(item.pricing);
+            
+            if (!finalSize && availableSizes.length > 0) {
+              finalSize = availableSizes[0]; // Default to first size
+            }
+            
+            finalPrice = item.pricing[finalSize] || 0;
+              // Add to order
+            const wasOrderEmpty = currentOrder.length === 0;
+            addToCurrentOrder(item, finalSize, quantity);
+            
+            // Check if this is a pairing order and add the main item too
+            let addedMainItem = false;
+            if (pairingContext && 
+                pairingContext.timestamp && 
+                (Date.now() - pairingContext.timestamp < 300000)) { // 5 minutes
+              
+              // Find the main item in menu
+              const mainItem = menuData.find(menuItem => 
+                menuItem.name.toLowerCase().includes(pairingContext.mainItem.toLowerCase()) ||
+                pairingContext.mainItem.toLowerCase().includes(menuItem.name.toLowerCase())
+              );
+              
+              if (mainItem && !currentOrder.some(orderItem => orderItem.name === mainItem.name)) {
+                console.log('🍽️ Adding main item from pairing context:', mainItem.name);
+                const mainItemSize = mainItem.pricing ? Object.keys(mainItem.pricing)[0] : 'base';
+                addToCurrentOrder(mainItem, mainItemSize, 1);
+                addedMainItem = true;
+              }
+              
+              // Clear pairing context after use
+              setPairingContext(null);
+            }
+            
+            // Only show "started order" message for first item
+            if (wasOrderEmpty) {
+              addMessageToCart(userMessage);
+            }
+            
+            const responseText = addedMainItem 
+              ? `Added ${quantity} ${itemName} (${finalSize}) and 1 ${pairingContext?.mainItem || 'main dish'} to your order. Perfect pairing! Would you like anything else?`
+              : `Added ${quantity} ${itemName} (${finalSize}) to your order. That's ₱${finalPrice * quantity}. Would you like anything else?`;
+            
+            setMessages(prev => [...prev, {
+              id: generateUniqueId(),
+              text: responseText,
+              sender: 'bot',
+              timestamp: new Date()
+            }]);
+            
+            // Clear suggestions after successful order
+            setRecentlySuggestedItems([]);
+          }
+          
+          setIsTyping(false);
+          return; // Prevent further processing after order
+        }
+      }
     }
 
-    // Use AI to detect order intent instead of regex patterns
+    // THIRD: Use AI to detect order intent only if not handled above
     try {
       const orderIntentResult = await detectOrderIntentWithAI(
         userMessage.text,
         menuData,
         chatHistory,
         detectedLang
-      );      if (orderIntentResult.hasOrderIntent && orderIntentResult.items?.length > 0) {
+      );if (orderIntentResult.hasOrderIntent && orderIntentResult.items?.length > 0) {
         // Check if any items need size selection
         const itemsNeedingSize = orderIntentResult.items.filter(item => item.needsSizeSelection);
         const readyToAddItems = orderIntentResult.items.filter(
@@ -1735,9 +1927,33 @@ ${popularItemsInfo}`
                 size = properCaseSize;
               }
             }
-            
-            console.log(`From AI intent detection, adding ${quantity}x ${menuItem.name} (${size})`);
+              console.log(`From AI intent detection, adding ${quantity}x ${menuItem.name} (${size})`);
             addToCurrentOrder(menuItem, size, quantity);
+          }
+
+          // Check if this is a pairing order and add the main item too
+          let addedMainItemFromPairing = false;
+          let mainItemName = '';
+          if (pairingContext && 
+              pairingContext.timestamp && 
+              (Date.now() - pairingContext.timestamp < 300000)) { // 5 minutes
+            
+            // Find the main item in menu
+            const mainItem = menuData.find(menuItem => 
+              menuItem.name.toLowerCase().includes(pairingContext.mainItem.toLowerCase()) ||
+              pairingContext.mainItem.toLowerCase().includes(menuItem.name.toLowerCase())
+            );
+            
+            if (mainItem && !currentOrder.some(orderItem => orderItem.name === mainItem.name)) {
+              console.log('🍽️ Adding main item from pairing context (AI path):', mainItem.name);
+              const mainItemSize = mainItem.pricing ? Object.keys(mainItem.pricing)[0] : 'base';
+              addToCurrentOrder(mainItem, mainItemSize, 1);
+              addedMainItemFromPairing = true;
+              mainItemName = mainItem.name;
+            }
+            
+            // Clear pairing context after use
+            setPairingContext(null);
           }
 
           // Only add cart message after the first item if order was empty before
@@ -1752,10 +1968,13 @@ ${popularItemsInfo}`
             }
             return `${qty} ${match.menuItem.name} (${match.size})`;
           });
+            const responseText = addedMainItemFromPairing
+            ? `Added ${itemDescriptions.join(", ")} and 1 ${mainItemName} to your order. Perfect pairing! Would you like anything else?`
+            : `Added ${itemDescriptions.join(", ")} to your order. Would you like anything else?`;
 
           setMessages(prev => [...prev, {
             id: generateUniqueId(),
-            text: `Added ${itemDescriptions.join(", ")} to your order. Would you like anything else?`,
+            text: responseText,
             sender: 'bot',
             timestamp: new Date()
           }]);
@@ -1780,127 +1999,9 @@ ${popularItemsInfo}`
           setIsTyping(false);
           staticResponseSent = true;
         }
-      }} catch (error) {
+      }    } catch (error) {
       console.error("Error in AI order detection:", error);
       // Continue with other message handling if AI detection fails
-    }
-
-    // Check for order confirmations from AI suggestions
-    if (!staticResponseSent && recentlySuggestedItems.length > 0) {
-      const suggestionOrder = detectOrderFromSuggestion(input);
-      
-      if (suggestionOrder) {
-        if (suggestionOrder.type === 'clarification') {
-          setMessages(prev => [...prev, {
-            id: generateUniqueId(),
-            text: suggestionOrder.message,
-            sender: 'bot',
-            timestamp: new Date()
-          }]);
-          setIsTyping(false);
-          staticResponseSent = true;        } else if (suggestionOrder.type === 'pricing') {
-          const { item, itemName, quantity, availableSizes } = suggestionOrder;
-          
-          if (availableSizes.length > 1) {
-            // Multiple sizes available - show pricing for each
-            const sizeOptions = availableSizes.map(s => `${s}: ₱${item.pricing[s]}`).join(', ');
-            const totalForEach = availableSizes.map(s => `${quantity} ${s}: ₱${item.pricing[s] * quantity}`).join(', ');
-            
-            setMessages(prev => [...prev, {
-              id: generateUniqueId(),
-              text: `Our ${itemName} pricing: ${sizeOptions}. For ${quantity} pieces: ${totalForEach}. Which size would you like?`,
-              sender: 'bot',
-              timestamp: new Date()
-            }]);
-          } else {
-            // Single size available - update the suggestion with the specific size and quantity
-            const size = availableSizes[0];
-            const unitPrice = item.pricing[size];
-            const totalPrice = unitPrice * quantity;
-            
-            // Update the suggestion to include the specific quantity and size for easy ordering
-            const updatedSuggestion = [{
-              name: item.name,
-              price: `₱${unitPrice}`,
-              description: item.description || "",
-              image: item.image || "",
-              category: item.category || "",
-              fullItem: item,
-              suggestedQuantity: quantity,
-              suggestedSize: size
-            }];
-            setRecentlySuggestedItems(updatedSuggestion);
-            setLastSuggestionTime(Date.now());
-            
-            setMessages(prev => [...prev, {
-              id: generateUniqueId(),
-              text: `${quantity} ${itemName} (${size}) would be ₱${totalPrice} (₱${unitPrice} each). Would you like to add this to your order?`,
-              sender: 'bot',
-              timestamp: new Date()
-            }]);
-          }
-          
-          setIsTyping(false);
-          staticResponseSent = true;
-        } else if (suggestionOrder.type === 'order') {
-          const { item, itemName, quantity, size } = suggestionOrder;
-          
-          // Determine the appropriate size and pricing
-          let finalSize = size;
-          let finalPrice = 0;
-          let availableSizes = [];
-          
-          if (item && item.pricing) {
-            availableSizes = Object.keys(item.pricing);
-            
-            // If no size specified but user asked about pricing, show available sizes
-            if (!finalSize && availableSizes.length > 1) {
-              const sizeOptions = availableSizes.map(s => `${s} (₱${item.pricing[s]})`).join(', ');
-              setMessages(prev => [...prev, {
-                id: generateUniqueId(),
-                text: `Our ${itemName} comes in: ${sizeOptions}. Which size would you prefer?`,
-                sender: 'bot',
-                timestamp: new Date()
-              }]);
-              setIsTyping(false);
-              staticResponseSent = true;
-              return;
-            }
-            
-            // If no size specified and only one size available, use it
-            if (!finalSize) {
-              finalSize = availableSizes[0];
-            }
-            
-            // Validate size exists
-            if (!availableSizes.includes(finalSize)) {
-              finalSize = availableSizes[0];
-            }
-            
-            finalPrice = item.pricing[finalSize];
-          }
-          
-          // Add to order using your existing function
-          if (typeof addToCurrentOrder === 'function') {
-            addToCurrentOrder(item, finalSize, quantity);
-          }
-          
-          const totalPrice = finalPrice * quantity;
-          const sizeText = finalSize && finalSize !== 'base' && availableSizes.length > 1 ? ` ${finalSize}` : '';
-          
-          setMessages(prev => [...prev, {
-            id: generateUniqueId(),
-            text: `Perfect! I've added ${quantity}${sizeText} ${itemName} to your order. That's ₱${totalPrice}. Would you like anything else?`,
-            sender: 'bot',
-            timestamp: new Date()
-          }]);
-          
-          // Clear suggestions after successful order
-          setRecentlySuggestedItems([]);
-          setIsTyping(false);
-          staticResponseSent = true;
-        }
-      }
     }
 
     // Order management commands
@@ -2045,10 +2146,14 @@ ${popularItemsInfo}`
           const mentionedItems = [];
           const lowerResponse = responseText.toLowerCase();
           
+          console.log('🔍 AI Response Text:', responseText);
+          console.log('🔍 Lowercase Response:', lowerResponse);
+          
           // Check each menu item to see if it's mentioned in the response
           menuData.forEach(item => {
             const itemNameLower = item.name.toLowerCase();
             if (lowerResponse.includes(itemNameLower)) {
+              console.log(`✅ Found mentioned item: ${item.name}`);
               mentionedItems.push({
                 name: item.name,
                 price: item.pricing ? "₱" + Object.values(item.pricing)[0] : "",
@@ -2060,14 +2165,37 @@ ${popularItemsInfo}`
             }
           });
           
+          console.log('🔍 Total mentioned items found:', mentionedItems.length);
           return mentionedItems;
-        };
-        
-        // Track mentioned items as suggestions
+        };        // Track mentioned items as suggestions
         const mentionedItems = extractMentionedItems(aiText);
+        let shouldShowCarousel = false;
+        
+        // For recommendation/suggestion requests, always show menu carousel for better UX
+        const isRecommendationRequest = enhancedInput.toLowerCase().includes('recommend') || 
+                                      enhancedInput.toLowerCase().includes('suggest');
+        
+        // Check if this is a "what do you have" type query that should show menu items
+        const isWhatDoYouHaveQuery = enhancedInput.toLowerCase().includes('what') && 
+                                   enhancedInput.toLowerCase().includes('have');
+        
         if (mentionedItems.length > 0) {
+          console.log('🎯 AI mentioned specific items:', mentionedItems.map(i => i.name));
           setRecentlySuggestedItems(mentionedItems);
           setLastSuggestionTime(Date.now());
+          
+          // For recommendation requests or "what do you have" queries, still show carousel with mentioned items
+          if (isRecommendationRequest || isWhatDoYouHaveQuery) {
+            console.log('📋 Request with mentioned items - will show enhanced carousel');
+            shouldShowCarousel = false; // Allow carousel but will include mentioned items
+          } else {
+            shouldShowCarousel = true; // Normal mentioned items behavior
+          }
+        } else if (isRecommendationRequest || isWhatDoYouHaveQuery) {
+          console.log('📋 Menu browsing request detected - will show menu carousel for easier browsing');
+          shouldShowCarousel = false; // Allow the menu carousel system to trigger
+        } else {
+          console.log('⚠️ No mentioned items found in AI response');
         }
         
         // Text response
@@ -2077,11 +2205,22 @@ ${popularItemsInfo}`
           sender: 'bot',
           timestamp: new Date()
         };
+          setMessages(prev => [...prev, botResponse]);        // Add carousel of suggested items based on the query for certain types of questions
+        // BUT only if AI didn't already mention specific items
+        console.log('🔍 Menu card conditions:', {
+          shouldShowMenuItems,
+          staticResponseSent,
+          shouldShowCarousel,
+          finalCondition: shouldShowMenuItems && !staticResponseSent && !shouldShowCarousel
+        });
         
-        setMessages(prev => [...prev, botResponse]);
-        
-        // Add carousel of suggested items based on the query for certain types of questions
-        if (shouldShowMenuItems && !staticResponseSent) {
+        if (shouldShowMenuItems && !staticResponseSent && !shouldShowCarousel) {
+          console.log('🔄 Second system triggered - showing menu carousel because shouldShowCarousel is false');
+          
+          // Get mentioned items from AI response to prioritize them
+          const aiMentionedItems = extractMentionedItems(aiText);
+          console.log('🎯 AI mentioned items for carousel:', aiMentionedItems.map(i => i.name));
+          
           // Extract categories and filter relevant items
           // Determine which category to show based on the query
           const query = enhancedInput.toLowerCase();
@@ -2108,10 +2247,60 @@ ${popularItemsInfo}`
                (item.name.toLowerCase().includes('hot') || 
                 item.subCategory === 'Coffee')) || 
               (item.category === 'Food' && item.subCategory === 'Main Dishes')
-            );
-          } else {
-            // Default: Show popular or random items across categories
-            if (revenueData?.topItems?.length > 0) {
+            );          } else {            // Default: Show popular or random items across categories
+            // For recommendation requests or "what do you have" queries, ensure good variety
+            if (query.includes('recommend') || query.includes('suggest') || 
+                (query.includes('what') && query.includes('have'))) {
+              console.log('🍽️ Building diverse menu carousel for browsing request');
+              
+              // Start with mentioned items if any
+              if (aiMentionedItems.length > 0) {
+                relevantItems = [...aiMentionedItems.map(item => item.fullItem || item)];
+                console.log('🎯 Added mentioned items to carousel first:', relevantItems.map(i => i.name));
+              }
+              
+              // For "what drinks do you have" etc, filter by category
+              let targetCategory = null;
+              if (query.includes('drink') || query.includes('beverage')) {
+                targetCategory = 'Beverages';
+              } else if (query.includes('food') || query.includes('meal')) {
+                targetCategory = 'Meals';
+              }
+              
+              if (targetCategory) {
+                console.log(`🎯 Filtering for category: ${targetCategory}`);
+                const categoryItems = menuData.filter(item => 
+                  item.category === targetCategory && 
+                  !relevantItems.some(existing => existing.name === item.name)
+                );
+                
+                // Add more items from the specific category
+                const additionalItems = categoryItems
+                  .sort(() => 0.5 - Math.random())
+                  .slice(0, Math.min(6 - relevantItems.length, categoryItems.length));
+                relevantItems.push(...additionalItems);
+              } else {
+                // Add more diverse items if we have space
+                const categories = [...new Set(menuData.map(item => item.category))];
+                const itemsPerCategory = 1;
+                
+                for (const category of categories) {
+                  if (relevantItems.length >= 6) break;
+                  
+                  const itemsInCategory = menuData.filter(item => 
+                    item.category === category && 
+                    !relevantItems.some(existing => existing.name === item.name)
+                  );
+                  
+                  if (itemsInCategory.length > 0) {
+                    const randomItems = itemsInCategory
+                      .sort(() => 0.5 - Math.random())
+                      .slice(0, Math.min(itemsPerCategory, itemsInCategory.length));
+                    relevantItems.push(...randomItems);
+                  }
+                }
+              }
+            } else if (revenueData?.topItems?.length > 0) {
               // Get names of top selling items
               const topSellerNames = revenueData.topItems.map(item => item.name);
               // Find these items in the menu data
@@ -2131,9 +2320,12 @@ ${popularItemsInfo}`
               }
             }
           }
+            // Limit to a reasonable number of items for display
+          relevantItems = relevantItems.slice(0, Math.min(6, relevantItems.length));
           
-          // Limit to a reasonable number of items for display
-          relevantItems = relevantItems.slice(0, Math.min(6, relevantItems.length));          if (relevantItems.length > 0) {
+          console.log('🎠 Building carousel with', relevantItems.length, 'items:', relevantItems.map(i => i.name));
+
+          if (relevantItems.length > 0) {
             // Track suggested items for order confirmation
             const suggestedItems = relevantItems.map(item => ({
               name: item.name,
@@ -2144,11 +2336,14 @@ ${popularItemsInfo}`
               fullItem: item // Store the complete item data
             }));
             
+            console.log('🎠 Carousel items prepared:', suggestedItems.map(i => i.name));
+            
             setRecentlySuggestedItems(suggestedItems);
             setLastSuggestionTime(Date.now());
             
             // Add a small delay so the text appears first
             setTimeout(() => {
+              console.log('🎠 Adding menu carousel to messages');
               const menuMessage = {
                 id: generateUniqueId(),
                 text: "",
@@ -2159,6 +2354,8 @@ ${popularItemsInfo}`
               };
               setMessages(prev => [...prev, menuMessage]);
             }, 800);
+          } else {
+            console.log('❌ No relevant items found for carousel');
           }
         }
       } catch (error) {

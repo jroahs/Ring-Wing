@@ -8,6 +8,7 @@ const PendingOrder = ({ order, processPayment, cashFloat = 0, colors = theme.col
   const [localCashAmount, setLocalCashAmount] = useState('');
   const [eWalletDetails, setEWalletDetails] = useState({ provider: 'gcash', referenceNumber: '', name: '' });
   const [isDiscountApplied, setIsDiscountApplied] = useState(false);
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
   
   // Enhanced validation states
   const [errors, setErrors] = useState({
@@ -254,6 +255,11 @@ const PendingOrder = ({ order, processPayment, cashFloat = 0, colors = theme.col
             >
               {isDiscountApplied ? '✓ PWD/Senior Discount Applied (20%)' : 'PWD/Senior Discount (20%)'}
             </Button>
+            {isDiscountApplied && (
+              <div className="mt-2 text-xs bg-blue-50 px-2 py-1 rounded text-blue-600">
+                Card details will be collected during payment processing
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2 mt-3">

@@ -7,4 +7,5 @@ export { Badge } from './Badge';
 export { MenuItemCard } from './MenuItemCard';
 export { OrderItem } from './OrderItem';
 export { PaymentPanel } from './PaymentPanel';
+export { PaymentProcessingModal } from './PaymentProcessingModal';
 export { SearchBar } from './SearchBar';

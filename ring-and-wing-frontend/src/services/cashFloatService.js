@@ -3,6 +3,7 @@
  * 
  * This service handles all cash float operations to ensure consistency,
  * proper validation, and synchronization across the application.
+ * Now with backend persistence support.
  */
 
 class CashFloatService {
@@ -15,18 +16,124 @@ class CashFloatService {
     };
     this.auditTrail = [];
     this.lastResetDate = null;
+    this.isInitialized = false;
+    this.backendAvailable = false;
     
-    // Initialize from localStorage
-    this.loadFromStorage();
+    // Initialize from backend first, fallback to localStorage
+    this.initialize();
+  }
+
+  /**
+   * Initialize the service by loading data from backend
+   */
+  async initialize() {
+    if (this.isInitialized) return;
+    
+    try {
+      // Try to load from backend first
+      await this.loadFromBackend();
+      this.backendAvailable = true;
+    } catch (error) {
+      console.warn('Backend not available, falling back to localStorage:', error);
+      // Fallback to localStorage if backend is unavailable
+      this.loadFromStorage();
+      this.backendAvailable = false;
+    }
     
     // Check for daily reset on service initialization
-    this.checkDailyReset();
+    await this.checkDailyReset();
+    
+    this.isInitialized = true;
     
     // Notify listeners that the service has been initialized
     this.notifyListeners('service_initialized', {
       currentFloat: this.currentFloat,
-      settings: this.dailyResetSettings
+      settings: this.dailyResetSettings,
+      backendAvailable: this.backendAvailable
     });
+  }
+
+  /**
+   * Load cash float data from backend
+   */
+  async loadFromBackend() {
+    const response = await fetch('http://localhost:5000/api/settings/cash-float');
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to load cash float settings');
+    }
+    
+    const data = result.data;
+    this.currentFloat = data.currentAmount || 0;
+    this.dailyResetSettings = data.dailyResetSettings || {
+      enabled: false,
+      amount: 1000
+    };
+    this.auditTrail = data.auditTrail || [];
+    this.lastResetDate = data.lastResetDate || null;
+    
+    // Also save to localStorage as backup
+    this.saveToStorage();
+  }
+
+  /**
+   * Save cash float data to backend
+   */
+  async saveToBackend(auditEntry = null) {
+    if (!this.backendAvailable) {
+      console.warn('Backend not available, saving to localStorage only');
+      this.saveToStorage();
+      return;
+    }
+    
+    try {
+      const payload = {
+        currentAmount: this.currentFloat,
+        dailyResetSettings: this.dailyResetSettings,
+        lastResetDate: this.lastResetDate
+      };
+      
+      if (auditEntry) {
+        payload.auditEntry = auditEntry;
+      }
+      
+      const response = await fetch('http://localhost:5000/api/settings/cash-float', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to save cash float settings');
+      }
+      
+      // Update local data with backend response
+      const data = result.data;
+      this.currentFloat = data.currentAmount;
+      this.dailyResetSettings = data.dailyResetSettings;
+      this.auditTrail = data.auditTrail;
+      this.lastResetDate = data.lastResetDate;
+      
+      // Also save to localStorage as backup
+      this.saveToStorage();
+      
+    } catch (error) {
+      console.error('Failed to save to backend, falling back to localStorage:', error);
+      this.backendAvailable = false;
+      this.saveToStorage();
+      throw error;
+    }
   }
 
   /**
@@ -122,12 +229,18 @@ class CashFloatService {
       }
     };
 
-    // Update float
+    // Update float locally first
     this.currentFloat = numAmount;
     this.auditTrail.push(auditEntry);
     
-    // Persist to storage
-    await this.saveToStorage();
+    // Try to persist to backend
+    try {
+      await this.saveToBackend(auditEntry);
+    } catch (error) {
+      console.error('Backend save failed, keeping local changes:', error);
+      // Keep local changes even if backend fails
+      this.saveToStorage();
+    }
     
     // Notify listeners
     this.notifyListeners({
@@ -143,7 +256,8 @@ class CashFloatService {
 
   /**
    * Process a cash transaction (reduce float for change)
-   */  async processTransaction(cashAmount, orderTotal, orderId = null) {
+   */
+  async processTransaction(cashAmount, orderTotal, orderId = null) {
     const numCashAmount = this.parseCurrency(cashAmount);
     const numTotal = this.parseCurrency(orderTotal);
     
@@ -157,7 +271,9 @@ class CashFloatService {
     const changeValidation = this.validateChange(cashAmount, orderTotal);
     if (!changeValidation.valid) {
       throw new Error(changeValidation.message);
-    }    // Process the transaction
+    }
+
+    // Process the transaction locally first
     const previousFloat = this.currentFloat;
     const newFloat = Math.max(0, this.currentFloat - change);
     
@@ -180,7 +296,39 @@ class CashFloatService {
     this.currentFloat = newFloat;
     this.auditTrail.push(auditEntry);
     
-    await this.saveToStorage();
+    // Try to persist to backend
+    try {
+      if (this.backendAvailable) {
+        // Use backend API for transaction processing
+        const response = await fetch('http://localhost:5000/api/settings/cash-float/transaction', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            orderId,
+            cashReceived: numCashAmount,
+            orderTotal: numTotal,
+            changeGiven: change
+          })
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            // Update with backend response
+            this.currentFloat = result.data.newAmount;
+          }
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      } else {
+        await this.saveToStorage();
+      }
+    } catch (error) {
+      console.error('Backend transaction processing failed, keeping local changes:', error);
+      this.saveToStorage();
+    }
     
     this.notifyListeners({
       type: 'transaction_processed',
@@ -209,12 +357,40 @@ class CashFloatService {
       }
     }
 
-    this.dailyResetSettings = {
+    const newSettings = {
       enabled,
       amount: enabled && amount !== null ? this.parseCurrency(amount) : this.dailyResetSettings.amount
     };
 
-    await this.saveToStorage();
+    // Update locally first
+    this.dailyResetSettings = newSettings;
+
+    // Try to persist to backend
+    try {
+      if (this.backendAvailable) {
+        const response = await fetch('http://localhost:5000/api/settings/cash-float/daily-reset', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(newSettings)
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            this.dailyResetSettings = result.data;
+          }
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      }
+      
+      await this.saveToStorage();
+    } catch (error) {
+      console.error('Backend save failed for daily reset settings:', error);
+      this.saveToStorage();
+    }
     
     this.notifyListeners({
       type: 'reset_settings_updated',
@@ -260,11 +436,37 @@ class CashFloatService {
       }
     };
 
+    // Update locally first
     this.currentFloat = resetAmount;
     this.lastResetDate = new Date().toDateString();
     this.auditTrail.push(auditEntry);
     
-    await this.saveToStorage();
+    // Try to persist to backend
+    try {
+      if (this.backendAvailable) {
+        const response = await fetch('http://localhost:5000/api/settings/cash-float/daily-reset/perform', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            // Update with backend response
+            this.currentFloat = result.data.newAmount;
+          }
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      }
+      
+      await this.saveToStorage();
+    } catch (error) {
+      console.error('Backend daily reset failed, keeping local changes:', error);
+      this.saveToStorage();
+    }
     
     this.notifyListeners({
       type: 'daily_reset_performed',

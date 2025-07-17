@@ -8,16 +8,49 @@ import cashFloatService from '../services/cashFloatService';
  * with automatic state updates and error handling.
  */
 export const useCashFloat = () => {
-  const [cashFloat, setCashFloat] = useState(cashFloatService.getCurrentFloat());
-  const [dailyResetSettings, setDailyResetSettings] = useState(cashFloatService.dailyResetSettings);
+  const [cashFloat, setCashFloat] = useState(0);
+  const [dailyResetSettings, setDailyResetSettings] = useState({ enabled: false, amount: 1000 });
   const [auditTrail, setAuditTrail] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start with loading true
   const [error, setError] = useState(null);
-  // Subscribe to cash float service events
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [backendAvailable, setBackendAvailable] = useState(false);
+
+  // Initialize service and subscribe to events
   useEffect(() => {
+    let mounted = true;
+
+    const initializeService = async () => {
+      try {
+        // Wait for service initialization
+        await cashFloatService.initialize();
+        
+        if (mounted) {
+          setIsInitialized(true);
+          setCashFloat(cashFloatService.getCurrentFloat());
+          setDailyResetSettings(cashFloatService.dailyResetSettings);
+          setAuditTrail(cashFloatService.getAuditTrail({ limit: 50 }));
+          setIsLoading(false);
+        }
+      } catch (error) {
+        if (mounted) {
+          setError('Failed to initialize cash float service');
+          setIsLoading(false);
+        }
+      }
+    };
+
     const unsubscribe = cashFloatService.subscribe((event) => {
+      if (!mounted) return;
+      
       switch (event.type) {
         case 'service_initialized':
+          setIsInitialized(true);
+          setBackendAvailable(event.backendAvailable || false);
+          setCashFloat(event.currentFloat);
+          setDailyResetSettings(event.settings);
+          setIsLoading(false);
+          break;
         case 'float_updated':
         case 'transaction_processed':
         case 'daily_reset_performed':
@@ -32,12 +65,13 @@ export const useCashFloat = () => {
       }
     });
 
-    // Initial data load
-    setCashFloat(cashFloatService.getCurrentFloat());
-    setAuditTrail(cashFloatService.getAuditTrail({ limit: 50 }));
-    setDailyResetSettings(cashFloatService.dailyResetSettings);
+    // Initialize the service
+    initializeService();
 
-    return unsubscribe;
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
   }, []);
 
   // Set cash float with error handling
@@ -163,6 +197,8 @@ export const useCashFloat = () => {
     auditTrail,
     isLoading,
     error,
+    isInitialized,
+    backendAvailable,
     
     // Actions
     setFloat,

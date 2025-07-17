@@ -301,6 +301,7 @@ app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/items', require('./routes/itemRoutes'));
 app.use('/api/vendors', require('./routes/vendorRoutes'));
 app.use('/api/revenue', revenueRoutes);
+app.use('/api/settings', require('./routes/settingsRoutes'));
 
 // Health routes for server monitoring
 app.use('/api/health', healthRoutes);

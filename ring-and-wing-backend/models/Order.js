@@ -15,7 +15,9 @@ const orderSchema = new mongoose.Schema({
       applied: { type: Boolean, default: false },
       discountedQuantity: { type: Number, default: 0 },
       discountAmount: { type: Number, default: 0 },
-      vatExempt: { type: Boolean, default: false }
+      vatExempt: { type: Boolean, default: false },
+      cardType: { type: String, enum: ['PWD', 'Senior Citizen'] },
+      cardIdNumber: { type: String }
     }
   }],  totals: {
     subtotal: { type: Number, required: true },

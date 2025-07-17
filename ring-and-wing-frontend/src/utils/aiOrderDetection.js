@@ -6,18 +6,30 @@ import { findBestMenuItemMatch } from './orderParser'; // Assuming findBestMenuI
 
 export const detectOrderIntentWithAI = async (message, menuItems, chatHistory = [], detectedLanguage = 'english') => {  // Early rejection of obvious non-order messages
   const quickCheck = message.toLowerCase();
-  if (quickCheck.length < 2 || 
+  console.log('🔍 AI Order Detection - checking message:', quickCheck);
+    if (quickCheck.length < 2 || 
       (quickCheck.endsWith('?') && !quickCheck.includes('can i get') && !quickCheck.includes('can i have')) ||
-      (quickCheck.includes('what') && !quickCheck.includes('what about')) || 
+      (quickCheck.includes('what') && !quickCheck.includes('what about') && !quickCheck.includes('ok') && !quickCheck.includes('sure')) || 
       quickCheck.includes('how much') ||
       quickCheck.includes('how many') ||
-      quickCheck.includes('why')) {
+      quickCheck.includes('why') ||
+      (quickCheck.includes('what drinks') && !quickCheck.includes('ok') && !quickCheck.includes('sure')) ||
+      (quickCheck.includes('what beverages') && !quickCheck.includes('ok') && !quickCheck.includes('sure')) ||
+      (quickCheck.includes('partner it with') && !quickCheck.includes('ok') && !quickCheck.includes('sure')) ||
+      (quickCheck.includes('to partner it with') && !quickCheck.includes('ok') && !quickCheck.includes('sure')) ||
+      (quickCheck.includes('pair it with') && !quickCheck.includes('ok') && !quickCheck.includes('sure')) ||
+      (quickCheck.includes('goes with') && !quickCheck.includes('ok') && !quickCheck.includes('sure')) ||
+      (quickCheck.includes('go with') && !quickCheck.includes('ok') && !quickCheck.includes('sure')) ||
+      (quickCheck.includes('complement') && !quickCheck.includes('ok') && !quickCheck.includes('sure')) ||
+      (quickCheck.includes('to pair') && !quickCheck.includes('ok') && !quickCheck.includes('sure')) ||
+      (quickCheck.includes('drinks you have') && !quickCheck.includes('ok') && !quickCheck.includes('sure'))) {    console.log('� AI Order Detection - rejected as non-order (pairing question)');
     return { hasOrderIntent: false, items: [] };
   }
 
+  console.log('✅ AI Order Detection - passed early checks, proceeding to AI analysis');
+
   // Prepare system prompt for order detection
-  const systemPrompt = {
-    role: "system",
+  const systemPrompt = {    role: "system",
     content: `You are an order intent classifier for a café. Analyze if this message indicates a customer wanting to order items.
     
     Available menu items:
@@ -26,18 +38,18 @@ export const detectOrderIntentWithAI = async (message, menuItems, chatHistory = 
     1. ONLY identify actual ordering intent (customer wants to add items to their order)
     2. Asking about an item is NOT an order intent
     3. Simple mentions of menu items are NOT orders
-    4. Look for phrases like "I want", "I'll have", "give me", "can I get", "add", "order", etc.
-    5. Return a structured response with confidence level
-    6. If ordering intent is detected, extract the specific items, quantities, and sizes
-    7. Be generous with "high" confidence for clear ordering phrases
-    8. Use "medium" confidence for implicit orders (just item names with quantities)
-    9. Only use "low" confidence when uncertain`
+    4. Questions about pairings, recommendations, or "what goes with" are NOT orders
+    5. Look for phrases like "I want", "I'll have", "give me", "can I get", "add", "order", etc.
+    6. Return a structured response with confidence level
+    7. If ordering intent is detected, extract the specific items, quantities, and sizes
+    8. Be generous with "high" confidence for clear ordering phrases
+    9. Use "medium" confidence for implicit orders (just item names with quantities)
+    10. Only use "low" confidence when uncertain`
   };
   const userPrompt = {
     role: "user",
     content: `Message: "${message}"
-    
-    Examples of HIGH confidence orders:
+      Examples of HIGH confidence orders:
     - "I want 2 milkteas"
     - "Give me a burger"
     - "I'll have 3 coffees"
@@ -46,16 +58,23 @@ export const detectOrderIntentWithAI = async (message, menuItems, chatHistory = 
     - "Order milktea"
     - "2 milkteas please"
     - "milktea medium"
+    - "ok blueberry fruit soda"
+    - "sure, 1 coffee"
+    - "yes, milktea"
     
     Examples of MEDIUM confidence orders:
     - "milktea" (just item name)
     - "2 milkteas" (quantity + item)
     - "large coffee" (size + item)
-    
-    Examples of NO order intent:
+      Examples of NO order intent:
     - "What's in the burger?"
     - "How much is coffee?"
     - "Do you have milktea?"
+    - "boneless bangsilog what drinks you have to partner it with"
+    - "what drinks go with chicken stew"
+    - "what do you recommend with pizza"
+    - "what pairs well with the sandwich"
+    - "what beverages complement the meal"
     
     Respond ONLY with valid JSON in this exact format:
     {
@@ -125,6 +144,12 @@ export const detectOrderIntentWithAI = async (message, menuItems, chatHistory = 
     const result = JSON.parse(jsonStr);    // Map AI detected items to actual menu items
     if (result.hasOrderIntent && result.items?.length > 0) {
       result.items = result.items.map(item => {
+        // Check if item.name exists and is valid
+        if (!item.name || typeof item.name !== 'string') {
+          console.warn('AI detected item with invalid name:', item);
+          return null; // Skip invalid items
+        }
+        
         const menuItem = findBestMenuItemMatch(item.name, menuItems);
         if (menuItem) {
           const availableSizes = menuItem.pricing ? Object.keys(menuItem.pricing) : ['base'];
@@ -193,10 +218,9 @@ export const detectOrderIntentWithAI = async (message, menuItems, chatHistory = 
             confidence: item.confidence || "medium",
             needsSizeSelection: needsSizeSelection,
             availableSizes: availableSizes
-          };
-        }
+          };        }
         return null;
-      }).filter(Boolean); // Filter out nulls if findBestMenuItemMatch returns null
+      }).filter(item => item !== null); // Filter out nulls if findBestMenuItemMatch returns null or invalid items
     }
     
     return result;

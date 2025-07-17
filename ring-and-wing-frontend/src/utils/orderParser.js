@@ -185,6 +185,12 @@ export const mapToAvailableSize = (requestedSize, availableSizes) => {
  * @returns {Object|null} - The best matched menu item with confidence, or null
  */
 export const findBestMenuItemMatch = (itemText, menuItems) => {
+  // Null check for itemText
+  if (!itemText || typeof itemText !== 'string') {
+    console.warn('findBestMenuItemMatch: itemText is null, undefined, or not a string:', itemText);
+    return null;
+  }
+  
   const searchText = itemText.toLowerCase();
   
   // Exact match

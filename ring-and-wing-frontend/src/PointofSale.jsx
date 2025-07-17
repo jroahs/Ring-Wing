@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as ReactDOM from 'react-dom/client';
 import { useReactToPrint } from 'react-to-print';
-import { MenuItemCard, OrderItem, PaymentPanel, SearchBar, Modal } from './components/ui';
+import { MenuItemCard, OrderItem, PaymentPanel, PaymentProcessingModal, SearchBar, Modal } from './components/ui';
 import { theme } from './theme';
 import { Receipt } from './components/Receipt';
 import TimeClockInterface from './components/TimeClockInterface';
@@ -66,9 +66,11 @@ const PointOfSale = () => {
 
   const [eWalletDetails, setEWalletDetails] = useState({ provider: 'gcash', referenceNumber: '', name: '' });
   const [customerName, setCustomerName] = useState('');
+  const [discountCardDetails, setDiscountCardDetails] = useState({ cardType: 'PWD', cardIdNumber: '' });
   const [showTimeClock, setShowTimeClock] = useState(false);
   const [showTimeClockModal, setShowTimeClockModal] = useState(false);
   const [showOrderProcessingModal, setShowOrderProcessingModal] = useState(false);
+  const [showPaymentProcessingModal, setShowPaymentProcessingModal] = useState(false);
   const [orderViewType, setOrderViewType] = useState('ready');
   const [editingPendingOrder, setEditingPendingOrder] = useState(null);
   const [isPendingOrderMode, setIsPendingOrderMode] = useState(false);
@@ -687,6 +689,7 @@ const PointOfSale = () => {
           status: 'received',
           paymentMethod: paymentMethod,
           customerName: customerName || '', // Add customer name to pending order
+          discountCards: discountCardDetails?.discountCards || [],
           totals: {
             ...totals,
             ...paymentDetails
@@ -696,9 +699,16 @@ const PointOfSale = () => {
             price: item.price,
             quantity: item.quantity,
             selectedSize: item.selectedSize,
-            modifiers: item.modifiers
-          })),
-          ...paymentDetails
+            modifiers: item.modifiers,
+            pwdSeniorDiscount: item.pwdSeniorDiscount || {
+              applied: false,
+              discountedQuantity: 0,
+              discountAmount: 0,
+              vatExempt: false,
+              cardType: null,
+              cardIdNumber: null
+            }
+          }))
         })
       });
 
@@ -766,7 +776,15 @@ const PointOfSale = () => {
           price: item.price,
           quantity: item.quantity,
           selectedSize: item.selectedSize,
-          modifiers: item.modifiers
+          modifiers: item.modifiers,
+          pwdSeniorDiscount: item.pwdSeniorDiscount || {
+            applied: false,
+            discountedQuantity: 0,
+            discountAmount: 0,
+            vatExempt: false,
+            cardType: null,
+            cardIdNumber: null
+          }
         })),
         totals: {
           subtotal: parseFloat(totals.subtotal),
@@ -777,6 +795,7 @@ const PointOfSale = () => {
         paymentMethod,
         paymentDetails, // Additional field for payment details        
         customerName: customerName || '', // Add customer name to order data
+        discountCards: discountCardDetails?.discountCards || [],
         status: 'received',
         orderType: 'pos',  // Changed from 'self_checkout' to 'pos' for orders created in POS
         server: (() => {
@@ -1048,7 +1067,7 @@ const PointOfSale = () => {
                   >
                     <FiCoffee className="mr-2" />                    <span className="hidden md:inline">Ready Orders</span>
                     {activeOrders.filter(o => o.status === 'ready').length > 0 && (
-                      <span className="ml-2 bg-green-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                      <span className="ml-2 bg-orange-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
                         {activeOrders.filter(o => o.status === 'ready').length}
                       </span>
                     )}
@@ -1210,7 +1229,7 @@ const PointOfSale = () => {
                 {/* Order View Toggle - move above cart */}
                 <div className="flex justify-center mb-2 gap-2">
                   <button
-                    className={`px-4 py-1 rounded-lg font-semibold text-sm transition-colors ${orderViewType === 'ready' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}
+                    className={`px-4 py-1 rounded-lg font-semibold text-sm transition-colors ${orderViewType === 'ready' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}
                     onClick={() => {
                       setOrderViewType('ready');
                       setIsPendingOrderMode(false);
@@ -1395,19 +1414,19 @@ const PointOfSale = () => {
                           <div 
                             key={order._id}
                             className="p-3 rounded-lg flex justify-between"
-                            style={{ backgroundColor: "#e6f7e6" }}
+                            style={{ backgroundColor: "#fef3e8" }}
                           >
                             <div>
                               <span className="font-medium" style={{ color: theme.colors.primary }}>
                                 Order #{order.receiptNumber || order._id?.substring(0, 6)}
                               </span>
-                              <span className="ml-2 text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">
+                              <span className="ml-2 text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700">
                                 Ready
                               </span>
                             </div>
                             <button
                               onClick={() => setShowOrderProcessingModal(true)}
-                              className="text-xs px-2 py-1 rounded bg-green-500 text-white hover:bg-green-600"
+                              className="text-xs px-2 py-1 rounded bg-orange-500 text-white hover:bg-orange-600"
                             >
                               Complete
                             </button>
@@ -1427,17 +1446,8 @@ const PointOfSale = () => {
                     calculatePendingOrderTotal().discount :
                     calculateTotal().discount}
                   cashFloat={cashFloat}
-                  paymentMethod={paymentMethod}
-                  cashAmount={cashAmount}                  onPaymentMethodChange={(method) => {
-                    setPaymentMethod(method);
-                    // Reset other payment details when changing methods
-                    if (method !== 'e-wallet') setEWalletDetails({ provider: 'gcash', referenceNumber: '', name: '' });
-                    if (method !== 'cash') setCashAmount(0);
-                  }}
-                  onCashAmountChange={setCashAmount}
-                  onProcessPayment={isPendingOrderMode ? 
-                    () => processPendingOrderPayment() : 
-                    processPayment}                  onCancelOrder={() => {
+                  onProcessPayment={() => setShowPaymentProcessingModal(true)}
+                  onCancelOrder={() => {
                     if (isPendingOrderMode) {
                       setEditingPendingOrder(null);
                       setIsPendingOrderMode(false);
@@ -1446,17 +1456,10 @@ const PointOfSale = () => {
                     } else {
                       cancelOrder();
                     }
-                  }}eWalletDetails={eWalletDetails}
-                  onEWalletDetailsChange={setEWalletDetails}
-                  customerName={customerName}
-                  onCustomerNameChange={setCustomerName}
+                  }}
                   disabled={
                     (!isPendingOrderMode && (orderViewType === 'ready' ? readyOrderCart : pendingOrderCart).length === 0) ||
-                    (isPendingOrderMode && pendingOrderItems.length === 0) ||
-                    (paymentMethod === 'cash' && cashAmount < parseFloat(isPendingOrderMode ? 
-                      calculatePendingOrderTotal().total :
-                      calculateTotal().total)) ||
-                    (paymentMethod === 'e-wallet' && (!eWalletDetails?.referenceNumber || !eWalletDetails?.name))
+                    (isPendingOrderMode && pendingOrderItems.length === 0)
                   }
                 />
               </div>
@@ -1479,7 +1482,10 @@ const PointOfSale = () => {
                       console.error('Error getting staff name:', error);
                     }
                     return '';
-                  })()
+                  })(),
+                  discountCardDetails: parseFloat(isPendingOrderMode 
+                    ? calculatePendingOrderTotal().discount
+                    : calculateTotal().discount) > 0 ? discountCardDetails : null
                 }}                totals={{
                   subtotal: isPendingOrderMode 
                     ? calculatePendingOrderTotal().subtotal
@@ -1581,6 +1587,55 @@ const PointOfSale = () => {
               theme={theme}
             />
           </div>
+        )}
+
+        {/* Payment Processing Modal */}
+        {showPaymentProcessingModal && (
+          <PaymentProcessingModal
+            isOpen={showPaymentProcessingModal}
+            onClose={() => setShowPaymentProcessingModal(false)}
+            total={isPendingOrderMode ? 
+              calculatePendingOrderTotal().total :
+              calculateTotal().total}
+            subtotal={isPendingOrderMode ? 
+              calculatePendingOrderTotal().subtotal :
+              calculateTotal().subtotal}
+            discount={isPendingOrderMode ? 
+              calculatePendingOrderTotal().discount :
+              calculateTotal().discount}
+            cashFloat={cashFloat}
+            onProcessPayment={async (paymentDetails) => {
+              try {
+                // Update the state with payment details
+                setPaymentMethod(paymentDetails.method);
+                setCashAmount(paymentDetails.cashAmount);
+                setEWalletDetails(paymentDetails.eWalletDetails || { provider: 'gcash', referenceNumber: '', name: '' });
+                setCustomerName(paymentDetails.customerName);
+                // Store discount cards for use in order saving
+                if (paymentDetails.discountCards) {
+                  setDiscountCardDetails({ discountCards: paymentDetails.discountCards });
+                }
+
+                // Small delay to ensure state updates are processed
+                await new Promise(resolve => setTimeout(resolve, 0));
+
+                // Process the payment
+                if (isPendingOrderMode) {
+                  await processPendingOrderPayment();
+                } else {
+                  await processPayment();
+                }
+              } catch (error) {
+                console.error('Payment processing error:', error);
+                throw error; // Re-throw to let the modal handle it
+              }
+            }}
+            eWalletDetails={eWalletDetails}
+            onEWalletDetailsChange={setEWalletDetails}
+            customerName={customerName}
+            onCustomerNameChange={setCustomerName}
+            orderItems={isPendingOrderMode ? pendingOrderItems : (orderViewType === 'ready' ? readyOrderCart : pendingOrderCart)}
+          />
         )}
       </div>
     </div>

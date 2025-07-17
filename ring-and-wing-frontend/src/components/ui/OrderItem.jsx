@@ -81,7 +81,8 @@ export const OrderItem = ({
           {/* PWD/Senior Discount Info */}
           {hasDiscount && (
             <div className="mt-1 text-xs bg-blue-50 px-2 py-1 rounded" style={{ color: theme.colors.primary }}>
-              PWD/Senior: {item.pwdSeniorDiscount.discountedQuantity}x (20% off + VAT exempt)
+              <div>PWD/Senior: {item.pwdSeniorDiscount.discountedQuantity}x (20% off + VAT exempt)</div>
+              <div className="text-blue-600 mt-1">Card details will be collected at payment</div>
             </div>
           )}
         </div>        <div className="flex flex-col items-end gap-2">
@@ -154,6 +155,10 @@ export const OrderItem = ({
                   color: theme.colors.primary
                 }}
               />
+            </div>
+
+            <div className="text-xs text-gray-600 mb-4 bg-blue-50 p-2 rounded">
+              Card holder details will be collected during payment processing
             </div>
 
             <div className="flex gap-2">
