@@ -510,13 +510,13 @@ function ChatbotPage() {
     const userPrompt = `Create a short, appealing menu description for "${itemName}" based on this basic description: "${basicDescription}"`;
     
     const payload = {
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash",
       messages: [
         systemMessage,
         { role: "user", content: userPrompt }
       ],
       temperature: 0.7,
-      max_tokens: 100
+      max_tokens: 200
     };
     
     try {
@@ -619,14 +619,14 @@ ${languageInstructions}
 ${popularItemsInfo}`
     };
       const payload = {
-      model: "gemini-1.5-flash", // Using the 1.5 model which has better performance
+      model: "gemini-2.5-flash", // Using the 2.5 model which has adaptive thinking
       messages: [
         systemMessage,
         ...chatHistory,
         { role: "user", content: userInput }
       ],
       temperature: 0.7,
-      max_tokens: 800
+      max_tokens: 1000
     };
     
     try {

@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { FiCamera, FiChevronDown, FiSave, FiTrash, FiUser } from 'react-icons/fi';
 import { Button } from './Button';
+import { PasswordInput } from './PasswordInput';
 import StaffAvatar from '../StaffAvatar';
 
 const StaffForm = ({
@@ -343,22 +344,17 @@ const StaffForm = ({
             </div>
 
             <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: colors.primary }}>
-                Password {editMode && <span className="text-xs font-normal">(leave empty to keep current)</span>}
-              </label>
-              <input 
-                type="password" 
-                name="password" 
-                placeholder={editMode ? "Leave empty to keep current" : "Min. 8 characters"} 
+              <PasswordInput
+                label={`Password ${editMode ? '(leave empty to keep current)' : ''}`}
+                placeholder={editMode ? "Leave empty to keep current" : "Min. 8 characters"}
                 value={formData.password}
-                onChange={handleInputChange} 
+                onChange={(e) => handleInputChange({ target: { name: 'password', value: e.target.value } })}
                 className="p-2 rounded border w-full text-sm"
                 style={{ borderColor: formErrors.password ? colors.accent : colors.muted }}
-                required={!editMode} 
+                required={!editMode}
+                error={formErrors.password}
+                useCustomStyling={true}
               />
-              {formErrors.password && (
-                <div className="text-xs text-red-500 mt-1">{formErrors.password}</div>
-              )}
             </div>
           </div>
         </div>

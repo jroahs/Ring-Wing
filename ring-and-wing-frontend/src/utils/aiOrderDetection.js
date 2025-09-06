@@ -95,7 +95,7 @@ export const detectOrderIntentWithAI = async (message, menuItems, chatHistory = 
 
   try {
     const payload = {
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash",
       messages: [systemPrompt, userPrompt],
       temperature: 0.2,
       max_tokens: 350

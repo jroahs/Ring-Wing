@@ -13,13 +13,20 @@ class ConnectionMonitor {
     this.maxReconnectAttempts = 50;
     this.monitorInterval = null;
     this.diagnosticsInterval = null;
+    this.aggressiveMonitorInterval = null;
     this.connectionHistory = [];
     this.lastSuccessfulPing = null;
     this.consecutiveFailures = 0;
+    this.maxHistorySize = 100; // Keep last 100 connection checks
+    this.alertThresholds = {
+      consecutiveFailures: 3,
+      slowResponseTime: 2000, // 2 seconds
+      criticalResponseTime: 5000 // 5 seconds
+    };
   }
 
   /**
-   * Start comprehensive connection monitoring
+   * Start comprehensive connection monitoring with multiple tiers
    */
   startMonitoring() {
     if (this.isMonitoring) {
@@ -30,18 +37,25 @@ class ConnectionMonitor {
     this.isMonitoring = true;
     logger.info('🔍 Starting enhanced connection monitoring...');
     
-    // Monitor connection every 30 seconds
+    // Tier 1: Basic connection check every 15 seconds (very frequent)
     this.monitorInterval = setInterval(() => {
-      this.performConnectionCheck();
+      this.performBasicConnectionCheck();
+    }, 15000);
+
+    // Tier 2: Aggressive monitoring every 30 seconds when issues detected
+    this.aggressiveMonitorInterval = setInterval(() => {
+      if (this.consecutiveFailures > 0) {
+        this.performAggressiveCheck();
+      }
     }, 30000);
 
-    // Detailed diagnostics every 5 minutes
+    // Tier 3: Detailed diagnostics every 3 minutes
     this.diagnosticsInterval = setInterval(() => {
       this.logDetailedDiagnostics();
-    }, 300000);
+    }, 180000);
 
     // Initial check
-    this.performConnectionCheck();
+    this.performBasicConnectionCheck();
   }
 
   /**
@@ -58,14 +72,19 @@ class ConnectionMonitor {
       this.diagnosticsInterval = null;
     }
     
+    if (this.aggressiveMonitorInterval) {
+      clearInterval(this.aggressiveMonitorInterval);
+      this.aggressiveMonitorInterval = null;
+    }
+    
     this.isMonitoring = false;
     logger.info('⏹️ Connection monitoring stopped');
   }
 
   /**
-   * Perform a comprehensive connection check
+   * Perform a basic connection check (lightweight)
    */
-  async performConnectionCheck() {
+  async performBasicConnectionCheck() {
     const timestamp = new Date();
     const state = mongoose.connection.readyState;
     const states = {
@@ -79,12 +98,13 @@ class ConnectionMonitor {
       timestamp,
       state: states[state],
       stateCode: state,
-      isHealthy: false
+      isHealthy: false,
+      checkType: 'basic'
     };
 
     try {
       if (state === 1) {
-        // Perform ping test
+        // Quick ping test
         const pingStart = Date.now();
         await mongoose.connection.db.admin().ping();
         const pingTime = Date.now() - pingStart;
@@ -94,33 +114,113 @@ class ConnectionMonitor {
         this.lastSuccessfulPing = timestamp;
         this.consecutiveFailures = 0;
         
-        if (pingTime > 1000) {
-          logger.warn(`⚠️ Slow database ping: ${pingTime}ms`);
+        // Alert on slow responses
+        if (pingTime > this.alertThresholds.slowResponseTime) {
+          logger.warn(`⚠️ Slow database response detected: ${pingTime}ms`);
+          if (pingTime > this.alertThresholds.criticalResponseTime) {
+            logger.error(`🚨 CRITICAL: Very slow database response: ${pingTime}ms`);
+          }
         }
       } else {
         this.consecutiveFailures++;
         connectionInfo.error = `Database not connected (state: ${states[state]})`;
-        
-        if (this.consecutiveFailures >= 3) {
-          logger.error(`❌ Database unhealthy for ${this.consecutiveFailures} consecutive checks`);
-        }
+        logger.warn(`Database not connected (state: ${states[state]})`);
       }
-    } catch (error) {
+    } catch (err) {
       this.consecutiveFailures++;
-      connectionInfo.isHealthy = false;
-      connectionInfo.error = error.message;
-      logger.error(`💔 Database ping failed: ${error.message}`);
+      connectionInfo.error = err.message;
+      logger.error(`Basic connection check failed: ${err.message}`);
     }
 
-    // Keep last 100 connection checks in history
-    this.connectionHistory.push(connectionInfo);
-    if (this.connectionHistory.length > 100) {
-      this.connectionHistory.shift();
+    this.addToHistory(connectionInfo);
+    
+    // Trigger alerts if needed
+    if (this.consecutiveFailures >= this.alertThresholds.consecutiveFailures) {
+      this.handleConnectionAlert();
     }
+  }
 
-    // Trigger alerts for prolonged issues
+  /**
+   * Perform more aggressive connection checking when issues are detected
+   */
+  async performAggressiveCheck() {
+    logger.info('🔍 Performing aggressive connection check due to detected issues...');
+    
+    try {
+      if (mongoose.connection.readyState === 1) {
+        // More comprehensive operations
+        const checkStart = Date.now();
+        await Promise.all([
+          mongoose.connection.db.admin().ping(),
+          mongoose.connection.db.admin().listCollections({}, { nameOnly: true }).toArray(),
+          mongoose.connection.db.admin().serverStatus()
+        ]);
+        const checkTime = Date.now() - checkStart;
+        
+        logger.info(`✅ Aggressive check passed in ${checkTime}ms`);
+        
+        if (checkTime > 3000) {
+          logger.warn(`Aggressive check was slow: ${checkTime}ms - potential connection instability`);
+        }
+      } else {
+        logger.error(`Aggressive check failed - connection state: ${mongoose.connection.readyState}`);
+        this.triggerReconnectionAttempt();
+      }
+    } catch (err) {
+      logger.error(`Aggressive connection check failed: ${err.message}`);
+      this.triggerReconnectionAttempt();
+    }
+  }
+
+  /**
+   * Handle connection alerts and take corrective action
+   */
+  handleConnectionAlert() {
+    logger.error(`🚨 CONNECTION ALERT: ${this.consecutiveFailures} consecutive failures detected`);
+    
+    // Log recent connection history for debugging
+    const recentHistory = this.connectionHistory.slice(-10);
+    logger.error('Recent connection history:', recentHistory.map(h => ({
+      time: h.timestamp.toISOString(),
+      state: h.state,
+      healthy: h.isHealthy,
+      error: h.error
+    })));
+    
+    // Attempt immediate recovery if failures exceed threshold
     if (this.consecutiveFailures >= 5) {
-      this.handleProlongedDisconnection();
+      logger.error('Multiple consecutive failures - attempting immediate reconnection');
+      this.triggerReconnectionAttempt();
+    }
+  }
+
+  /**
+   * Trigger a reconnection attempt
+   */
+  triggerReconnectionAttempt() {
+    logger.info('Triggering manual reconnection attempt...');
+    try {
+      // Use the reconnection logic from db.js if available
+      // This is a placeholder - you might need to expose the reconnection function
+      if (global.reconnectWithBackoff) {
+        global.reconnectWithBackoff();
+      } else {
+        logger.warn('Reconnection function not available globally');
+      }
+    } catch (err) {
+      logger.error('Failed to trigger reconnection:', err.message);
+    }
+  }
+
+  /**
+   * Add connection info to history with size management
+   */
+  addToHistory(connectionInfo) {
+    this.connectionHistory.push(connectionInfo);
+    
+    // Keep history size manageable
+    if (this.connectionHistory.length > this.maxHistorySize) {
+      this.connectionHistory = this.connectionHistory.slice(-this.maxHistorySize);
     }
   }
 
@@ -174,21 +274,38 @@ class ConnectionMonitor {
     
     const diagnostics = {
       connectionState: states[state],
-      stateCode: state,
-      host: mongoose.connection.host,
-      port: mongoose.connection.port,
-      database: mongoose.connection.name,
-      lastSuccessfulPing: this.lastSuccessfulPing,
+      readyState: state,
       consecutiveFailures: this.consecutiveFailures,
-      uptime: process.uptime(),
-      memoryUsage: process.memoryUsage(),
-      connectionHistory: this.connectionHistory.slice(-10) // Last 10 checks
+      lastSuccessfulPing: this.lastSuccessfulPing,
+      historyLength: this.connectionHistory.length,
+      isMonitoring: this.isMonitoring
     };
 
-    logger.info('📊 Database Connection Diagnostics:', JSON.stringify(diagnostics, null, 2));
+    if (state === 1) {
+      try {
+        const db = mongoose.connection.db;
+        if (db) {
+          diagnostics.databaseName = db.databaseName;
+          diagnostics.serverConfig = {
+            host: mongoose.connection.host,
+            port: mongoose.connection.port,
+            name: mongoose.connection.name
+          };
+        }
+      } catch (err) {
+        diagnostics.error = err.message;
+      }
+    }
+
+    logger.info('📊 Connection diagnostics:', diagnostics);
     
-    // Log connection pool information if available
-    this.logConnectionPoolStatus();
+    // Log connection health summary
+    const healthySamples = this.connectionHistory.filter(h => h.isHealthy).length;
+    const healthPercentage = this.connectionHistory.length > 0 
+      ? ((healthySamples / this.connectionHistory.length) * 100).toFixed(2)
+      : 0;
+      
+    logger.info(`📈 Connection health: ${healthPercentage}% healthy over last ${this.connectionHistory.length} checks`);
   }
 
   /**
@@ -196,16 +313,20 @@ class ConnectionMonitor {
    */
   logConnectionPoolStatus() {
     try {
-      const poolInfo = {
-        readyState: mongoose.connection.readyState,
-        // Note: Some pool information might not be directly accessible in newer Mongoose versions
-        collections: Object.keys(mongoose.connection.collections),
-        models: Object.keys(mongoose.models),
-      };
-      
-      logger.debug('🏊 Connection Pool Status:', JSON.stringify(poolInfo, null, 2));
-    } catch (error) {
-      logger.debug('Could not retrieve pool status:', error.message);
+      if (mongoose.connection && mongoose.connection.db) {
+        const poolStats = {
+          readyState: mongoose.connection.readyState,
+          host: mongoose.connection.host,
+          port: mongoose.connection.port,
+          name: mongoose.connection.name
+        };
+        
+        logger.info('🏊 Connection pool status:', poolStats);
+      } else {
+        logger.warn('Cannot access connection pool - connection not established');
+      }
+    } catch (err) {
+      logger.error('Error getting connection pool status:', err.message);
     }
   }
 
@@ -218,38 +339,45 @@ class ConnectionMonitor {
     
     return {
       state: states[state],
-      stateCode: state,
-      isConnected: state === 1,
-      host: mongoose.connection.host,
-      port: mongoose.connection.port,
-      database: mongoose.connection.name,
-      lastSuccessfulPing: this.lastSuccessfulPing,
+      readyState: state,
       consecutiveFailures: this.consecutiveFailures,
-      uptime: process.uptime(),
-      isMonitoring: this.isMonitoring
+      lastSuccessfulPing: this.lastSuccessfulPing,
+      isMonitoring: this.isMonitoring,
+      historyLength: this.connectionHistory.length,
+      healthPercentage: this.getHealthPercentage()
     };
   }
 
   /**
-   * Get connection health summary
+   * Get connection health percentage
+   */
+  getHealthPercentage() {
+    if (this.connectionHistory.length === 0) return 0;
+    
+    const healthySamples = this.connectionHistory.filter(h => h.isHealthy).length;
+    return ((healthySamples / this.connectionHistory.length) * 100).toFixed(2);
+  }
+
+  /**
+   * Get health summary for API responses
    */
   getHealthSummary() {
     const recentChecks = this.connectionHistory.slice(-10);
-    const healthyChecks = recentChecks.filter(check => check.isHealthy).length;
-    const avgPingTime = recentChecks
-      .filter(check => check.pingTime)
-      .reduce((sum, check, _, arr) => sum + check.pingTime / arr.length, 0);
-
+    const recentHealthy = recentChecks.filter(h => h.isHealthy).length;
+    
     return {
-      overallHealth: healthyChecks >= 7 ? 'good' : healthyChecks >= 4 ? 'warning' : 'critical',
-      healthyChecks,
-      totalChecks: recentChecks.length,
-      averagePingTime: Math.round(avgPingTime),
+      overall: this.getHealthPercentage(),
+      recent: recentChecks.length > 0 ? ((recentHealthy / recentChecks.length) * 100).toFixed(2) : 0,
       consecutiveFailures: this.consecutiveFailures,
-      lastCheck: recentChecks[recentChecks.length - 1]
+      lastCheck: this.connectionHistory.length > 0 
+        ? this.connectionHistory[this.connectionHistory.length - 1].timestamp 
+        : null,
+      isStable: this.consecutiveFailures < this.alertThresholds.consecutiveFailures
     };
   }
 }
 
-// Export singleton instance
-module.exports = new ConnectionMonitor();
+// Create singleton instance
+const connectionMonitor = new ConnectionMonitor();
+
+module.exports = connectionMonitor;

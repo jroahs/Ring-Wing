@@ -52,11 +52,99 @@ router.post('/', validateOrder, criticalCheck, async (req, res, next) => {
 // routes/OrderRoutes.js
 router.get('/', standardCheck, async (req, res, next) => {
   try {
-    const { status, paymentMethod, limit = 50, page = 1 } = req.query;
+    const { status, paymentMethod, limit = 50, page = 1, startDate, endDate, dateFilter, search } = req.query;
+    console.log('Search endpoint called with search term:', search);
+    console.log('Full query params:', req.query);
+    
     const query = {};
     
     if (status) query.status = status;
     if (paymentMethod) query.paymentMethod = paymentMethod;
+    
+    // Enhanced search functionality with fuzzy matching
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      
+      // Split search term into words for better matching
+      const searchWords = searchTerm.split(/\s+/).filter(word => word.length > 0);
+      
+      // Create multiple search patterns for flexibility
+      const searchPatterns = [
+        new RegExp(searchTerm, 'i'), // Exact phrase search
+        ...searchWords.map(word => new RegExp(word, 'i')) // Individual word search
+      ];
+      
+      // Search across multiple fields with OR logic
+      const searchConditions = [];
+      
+      searchPatterns.forEach(pattern => {
+        searchConditions.push(
+          { receiptNumber: pattern },
+          { 'customer.name': pattern },
+          { 'customer.phone': pattern },
+          { 'items.name': pattern }
+        );
+      });
+      
+      query.$or = searchConditions;
+      console.log('Applied search query:', JSON.stringify(query, null, 2));
+    }
+    
+    // Date filtering logic
+    if (dateFilter || startDate || endDate) {
+      const now = new Date();
+      let start, end;
+      
+      if (dateFilter) {
+        switch (dateFilter) {
+          case 'today':
+            start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+            break;
+          case 'yesterday':
+            start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+            end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            break;
+          case 'last7days':
+            start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+            end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+            break;
+          case 'thisMonth':
+            start = new Date(now.getFullYear(), now.getMonth(), 1);
+            end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            break;
+          case 'last2hours':
+            start = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+            end = now;
+            break;
+          case 'morning':
+            start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 0, 0);
+            end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
+            break;
+          case 'afternoon':
+            start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
+            end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0);
+            break;
+          case 'evening':
+            start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0);
+            end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
+            break;
+        }
+      } else {
+        // Custom date range
+        if (startDate) start = new Date(startDate);
+        if (endDate) {
+          end = new Date(endDate);
+          end.setDate(end.getDate() + 1); // Include the entire end date
+        }
+      }
+      
+      if (start || end) {
+        query.createdAt = {};
+        if (start) query.createdAt.$gte = start;
+        if (end) query.createdAt.$lt = end;
+      }
+    }
     
     const orders = await Order.find(query)
       .sort({ createdAt: -1 })

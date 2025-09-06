@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { FiUser, FiLock, FiAlertCircle, FiArrowRight } from 'react-icons/fi';
-import { Button, Input } from './components/ui';
+import { Button, Input, PasswordInput } from './components/ui';
 import logo from './assets/rw.jpg';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -11,7 +11,6 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const formRef = useRef(null);
@@ -244,9 +243,8 @@ function Login() {
               />
             </motion.div>
 
-            <motion.div className="mb-8" variants={itemVariants}>              <Input
+            <motion.div className="mb-8" variants={itemVariants}>              <PasswordInput
                 label="Password"
-                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={handleInputChange(setPassword)}
                 placeholder="Enter your password"

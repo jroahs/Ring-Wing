@@ -1,6 +1,9 @@
 export { Alert } from './Alert';
 export { Button } from './Button';
 export { Input } from './Input';
+export { default as PasswordInput } from './PasswordInput';
+export { usePasswordVisibility } from './PasswordVisibilityToggle';
+export { default as PasswordVisibilityToggle } from './PasswordVisibilityToggle';
 export { Card } from './Card';
 export { Modal } from './Modal';
 export { Badge } from './Badge';
@@ -9,3 +12,5 @@ export { OrderItem } from './OrderItem';
 export { PaymentPanel } from './PaymentPanel';
 export { PaymentProcessingModal } from './PaymentProcessingModal';
 export { SearchBar } from './SearchBar';
+export { default as StaffForm } from './StaffForm';
+export { default as StaffList } from './StaffList';

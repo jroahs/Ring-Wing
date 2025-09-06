@@ -13,30 +13,26 @@ const testConnectionStability = async () => {
   console.log('📋 Test Frequency: Every 30 seconds');
   console.log('📋 Expected Result: No disconnections\n');
 
-  // Enhanced connection options (same as in production)
+  // Enhanced connection options (MongoDB 8.x compatible)
   const mongooseOptions = {
-    maxPoolSize: 50,
-    minPoolSize: 10,
+    maxPoolSize: 20,
+    minPoolSize: 2,
     
-    // CRITICAL: Settings to prevent 10-minute disconnections
+    // CRITICAL: Settings to prevent disconnections
     socketTimeoutMS: 0, // Disable socket timeout
-    maxIdleTimeMS: 1800000, // 30 minutes
-    connectTimeoutMS: 30000,
-    serverSelectionTimeoutMS: 15000,
-    heartbeatFrequencyMS: 10000,
-    
-    // Enhanced keepalive settings
-    keepAlive: true,
-    keepAliveInitialDelay: 300000, // 5 minutes
+    maxIdleTimeMS: 300000, // 5 minutes 
+    connectTimeoutMS: 60000, // 60 seconds
+    serverSelectionTimeoutMS: 30000, // 30 seconds
+    heartbeatFrequencyMS: 5000, // 5 seconds
     
     // Retry settings
     retryWrites: true,
     retryReads: true,
-    family: 4,
     
-    // Buffer settings
-    bufferMaxEntries: 0,
-    bufferCommands: false
+    // Additional stability settings
+    authSource: 'admin',
+    compressors: ['zlib'],
+    zlibCompressionLevel: 6
   };
 
   try {

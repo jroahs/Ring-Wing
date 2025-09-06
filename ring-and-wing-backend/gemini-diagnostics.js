@@ -22,16 +22,21 @@ async function testGeminiApiDirectly() {
       ],
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 100
+        maxOutputTokens: 500
       }
     };
     
-    // Using the hardcoded API key for testing
-    const GEMINI_API_KEY = 'AIzaSyC4bXFF2azww8LD_uONuXJKF9Gqg2D9XCI';
+    // Use environment variable for API key security
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    
+    if (!GEMINI_API_KEY) {
+      console.error('❌ GEMINI_API_KEY environment variable is required');
+      return false;
+    }
     
     console.log('Sending direct request to Gemini API...');
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       payload,
       {
         headers: {
@@ -43,7 +48,15 @@ async function testGeminiApiDirectly() {
     
     console.log('✅ Gemini API response received!');
     console.log('Status:', response.status);
-    console.log('Response:', response.data.candidates[0].content.parts[0].text);
+    console.log('Full response data:', JSON.stringify(response.data, null, 2));
+    
+    // Try to access the response text safely
+    try {
+      const responseText = response.data.candidates[0].content.parts[0].text;
+      console.log('Response text:', responseText);
+    } catch (parseError) {
+      console.log('Could not parse response text, structure might have changed');
+    }
     
     return true;
   } catch (error) {
@@ -68,7 +81,7 @@ async function testServerEndpoint() {
   try {
     // Basic request payload 
     const payload = {
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash",
       messages: [
         { 
           role: "system", 

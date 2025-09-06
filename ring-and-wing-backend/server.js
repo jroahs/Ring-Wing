@@ -31,7 +31,7 @@ if (global.gc) {
 dotenv.config();
 
 // Validate environment variables
-const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET', 'OPENROUTER_API_KEY'];
+const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY'];
 requiredEnvVars.forEach(varName => {
   if (!process.env[varName]) {
     throw new Error(`${varName} environment variable is required`);
@@ -358,8 +358,17 @@ app.use('/api/db-status', require('./routes/dbStatusRoutes'));
 // Chat proxy route - Final fix for menu context
 app.post('/api/chat', async (req, res) => {
   try {
+    logger.info('=== CHAT REQUEST DEBUG ===');
+    logger.info('Request body:');
+    console.log(JSON.stringify(req.body, null, 2));
+    
     // Extract what we need from the incoming request
     const { messages, temperature = 0.7, max_tokens = 800 } = req.body;
+    
+    // For Gemini 2.5, we need much higher token limits due to adaptive thinking
+    const adjustedMaxTokens = Math.max(max_tokens, 1000);
+    
+    logger.info(`Requested tokens: ${max_tokens}, Adjusted tokens: ${adjustedMaxTokens}`);
     
     // Find the system message (contains menu data) and the last user message
     const systemMessage = messages.find(msg => msg.role === 'system');
@@ -385,19 +394,22 @@ app.post('/api/chat', async (req, res) => {
       ],
       generationConfig: {
         temperature: temperature,
-        maxOutputTokens: max_tokens
+        maxOutputTokens: adjustedMaxTokens
       }
     };
     
-    // Hardcoding the API key for now to ensure it works
-    // In production, this should be in an environment variable
-    const GEMINI_API_KEY = 'AIzaSyC4bXFF2azww8LD_uONuXJKF9Gqg2D9XCI';
+    // Use environment variable for API key security
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    
+    if (!GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY environment variable is required');
+    }
     
     logger.info('Sending request to Gemini API with menu context');
     
     try {
       const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
         geminiPayload,
         {
           headers: {
@@ -409,6 +421,7 @@ app.post('/api/chat', async (req, res) => {
       
       // Log successful response for debugging
       logger.debug('Gemini API response status:', response.status);
+      logger.debug('Full Gemini API response:', JSON.stringify(response.data, null, 2));
       
       // Check if the response is valid
       if (!response.data || !response.data.candidates || !response.data.candidates[0]) {
@@ -416,11 +429,45 @@ app.post('/api/chat', async (req, res) => {
         throw new Error('Invalid response structure from Gemini API');
       }
       
+      // Extract content based on the new Gemini 2.5 response format
+      let content = '';
+      const candidate = response.data.candidates[0];
+      
+      logger.info('=== GEMINI RESPONSE PROCESSING ===');
+      logger.info('Full Gemini response:');
+      console.log(JSON.stringify(response.data, null, 2));
+      logger.info('Processing candidate:');
+      console.log(JSON.stringify(candidate, null, 2));
+      
+      // Check if content has parts array (older format)
+      if (candidate.content && candidate.content.parts && candidate.content.parts[0]) {
+        content = candidate.content.parts[0].text;
+        logger.info('✅ Extracted content from parts array:', content);
+      }
+      // Check if content has text directly (newer format)
+      else if (candidate.content && candidate.content.text) {
+        content = candidate.content.text;
+        logger.info('✅ Extracted content from content.text:', content);
+      }
+      // Check if there's a text field directly on the candidate
+      else if (candidate.text) {
+        content = candidate.text;
+        logger.debug('Extracted content from candidate.text');
+      }
+      else {
+        logger.error('❌ Could not extract content from Gemini response');
+        logger.error('Candidate structure:');
+        console.log(JSON.stringify(candidate, null, 2));
+        logger.error('Full response data:');
+        console.log(JSON.stringify(response.data, null, 2));
+        throw new Error('Could not extract content from Gemini API response');
+      }
+      
       // Transform Gemini response to match OpenAI/DeepSeek format expected by frontend
       const transformedResponse = {
         choices: [{
           message: {
-            content: response.data.candidates[0].content.parts[0].text,
+            content: content,
             role: 'assistant'
           }
         }]

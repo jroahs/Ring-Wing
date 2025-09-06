@@ -5,7 +5,8 @@ import axios from 'axios';
 import WorkIDModal from './WorkIDModal';
 import TerminationModal from './components/TerminationModal';
 import { toast } from 'react-toastify';
-import { Button } from './components/ui/Button'; // Import Button component
+import { StaffForm, Button } from './components/ui';
+import { PasswordInput } from './components/ui/PasswordInput';
 import StaffAvatar from './components/StaffAvatar'; // Import StaffAvatar component
 
 const StaffManagement = () => {  const colors = {
@@ -763,8 +764,13 @@ const StaffManagement = () => {  const colors = {
                     <select
                       value={statusFilter}
                       onChange={(e) => setStatusFilter(e.target.value)}
-                      className="text-xs px-2 py-1 rounded border"
-                      style={{ borderColor: colors.muted }}
+                      className="text-xs px-2 py-1 rounded border focus:outline-none focus:ring-2 focus:ring-orange-400 shadow-sm"
+                      style={{
+                        backgroundColor: colors.background,
+                        color: colors.primary,
+                        borderColor: colors.accent,
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.07)'
+                      }}
                     >
                       {allStatusOptions.map(status => (
                         <option key={status} value={status}>{status}</option>
@@ -1227,42 +1233,33 @@ const StaffManagement = () => {  const colors = {
                         </div>
 
                         <div>
-                          <label className="block text-xs font-medium mb-1" style={{ color: colors.primary }}>
-                            Password {editMode && <span className="text-xs font-normal">(leave empty to keep current)</span>}
-                          </label>
-                          <input 
-                            type="password" 
-                            name="password" 
-                            placeholder={editMode ? "Leave empty to keep current" : "Min. 8 characters"} 
+                          <PasswordInput
+                            label={`Password ${editMode ? '(leave empty to keep current)' : ''}`}
+                            placeholder={editMode ? "Leave empty to keep current" : "Min. 8 characters"}
                             value={formData.password}
-                            onChange={handleInputChange} 
+                            onChange={(e) => handleInputChange({ target: { name: 'password', value: e.target.value } })}
                             className="p-2 rounded border w-full text-sm"
                             style={{ borderColor: formErrors.password ? colors.accent : colors.muted }}
-                            required={!editMode} 
-                          />                          {formErrors.password && (
-                            <div className="text-xs text-red-500 mt-1">{formErrors.password}</div>
-                          )}
+                            required={!editMode}
+                            error={formErrors.password}
+                            useCustomStyling={true}
+                          />
                         </div>
 
                         {/* Confirm Password Field - Only show when password is being entered */}
                         {(formData.password || !editMode) && (
                           <div>
-                            <label className="block text-xs font-medium mb-1" style={{ color: colors.primary }}>
-                              Confirm Password
-                            </label>
-                            <input 
-                              type="password" 
-                              name="confirmPassword" 
-                              placeholder="Re-enter password" 
+                            <PasswordInput
+                              label="Confirm Password"
+                              placeholder="Re-enter password"
                               value={formData.confirmPassword}
-                              onChange={handleInputChange} 
+                              onChange={(e) => handleInputChange({ target: { name: 'confirmPassword', value: e.target.value } })}
                               className="p-2 rounded border w-full text-sm"
                               style={{ borderColor: formErrors.confirmPassword ? colors.accent : colors.muted }}
-                              required={!editMode || formData.password} 
+                              required={!editMode || formData.password}
+                              error={formErrors.confirmPassword}
+                              useCustomStyling={true}
                             />
-                            {formErrors.confirmPassword && (
-                              <div className="text-xs text-red-500 mt-1">{formErrors.confirmPassword}</div>
-                            )}
                           </div>
                         )}
                       </div>
