@@ -18,6 +18,7 @@ import EmployeeManagement from "./EmployeeManagement";
 import TimeClock from './TimeClock';
 import RevenueReportsPage from './RevenueReportsPage';
 import TimeClockInterface from './TimeClockInterface';
+import MobileLanding from './MobileLanding';
 import api, { checkApiHealth, startHealthMonitoring } from './services/apiService';
 import axios from 'axios';
 
@@ -302,6 +303,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         
         {/* Customer-facing routes - not protected */}
+        <Route path="/mobile" element={<MobileLanding />} />
         <Route path="/self-checkout" element={<SelfCheckout />} />
         
         {/* Chatbot is semi-protected - only authenticated users */}

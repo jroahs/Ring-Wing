@@ -32,7 +32,8 @@ import {
   FiShield,
   FiSettings,
   FiDatabase,
-  FiPieChart
+  FiPieChart,
+  FiSmartphone
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -142,12 +143,6 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
       positions: ['cashier', 'shift_manager', 'general_manager', 'admin'],
       subItems: [
         { 
-          path: '/self-checkout', 
-          icon: <FiTablet size={iconSize} style={{ color: colors.iconBrown }} />, 
-          label: 'Self Checkout',
-          positions: ['cashier', 'shift_manager', 'general_manager', 'admin']
-        },
-        { 
           path: '/orders', 
           icon: <FiShoppingBag size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Orders',
@@ -211,9 +206,9 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
       label: 'Revenue Reports',
       positions: ['shift_manager', 'general_manager', 'admin']
     },    { 
-      path: '/chatbot', 
-      icon: <FiMessageSquare size={iconSize} className="text-white" />, 
-      label: 'AI Assistant',
+      path: '/mobile', 
+      icon: <FiSmartphone size={iconSize} className="text-white" />, 
+      label: 'Mobile Services',
       positions: ['cashier', 'inventory', 'shift_manager', 'general_manager', 'admin']
     }
   ];
@@ -253,7 +248,8 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
     '/sales',
     '/inventory-management',
     '/staff',
-    '/revenue-reports'
+    '/revenue-reports',
+    '/mobile'
   ];
   
   const shouldRender = allowedRoutes.some(route => location.pathname.startsWith(route));
