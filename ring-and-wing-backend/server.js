@@ -76,10 +76,10 @@ app.use(
 );
 app.use(compression());
 
-// Rate limiting
+// Rate limiting - Increased for development with polling components
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 200,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // Increased from 200 to 1000 for development
   message: 'Too many requests from this IP, please try again later'
 });
 app.use('/api/', apiLimiter);

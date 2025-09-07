@@ -36,15 +36,20 @@ const DashboardMinimal = () => {
   const [monthlyExpenses, setMonthlyExpenses] = useState([]);
   const [revenueData, setRevenueData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshController, setRefreshController] = useState(null);
   
   useEffect(() => {
+    const controller = new AbortController();
+    
     const fetchDashboardData = async () => {
       try {
         setIsLoading(true);
           // Fetch orders from today only
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const ordersResponse = await fetch('http://localhost:5000/api/orders');
+        const ordersResponse = await fetch('http://localhost:5000/api/orders', {
+          signal: controller.signal
+        });
         const ordersData = await ordersResponse.json();
         
         // Filter orders to show only today's orders
@@ -55,16 +60,22 @@ const DashboardMinimal = () => {
         });
         
         setOrders(todayOrders);        // Fetch sales stats - using daily period to show today's data only
-        const statsResponse = await fetch('http://localhost:5000/api/revenue/daily');
+        const statsResponse = await fetch('http://localhost:5000/api/revenue/daily', {
+          signal: controller.signal
+        });
         const statsData = await statsResponse.json();
         const revenueData = statsData.data || {};
 
         // Fetch monthly revenue data for Revenue Overview section
-        const monthlyStatsResponse = await fetch('http://localhost:5000/api/revenue/monthly');
+        const monthlyStatsResponse = await fetch('http://localhost:5000/api/revenue/monthly', {
+          signal: controller.signal
+        });
         const monthlyStatsData = await monthlyStatsResponse.json();
         const monthlyRevenueData = monthlyStatsData.data || {};
           // Fetch historical monthly revenue data for the chart
-        const monthlyHistoricalResponse = await fetch('http://localhost:5000/api/revenue/historical/monthly');
+        const monthlyHistoricalResponse = await fetch('http://localhost:5000/api/revenue/historical/monthly', {
+          signal: controller.signal
+        });
         const monthlyHistoricalData = await monthlyHistoricalResponse.json();
           // Prepare revenue data for charts from historical monthly data
         let chartRevenueData = [];
@@ -81,7 +92,9 @@ const DashboardMinimal = () => {
         setRevenueData(chartRevenueData);
         
         // Fetch expenses
-        const expensesResponse = await fetch('http://localhost:5000/api/expenses');
+        const expensesResponse = await fetch('http://localhost:5000/api/expenses', {
+          signal: controller.signal
+        });
         const expensesData = await expensesResponse.json();
           // Process expenses for monthly disbursements (current month only)
         let monthlyDisbursements = 0;
@@ -132,7 +145,8 @@ const DashboardMinimal = () => {
         // Fetch staff data
         const token = localStorage.getItem('authToken');
         const staffResponse = await fetch('http://localhost:5000/api/staff', {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${token}` },
+          signal: controller.signal
         });
         const staffData = await staffResponse.json();
         
@@ -187,17 +201,43 @@ const DashboardMinimal = () => {
           orderSources: monthlyRevenueData.revenueBySource || {}
         });
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        if (error.name !== 'AbortError') {
+          console.error('Error fetching dashboard data:', error);
+        }
       } finally {
         setIsLoading(false);
       }
     };
     
     fetchDashboardData();
+    
+    return () => {
+      controller.abort();
+    };
   }, []);
-    const handleRefreshOrders = async () => {
+
+  // Cleanup refresh controller when component unmounts
+  useEffect(() => {
+    return () => {
+      if (refreshController) {
+        refreshController.abort();
+      }
+    };
+  }, [refreshController]);
+
+  const handleRefreshOrders = async () => {
+    // Cancel previous refresh if still running
+    if (refreshController) {
+      refreshController.abort();
+    }
+    
+    const newController = new AbortController();
+    setRefreshController(newController);
+    
     try {
-      const response = await fetch('http://localhost:5000/api/orders');
+      const response = await fetch('http://localhost:5000/api/orders', {
+        signal: newController.signal
+      });
       const data = await response.json();
       
       // Filter orders to show only today's orders
@@ -211,7 +251,11 @@ const DashboardMinimal = () => {
       
       setOrders(todayOrders);
     } catch (error) {
-      console.error('Error refreshing orders:', error);
+      if (error.name !== 'AbortError') {
+        console.error('Error refreshing orders:', error);
+      }
+    } finally {
+      setRefreshController(null);
     }
   };
   
