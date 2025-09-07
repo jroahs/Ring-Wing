@@ -486,18 +486,13 @@ const PointOfSale = () => {
       currentCart.map(i => {
         if (i._id === item._id && i.selectedSize === item.selectedSize) {
           const discountPerItem = i.price * 0.20; // 20% discount
-          const vatRate = 0.12; // 12% VAT rate
-          const priceWithoutVat = i.price / (1 + vatRate);
-          const vatExemptionPerItem = priceWithoutVat * vatRate;
           
           return {
             ...i,
             pwdSeniorDiscount: {
               applied: discountedQuantity > 0,
               discountedQuantity: discountedQuantity,
-              discountAmount: discountPerItem * discountedQuantity,
-              vatExempt: discountedQuantity > 0,
-              vatExemptionAmount: vatExemptionPerItem * discountedQuantity
+              discountAmount: discountPerItem * discountedQuantity
             }
           };
         }
@@ -513,18 +508,13 @@ const PointOfSale = () => {
       pendingOrderItems.map(i => {
         if (i._id === item._id && i.selectedSize === item.selectedSize) {
           const discountPerItem = i.price * 0.20; // 20% discount
-          const vatRate = 0.12; // 12% VAT rate
-          const priceWithoutVat = i.price / (1 + vatRate);
-          const vatExemptionPerItem = priceWithoutVat * vatRate;
           
           return {
             ...i,
             pwdSeniorDiscount: {
               applied: discountedQuantity > 0,
               discountedQuantity: discountedQuantity,
-              discountAmount: discountPerItem * discountedQuantity,
-              vatExempt: discountedQuantity > 0,
-              vatExemptionAmount: vatExemptionPerItem * discountedQuantity
+              discountAmount: discountPerItem * discountedQuantity
             }
           };
         }
@@ -558,27 +548,23 @@ const PointOfSale = () => {
     const currentCart = orderViewType === 'ready' ? readyOrderCart : pendingOrderCart;
     const subtotal = currentCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
     
-    // Calculate PWD/Senior discounts and VAT exemptions
-    const discountTotal = currentCart.reduce((sum, item) => {
+    // Calculate eligible items subtotal for PWD/Senior discount (20% flat rate)
+    const eligibleItemsSubtotal = currentCart.reduce((sum, item) => {
       if (item.pwdSeniorDiscount?.applied) {
-        return sum + (item.pwdSeniorDiscount.discountAmount || 0);
+        return sum + (item.price * item.quantity);
       }
       return sum;
     }, 0);
 
-    const vatExemptionTotal = currentCart.reduce((sum, item) => {
-      if (item.pwdSeniorDiscount?.applied && item.pwdSeniorDiscount?.vatExemptionAmount) {
-        return sum + item.pwdSeniorDiscount.vatExemptionAmount;
-      }
-      return sum;
-    }, 0);
+    // Apply 20% discount only to eligible items
+    const discount = eligibleItemsSubtotal * 0.20;
 
-    const total = subtotal - discountTotal - vatExemptionTotal;
+    // Final total = subtotal - discount
+    const total = subtotal - discount;
 
     return {
       subtotal: subtotal.toFixed(2),
-      discount: discountTotal.toFixed(2),
-      vatExemption: vatExemptionTotal.toFixed(2),
+      discount: discount.toFixed(2),
       total: total.toFixed(2)
     };
   };
@@ -631,7 +617,7 @@ const PointOfSale = () => {
     // Calculate totals for pending order items
     const pendingTotal = pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-    // Calculate PWD/Senior discounts and VAT exemptions for pending order
+    // Calculate PWD/Senior discounts for pending order (20% flat rate)
     const discountTotal = pendingOrderItems.reduce((sum, item) => {
       if (item.pwdSeniorDiscount?.applied) {
         return sum + (item.pwdSeniorDiscount.discountAmount || 0);
@@ -639,14 +625,7 @@ const PointOfSale = () => {
       return sum;
     }, 0);
 
-    const vatExemptionTotal = pendingOrderItems.reduce((sum, item) => {
-      if (item.pwdSeniorDiscount?.applied && item.pwdSeniorDiscount?.vatExemptionAmount) {
-        return sum + item.pwdSeniorDiscount.vatExemptionAmount;
-      }
-      return sum;
-    }, 0);
-
-    const totalDue = pendingTotal - discountTotal - vatExemptionTotal;
+    const totalDue = pendingTotal - discountTotal;
     // Use payment details directly if provided, otherwise fall back to state
     const cashValue = paymentDetails?.cashAmount ? parseFloat(paymentDetails.cashAmount) : parseFloat(cashAmount);
     const currentPaymentMethod = paymentDetails?.method || paymentMethod;
@@ -665,7 +644,6 @@ const PointOfSale = () => {
       const totals = {
         subtotal: pendingTotal,
         discount: discountTotal,
-        vatExemption: vatExemptionTotal,
         total: totalDue
       };
 
