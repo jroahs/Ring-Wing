@@ -583,15 +583,17 @@ const PointOfSale = () => {
     };
   };
 
-  const handlePrint = useReactToPrint({ content: () => receiptRef.current });  const processPayment = async () => {
+  const handlePrint = useReactToPrint({ content: () => receiptRef.current });  const processPayment = async (paymentDetails = null) => {
     const currentCart = orderViewType === 'ready' ? readyOrderCart : pendingOrderCart;
     const setCart = orderViewType === 'ready' ? setReadyOrderCart : setPendingOrderCart;
     
     const totals = calculateTotal();
-    const cashValue = parseFloat(cashAmount);
+    // Use payment details directly if provided, otherwise fall back to state
+    const cashValue = paymentDetails?.cashAmount ? parseFloat(paymentDetails.cashAmount) : parseFloat(cashAmount);
     const totalDue = parseFloat(totals.total);
+    const currentPaymentMethod = paymentDetails?.method || paymentMethod;
 
-    if (paymentMethod === 'cash') {
+    if (currentPaymentMethod === 'cash') {
       // Use centralized cash float validation
       const changeValidation = validateChange(cashValue, totalDue);
       if (!changeValidation.valid) {
@@ -605,9 +607,9 @@ const PointOfSale = () => {
     try {
       await new Promise(resolve => setTimeout(resolve, 100));
       await handlePrint();
-      await saveOrderToDB();      if (paymentMethod === 'cash') {
+      await saveOrderToDB();      if (currentPaymentMethod === 'cash') {
         // Use centralized cash float service to process the transaction
-        console.log('💳 Processing cash transaction:', { paymentMethod, cashValue, totalDue });
+        console.log('💳 Processing cash transaction:', { paymentMethod: currentPaymentMethod, cashValue, totalDue });
         await processTransaction(cashValue, totalDue, 'pos_order');
         console.log('💳 Cash transaction processed successfully');
       }
@@ -625,7 +627,7 @@ const PointOfSale = () => {
       console.error('Payment processing error:', error);
       alert('Error processing payment. Please try again.');
     }
-  };  const processPendingOrderPayment = async () => {
+  };  const processPendingOrderPayment = async (paymentDetails = null) => {
     // Calculate totals for pending order items
     const pendingTotal = pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
@@ -645,9 +647,11 @@ const PointOfSale = () => {
     }, 0);
 
     const totalDue = pendingTotal - discountTotal - vatExemptionTotal;
-    const cashValue = parseFloat(cashAmount);
+    // Use payment details directly if provided, otherwise fall back to state
+    const cashValue = paymentDetails?.cashAmount ? parseFloat(paymentDetails.cashAmount) : parseFloat(cashAmount);
+    const currentPaymentMethod = paymentDetails?.method || paymentMethod;
 
-    if (paymentMethod === 'cash') {
+    if (currentPaymentMethod === 'cash') {
       // Use centralized cash float validation
       const changeValidation = validateChange(cashValue, totalDue);
       if (!changeValidation.valid) {
@@ -665,14 +669,14 @@ const PointOfSale = () => {
         total: totalDue
       };
 
-      let paymentDetails = {};
-      if (paymentMethod === 'cash') {
-        paymentDetails = {
+      let paymentDetailsForOrder = {};
+      if (currentPaymentMethod === 'cash') {
+        paymentDetailsForOrder = {
           cashReceived: cashValue,
           change: cashValue - totalDue
         };
-      } else if (paymentMethod === 'e-wallet') {
-        paymentDetails = {
+      } else if (currentPaymentMethod === 'e-wallet') {
+        paymentDetailsForOrder = {
           eWalletProvider: eWalletDetails.provider,
           eWalletReferenceNumber: eWalletDetails.referenceNumber,
           eWalletName: eWalletDetails.name
@@ -687,12 +691,12 @@ const PointOfSale = () => {
           Authorization: `Bearer ${localStorage.getItem('token')}`
         },        body: JSON.stringify({
           status: 'received',
-          paymentMethod: paymentMethod,
+          paymentMethod: currentPaymentMethod,
           customerName: customerName || '', // Add customer name to pending order
           discountCards: discountCardDetails?.discountCards || [],
           totals: {
             ...totals,
-            ...paymentDetails
+            ...paymentDetailsForOrder
           },
           items: pendingOrderItems.map(item => ({
             name: item.name,
@@ -717,9 +721,11 @@ const PointOfSale = () => {
         throw new Error(errorData.message || 'Failed to update order');
       }      const orderData = await response.json();
 
-      if (paymentMethod === 'cash') {
+      if (currentPaymentMethod === 'cash') {
         // Use centralized cash float service to process the transaction
+        console.log('💳 Processing pending order cash transaction:', { paymentMethod: currentPaymentMethod, cashValue, totalDue });
         await processTransaction(cashValue, totalDue, `pending_order_${editingPendingOrder._id}`);
+        console.log('💳 Pending order cash transaction processed successfully');
       }
 
       // Set up receipt data using the actual order details
@@ -1616,14 +1622,11 @@ const PointOfSale = () => {
                   setDiscountCardDetails({ discountCards: paymentDetails.discountCards });
                 }
 
-                // Small delay to ensure state updates are processed
-                await new Promise(resolve => setTimeout(resolve, 0));
-
-                // Process the payment
+                // Process the payment with the payment details directly
                 if (isPendingOrderMode) {
-                  await processPendingOrderPayment();
+                  await processPendingOrderPayment(paymentDetails);
                 } else {
-                  await processPayment();
+                  await processPayment(paymentDetails);
                 }
               } catch (error) {
                 console.error('Payment processing error:', error);

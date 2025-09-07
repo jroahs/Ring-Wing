@@ -8,15 +8,9 @@ import { parseOrderText, findBestMenuItemMatch } from './utils/orderParser';
 import { detectOrderIntentWithAI } from './utils/aiOrderDetection';
 import { getLocalizedText } from './services/localizationService';
 import { addToCurrentOrder as addToCurrentOrderService } from './services/orderService'; // Added import
+import { colors } from './theme'; // Import centralized colors
 
 function ChatbotPage() {
-  const colors = {
-    primary: '#2e0304',
-    background: '#fefdfd',
-    accent: '#f1670f',
-    secondary: '#853619',
-    muted: '#ac9c9b'
-  };
   
   // ID generation to prevent duplicate keys
   const generateUniqueId = () => {
@@ -142,9 +136,14 @@ function ChatbotPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
   useEffect(() => {
-    fetch("http://localhost:5000/api/menu")
-      .then((res) => res.json())
-      .then((data) => {
+    const controller = new AbortController();
+    
+    const fetchMenuData = async () => {
+      try {
+        const response = await fetch("http://localhost:5000/api/menu", {
+          signal: controller.signal
+        });
+        const data = await response.json();
         const items = data.items || [];
         setMenuData(items);
         console.log(`Successfully loaded ${items.length} menu items for chatbot`);
@@ -156,19 +155,43 @@ function ChatbotPage() {
         } else {
           console.error('No menu items loaded from the database!');
         }
-      })
-      .catch((err) => console.error("Error fetching menu items:", err));
-      
-    // Fetch revenue data for better recommendations
-    fetch("http://localhost:5000/api/revenue/weekly")
-      .then((res) => res.json())
-      .then((data) => {
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error("Error fetching menu items:", err);
+        }
+      }
+    };
+    
+    const fetchRevenueData = async () => {
+      try {
+        const response = await fetch("http://localhost:5000/api/revenue/weekly", {
+          signal: controller.signal
+        });
+        const data = await response.json();
         if (data.success) {
           setRevenueData(data.data);
           console.log('Successfully loaded revenue data for recommendations');
         }
-      })
-      .catch((err) => console.error("Error fetching revenue data:", err));
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error("Error fetching revenue data:", err);
+        }
+      }
+    };
+    
+    fetchMenuData();
+    fetchRevenueData();
+    
+    return () => controller.abort();
+  }, []);
+
+  // Cleanup effect for AI requests
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, []);
 
   const getMenuContext = () => {
@@ -549,7 +572,7 @@ function ChatbotPage() {
     }
   };
   // Updated AI response function with proxy implementation
-  const getAIResponse = async (userInput, chatHistory = []) => {
+  const getAIResponse = async (userInput, chatHistory = [], signal = null) => {
     // Detect the language of the user input
     const detectedLanguage = detectLanguage(userInput);
     console.log('Detected language:', detectedLanguage);
@@ -643,7 +666,8 @@ ${popularItemsInfo}`
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: signal
       });
       
       if (!res.ok) {
@@ -682,6 +706,10 @@ ${popularItemsInfo}`
       
       return aiText;
     } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log('AI request was cancelled');
+        return null; // Return null to indicate cancelled request
+      }
       console.error("Error with AI service:", error);
       return "Sorry, I'm having trouble connecting to the AI service. Please try again in a moment.";
     }
@@ -852,7 +880,7 @@ ${popularItemsInfo}`
     }]);
   };
   
-  const sendOrderToBackend = async (order) => {
+  const sendOrderToBackend = async (order, signal = null) => {
     console.log("Sending order to backend:", order);
     
     // Format the order to exactly match what SelfCheckout.jsx uses
@@ -877,13 +905,22 @@ ${popularItemsInfo}`
       const response = await fetch('http://localhost:5000/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderData)
+        body: JSON.stringify(orderData),
+        signal: signal
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       
       const data = await response.json();
       console.log("Order submitted successfully:", data);
       return data.data.receiptNumber; // Match the expected response structure
     } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log('Order submission was cancelled');
+        return null;
+      }
       console.error("Error submitting order:", error);
       alert("There was a problem submitting your order. Please try again.");
       return null;
@@ -2027,7 +2064,15 @@ ${popularItemsInfo}`
     }
     // Menu-related queries
     else if (input.includes('menu')) {
-      const aiText = await getAIResponse(userMessage.text, chatHistory);
+      // Cancel any existing AI request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      
+      const aiText = await getAIResponse(userMessage.text, chatHistory, abortControllerRef.current.signal);
+      if (aiText === null) return; // Request was cancelled
+      
       setMessages(prev => [...prev, {
         id: generateUniqueId(),
         text: aiText,
@@ -2077,7 +2122,15 @@ ${popularItemsInfo}`
         setIsTyping(false);
         staticResponseSent = true;
       } else {
-        const aiText = await getAIResponse(userMessage.text, chatHistory);
+        // Cancel any existing AI request
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+        
+        const aiText = await getAIResponse(userMessage.text, chatHistory, abortControllerRef.current.signal);
+        if (aiText === null) return; // Request was cancelled
+        
         setMessages(prev => [
           ...prev,
           {
@@ -2134,7 +2187,14 @@ ${popularItemsInfo}`
         
         console.log('Enhanced input with context:', enhancedInput);
         
-        const aiText = await getAIResponse(enhancedInput, chatHistory);
+        // Cancel any existing AI request
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+        
+        const aiText = await getAIResponse(enhancedInput, chatHistory, abortControllerRef.current.signal);
+        if (aiText === null) return; // Request was cancelled
         
         // For recommendations or menu queries, show actual menu items with images
         const shouldShowMenuItems = 

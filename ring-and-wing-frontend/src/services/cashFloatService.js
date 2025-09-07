@@ -258,11 +258,31 @@ class CashFloatService {
    * Process a cash transaction (reduce float for change)
    */
   async processTransaction(cashAmount, orderTotal, orderId = null) {
+    console.log('🔍 CashFloatService.processTransaction - Input values:', {
+      cashAmount,
+      orderTotal,
+      cashAmountType: typeof cashAmount,
+      orderTotalType: typeof orderTotal,
+      orderId
+    });
+    
     const numCashAmount = this.parseCurrency(cashAmount);
     const numTotal = this.parseCurrency(orderTotal);
     
+    console.log('🔍 CashFloatService.processTransaction - Parsed values:', {
+      numCashAmount,
+      numTotal,
+      difference: numCashAmount - numTotal
+    });
+    
     if (numCashAmount < numTotal) {
-      throw new Error(`Insufficient cash amount. Need ₱${this.formatCurrency(numTotal - numCashAmount)} more`);
+      const shortfall = numTotal - numCashAmount;
+      console.error('🚫 Insufficient cash amount:', {
+        cashAmount: numCashAmount,
+        orderTotal: numTotal,
+        shortfall
+      });
+      throw new Error(`Insufficient cash amount. Need ₱${this.formatCurrency(shortfall)} more`);
     }
 
     const change = numCashAmount - numTotal;

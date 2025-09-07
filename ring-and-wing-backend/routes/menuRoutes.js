@@ -4,6 +4,7 @@ const MenuItem = require('../models/MenuItem');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const { lightCheck, standardCheck, criticalCheck } = require('../middleware/dbConnectionMiddleware');
 
 // Configure storage with better filename handling
 const storage = multer.diskStorage({
@@ -47,7 +48,7 @@ const parseJSONField = (fieldName, str) => {
 };
 
 // GET all menu items with pagination
-router.get('/', async (req, res) => {
+router.get('/', lightCheck, async (req, res) => {
   try {
     const { page = 1, limit = 50 } = req.query;
     const items = await MenuItem.find()
@@ -68,7 +69,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST new menu item with validation
-router.post('/', upload.single('image'), async (req, res) => {
+router.post('/', criticalCheck, upload.single('image'), async (req, res) => {
   try {
     const requiredFields = ['code', 'name', 'category', 'subCategory', 'pricing'];
     const missingFields = requiredFields.filter(field => !req.body[field]);
@@ -114,7 +115,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 });
 
 // PUT update menu item with atomic operations
-router.put('/:id', upload.single('image'), async (req, res) => {
+router.put('/:id', criticalCheck, upload.single('image'), async (req, res) => {
   try {
     const { id } = req.params;
     const updates = {
@@ -168,7 +169,7 @@ router.put('/:id', upload.single('image'), async (req, res) => {
 });
 
 // DELETE menu item with error handling
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', criticalCheck, async (req, res) => {
   try {
     const item = await MenuItem.findByIdAndDelete(req.params.id);
     

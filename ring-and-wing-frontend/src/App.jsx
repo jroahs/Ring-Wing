@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Outlet, Navigate, useNavigate }
 import { ToastContainer, toast } from 'react-toastify';
 import { useState, useEffect } from 'react';
 import 'react-toastify/dist/ReactToastify.css';
+import './styles/scrollbar.css'; // Import custom scrollbar styles
 import Login from './Login';
 import Dashboard from './Dashboard';
 import Chatbot from './Chatbot';

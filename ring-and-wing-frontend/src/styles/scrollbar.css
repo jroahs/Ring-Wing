@@ -1,0 +1,222 @@
+/* Custom Scrollbar Styles for Ring & Wing Café */
+
+/* CSS Custom Properties for Ring & Wing Theme Colors */
+:root {
+  --rw-primary: #2e0304;
+  --rw-background: #fefdfd;
+  --rw-accent: #f1670f;
+  --rw-secondary: #853619;
+  --rw-muted: #ac9c9b;
+  --rw-accent-light: #f1670f30;
+  --rw-accent-medium: #f1670f40;
+  --rw-accent-heavy: #f1670f60;
+  --rw-accent-strong: #f1670f80;
+}
+
+/* Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--rw-accent) 0%, var(--rw-secondary) 100%);
+  border-radius: 10px;
+  border: 1px solid var(--rw-accent-light);
+  transition: all 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--rw-accent) 0%, var(--rw-primary) 100%);
+  border-color: var(--rw-accent-heavy);
+  box-shadow: 0 2px 8px rgba(241, 103, 15, 0.3);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--rw-primary);
+  border-color: var(--rw-accent);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--rw-accent) transparent;
+}
+
+/* Custom scrollbar for dark containers */
+.dark-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dark-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--rw-accent) 0%, var(--rw-secondary) 100%);
+  border: 1px solid var(--rw-accent-medium);
+}
+
+.dark-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--rw-accent) 0%, var(--rw-background) 100%);
+  border-color: var(--rw-accent-strong);
+  box-shadow: 0 2px 8px rgba(241, 103, 15, 0.4);
+}
+
+/* Thin scrollbar variant */
+.thin-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--rw-accent);
+  border-radius: 6px;
+  border: none;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--rw-secondary);
+  box-shadow: 0 1px 4px rgba(241, 103, 15, 0.3);
+}
+
+/* Invisible scrollbar but still functional */
+.invisible-scrollbar::-webkit-scrollbar {
+  width: 0px;
+  height: 0px;
+}
+
+.invisible-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* Table scrollbar */
+.table-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.table-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.table-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--rw-muted);
+  border-radius: 3px;
+}
+
+.table-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--rw-accent);
+}
+
+/* Modal/Popup scrollbar */
+.modal-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 8px;
+}
+
+.modal-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--rw-accent);
+  border-radius: 8px;
+  border: 2px solid transparent;
+}
+
+.modal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--rw-secondary);
+  border-color: transparent;
+}
+
+/* Sidebar scrollbar */
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--rw-accent-heavy);
+  border-radius: 2px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--rw-accent);
+}
+
+/* Animation for smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar for specific components */
+.staff-list-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.staff-list-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 6px;
+}
+
+.staff-list-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--rw-accent);
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+
+.staff-list-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--rw-secondary);
+  border-color: transparent;
+}
+
+/* Menu management scrollbar */
+.menu-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.menu-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 8px;
+}
+
+.menu-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(45deg, var(--rw-accent), var(--rw-secondary));
+  border-radius: 8px;
+}
+
+.menu-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(45deg, var(--rw-secondary), var(--rw-primary));
+  box-shadow: 0 2px 6px rgba(241, 103, 15, 0.3);
+}
+
+/* Inventory scrollbar */
+.inventory-scrollbar::-webkit-scrollbar {
+  width: 7px;
+}
+
+.inventory-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 7px;
+}
+
+.inventory-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--rw-secondary);
+  border-radius: 7px;
+}
+
+.inventory-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--rw-accent);
+  box-shadow: 0 1px 4px rgba(133, 54, 25, 0.3);
+}

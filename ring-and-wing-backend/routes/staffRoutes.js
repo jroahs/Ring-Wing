@@ -287,12 +287,21 @@ router.put('/:id', auth, async (req, res) => {
           }
         }
         
-        // Update the user document
-        updatedUser = await User.findByIdAndUpdate(
-          staff.userId,
-          userUpdates,
-          { new: true, runValidators: true, select: '-password' }
-        );
+        // Update the user document using .save() to ensure middleware runs
+        const user = await User.findById(staff.userId);
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+        
+        // Apply updates to the user object
+        Object.assign(user, userUpdates);
+        
+        // Save the user (this will trigger password hashing middleware if password was updated)
+        updatedUser = await user.save();
+        
+        // Remove password from the response
+        updatedUser = updatedUser.toObject();
+        delete updatedUser.password;
 
         console.log('Updated user information:', {
           username: updatedUser.username,

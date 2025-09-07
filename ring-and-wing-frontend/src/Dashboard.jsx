@@ -1,15 +1,8 @@
 // filepath: c:\Games\Ring-Wing\ring-and-wing-frontend\src\Dashboard.jsx
 import DashboardMinimal from './components/DashboardMinimal';
+import { colors } from './theme'; // Import centralized colors
 
 function Dashboard() {
-  const colors = {
-    primary: '#2e0304',
-    background: '#fefdfd',
-    accent: '#f1670f',
-    secondary: '#853619',
-    muted: '#ac9c9b',
-    activeBg: '#f1670f20'
-  };
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.background }}>
       <main className="p-4 sm:p-6" style={{ color: colors.primary }}>

@@ -1,15 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { DashboardGridMinimal } from './ui/DashboardGridMinimal';
-
-const colors = {
-  primary: '#2e0304',
-  background: '#fefdfd',
-  accent: '#f1670f',
-  secondary: '#853619',
-  muted: '#ac9c9b',
-  activeBg: '#f1670f20'
-};
+import { colors } from '../theme'; // Import centralized colors
 
 const DashboardMinimal = () => {
   const [orders, setOrders] = useState([]);

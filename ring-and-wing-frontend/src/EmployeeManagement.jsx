@@ -8,14 +8,9 @@ import { toast } from 'react-toastify';
 import { StaffForm, Button } from './components/ui';
 import { PasswordInput } from './components/ui/PasswordInput';
 import StaffAvatar from './components/StaffAvatar'; // Import StaffAvatar component
+import { colors } from './theme'; // Import centralized colors
 
-const StaffManagement = () => {  const colors = {
-    primary: '#2e0304',
-    background: '#fefdfd',
-    accent: '#f1670f',
-    secondary: '#853619',
-    muted: '#ac9c9b'
-  };
+const StaffManagement = () => {
 
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);const [staff, setStaff] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,8 +21,10 @@ const StaffManagement = () => {  const colors = {
   const [showAccountDetails, setShowAccountDetails] = useState(false);
   const [formErrors, setFormErrors] = useState({});  const [isTerminationModalOpen, setIsTerminationModalOpen] = useState(false);
   const [staffToTerminate, setStaffToTerminate] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('All'); // Filter for staff status
+  const [statusFilter, setStatusFilter] = useState('Active'); // Default to Active only
   const [searchQuery, setSearchQuery] = useState(''); // Search functionality
+  const [currentPage, setCurrentPage] = useState(1); // Pagination
+  const [itemsPerPage] = useState(12); // Items per page
   const statusOptions = ['Active', 'On Leave', 'Inactive'];
   const allStatusOptions = ['All', 'Active', 'On Leave', 'Inactive', 'Terminated', 'Resigned', 'Suspended'];
   const positionOptions = [
@@ -652,6 +649,97 @@ const StaffManagement = () => {  const colors = {
     return statusMatch && searchMatch;
   });
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredStaff.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedStaff = filteredStaff.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, searchQuery]);
+
+  // Pagination component
+  const PaginationControls = ({ className = "" }) => {
+    if (totalPages <= 1) return null;
+
+    const getPageNumbers = () => {
+      const pages = [];
+      const maxVisible = 5;
+      
+      if (totalPages <= maxVisible) {
+        for (let i = 1; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        if (currentPage <= 3) {
+          for (let i = 1; i <= 4; i++) pages.push(i);
+          pages.push('...');
+          pages.push(totalPages);
+        } else if (currentPage >= totalPages - 2) {
+          pages.push(1);
+          pages.push('...');
+          for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+        } else {
+          pages.push(1);
+          pages.push('...');
+          for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+          pages.push('...');
+          pages.push(totalPages);
+        }
+      }
+      return pages;
+    };
+
+    return (
+      <div className={`flex items-center justify-center gap-2 ${className}`}>
+        <button
+          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+          disabled={currentPage === 1}
+          className="px-3 py-1 rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ 
+            backgroundColor: currentPage === 1 ? colors.muted + '40' : colors.accent,
+            color: currentPage === 1 ? colors.muted : colors.background
+          }}
+        >
+          ←
+        </button>
+
+        {getPageNumbers().map((page, index) => (
+          page === '...' ? (
+            <span key={index} className="px-2 text-sm" style={{ color: colors.muted }}>...</span>
+          ) : (
+            <button
+              key={page}
+              onClick={() => setCurrentPage(page)}
+              className="px-3 py-1 rounded text-sm font-medium"
+              style={{ 
+                backgroundColor: currentPage === page ? colors.accent : colors.background,
+                color: currentPage === page ? colors.background : colors.primary,
+                border: `1px solid ${currentPage === page ? colors.accent : colors.muted}`
+              }}
+            >
+              {page}
+            </button>
+          )
+        ))}
+
+        <button
+          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+          disabled={currentPage === totalPages}
+          className="px-3 py-1 rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ 
+            backgroundColor: currentPage === totalPages ? colors.muted + '40' : colors.accent,
+            color: currentPage === totalPages ? colors.muted : colors.background
+          }}
+        >
+          →
+        </button>
+      </div>
+    );
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'Active': return colors.accent;
@@ -754,50 +842,88 @@ const StaffManagement = () => {  const colors = {
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">              {/* Staff List */}
-              <div className="lg:col-span-1">                <div className="rounded-lg p-4 shadow-sm" style={{ backgroundColor: colors.primary }}>
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold" style={{ color: colors.background }}>
-                      <FiUser className="inline mr-2" />
-                      Staff Members ({filteredStaff.length})
-                    </h2>
-                    {/* Status Filter */}
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                      className="text-xs px-2 py-1 rounded border focus:outline-none focus:ring-2 focus:ring-orange-400 shadow-sm"
-                      style={{
-                        backgroundColor: colors.background,
-                        color: colors.primary,
-                        borderColor: colors.accent,
-                        boxShadow: '0 1px 4px rgba(0,0,0,0.07)'
-                      }}
-                    >
-                      {allStatusOptions.map(status => (
-                        <option key={status} value={status}>{status}</option>
-                      ))}
-                    </select>
+              <div className="lg:col-span-1">
+                <div className="rounded-lg p-4 shadow-sm" style={{ backgroundColor: colors.primary }}>
+                  <div className="flex flex-col gap-3 mb-4">
+                    <div className="flex justify-between items-center gap-3">
+                      <h2 className="text-xl font-semibold flex-shrink-0" style={{ color: colors.background }}>
+                        <FiUser className="inline mr-2" />
+                        Staff Members ({filteredStaff.length})
+                      </h2>
+                      
+                      {/* Search Input - moved beside title */}
+                      <div className="relative flex-1 max-w-xs">
+                        <input
+                          type="text"
+                          placeholder="Search staff..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full px-3 py-1.5 pr-8 text-xs rounded border focus:outline-none focus:ring-1 focus:ring-orange-400"
+                          style={{ 
+                            borderColor: colors.muted,
+                            backgroundColor: colors.background,
+                            color: colors.primary 
+                          }}
+                        />
+                        {searchQuery && (
+                          <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs"
+                            style={{ color: colors.muted }}
+                            title="Clear search"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Status Filter Badges - optimized for single line */}
+                    <div className="flex flex-wrap gap-1 text-xs">
+                      {allStatusOptions.map(status => {
+                        const count = staff.filter(s => status === 'All' || s.status === status).length;
+                        return (
+                          <button
+                            key={status}
+                            onClick={() => setStatusFilter(status)}
+                            className="px-2 py-0.5 rounded text-xs font-medium transition-all duration-200 whitespace-nowrap"
+                            style={{
+                              backgroundColor: statusFilter === status ? colors.accent : colors.background,
+                              color: statusFilter === status ? colors.background : colors.primary,
+                              border: `1px solid ${statusFilter === status ? colors.accent : colors.muted}`,
+                              fontSize: '11px'
+                            }}
+                          >
+                            {status} ({count})
+                          </button>
+                        );
+                      })}
+                      {/* Reset Filters Button */}
+                      {(statusFilter !== 'Active' || searchQuery) && (
+                        <button
+                          onClick={() => {
+                            setStatusFilter('Active');
+                            setSearchQuery('');
+                          }}
+                          className="px-2 py-0.5 rounded text-xs underline"
+                          style={{ color: colors.background, fontSize: '11px' }}
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Results summary */}
+                    <div className="text-xs" style={{ color: colors.background + 'CC' }}>
+                      Showing {paginatedStaff.length} of {filteredStaff.length} staff members
+                      {totalPages > 1 && ` • Page ${currentPage} of ${totalPages}`}
+                    </div>
                   </div>
                   
-                  {/* Search Input */}
-                  <div className="mb-4">
-                    <input
-                      type="text"
-                      placeholder="Search by name, position, or email..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded border"
-                      style={{ 
-                        borderColor: colors.muted,
-                        backgroundColor: colors.background,
-                        color: colors.primary 
-                      }}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
+                  <div className="space-y-2 staff-list-scrollbar" style={{ maxHeight: '400px', overflowY: 'auto', overflowX: 'hidden' }}>
                     {filteredStaff.length === 0 ? (
                       <div 
-                        className="text-center py-4" 
+                        className="text-center py-8" 
                         style={{ color: colors.background }}
                       >
                         {statusFilter === 'All' 
@@ -807,7 +933,7 @@ const StaffManagement = () => {  const colors = {
                       </div>
                     ) : (
                       <AnimatePresence>
-                        {filteredStaff.map((staffMember) => (
+                        {paginatedStaff.map((staffMember) => (
                           <motion.div 
                             key={staffMember._id || `staff-${Math.random()}`} 
                             className="p-3 rounded flex justify-between items-center"
@@ -838,11 +964,12 @@ const StaffManagement = () => {  const colors = {
                                     {staffMember.position}
                                   </p>
                                   <span 
-                                    className="text-xs px-2 py-0.5 rounded-full"
+                                    className="text-xs px-2 py-0.5 rounded-full font-medium"
                                     style={{ 
                                       backgroundColor: getStatusColor(staffMember.status) + '20',
                                       color: getStatusColor(staffMember.status),
-                                      fontSize: '10px'
+                                      fontSize: '10px',
+                                      fontWeight: '600'
                                     }}
                                   >
                                     {staffMember.status}
@@ -896,6 +1023,9 @@ const StaffManagement = () => {  const colors = {
                       </AnimatePresence>
                     )}
                   </div>
+
+                  {/* Pagination Controls */}
+                  <PaginationControls className="mt-4" />
                 </div>
               </div>
 
