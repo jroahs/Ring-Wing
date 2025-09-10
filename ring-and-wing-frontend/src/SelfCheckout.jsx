@@ -80,23 +80,26 @@ const SelfCheckout = () => {
   const [orderSubmitted, setOrderSubmitted] = useState(false);
 
   const filteredItems = useMemo(() => 
-    menuItems.filter(item =>
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.code && item.code.toLowerCase().includes(searchTerm.toLowerCase()))
-    )
+    menuItems
+      .filter(item => item.isAvailable !== false) // Filter out unavailable items
+      .filter(item =>
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.code && item.code.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
   , [menuItems, searchTerm]);
 
   useEffect(() => {
     const fetchMenuItems = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/menu`);
+        const response = await fetch(`${API_URL}/api/menu?limit=1000`);
         const data = await response.json();
         const items = Array.isArray(data) ? data : data.items || [];
         setMenuItems(items.map(item => ({
           ...item,
           image: item.image ? `${API_URL}${item.image}` : null,
           pricing: item.pricing || { base: 0 },
-          modifiers: item.modifiers || []
+          modifiers: item.modifiers || [],
+          isAvailable: item.isAvailable // Include availability status
         })));
       } catch (err) {
         setError('Failed to load menu');
@@ -105,6 +108,38 @@ const SelfCheckout = () => {
       }
     };
     fetchMenuItems();
+  }, []);
+
+  // Add refresh functionality for menu updates
+  useEffect(() => {
+    const refreshMenuData = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/menu?limit=1000`);
+        const data = await response.json();
+        const items = Array.isArray(data) ? data : data.items || [];
+        setMenuItems(items.map(item => ({
+          ...item,
+          image: item.image ? `${API_URL}${item.image}` : null,
+          pricing: item.pricing || { base: 0 },
+          modifiers: item.modifiers || [],
+          isAvailable: item.isAvailable
+        })));
+      } catch (err) {
+        console.warn('Menu refresh failed:', err);
+      }
+    };
+
+    // Refresh on window focus
+    const handleFocus = () => refreshMenuData();
+    window.addEventListener('focus', handleFocus);
+
+    // Periodic refresh every 30 seconds
+    const intervalId = setInterval(refreshMenuData, 30000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(intervalId);
+    };
   }, []);
 
   const generateReceiptNumber = () => {
@@ -295,6 +330,7 @@ const SelfCheckout = () => {
             <div className="p-4 grid grid-cols-2 gap-4">
               {menuItems
                 .filter(item => item.category === 'Meals')
+                .filter(item => item.isAvailable !== false) // Filter out unavailable items
                 .filter(item => 
                   searchTerm === '' || 
                   item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -342,6 +378,7 @@ const SelfCheckout = () => {
             <div className="p-4 grid grid-cols-2 gap-4">
               {menuItems
                 .filter(item => item.category === 'Beverages')
+                .filter(item => item.isAvailable !== false) // Filter out unavailable items
                 .filter(item => 
                   searchTerm === '' || 
                   item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

@@ -1,29 +1,61 @@
 import { theme } from '../../theme';
 import { motion } from 'framer-motion';
 
-export const MenuItemCard = ({ item, onClick }) => {
+export const MenuItemCard = ({ item, onClick, isUnavailable = false }) => {
   const basePrice = item.pricing.base || Object.values(item.pricing)[0];
   
   // Get a more readable display for pricing variants if available
   const hasSizeVariants = Object.keys(item.pricing).length > 1;
   const priceDisplay = typeof basePrice === 'number' ? basePrice.toFixed(0) : basePrice;
   
+  const handleClick = () => {
+    if (!isUnavailable && onClick) {
+      onClick();
+    }
+  };
+  
   return (
     <motion.div
-      className="relative rounded-xl overflow-hidden cursor-pointer aspect-square group"
-      onClick={onClick}
-      whileHover={{ 
+      className={`relative rounded-xl overflow-hidden aspect-square group ${
+        isUnavailable ? 'cursor-not-allowed' : 'cursor-pointer'
+      }`}
+      onClick={handleClick}
+      whileHover={!isUnavailable ? { 
         scale: 1.03, 
         boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)'
-      }}
-      whileTap={{ scale: 0.98 }}
+      } : {}}
+      whileTap={!isUnavailable ? { scale: 0.98 } : {}}
       transition={{ duration: 0.2 }}
       style={{ 
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+        opacity: isUnavailable ? 0.6 : 1
       }}
     >
       {/* Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-70 z-10"></div>
+      
+      {/* Unavailable overlay */}
+      {isUnavailable && (
+        <>
+          {/* Gray overlay */}
+          <div className="absolute inset-0 bg-gray-500/40 z-15"></div>
+          
+          {/* Orange line with UNAVAILABLE text */}
+          <div 
+            className="absolute inset-x-0 z-20 flex items-center justify-center"
+            style={{ 
+              top: '50%', 
+              transform: 'translateY(-50%)',
+              height: '32px',
+              backgroundColor: theme.colors.primary
+            }}
+          >
+            <span className="text-white font-bold text-sm tracking-wide">
+              UNAVAILABLE
+            </span>
+          </div>
+        </>
+      )}
         {/* Item code badge */}
       <div 
         className="absolute top-2 left-2 rounded-full px-3 py-1.5 text-sm font-bold z-20 flex items-center justify-center"
@@ -104,7 +136,9 @@ export const MenuItemCard = ({ item, onClick }) => {
       </div>
       
       {/* Hover effect overlay */}
-      <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-20 transition-opacity duration-300 z-10"></div>
+      {!isUnavailable && (
+        <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-20 transition-opacity duration-300 z-10"></div>
+      )}
     </motion.div>
   );
 };

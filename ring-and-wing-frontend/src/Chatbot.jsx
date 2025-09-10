@@ -108,6 +108,11 @@ function ChatbotPage() {
   const [lastSuggestionTime, setLastSuggestionTime] = useState(null);
   
   // State for tracking pairing context
+  
+  // Helper function to get only available menu items
+  const getAvailableMenuItems = () => {
+    return menuData.filter(item => item.isAvailable !== false);
+  };
   const [pairingContext, setPairingContext] = useState(null); // { mainItem: string, timestamp: number }
   
   const menuSuggestions = [
@@ -140,7 +145,7 @@ function ChatbotPage() {
     
     const fetchMenuData = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/menu", {
+        const response = await fetch("http://localhost:5000/api/menu?limit=1000", {
           signal: controller.signal
         });
         const data = await response.json();
@@ -185,6 +190,33 @@ function ChatbotPage() {
     return () => controller.abort();
   }, []);
 
+  // Add refresh functionality for menu updates
+  useEffect(() => {
+    const refreshMenuData = async () => {
+      try {
+        const response = await fetch("http://localhost:5000/api/menu?limit=1000");
+        const data = await response.json();
+        const items = data.items || [];
+        setMenuData(items);
+        console.log(`Menu refreshed: ${items.length} items loaded`);
+      } catch (err) {
+        console.warn('Menu refresh failed:', err);
+      }
+    };
+
+    // Refresh on window focus
+    const handleFocus = () => refreshMenuData();
+    window.addEventListener('focus', handleFocus);
+
+    // Periodic refresh every 30 seconds
+    const intervalId = setInterval(refreshMenuData, 30000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(intervalId);
+    };
+  }, []);
+
   // Cleanup effect for AI requests
   useEffect(() => {
     return () => {
@@ -195,9 +227,10 @@ function ChatbotPage() {
   }, []);
 
   const getMenuContext = () => {
-    if (!menuData.length) return "No menu items available";
+    const availableItems = getAvailableMenuItems();
+    if (!availableItems.length) return "No menu items available";
     
-    return menuData.map(menuItem => {
+    return availableItems.map(menuItem => {
       const prices = menuItem.pricing 
         ? Object.entries(menuItem.pricing)
             .map(([size, price]) => `${size}: ₱${price}`)
@@ -238,13 +271,14 @@ function ChatbotPage() {
     }
   
     // Extract menu item names for better recognition
-    const menuNames = menuData.map(item => item.name.toLowerCase());
+    const availableItems = getAvailableMenuItems();
+    const menuNames = availableItems.map(item => item.name.toLowerCase());
     const mentionedItems = sanitizedText.split(/[\s.,]+/).filter(word =>
       menuNames.includes(word.toLowerCase())
     );
     
     // Categorize menu items by type for better contextual recommendations
-    const coldDrinks = menuData.filter(item => 
+    const coldDrinks = availableItems.filter(item => 
       (item.category === 'Beverages' && 
       (item.subCategory === 'Cold Drinks' || 
        item.name.toLowerCase().includes('iced') || 
@@ -254,13 +288,13 @@ function ChatbotPage() {
        item.name.toLowerCase().includes('milktea')))
     );
     
-    const desserts = menuData.filter(item => 
+    const desserts = availableItems.filter(item => 
       item.category === 'Desserts' || 
       item.name.toLowerCase().includes('cake') || 
       item.name.toLowerCase().includes('ice cream')
     );
     
-    const lightMeals = menuData.filter(item => 
+    const lightMeals = availableItems.filter(item => 
       (item.category === 'Food' && 
       (item.subCategory === 'Sandwiches' || 
        item.subCategory === 'Salads' || 
@@ -306,7 +340,7 @@ function ChatbotPage() {
       lowerUserQuery.includes('rain')
     ) {
       // Get hot drinks and comfort food
-      const hotDrinks = menuData.filter(item => 
+      const hotDrinks = availableItems.filter(item => 
         (item.category === 'Beverages' && 
         (item.subCategory === 'Hot Drinks' || 
          item.subCategory === 'Coffee' ||
@@ -314,7 +348,7 @@ function ChatbotPage() {
          item.name.toLowerCase().includes('tea') && !item.name.toLowerCase().includes('iced')))
       );
       
-      const comfortFood = menuData.filter(item => 
+      const comfortFood = availableItems.filter(item => 
         item.category === 'Food' && 
         (item.name.toLowerCase().includes('soup') || 
          item.name.toLowerCase().includes('stew') ||
@@ -347,7 +381,7 @@ function ChatbotPage() {
     
     // Handle time-of-day related queries
     if (lowerUserQuery.includes('breakfast') || lowerUserQuery.includes('morning')) {
-      const breakfastItems = menuData.filter(item => 
+      const breakfastItems = availableItems.filter(item => 
         item.subCategory === 'Breakfast' || 
         item.name.toLowerCase().includes('breakfast') ||
         item.name.toLowerCase().includes('egg') ||
@@ -355,7 +389,7 @@ function ChatbotPage() {
         item.name.toLowerCase().includes('toast')
       );
       
-      const morningDrinks = menuData.filter(item => 
+      const morningDrinks = availableItems.filter(item => 
         item.category === 'Beverages' && 
         (item.subCategory === 'Coffee' || 
          item.name.toLowerCase().includes('juice') ||
@@ -425,14 +459,14 @@ function ChatbotPage() {
         return responseText;
       } else {
         // Fall back to curated recommendations if no revenue data
-        const categories = [...new Set(menuData.map(item => item.category))];
+        const categories = [...new Set(availableItems.map(item => item.category))];
         let responseText = `I'd be happy to recommend some of our most popular items! `;
         
         // Try to recommend one item from each main category
         const recommendations = [];
         
         for (const category of categories) {
-          const itemsInCategory = menuData.filter(item => item.category === category);
+          const itemsInCategory = availableItems.filter(item => item.category === category);
           if (itemsInCategory.length > 0) {
             const randomItem = itemsInCategory[Math.floor(Math.random() * itemsInCategory.length)];
             recommendations.push({
@@ -481,7 +515,7 @@ function ChatbotPage() {
       else dietaryType = 'healthy';
       
       // Filter menu for these items - this is simplified and would need proper tagging in the database
-      const dietaryItems = menuData.filter(item => 
+      const dietaryItems = availableItems.filter(item => 
         (item.tags && item.tags.includes(dietaryType)) ||
         (item.description && item.description.toLowerCase().includes(dietaryType)) ||
         (dietaryType === 'healthy' && 
@@ -2287,14 +2321,14 @@ ${popularItemsInfo}`
           let relevantItems = [];
           
           if (query.includes('drink') || query.includes('beverage') || query.includes('thirsty')) {
-            relevantItems = menuData.filter(item => item.category === 'Beverages');
+            relevantItems = availableItems.filter(item => item.category === 'Beverages');
           } else if (query.includes('food') || query.includes('meal') || query.includes('hungry')) {
-            relevantItems = menuData.filter(item => item.category === 'Food');
+            relevantItems = availableItems.filter(item => item.category === 'Food');
           } else if (query.includes('dessert') || query.includes('sweet')) {
-            relevantItems = menuData.filter(item => item.category === 'Desserts');
+            relevantItems = availableItems.filter(item => item.category === 'Desserts');
           } else if (query.includes('hot') || query.includes('warm')) {
             // Suggests cold drinks and light foods for hot weather
-            relevantItems = menuData.filter(item => 
+            relevantItems = availableItems.filter(item => 
               (item.category === 'Beverages' && 
                (item.name.toLowerCase().includes('iced') || 
                 item.name.toLowerCase().includes('cold'))) || 
@@ -2302,7 +2336,7 @@ ${popularItemsInfo}`
             );
           } else if (query.includes('cold')) {
             // Suggests hot drinks and comfort foods for cold weather
-            relevantItems = menuData.filter(item => 
+            relevantItems = availableItems.filter(item => 
               (item.category === 'Beverages' && 
                (item.name.toLowerCase().includes('hot') || 
                 item.subCategory === 'Coffee')) || 
@@ -2329,7 +2363,7 @@ ${popularItemsInfo}`
               
               if (targetCategory) {
                 console.log(`🎯 Filtering for category: ${targetCategory}`);
-                const categoryItems = menuData.filter(item => 
+                const categoryItems = availableItems.filter(item => 
                   item.category === targetCategory && 
                   !relevantItems.some(existing => existing.name === item.name)
                 );
@@ -2341,13 +2375,13 @@ ${popularItemsInfo}`
                 relevantItems.push(...additionalItems);
               } else {
                 // Add more diverse items if we have space
-                const categories = [...new Set(menuData.map(item => item.category))];
+                const categories = [...new Set(availableItems.map(item => item.category))];
                 const itemsPerCategory = 1;
                 
                 for (const category of categories) {
                   if (relevantItems.length >= 6) break;
                   
-                  const itemsInCategory = menuData.filter(item => 
+                  const itemsInCategory = availableItems.filter(item => 
                     item.category === category && 
                     !relevantItems.some(existing => existing.name === item.name)
                   );
@@ -2364,12 +2398,12 @@ ${popularItemsInfo}`
               // Get names of top selling items
               const topSellerNames = revenueData.topItems.map(item => item.name);
               // Find these items in the menu data
-              relevantItems = menuData.filter(item => topSellerNames.includes(item.name));
+              relevantItems = availableItems.filter(item => topSellerNames.includes(item.name));
             } else {
               // If no revenue data, get a sampling of items across categories
-              const categories = [...new Set(menuData.map(item => item.category))];
+              const categories = [...new Set(availableItems.map(item => item.category))];
               for (const category of categories) {
-                const itemsInCategory = menuData.filter(item => item.category === category);
+                const itemsInCategory = availableItems.filter(item => item.category === category);
                 if (itemsInCategory.length > 0) {
                   // Get 1-2 random items from each category
                   const randomItems = itemsInCategory

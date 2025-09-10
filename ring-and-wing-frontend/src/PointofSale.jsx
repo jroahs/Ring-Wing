@@ -142,7 +142,7 @@ const PointOfSale = () => {
 
     const fetchMenuItems = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/menu', {
+        const response = await fetch('http://localhost:5000/api/menu?limit=1000', {
           signal: abortController.signal
         });
         if (!response.ok) throw new Error('Failed to fetch menu');
@@ -164,7 +164,8 @@ const PointOfSale = () => {
           description: item.description,
           image: item.image ? `http://localhost:5000${item.image}` : 
                  (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png'),
-          modifiers: item.modifiers || []
+          modifiers: item.modifiers || [],
+          isAvailable: item.isAvailable // Include availability status
         }));
 
         if (validatedItems.length === 0) {
@@ -185,6 +186,48 @@ const PointOfSale = () => {
 
     fetchMenuItems();
     return () => abortController.abort();
+  }, []);
+
+  // Add refresh functionality for menu updates
+  useEffect(() => {
+    const refreshMenuData = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/menu?limit=1000');
+        if (!response.ok) return;
+        const responseData = await response.json();
+        const rawData = Array.isArray(responseData) ? responseData : responseData.items || [];
+        
+        const transformedItems = rawData.map(item => ({
+          _id: item._id,
+          code: item.code || 'N/A',
+          name: item.name,
+          category: item.category,
+          subCategory: item.subCategory || '',
+          pricing: item.pricing,
+          description: item.description,
+          image: item.image ? `http://localhost:5000${item.image}` : 
+                 (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png'),
+          modifiers: item.modifiers || [],
+          isAvailable: item.isAvailable
+        }));
+        
+        setMenuItems(transformedItems);
+      } catch (err) {
+        console.warn('Menu refresh failed:', err);
+      }
+    };
+
+    // Refresh on window focus (when user returns to tab)
+    const handleFocus = () => refreshMenuData();
+    window.addEventListener('focus', handleFocus);
+
+    // Periodic refresh every 30 seconds
+    const intervalId = setInterval(refreshMenuData, 30000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(intervalId);
+    };
   }, []);
 
   // Debug function to check subcategories
@@ -847,11 +890,13 @@ const PointOfSale = () => {
   };// Filtered items is kept for compatibility with any existing code that might reference it
   // But filtering is now done directly in the render for each category section
   const filteredItems = useMemo(() => {
-    const searchFiltered = menuItems.filter(item =>
-      searchTerm === '' || 
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      item.code.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const searchFiltered = menuItems
+      // Remove isAvailable filter - show all items including unavailable ones
+      .filter(item =>
+        searchTerm === '' || 
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        item.code.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     
     // Now apply separate category filters
     if (activeCategory === 'Meals') {
@@ -1022,7 +1067,9 @@ const PointOfSale = () => {
                   >
                     <FiClock className="mr-2" />
                     <span className="hidden md:inline">Time Clock</span>
-                  </button>                  {/* Cash Float Settings Button (Manager Only) */}
+                  </button>
+                  
+                  {/* Cash Float Settings Button (Manager Only) */}
                   {isManager && (
                     <button
                       onClick={() => setShowCashFloatModal(true)}
@@ -1114,6 +1161,7 @@ const PointOfSale = () => {
                       {menuItems
                         .filter(item => 
                           item.category === 'Meals' && 
+                          // Remove isAvailable filter - show all items
                           (!selectedMealSubCategory || item.subCategory === selectedMealSubCategory) &&
                           (searchTerm === '' || 
                            item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -1123,7 +1171,8 @@ const PointOfSale = () => {
                           <div key={item._id} className="flex-shrink-0" style={{ width: '200px' }}>
                             <MenuItemCard
                               item={item}
-                              onClick={() => addToOrder(item)}
+                              onClick={() => item.isAvailable !== false ? addToOrder(item) : null}
+                              isUnavailable={item.isAvailable === false}
                             />
                           </div>
                         ))
@@ -1184,6 +1233,7 @@ const PointOfSale = () => {
                       {menuItems
                         .filter(item => 
                           item.category === 'Beverages' && 
+                          // Remove isAvailable filter - show all items
                           (!selectedBeverageSubCategory || item.subCategory === selectedBeverageSubCategory) &&
                           (searchTerm === '' || 
                            item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -1193,7 +1243,8 @@ const PointOfSale = () => {
                           <div key={item._id} className="flex-shrink-0" style={{ width: '200px' }}>
                             <MenuItemCard
                               item={item}
-                              onClick={() => addToOrder(item)}
+                              onClick={() => item.isAvailable !== false ? addToOrder(item) : null}
+                              isUnavailable={item.isAvailable === false}
                             />
                           </div>
                         ))

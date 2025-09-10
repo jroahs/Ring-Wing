@@ -308,51 +308,66 @@ const MenuPage = () => {
     }
   };
 
+  // Extract fetchData function to reuse for refresh
+  const fetchData = async (signal = null) => {
+    try {
+      const [menuRes, addOnsRes] = await Promise.all([
+        fetch('http://localhost:5000/api/menu?limit=1000', {  // High limit to get all items
+          signal: signal
+        }),
+        fetch('http://localhost:5000/api/add-ons', {
+          signal: signal
+        })
+      ]);
+
+      if (!menuRes.ok || !addOnsRes.ok) {
+        throw new Error('Failed to fetch data');
+      }
+
+      const [menuData, addOnsData] = await Promise.all([
+        menuRes.json(),
+        addOnsRes.json()
+      ]);
+
+      // Handle both array and object with items property response formats
+      const validMenuItems = Array.isArray(menuData) ? menuData : (menuData.items || []);
+      setMenuItems(validMenuItems);
+      setAddOns(addOnsData);
+      setError(null);
+    } catch (error) {
+      // Don't log AbortError - it's expected when component unmounts
+      if (error.name !== 'AbortError') {
+        console.error('Error fetching data:', error);
+        setError(error.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const controller = new AbortController();
+    fetchData(controller.signal);
     
-    const fetchData = async () => {
-      try {
-        const [menuRes, addOnsRes] = await Promise.all([
-          fetch('http://localhost:5000/api/menu', {
-            signal: controller.signal
-          }),
-          fetch('http://localhost:5000/api/add-ons', {
-            signal: controller.signal
-          })
-        ]);
+    return () => controller.abort();
+  }, []);
 
-        if (!menuRes.ok || !addOnsRes.ok) {
-          throw new Error('Failed to fetch data');
-        }
-
-        const [menuData, addOnsData] = await Promise.all([
-          menuRes.json().then(data => data.items || data), // Handle both array and paginated response
-          addOnsRes.json()
-        ]);
-
-        // Ensure menuItems is always an array
-        const validMenuItems = Array.isArray(menuData) ? menuData : [];
-        setMenuItems(validMenuItems);
-        setAddOns(addOnsData);
-        setError(null);
-      } catch (error) {
-        // Don't log AbortError - it's expected when component unmounts
-        if (error.name !== 'AbortError') {
-          console.error('Error fetching data:', error);
-          setError(error.message);
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
+  // Add refresh mechanisms for real-time updates
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      fetchData();
     };
 
-    fetchData();
-    
-    // Cleanup function to abort requests if component unmounts
-    return () => controller.abort();
+    const intervalId = setInterval(() => {
+      fetchData();
+    }, 30000); // Refresh every 30 seconds
+
+    window.addEventListener('focus', handleWindowFocus);
+
+    return () => {
+      window.removeEventListener('focus', handleWindowFocus);
+      clearInterval(intervalId);
+    };
   }, []);
 
   const handleImageChange = (e) => {
@@ -1056,7 +1071,35 @@ const MenuPage = () => {
           <div className="mt-1 text-xs text-gray-500">
             Tip: If you're not sure what to write, enter a simple description or ingredients, then click "Generate AI Description"
           </div>
-        </div>{/* Actions */}
+        </div>
+
+        {/* Availability Toggle Section */}
+        <div className="mb-8">
+          <h3 className="text-lg font-medium mb-4" style={{ color: colors.primary }}>
+            Availability
+          </h3>
+          <div className="flex items-center justify-between p-4 rounded-lg border" 
+               style={{ borderColor: colors.muted, backgroundColor: colors.background }}>
+            <div>
+              <label className="text-sm font-medium" style={{ color: colors.primary }}>
+                Item Available for Ordering
+              </label>
+              <p className="text-xs text-gray-500 mt-1">
+                When disabled, customers cannot order this item in the Point of Sale system
+              </p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                {...register('isAvailable')}
+                className="sr-only peer"
+              />
+              <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+            </label>
+          </div>
+        </div>
+
+        {/* Actions */}
         <div className="sticky bottom-0 bg-white pt-4 pb-2 border-t shadow-md"
           style={{ borderColor: colors.muted + '40', backgroundColor: colors.background }}>
           <div className="flex justify-end gap-3">
