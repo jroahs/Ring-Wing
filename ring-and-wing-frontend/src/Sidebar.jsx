@@ -45,6 +45,8 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
   const [openDropdown, setOpenDropdown] = useState(null);
   const [userData, setUserData] = useState(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const [hoveredItem, setHoveredItem] = useState(null);
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
   const dropdownRefs = useRef({});
   useEffect(() => {
     const handleResize = () => {
@@ -98,6 +100,9 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
     localStorage.removeItem('userData');
     navigate('/login');
   };  const handleDropdownToggle = (itemPath, event) => {
+    // Hide tooltip when dropdown is clicked
+    setHoveredItem(null);
+    
     if (openDropdown === itemPath) {
       setOpenDropdown(null);
     } else {
@@ -108,6 +113,21 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
       });
       setOpenDropdown(itemPath);
     }
+  };
+
+  const handleTooltipShow = (itemLabel, event) => {
+    if (!isMobile) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      setTooltipPosition({
+        top: rect.top + (rect.height / 2),
+        left: rect.right + 16
+      });
+      setHoveredItem(itemLabel);
+    }
+  };
+
+  const handleTooltipHide = () => {
+    setHoveredItem(null);
   };
 
   const isActive = (path) => location.pathname.startsWith(path);
@@ -137,18 +157,10 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
       positions: ['cashier', 'shift_manager', 'general_manager', 'admin']
     },
     { 
-      path: '/sales',
-      icon: <FiShoppingBag size={iconSize} className="text-white" />,
-      label: 'Sales',
-      positions: ['cashier', 'shift_manager', 'general_manager', 'admin'],
-      subItems: [
-        { 
-          path: '/orders', 
-          icon: <FiShoppingBag size={iconSize} style={{ color: colors.iconBrown }} />, 
-          label: 'Orders',
-          positions: ['cashier', 'shift_manager', 'general_manager', 'admin']
-        },
-      ]
+      path: '/orders', 
+      icon: <FiShoppingBag size={iconSize} className="text-white" />, 
+      label: 'Orders',
+      positions: ['cashier', 'shift_manager', 'general_manager', 'admin']
     },
     { 
       path: '/inventory-management',
@@ -391,23 +403,14 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
                     backgroundColor: isParentActive(item.subItems) ? colors.activeBg : 'transparent',
                   }}
                   onClick={(e) => handleDropdownToggle(item.path, e)}
+                  onMouseEnter={(e) => handleTooltipShow(item.label, e)}
+                  onMouseLeave={handleTooltipHide}
                   data-dropdown={item.path}
                 >
                   <div className="flex items-center">
                     {item.icon}
                     {isMobile && (
                       <span className="ml-3 text-white font-medium">{item.label}</span>
-                    )}
-                    {!isMobile && (
-                      <div className="absolute left-full ml-4 hidden group-hover:flex items-center">
-                        <div 
-                          className="relative whitespace-nowrap rounded-md bg-white px-4 py-2 font-semibold text-gray-900 drop-shadow-lg border border-gray-200"
-                          style={{ fontSize: tooltipTextSize }}
-                        >
-                          <div className="absolute right-full top-1/2 -translate-y-1/2 w-2 h-2 bg-white border-l border-t border-gray-200 rotate-45" />
-                          {item.label}
-                        </div>
-                      </div>
                     )}
                   </div>
                     <FiChevronDown 
@@ -425,21 +428,12 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
                     backgroundColor: isActive(item.path) ? colors.activeBg : 'transparent',
                   }}
                   onClick={() => isMobile && setIsOpen(false)}
+                  onMouseEnter={(e) => handleTooltipShow(item.label, e)}
+                  onMouseLeave={handleTooltipHide}
                 >
                   {item.icon}
                   {isMobile && (
                     <span className="ml-3 text-white font-medium">{item.label}</span>
-                  )}
-                  {!isMobile && (
-                    <div className="absolute left-full ml-4 hidden group-hover:flex items-center">
-                      <div 
-                        className="relative whitespace-nowrap rounded-md bg-white px-4 py-2 font-semibold text-gray-900 drop-shadow-lg border border-gray-200"
-                        style={{ fontSize: tooltipTextSize }}
-                      >
-                        <div className="absolute right-full top-1/2 -translate-y-1/2 w-2 h-2 bg-white border-l border-t border-gray-200 rotate-45" />
-                        {item.label}
-                      </div>
-                    </div>
                   )}
                 </Link>
               )}
@@ -452,10 +446,12 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
           <button
             onClick={handleLogout}
             className="rounded-full bg-gray-100 flex items-center justify-center p-2 hover:bg-gray-200"
-            title="Log Out"
+            onMouseEnter={(e) => handleTooltipShow('Log Out', e)}
+            onMouseLeave={handleTooltipHide}
           >
             <FiLogOut size={iconSize} className="text-gray-900" />
-          </button>        </div>
+          </button>
+        </div>
       </motion.div>      {/* Mobile Overlay */}
       {isMobile && isOpen && (
         <motion.div
@@ -465,6 +461,23 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
           className="fixed inset-0 bg-black z-[9990]"
           onClick={() => setIsOpen(false)}
         />
+      )}
+
+      {/* Tooltip Portal - Renders outside sidebar to avoid clipping */}
+      {hoveredItem && !isMobile && createPortal(
+        <div 
+          className="fixed bg-white rounded-md shadow-xl border border-gray-200 px-4 py-2 font-semibold text-gray-900 z-[10000] pointer-events-none whitespace-nowrap"
+          style={{ 
+            top: tooltipPosition.top - 12, // Center vertically
+            left: tooltipPosition.left,
+            fontSize: tooltipTextSize,
+            transform: 'translateY(-50%)'
+          }}
+        >
+          <div className="absolute right-full top-1/2 -translate-y-1/2 w-2 h-2 bg-white border-l border-t border-gray-200 rotate-45 transform" />
+          {hoveredItem}
+        </div>,
+        document.body
       )}
 
       {/* Dropdown Portal - Renders outside sidebar to avoid clipping */}

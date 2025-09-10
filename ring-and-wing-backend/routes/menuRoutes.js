@@ -47,6 +47,12 @@ const parseJSONField = (fieldName, str) => {
   }
 };
 
+// GET alternatives for a specific menu item (must be before general GET route)
+router.get('/:id/alternatives', lightCheck, async (req, res) => {
+  const menuController = require('../controllers/menuController');
+  await menuController.getItemAlternatives(req, res);
+});
+
 // GET all menu items with pagination
 router.get('/', lightCheck, async (req, res) => {
   try {

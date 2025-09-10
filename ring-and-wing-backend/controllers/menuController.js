@@ -181,3 +181,79 @@ exports.deleteMenuItem = async (req, res) => {
     });
   }
 };
+
+// Get alternatives for an unavailable menu item
+exports.getItemAlternatives = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Find the original item with populated alternatives
+    const originalItem = await MenuItem.findById(id)
+      .populate('alternatives', 'code name category subCategory pricing image isAvailable')
+      .populate('recommendedAlternative', 'code name category subCategory pricing image isAvailable');
+    
+    if (!originalItem) {
+      return res.status(404).json({ message: 'Menu item not found' });
+    }
+    
+    // Filter out any unavailable alternatives
+    const availableAlternatives = originalItem.alternatives.filter(alt => alt.isAvailable !== false);
+    
+    // Smart fallback: if no specific alternatives are mapped, suggest items from same subcategory
+    let fallbackAlternatives = [];
+    if (availableAlternatives.length === 0) {
+      fallbackAlternatives = await MenuItem.find({
+        _id: { $ne: id }, // Exclude the original item
+        category: originalItem.category,
+        subCategory: originalItem.subCategory,
+        isAvailable: { $ne: false }
+      })
+      .limit(4)
+      .select('code name category subCategory pricing image isAvailable');
+      
+      // If still no alternatives, try same category
+      if (fallbackAlternatives.length === 0) {
+        fallbackAlternatives = await MenuItem.find({
+          _id: { $ne: id },
+          category: originalItem.category,
+          isAvailable: { $ne: false }
+        })
+        .limit(4)
+        .select('code name category subCategory pricing image isAvailable');
+      }
+    }
+    
+    const alternatives = availableAlternatives.length > 0 ? availableAlternatives : fallbackAlternatives;
+    
+    // Check if recommended alternative is still available
+    let recommendedAlternative = null;
+    if (originalItem.recommendedAlternative && originalItem.recommendedAlternative.isAvailable !== false) {
+      recommendedAlternative = originalItem.recommendedAlternative;
+    } else if (alternatives.length > 0) {
+      // Default to first alternative as recommended
+      recommendedAlternative = alternatives[0];
+    }
+    
+    res.json({
+      originalItem: {
+        _id: originalItem._id,
+        code: originalItem.code,
+        name: originalItem.name,
+        category: originalItem.category,
+        subCategory: originalItem.subCategory,
+        pricing: originalItem.pricing,
+        image: originalItem.image
+      },
+      alternatives: alternatives,
+      recommendedAlternative: recommendedAlternative,
+      fallbackUsed: availableAlternatives.length === 0 && fallbackAlternatives.length > 0
+    });
+    
+  } catch (err) {
+    console.error('Error fetching item alternatives:', err);
+    res.status(500).json({ 
+      message: 'Server error fetching alternatives',
+      ...(process.env.NODE_ENV === 'development' && { error: err.message })
+    });
+  }
+};

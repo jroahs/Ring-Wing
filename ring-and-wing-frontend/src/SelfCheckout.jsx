@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { API_URL } from './App';
+import { AlternativesModal } from './components/ui/AlternativesModal';
+import { useAlternatives } from './hooks/useAlternatives';
+import SelfCheckoutAIAssistant from './components/ui/SelfCheckoutAIAssistant';
 
 const colors = {
   primary: '#2e0304',
@@ -79,9 +82,32 @@ const SelfCheckout = () => {
   const [activeTab, setActiveTab] = useState('menu');
   const [orderSubmitted, setOrderSubmitted] = useState(false);
 
+  // Alternatives modal functionality
+  const { modalState, showAlternatives, hideAlternatives } = useAlternatives();
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (modalState.isOpen) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+    };
+  }, [modalState.isOpen]);
+
   const filteredItems = useMemo(() => 
     menuItems
-      .filter(item => item.isAvailable !== false) // Filter out unavailable items
+      // Show ALL items, including unavailable ones for alternatives
       .filter(item =>
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.code && item.code.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -168,6 +194,17 @@ const SelfCheckout = () => {
         quantity: 1
       }]
     );
+  };
+
+  // Handle menu item click - check availability first
+  const handleItemClick = (item) => {
+    if (item.isAvailable === false) {
+      // Show alternatives modal for unavailable items
+      showAlternatives(item);
+    } else {
+      // Add available items directly to cart
+      addToOrder(item);
+    }
   };
 
   const updateQuantity = (item, delta) => {
@@ -330,7 +367,7 @@ const SelfCheckout = () => {
             <div className="p-4 grid grid-cols-2 gap-4">
               {menuItems
                 .filter(item => item.category === 'Meals')
-                .filter(item => item.isAvailable !== false) // Filter out unavailable items
+                // Show ALL items including unavailable ones
                 .filter(item => 
                   searchTerm === '' || 
                   item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -339,8 +376,10 @@ const SelfCheckout = () => {
                 .map(item => (
                   <button
                     key={item._id}
-                    className="text-left p-3 rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-95 bg-white"
-                    onClick={() => addToOrder(item)}
+                    className={`text-left p-3 rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-95 bg-white ${
+                      item.isAvailable === false ? 'opacity-70' : ''
+                    }`}
+                    onClick={() => handleItemClick(item)}
                   >
                     <div className="relative">
                       <img 
@@ -354,6 +393,14 @@ const SelfCheckout = () => {
                           ₱{Math.min(...Object.values(item.pricing)).toFixed(2)}
                         </span>
                       </div>
+                      {/* Unavailable indicator */}
+                      {item.isAvailable === false && (
+                        <div className="absolute inset-0 rounded-xl bg-black/30 flex items-center justify-center">
+                          <div className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">
+                            UNAVAILABLE
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <h3 className="font-bold text-gray-800 truncate">
                       {item.name}
@@ -378,7 +425,7 @@ const SelfCheckout = () => {
             <div className="p-4 grid grid-cols-2 gap-4">
               {menuItems
                 .filter(item => item.category === 'Beverages')
-                .filter(item => item.isAvailable !== false) // Filter out unavailable items
+                // Show ALL items including unavailable ones
                 .filter(item => 
                   searchTerm === '' || 
                   item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -387,8 +434,10 @@ const SelfCheckout = () => {
                 .map(item => (
                   <button
                     key={item._id}
-                    className="text-left p-3 rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-95 bg-white"
-                    onClick={() => addToOrder(item)}
+                    className={`text-left p-3 rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-95 bg-white ${
+                      item.isAvailable === false ? 'opacity-70' : ''
+                    }`}
+                    onClick={() => handleItemClick(item)}
                   >
                     <div className="relative">
                       <img 
@@ -402,6 +451,14 @@ const SelfCheckout = () => {
                           ₱{Math.min(...Object.values(item.pricing)).toFixed(2)}
                         </span>
                       </div>
+                      {/* Unavailable indicator */}
+                      {item.isAvailable === false && (
+                        <div className="absolute inset-0 rounded-xl bg-black/30 flex items-center justify-center">
+                          <div className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">
+                            UNAVAILABLE
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <h3 className="font-bold text-gray-800 truncate">
                       {item.name}
@@ -514,6 +571,31 @@ const SelfCheckout = () => {
           </div>
         </div>
       )}
+
+      {/* Alternatives Modal */}
+      <AlternativesModal
+        isOpen={modalState.isOpen}
+        onClose={hideAlternatives}
+        originalItem={modalState.originalItem}
+        alternatives={modalState.alternatives}
+        recommendedAlternative={modalState.recommendedAlternative}
+        onAddToCart={(item) => {
+          addToOrder(item);
+          hideAlternatives();
+        }}
+        loading={modalState.loading}
+      />
+
+      {/* AI Assistant */}
+      <SelfCheckoutAIAssistant
+        menuItems={menuItems}
+        currentOrder={currentOrder}
+        onAddToCart={addToOrder}
+        onOrderSuggestion={(suggestion) => {
+          // Handle AI order suggestions
+          console.log('AI Suggestion:', suggestion);
+        }}
+      />
     </div>
   );
 };

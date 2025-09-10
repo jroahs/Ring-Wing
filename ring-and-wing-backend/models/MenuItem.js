@@ -22,6 +22,15 @@ const menuItemSchema = new mongoose.Schema({
   preparationTime: { type: Number, default: 15 },
   isAvailable: { type: Boolean, default: true },
   ingredients: [{ type: String }],
+  // Alternative suggestions for unavailable items
+  alternatives: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'MenuItem'
+  }],
+  recommendedAlternative: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'MenuItem'
+  },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
