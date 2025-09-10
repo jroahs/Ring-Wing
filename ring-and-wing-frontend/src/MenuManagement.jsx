@@ -206,6 +206,23 @@ const ViewIcon = ({ className }) => (
   </svg>
 );
 
+const ChevronIcon = ({ className, isExpanded }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className={`${className} transition-transform duration-200 ${isExpanded ? 'transform rotate-180' : ''}`}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M19 9l-7 7-7-7"
+    />
+  </svg>
+);
+
 
 const MenuPage = () => {
   const [expandedItemId, setExpandedItemId] = useState(null);
@@ -228,6 +245,7 @@ const MenuPage = () => {
     price: 0,
     category: 'Beverages'
   });
+  const [isAddOnsExpanded, setIsAddOnsExpanded] = useState(false);
 
   const { register, handleSubmit, reset, watch, setValue, getValues, formState: { errors } } = useForm({
     defaultValues: initialItem
@@ -741,7 +759,7 @@ const MenuPage = () => {
                   {imagePreview ? (
                     <MenuItemImage
                       image={imagePreview}
-                      category={selectedItem.category}
+                      category={selectedCategory}
                       alt="Preview"
                       size="100%"
                       className="w-full h-full rounded-lg"
@@ -749,7 +767,7 @@ const MenuPage = () => {
                   ) : (
                     <MenuItemImage
                       image=""
-                      category={selectedItem.category}
+                      category={selectedCategory}
                       alt="Default Item Image"
                       size="100%"
                       className="w-full h-full rounded-lg opacity-50" 
@@ -887,12 +905,23 @@ const MenuPage = () => {
             </div>
           )}
         </div>        {/* Add-Ons Section */}        <div className="mb-8">
-          <div className="flex items-center mb-4">
+          <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium" style={{ color: colors.primary }}>
               Add-Ons
             </h3>
+            <button
+              type="button"
+              onClick={() => setIsAddOnsExpanded(!isAddOnsExpanded)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm hover:bg-gray-100 transition-colors"
+              style={{ color: colors.primary }}
+            >
+              {isAddOnsExpanded ? 'Collapse' : 'Expand'}
+              <ChevronIcon className="w-4 h-4" isExpanded={isAddOnsExpanded} />
+            </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          
+          {isAddOnsExpanded && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {addOns
               .filter(a => 
                 ADDONS_CONFIG[selectedSubCategory]?.includes(a.name) ||
@@ -953,6 +982,7 @@ const MenuPage = () => {
               </div>
             )}
           </div>
+          )}
         </div>        {/* Description */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-2">
