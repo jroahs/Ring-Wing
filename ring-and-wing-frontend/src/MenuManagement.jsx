@@ -70,52 +70,9 @@ const colors = {
   hoverBg: '#f1670f10'
 };
 
-const MENU_CONFIG = {
-  Beverages: {
-    subCategories: {
-      'Coffee': {
-        sizes: ['Hot (S)', 'Hot (M)', 'Cold (M)', 'Cold (L)', 'Float (M)', 'Float (L)']
-      },
-      'Non-Coffee (Milk-Based)': {
-        sizes: ['Hot (S)', 'Hot (M)', 'Cold (M)', 'Cold (L)', 'Float (M)', 'Float (L)']
-      },
-      'Fruit Tea': {
-        sizes: ['Medium', 'Large']
-      },
-      'Fruit Soda': {
-        sizes: ['Medium', 'Large']
-      },
-      'Milktea': {
-        sizes: ['Medium', 'Large'],
-        addons: ['Tapioca Pearls', 'Nata', 'Nutella', 'Cream Puff']
-      },
-      'Yogurt Smoothies': {
-        sizes: ['Medium']
-      },
-      'Fresh Lemonade': {
-        sizes: ['Medium', 'Large']
-      },
-      'Frappe': {
-        sizes: ['Medium', 'Large']
-      }
-    }
-  },
-  Meals: {
-    subCategories: {
-      'Breakfast All Day': { sizes: [] },
-      'Wings & Sides': { sizes: [] },
-      'Flavored Wings': { sizes: [] },
-      'Combos': { sizes: [] },
-      'Snacks': { sizes: [] }
-    }
-  }
-};
+// Pure database-driven menu management - no hard-coded fallbacks
 
-const ADDONS_CONFIG = {
-  'Milktea': ['Tapioca Pearls', 'Nata', 'Nutella', 'Cream Puff'],
-  'Frappe': ['Whipped Cream', 'Caramel Drizzle'],
-  'Yogurt Smoothies': ['Granola', 'Fresh Fruits']
-};
+// Pure database-driven menu management - no hard-coded fallbacks
 
 const initialItem = {
   name: '',
@@ -246,6 +203,17 @@ const MenuPage = () => {
     category: 'Beverages'
   });
   const [isAddOnsExpanded, setIsAddOnsExpanded] = useState(false);
+  
+  // Dynamic categories state
+  const [categories, setCategories] = useState([]);
+  const [menuConfig, setMenuConfig] = useState({}); // Fallback to static config
+  
+  // Category management states
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newSubCategoryName, setNewSubCategoryName] = useState('');
+  const [selectedCategoryForSubCat, setSelectedCategoryForSubCat] = useState('');
 
   const { register, handleSubmit, reset, watch, setValue, getValues, formState: { errors } } = useForm({
     defaultValues: initialItem
@@ -256,7 +224,7 @@ const MenuPage = () => {
 
   useEffect(() => {
     if (!selectedItem?._id) {
-      const validSubs = Object.keys(MENU_CONFIG[selectedCategory]?.subCategories || {});
+      const validSubs = Object.keys(menuConfig[selectedCategory]?.subCategories || {});
       const currentSub = watch('subCategory');
       
       if (!validSubs.includes(currentSub)) {
@@ -268,7 +236,7 @@ const MenuPage = () => {
         });
       }
     }
-  }, [selectedCategory, reset, selectedItem, watch]);
+  }, [selectedCategory, reset, selectedItem, watch, menuConfig]);
 
   const createAddOn = async () => {
     try {
@@ -311,17 +279,20 @@ const MenuPage = () => {
   // Extract fetchData function to reuse for refresh
   const fetchData = async (signal = null) => {
     try {
-      const [menuRes, addOnsRes] = await Promise.all([
+      const [menuRes, addOnsRes, categoriesRes] = await Promise.all([
         fetch('http://localhost:5000/api/menu?limit=1000', {  // High limit to get all items
           signal: signal
         }),
         fetch('http://localhost:5000/api/add-ons', {
           signal: signal
+        }),
+        fetch('http://localhost:5000/api/categories', {
+          signal: signal
         })
       ]);
 
       if (!menuRes.ok || !addOnsRes.ok) {
-        throw new Error('Failed to fetch data');
+        throw new Error('Failed to fetch menu or add-ons data');
       }
 
       const [menuData, addOnsData] = await Promise.all([
@@ -333,6 +304,136 @@ const MenuPage = () => {
       const validMenuItems = Array.isArray(menuData) ? menuData : (menuData.items || []);
       setMenuItems(validMenuItems);
       setAddOns(addOnsData);
+      
+      // Fetch categories (optional, fallback to static config)
+      if (categoriesRes.ok) {
+        const categoriesData = await categoriesRes.json();
+        console.log('🎉 MenuManagement: Loaded dynamic categories', categoriesData);
+        
+        // Debug the raw category structure
+        console.log('🔍 Raw categories data:', categoriesData.map(cat => ({
+          id: cat._id,
+          name: cat.name,
+          category: cat.category,
+          subCategories: cat.subCategories?.map(sub => ({
+            id: sub._id,
+            name: sub.name,
+            displayName: sub.displayName,
+            raw: sub, // Show complete subcategory object
+            sizes: sub.sizes
+          })),
+          subcategories: cat.subcategories?.map(sub => ({
+            id: sub._id,
+            name: sub.name,
+            displayName: sub.displayName,
+            raw: sub, // Show complete subcategory object
+            sizes: sub.sizes
+          }))
+        })));
+        
+        // Also log subcategories as strings if they exist
+        categoriesData.forEach(cat => {
+          if (cat.subcategories && cat.subcategories.length > 0) {
+            console.log(`🏷️ ${cat.name} subcategories:`, cat.subcategories);
+          }
+          if (cat.subCategories && cat.subCategories.length > 0) {
+            console.log(`🏷️ ${cat.name} subCategories:`, cat.subCategories);
+          }
+        });
+        
+        // Transform categories to menuConfig format for compatibility
+        const transformedCategories = categoriesData.map(cat => ({
+          ...cat,
+          name: cat.name || cat.category,
+          _id: cat._id || cat.category
+        }));
+        
+          // Ensure stable ordering - sort by sortOrder, then by name, then by _id for consistency
+        const sortedCategories = transformedCategories.sort((a, b) => {
+          // First sort by sortOrder
+          if ((a.sortOrder || 0) !== (b.sortOrder || 0)) {
+            return (a.sortOrder || 0) - (b.sortOrder || 0);
+          }
+          // Then by name
+          if (a.name !== b.name) {
+            return (a.name || '').localeCompare(b.name || '');
+          }
+          // Finally by _id for ultimate consistency
+          return (a._id || '').toString().localeCompare((b._id || '').toString());
+        }).map(category => {
+          // Also sort subcategories within each category for consistency
+          if (category.subcategories && Array.isArray(category.subcategories)) {
+            category.subcategories = category.subcategories.sort((a, b) => {
+              // Sort subcategories by sortOrder first, then by name
+              if ((a.sortOrder || 0) !== (b.sortOrder || 0)) {
+                return (a.sortOrder || 0) - (b.sortOrder || 0);
+              }
+              const aName = a.displayName || a.name || a.toString();
+              const bName = b.displayName || b.name || b.toString();
+              return aName.localeCompare(bName);
+            });
+          }
+          if (category.subCategories && Array.isArray(category.subCategories)) {
+            category.subCategories = category.subCategories.sort((a, b) => {
+              // Sort subcategories by sortOrder first, then by name
+              if ((a.sortOrder || 0) !== (b.sortOrder || 0)) {
+                return (a.sortOrder || 0) - (b.sortOrder || 0);
+              }
+              const aName = a.displayName || a.name || a.toString();
+              const bName = b.displayName || b.name || b.toString();
+              return aName.localeCompare(bName);
+            });
+          }
+          return category;
+        });
+        
+        // Temporarily disable caching to force fresh data fetch  
+        setCategories(sortedCategories);
+        console.log('📊 MenuManagement: Categories FORCE updated with stable order');
+        console.log('Actual sort order:', sortedCategories.map(c => ({ name: c.name, sortOrder: c.sortOrder })));
+        
+        // Create dynamic menuConfig for existing functionality - always update
+        const dynamicMenuConfig = {};
+        sortedCategories.forEach(category => {
+            const categoryName = category.name || category.category;
+            if (categoryName) {
+              dynamicMenuConfig[categoryName] = {
+                subCategories: {}
+              };
+              
+              // Handle both subcategories array and subCategories array
+              const subcats = category.subcategories || category.subCategories || [];
+              if (subcats.length > 0) {
+                subcats.forEach(subCat => {
+                  const subCatName = subCat.name || subCat;
+                  if (subCatName) {
+                    // Extract sizes from subcategory, ensuring proper format
+                    const sizes = subCat.sizes && subCat.sizes.length > 0 
+                      ? subCat.sizes.map(size => size.displayName || size.name || size)
+                      : [];
+                    
+                    // Extract addons from subcategory
+                    const addons = subCat.availableAddons || subCat.addons || [];
+                    
+                    dynamicMenuConfig[categoryName].subCategories[subCatName] = {
+                      sizes: sizes,
+                      addons: addons
+                    };
+                  }
+                });
+              }
+            }
+          });
+          
+          console.log('🔧 MenuManagement: Generated pure database config', dynamicMenuConfig);
+          setMenuConfig(dynamicMenuConfig);
+          console.log('🎯 MenuManagement: Using database-driven config', dynamicMenuConfig);
+        
+      } else {
+        console.warn('MenuManagement: Failed to fetch categories, using empty config');
+        setMenuConfig({});
+      }
+      
       setError(null);
     } catch (error) {
       // Don't log AbortError - it's expected when component unmounts
@@ -347,20 +448,27 @@ const MenuPage = () => {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchData(controller.signal);
+    // Only fetch if we don't have data yet
+    if (!menuItems.length && !categories.length) {
+      fetchData(controller.signal);
+    }
     
     return () => controller.abort();
-  }, []);
+  }, []); // Remove dependency to prevent re-fetching
 
-  // Add refresh mechanisms for real-time updates
+  // Add refresh mechanisms for real-time updates - but less frequent
   useEffect(() => {
     const handleWindowFocus = () => {
-      fetchData();
+      // Only refresh if window was focused after being away for a while
+      if (document.hidden === false) {
+        fetchData();
+      }
     };
 
+    // Reduce refresh frequency to prevent scrambling
     const intervalId = setInterval(() => {
       fetchData();
-    }, 30000); // Refresh every 30 seconds
+    }, 120000); // Refresh every 2 minutes instead of 30 seconds
 
     window.addEventListener('focus', handleWindowFocus);
 
@@ -397,7 +505,7 @@ const MenuPage = () => {
     const controller = new AbortController();
     
     try {
-      const categoryConfig = MENU_CONFIG[data.category];
+      const categoryConfig = menuConfig[data.category];
       if (!categoryConfig) throw new Error(`Invalid category: ${data.category}`);
   
       // Final validation check before submission
@@ -507,7 +615,7 @@ const MenuPage = () => {
 
   useEffect(() => {
     if (selectedItem) {
-      const categoryConfig = MENU_CONFIG[selectedItem.category]?.subCategories;
+      const categoryConfig = menuConfig[selectedItem.category]?.subCategories;
       const defaultSubCategory = categoryConfig ? Object.keys(categoryConfig)[0] : '';
       
       reset({
@@ -526,6 +634,118 @@ const MenuPage = () => {
       }
     }
   }, [selectedItem, reset]);
+
+  // Category Management Functions
+  const createCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/categories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newCategoryName.trim(),
+          displayName: newCategoryName.trim(),
+          subCategories: []
+        })
+      });
+      
+      if (response.ok) {
+        await fetchData(); // Refresh data
+        setNewCategoryName('');
+        alert('Category created successfully!');
+      } else {
+        throw new Error('Failed to create category');
+      }
+    } catch (error) {
+      console.error('Error creating category:', error);
+      alert('Error creating category: ' + error.message);
+    }
+  };
+
+  const createSubCategory = async () => {
+    if (!newSubCategoryName.trim() || !selectedCategoryForSubCat) return;
+    
+    try {
+      const category = categories.find(cat => 
+        (cat.name || cat.category) === selectedCategoryForSubCat
+      );
+      
+      if (!category) {
+        throw new Error('Category not found');
+      }
+
+      const response = await fetch(`http://localhost:5000/api/categories/${category._id}/subcategories`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newSubCategoryName.trim(),
+          displayName: newSubCategoryName.trim()
+        })
+      });
+      
+      if (response.ok) {
+        await fetchData(); // Refresh data
+        setNewSubCategoryName('');
+        setSelectedCategoryForSubCat('');
+        alert('Subcategory created successfully!');
+      } else {
+        throw new Error('Failed to create subcategory');
+      }
+    } catch (error) {
+      console.error('Error creating subcategory:', error);
+      alert('Error creating subcategory: ' + error.message);
+    }
+  };
+
+  const deleteCategory = async (categoryId) => {
+    if (!confirm('Are you sure you want to delete this category? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/categories/${categoryId}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        await fetchData(); // Refresh data
+        alert('Category deleted successfully!');
+      } else {
+        throw new Error('Failed to delete category');
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      alert('Error deleting category: ' + error.message);
+    }
+  };
+
+  const deleteSubCategory = async (categoryId, subCategoryId) => {
+    if (!confirm('Are you sure you want to delete this subcategory? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/categories/${categoryId}/subcategories/${subCategoryId}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        await fetchData(); // Refresh data
+        alert('Subcategory deleted successfully!');
+      } else {
+        throw new Error('Failed to delete subcategory');
+      }
+    } catch (error) {
+      console.error('Error deleting subcategory:', error);
+      alert('Error deleting subcategory: ' + error.message);
+    }
+  };
+
   const filteredMenuItems = menuItems.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.code.toLowerCase().includes(searchTerm.toLowerCase());
@@ -551,15 +771,195 @@ const MenuPage = () => {
           <h1 style={{ color: colors.primary }} className="text-3xl font-bold">
             Menu Management
           </h1>
-          <button
-            style={{ backgroundColor: colors.accent, color: colors.background }}
-            className="px-4 py-2 rounded-lg hover:opacity-90 flex items-center gap-2 shadow-md transition-all"
-            onClick={() => setSelectedItem(initialItem)}
-          >
-            <PlusIcon className="w-5 h-5" />
-            <span>Add New Item</span>
-          </button>
-        </div>        {/* Search and Filter Bar */}
+          <div className="flex gap-3">
+            <button
+              className="px-4 py-2 rounded-lg flex items-center gap-2 hover:opacity-90 transition-opacity shadow-sm"
+              style={{ backgroundColor: colors.secondary, color: colors.background }}
+              onClick={() => setShowCategoryManager(!showCategoryManager)}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              {showCategoryManager ? 'Hide Categories' : 'Manage Categories'}
+            </button>
+            <button
+              style={{ backgroundColor: colors.accent, color: colors.background }}
+              className="px-4 py-2 rounded-lg hover:opacity-90 flex items-center gap-2 shadow-md transition-all"
+              onClick={() => setSelectedItem(initialItem)}
+            >
+              <PlusIcon className="w-5 h-5" />
+              <span>Add New Item</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Category Management Section */}
+        {showCategoryManager && (
+          <div className="mb-8 bg-white rounded-lg shadow-sm border p-6" style={{ borderColor: colors.muted + '40' }}>
+            <h2 className="text-xl font-semibold mb-6" style={{ color: colors.primary }}>
+              Category Management
+            </h2>
+            
+            {/* Create New Category */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <h3 className="text-lg font-medium mb-3" style={{ color: colors.secondary }}>
+                  Create New Category
+                </h3>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Category name (e.g., Desserts)"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2"
+                    style={{ borderColor: colors.muted, focusRingColor: colors.accent + '40' }}
+                  />
+                  <button
+                    onClick={createCategory}
+                    disabled={!newCategoryName.trim()}
+                    className="px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-opacity disabled:opacity-50"
+                    style={{ backgroundColor: colors.accent, color: colors.background }}
+                  >
+                    <PlusIcon className="w-4 h-4" />
+                    Add
+                  </button>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-medium mb-3" style={{ color: colors.secondary }}>
+                  Add Subcategory
+                </h3>
+                <div className="space-y-2">
+                  <select
+                    value={selectedCategoryForSubCat}
+                    onChange={(e) => setSelectedCategoryForSubCat(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2"
+                    style={{ borderColor: colors.muted, focusRingColor: colors.accent + '40' }}
+                  >
+                    <option value="">Select a category</option>
+                    {categories.map((cat, index) => {
+                      const categoryName = cat.name || cat.category;
+                      return (
+                        <option key={cat._id || `cat-option-${index}`} value={categoryName}>
+                          {categoryName}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Subcategory name"
+                      value={newSubCategoryName}
+                      onChange={(e) => setNewSubCategoryName(e.target.value)}
+                      className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2"
+                      style={{ borderColor: colors.muted, focusRingColor: colors.accent + '40' }}
+                    />
+                    <button
+                      onClick={createSubCategory}
+                      disabled={!newSubCategoryName.trim() || !selectedCategoryForSubCat}
+                      className="px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-opacity disabled:opacity-50"
+                      style={{ backgroundColor: colors.accent, color: colors.background }}
+                    >
+                      <PlusIcon className="w-4 h-4" />
+                      Add
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Categories List */}
+            <div>
+              <h3 className="text-lg font-medium mb-4" style={{ color: colors.secondary }}>
+                Current Categories
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {categories.map((category, index) => {
+                  const categoryName = category.name || category.category;
+                  return (
+                    <div key={category._id || `category-${index}`} className="border rounded-lg p-4" style={{ borderColor: colors.muted + '40' }}>
+                      <div className="flex justify-between items-start mb-3">
+                        <h4 className="font-semibold" style={{ color: colors.primary }}>
+                          {categoryName}
+                        </h4>
+                        <button
+                          onClick={() => deleteCategory(category._id)}
+                          className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                          title="Delete category"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                      
+                      {/* Subcategories */}
+                      <div className="space-y-1">
+                        {/* Handle both subcategories (lowercase) and subCategories (camelCase) */}
+                        {((category.subcategories && category.subcategories.length > 0) || 
+                          (category.subCategories && category.subCategories.length > 0)) ? (
+                          <>
+                            {/* Handle subcategories array (from database) */}
+                            {category.subcategories && category.subcategories.map((subCat, index) => (
+                              <div key={subCat._id || subCat.name || subCat || `${category._id}-sub-${index}`} className="flex justify-between items-center text-sm py-1">
+                                <span style={{ color: colors.secondary }}>
+                                  {subCat.displayName || subCat.name || subCat || `Subcategory ${index + 1}`}
+                                  {subCat.sizes && subCat.sizes.length > 0 && (
+                                    <span className="text-xs ml-2 px-1 py-0.5 rounded" style={{ backgroundColor: colors.activeBg, color: colors.accent }}>
+                                      {subCat.sizes.length} sizes
+                                    </span>
+                                  )}
+                                </span>
+                                <button
+                                  onClick={() => deleteSubCategory(category._id, subCat._id || subCat)}
+                                  className="p-0.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                  title="Delete subcategory"
+                                >
+                                  <TrashIcon className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))}
+                            {/* Handle subCategories array (legacy format) */}
+                            {category.subCategories && category.subCategories.map((subCat, index) => (
+                              <div key={subCat._id || subCat.name || subCat || `${category._id}-legacy-sub-${index}`} className="flex justify-between items-center text-sm py-1">
+                                <span style={{ color: colors.secondary }}>
+                                  {subCat.displayName || subCat.name || subCat || `Subcategory ${index + 1}`}
+                                  {subCat.sizes && subCat.sizes.length > 0 && (
+                                    <span className="text-xs ml-2 px-1 py-0.5 rounded" style={{ backgroundColor: colors.activeBg, color: colors.accent }}>
+                                      {subCat.sizes.length} sizes
+                                    </span>
+                                  )}
+                                </span>
+                                <button
+                                  onClick={() => deleteSubCategory(category._id, subCat._id || subCat)}
+                                  className="p-0.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                  title="Delete subcategory"
+                                >
+                                  <TrashIcon className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </>
+                        ) : (
+                          <p className="text-sm text-gray-500">No subcategories</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {categories.length === 0 && (
+                <p className="text-gray-500 text-center py-8">
+                  No categories found. Categories will be loaded from the database or you can create new ones above.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Search and Filter Bar */}
         <div className="mb-6 mx-6">
           <div className="flex gap-4 items-center">
             {/* Search Bar */}
@@ -861,7 +1261,7 @@ const MenuPage = () => {
               className="w-full p-2 text-sm border rounded-lg"
               style={{ borderColor: colors.muted }}
             >
-              {Object.keys(MENU_CONFIG).map((cat) => (
+              {Object.keys(menuConfig).map((cat) => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
@@ -874,7 +1274,7 @@ const MenuPage = () => {
               className="w-full p-2 text-sm border rounded-lg"
               style={{ borderColor: colors.muted }}
             >
-              {Object.keys(MENU_CONFIG[selectedCategory]?.subCategories || {}).map((subKey) => (
+              {Object.keys(menuConfig[selectedCategory]?.subCategories || {}).map((subKey) => (
                 <option key={subKey} value={subKey}>{subKey}</option>
               ))}
             </select>
@@ -886,9 +1286,9 @@ const MenuPage = () => {
           <h3 className="text-lg font-medium mb-4" style={{ color: colors.primary }}>
             Pricing
           </h3>
-          {MENU_CONFIG[selectedCategory]?.subCategories[selectedSubCategory]?.sizes?.length > 0 ? (
+          {menuConfig[selectedCategory]?.subCategories[selectedSubCategory]?.sizes?.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {MENU_CONFIG[selectedCategory]?.subCategories[selectedSubCategory]?.sizes?.map((size) => (
+              {menuConfig[selectedCategory]?.subCategories[selectedSubCategory]?.sizes?.map((size) => (
                 <div key={size} className="flex items-center gap-2">
                   <label className="w-20 font-medium">{size}</label>
                   <div className="flex-1 flex items-center">
@@ -938,10 +1338,11 @@ const MenuPage = () => {
           {isAddOnsExpanded && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {addOns
-              .filter(a => 
-                ADDONS_CONFIG[selectedSubCategory]?.includes(a.name) ||
-                a.category === selectedCategory
-              )
+              .filter(a => {
+                const currentSubCategory = menuConfig[selectedCategory]?.subCategories[selectedSubCategory];
+                return currentSubCategory?.addons?.includes(a.name) ||
+                       a.category === selectedCategory;
+              })
               .map((addOn) => (
                 <div 
                   key={addOn._id} 
@@ -979,10 +1380,11 @@ const MenuPage = () => {
                 </div>
               ))}
               
-            {addOns.filter(a => 
-              ADDONS_CONFIG[selectedSubCategory]?.includes(a.name) ||
-              a.category === selectedCategory
-            ).length === 0 && (
+            {addOns.filter(a => {
+              const currentSubCategory = menuConfig[selectedCategory]?.subCategories[selectedSubCategory];
+              return currentSubCategory?.addons?.includes(a.name) ||
+                     a.category === selectedCategory;
+            }).length === 0 && (
               <div className="col-span-2 p-6 border border-dashed rounded-lg flex flex-col items-center justify-center"
                    style={{ borderColor: colors.muted + '60' }}>
                 <p className="text-gray-500 mb-3">No relevant add-ons found for this item type</p>                <button
@@ -1201,7 +1603,7 @@ const MenuPage = () => {
                     className="w-full p-2 border rounded"
                     style={{ borderColor: colors.muted }}
                   >
-                    {Object.keys(MENU_CONFIG).map((cat) => (
+                    {Object.keys(menuConfig).map((cat) => (
                       <option key={cat} value={cat}>
                         {cat}
                       </option>

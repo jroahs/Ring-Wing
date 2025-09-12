@@ -75,6 +75,7 @@ Receipt.propTypes = {
 const SelfCheckout = () => {
   const [orderNumber, setOrderNumber] = useState('');
   const [menuItems, setMenuItems] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [currentOrder, setCurrentOrder] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -84,6 +85,75 @@ const SelfCheckout = () => {
 
   // Alternatives modal functionality
   const { modalState, showAlternatives, hideAlternatives } = useAlternatives();
+
+  // Helper function to render a category section
+  const renderCategorySection = (categoryData, isLast = false) => {
+    const categoryName = categoryData.category;
+    const categoryItems = menuItems
+      .filter(item => item.category === categoryName)
+      // Show ALL items including unavailable ones
+      .filter(item => 
+        searchTerm === '' || 
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.code && item.code.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+
+    // Don't render section if no items
+    if (categoryItems.length === 0) return null;
+
+    return (
+      <div key={categoryName} className={!isLast ? "mb-6" : ""}>
+        <div className="mb-2 bg-white rounded-lg py-1 px-3 shadow-sm mx-4">
+          <div className="flex items-center">
+            <span className="font-medium text-sm" style={{ color: colors.primary }}>
+              {categoryName}
+            </span>
+          </div>
+        </div>
+        <div className="p-4 grid grid-cols-2 gap-4">
+          {categoryItems.map(item => (
+            <button
+              key={item._id}
+              className={`text-left p-3 rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-95 bg-white ${
+                item.isAvailable === false ? 'opacity-70' : ''
+              }`}
+              onClick={() => handleItemClick(item)}
+            >
+              <div className="relative">
+                <img 
+                  src={item.image || (categoryName === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png')} 
+                  alt={item.name} 
+                  className="w-full h-36 object-cover rounded-xl mb-2 shadow-inner"
+                  onError={(e) => { 
+                    e.target.src = categoryName === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png';
+                  }}
+                />
+                <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full shadow-lg">
+                  <span className="text-sm font-bold text-orange-600">
+                    ₱{Math.min(...Object.values(item.pricing)).toFixed(2)}
+                  </span>
+                </div>
+                {/* Unavailable indicator */}
+                {item.isAvailable === false && (
+                  <div className="absolute inset-0 rounded-xl bg-black/30 flex items-center justify-center">
+                    <div className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">
+                      UNAVAILABLE
+                    </div>
+                  </div>
+                )}
+              </div>
+              <h3 className="font-bold text-gray-800 truncate">
+                {item.name}
+              </h3>
+              <p className="text-sm text-gray-500 truncate">
+                {item.description || "No description available"}
+              </p>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -115,11 +185,17 @@ const SelfCheckout = () => {
   , [menuItems, searchTerm]);
 
   useEffect(() => {
-    const fetchMenuItems = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/menu?limit=1000`);
-        const data = await response.json();
-        const items = Array.isArray(data) ? data : data.items || [];
+        // Fetch menu items and categories in parallel
+        const [menuResponse, categoriesResponse] = await Promise.all([
+          fetch(`${API_URL}/api/menu?limit=1000`),
+          fetch(`${API_URL}/api/categories`).catch(() => null) // Don't fail if categories API is unavailable
+        ]);
+        
+        // Process menu items
+        const menuData = await menuResponse.json();
+        const items = Array.isArray(menuData) ? menuData : menuData.items || [];
         setMenuItems(items.map(item => ({
           ...item,
           image: item.image ? `${API_URL}${item.image}` : null,
@@ -127,13 +203,84 @@ const SelfCheckout = () => {
           modifiers: item.modifiers || [],
           isAvailable: item.isAvailable // Include availability status
         })));
+
+        // Process categories (with fallback)
+        let categoriesData = [];
+        if (categoriesResponse && categoriesResponse.ok) {
+          try {
+            const rawCategoriesData = await categoriesResponse.json();
+            console.log('🔍 SelfCheckout RAW categories API response:', rawCategoriesData);
+            
+            // Transform the categories to expected format
+            categoriesData = rawCategoriesData.map(cat => ({
+              category: cat.name || cat.category,
+              name: cat.name || cat.category,
+              _id: cat._id,
+              sortOrder: cat.sortOrder,
+              subCategories: cat.subcategories || cat.subCategories || [],
+              subcategories: cat.subcategories || cat.subCategories || []
+            }));
+            
+            console.log('🎉 SelfCheckout: Using dynamic categories from API', categoriesData);
+            console.log('🔍 Categories with subcategories:', categoriesData.map(c => ({ 
+              name: c.category, 
+              subCount: (c.subCategories || []).length 
+            })));
+          } catch (e) {
+            console.error('Failed to parse categories:', e);
+            console.warn('Failed to parse categories, using fallback');
+          }
+        } else {
+          console.warn('Categories API failed or not available');
+        }
+        
+        // Fallback to default categories if API fails or returns empty
+        if (!categoriesData || categoriesData.length === 0) {
+          console.warn('🔄 SelfCheckout: Using fallback categories - API returned empty/invalid data');
+          categoriesData = [
+            { 
+              category: 'Meals', 
+              name: 'Meals',
+              subCategories: ['Breakfast All Day', 'Combos', 'Wings & Sides', 'Snacks', 'Flavored Wings'],
+              subcategories: ['Breakfast All Day', 'Combos', 'Wings & Sides', 'Snacks', 'Flavored Wings']
+            },
+            { 
+              category: 'Beverages', 
+              name: 'Beverages',
+              subCategories: ['Coffee', 'Frappe', 'Fresh Lemonade', 'Fruit Soda', 'Fruit Tea', 'Milktea', 'Non-Coffee (Milk-Based)', 'Yogurt Smoothies'],
+              subcategories: ['Coffee', 'Frappe', 'Fresh Lemonade', 'Fruit Soda', 'Fruit Tea', 'Milktea', 'Non-Coffee (Milk-Based)', 'Yogurt Smoothies']
+            }
+          ];
+          console.log('🔄 SelfCheckout: Fallback categories with subcategories loaded');
+        }
+        
+        setCategories(categoriesData);
+        
       } catch (err) {
+        console.error('Error fetching data:', err);
         setError('Failed to load menu');
+        // Set fallback categories even on error
+        console.log('🔄 SelfCheckout: Using error fallback categories');
+        setCategories([
+          { 
+            category: 'Meals', 
+            name: 'Meals',
+            subCategories: ['Breakfast All Day', 'Combos', 'Wings & Sides', 'Snacks', 'Flavored Wings'],
+            subcategories: ['Breakfast All Day', 'Combos', 'Wings & Sides', 'Snacks', 'Flavored Wings']
+          },
+          { 
+            category: 'Beverages', 
+            name: 'Beverages', 
+            subCategories: ['Coffee', 'Frappe', 'Fresh Lemonade', 'Fruit Soda', 'Fruit Tea', 'Milktea', 'Non-Coffee (Milk-Based)', 'Yogurt Smoothies'],
+            subcategories: ['Coffee', 'Frappe', 'Fresh Lemonade', 'Fruit Soda', 'Fruit Tea', 'Milktea', 'Non-Coffee (Milk-Based)', 'Yogurt Smoothies']
+          }
+        ]);
       } finally {
         setLoading(false);
       }
     };
-    fetchMenuItems();
+    
+    fetchData();
   }, []);
 
   // Add refresh functionality for menu updates
@@ -354,122 +501,24 @@ const SelfCheckout = () => {
   
       {/* Enhanced Menu Grid */}
       {activeTab === 'menu' && (
-        <div className="pt-4"> {/* Added padding-top */}
-          {/* Meals Section */}
-          <div className="mb-6">
-            <div className="mb-2 bg-white rounded-lg py-1 px-3 shadow-sm mx-4">
-              <div className="flex items-center">
-                <span className="font-medium text-sm" style={{ color: colors.primary }}>
-                  Meals
-                </span>
-              </div>
+        <div className="pt-4">
+          {/* Dynamic Category Sections */}
+          {categories.map((categoryData, index) => 
+            renderCategorySection(categoryData, index === categories.length - 1)
+          )}
+          
+          {/* Fallback message if no categories or no items */}
+          {categories.length === 0 && (
+            <div className="p-8 text-center">
+              <p className="text-gray-500">Loading menu categories...</p>
             </div>
-            <div className="p-4 grid grid-cols-2 gap-4">
-              {menuItems
-                .filter(item => item.category === 'Meals')
-                // Show ALL items including unavailable ones
-                .filter(item => 
-                  searchTerm === '' || 
-                  item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  (item.code && item.code.toLowerCase().includes(searchTerm.toLowerCase()))
-                )
-                .map(item => (
-                  <button
-                    key={item._id}
-                    className={`text-left p-3 rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-95 bg-white ${
-                      item.isAvailable === false ? 'opacity-70' : ''
-                    }`}
-                    onClick={() => handleItemClick(item)}
-                  >
-                    <div className="relative">
-                      <img 
-                        src={item.image || '/placeholders/meal.png'} 
-                        alt={item.name} 
-                        className="w-full h-36 object-cover rounded-xl mb-2 shadow-inner"
-                        onError={(e) => { e.target.src = '/placeholders/meal.png'; }}
-                      />
-                      <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full shadow-lg">
-                        <span className="text-sm font-bold text-orange-600">
-                          ₱{Math.min(...Object.values(item.pricing)).toFixed(2)}
-                        </span>
-                      </div>
-                      {/* Unavailable indicator */}
-                      {item.isAvailable === false && (
-                        <div className="absolute inset-0 rounded-xl bg-black/30 flex items-center justify-center">
-                          <div className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">
-                            UNAVAILABLE
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <h3 className="font-bold text-gray-800 truncate">
-                      {item.name}
-                    </h3>
-                    <p className="text-sm text-gray-500 truncate">
-                      {item.description || "No description available"}
-                    </p>
-                  </button>
-                ))}
+          )}
+          
+          {categories.length > 0 && menuItems.length === 0 && !loading && (
+            <div className="p-8 text-center">
+              <p className="text-gray-500">No menu items available</p>
             </div>
-          </div>
-
-          {/* Beverages Section */}
-          <div>
-            <div className="mb-2 bg-white rounded-lg py-1 px-3 shadow-sm mx-4">
-              <div className="flex items-center">
-                <span className="font-medium text-sm" style={{ color: colors.primary }}>
-                  Beverages
-                </span>
-              </div>
-            </div>
-            <div className="p-4 grid grid-cols-2 gap-4">
-              {menuItems
-                .filter(item => item.category === 'Beverages')
-                // Show ALL items including unavailable ones
-                .filter(item => 
-                  searchTerm === '' || 
-                  item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  (item.code && item.code.toLowerCase().includes(searchTerm.toLowerCase()))
-                )
-                .map(item => (
-                  <button
-                    key={item._id}
-                    className={`text-left p-3 rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-95 bg-white ${
-                      item.isAvailable === false ? 'opacity-70' : ''
-                    }`}
-                    onClick={() => handleItemClick(item)}
-                  >
-                    <div className="relative">
-                      <img 
-                        src={item.image || '/placeholders/drinks.png'} 
-                        alt={item.name} 
-                        className="w-full h-36 object-cover rounded-xl mb-2 shadow-inner"
-                        onError={(e) => { e.target.src = '/placeholders/drinks.png'; }}
-                      />
-                      <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full shadow-lg">
-                        <span className="text-sm font-bold text-orange-600">
-                          ₱{Math.min(...Object.values(item.pricing)).toFixed(2)}
-                        </span>
-                      </div>
-                      {/* Unavailable indicator */}
-                      {item.isAvailable === false && (
-                        <div className="absolute inset-0 rounded-xl bg-black/30 flex items-center justify-center">
-                          <div className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">
-                            UNAVAILABLE
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <h3 className="font-bold text-gray-800 truncate">
-                      {item.name}
-                    </h3>
-                    <p className="text-sm text-gray-500 truncate">
-                      {item.description || "No description available"}
-                    </p>
-                  </button>
-                ))}
-            </div>
-          </div>
+          )}
         </div>
       )}
   

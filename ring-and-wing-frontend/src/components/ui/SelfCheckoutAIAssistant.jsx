@@ -38,7 +38,7 @@ AIAvatar.propTypes = {
 };
 
 // Message Component
-const ChatMessage = ({ message, onAddToCart, menuItems }) => {
+const ChatMessage = ({ message, onAddToCart, menuItems, categories = [] }) => {
   if (message.type === 'menu-suggestions') {
     return (
       <div className="space-y-3">
@@ -78,7 +78,11 @@ const ChatMessage = ({ message, onAddToCart, menuItems }) => {
                       alt={item.name}
                       className="w-full h-full object-cover rounded-lg"
                       onError={(e) => {
-                        e.target.src = item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png';
+                        // Enhanced fallback logic using dynamic categories
+                        const isBeverage = categories.length > 0 
+                          ? categories.some(cat => cat.category === 'Beverages' && item.category === 'Beverages')
+                          : item.category === 'Beverages';
+                        e.target.src = isBeverage ? '/placeholders/drinks.png' : '/placeholders/meal.png';
                       }}
                     />
                   </div>
@@ -148,7 +152,8 @@ ChatMessage.propTypes = {
     suggestions: PropTypes.array
   }).isRequired,
   onAddToCart: PropTypes.func.isRequired,
-  menuItems: PropTypes.array.isRequired
+  menuItems: PropTypes.array.isRequired,
+  categories: PropTypes.array
 };
 
 const SelfCheckoutAIAssistant = ({ 
@@ -158,6 +163,7 @@ const SelfCheckoutAIAssistant = ({
   onOrderSuggestion = () => {}
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [categories, setCategories] = useState([]);
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -200,24 +206,56 @@ const SelfCheckoutAIAssistant = ({
     const suggestions = [];
     const usedIds = new Set(); // Prevent duplicates
     
-    // Priority categories for diverse suggestions
-    const priorityCategories = [
-      { keywords: ['combo', 'solo'], priority: 1 }, // Combo meals first
-      { keywords: ['wings', 'chicken'], priority: 2 }, // Wings/Chicken second
-      { keywords: ['rice', 'meal'], priority: 3 }, // Rice meals third
-      { keywords: ['drink', 'beverage'], priority: 4 } // Drinks last
-    ];
+    // Dynamic priority categories based on loaded categories and business logic
+    const getDynamicPriorityCategories = () => {
+      // If we have dynamic categories loaded, use them for priority ordering
+      if (categories.length > 0) {
+        return categories.map((cat, index) => ({
+          categoryName: cat.category,
+          priority: index + 1, // First category gets priority 1, second gets 2, etc.
+          keywords: [cat.category.toLowerCase()], // Use category name as primary keyword
+          // Add subcategory keywords for better matching
+          subKeywords: cat.subCategories || []
+        }));
+      }
+      
+      // Fallback to original keyword-based system
+      return [
+        { keywords: ['combo', 'solo'], priority: 1, categoryName: 'Combo' }, 
+        { keywords: ['wings', 'chicken'], priority: 2, categoryName: 'Wings' }, 
+        { keywords: ['rice', 'meal'], priority: 3, categoryName: 'Meals' }, 
+        { keywords: ['drink', 'beverage'], priority: 4, categoryName: 'Beverages' }
+      ];
+    };
+    
+    const priorityCategories = getDynamicPriorityCategories();
     
     // Sort items by priority and price (affordable first)
     const categorizedItems = availableItems.map(item => {
       const itemName = item.name.toLowerCase();
+      const itemCategory = (item.category || '').toLowerCase();
       const pricing = item.pricing || {};
       const basePrice = Math.min(...Object.values(pricing));
       
-      // Find category priority
+      // Find category priority using enhanced matching
       let priority = 999;
       for (const cat of priorityCategories) {
-        if (cat.keywords.some(keyword => itemName.includes(keyword))) {
+        // Primary match: exact category name
+        if (cat.categoryName && itemCategory === cat.categoryName.toLowerCase()) {
+          priority = cat.priority;
+          break;
+        }
+        
+        // Secondary match: keywords in item name
+        if (cat.keywords && cat.keywords.some(keyword => itemName.includes(keyword))) {
+          priority = cat.priority;
+          break;
+        }
+        
+        // Tertiary match: subcategory keywords  
+        if (cat.subKeywords && cat.subKeywords.some(subCat => 
+          itemName.includes(subCat.toLowerCase()) || item.subCategory === subCat
+        )) {
           priority = cat.priority;
           break;
         }
@@ -292,6 +330,31 @@ const SelfCheckoutAIAssistant = ({
     }
   }, [menuItems]); // Only depend on menuItems
 
+  // Fetch categories for enhanced AI suggestions
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/categories');
+        if (response.ok) {
+          const categoriesData = await response.json();
+          setCategories(categoriesData);
+          console.log('🎉 AI Assistant: Loaded dynamic categories', categoriesData);
+        } else {
+          throw new Error('Categories API unavailable');
+        }
+      } catch (error) {
+        console.log('🔄 AI Assistant: Using fallback category logic');
+        // Set fallback for category detection
+        setCategories([
+          { category: 'Meals', subCategories: [] },
+          { category: 'Beverages', subCategories: [] }
+        ]);
+      }
+    };
+    
+    fetchCategories();
+  }, []);
+
   // Get AI response using your existing Gemini integration
   const getAIResponse = async (userInput, signal = null) => {
     const menuContext = menuItems.map(item => {
@@ -301,8 +364,15 @@ const SelfCheckoutAIAssistant = ({
           .join(', ')
         : 'Price not available';
       
-      return `- ${item.name}: ${item.description || 'No description'}. Prices: ${prices}. Category: ${item.category || 'Uncategorized'}. Available: ${item.isAvailable !== false}`;
+      return `- ${item.name}: ${item.description || 'No description'}. Prices: ${prices}. Category: ${item.category || 'Uncategorized'}. SubCategory: ${item.subCategory || 'None'}. Available: ${item.isAvailable !== false}`;
     }).join('\n');
+
+    // Enhanced category context using dynamic categories
+    const categoryContext = categories.length > 0 
+      ? `\n\nMENU CATEGORIES:\n${categories.map(cat => 
+          `${cat.category}: ${cat.subCategories.length > 0 ? cat.subCategories.join(', ') : 'No subcategories'}`
+        ).join('\n')}`
+      : '';
 
     const currentOrderContext = currentOrder.length > 0 
       ? `Current order: ${currentOrder.map(item => `${item.name} (${item.selectedSize}) x${item.quantity}`).join(', ')}`
@@ -313,7 +383,7 @@ const SelfCheckoutAIAssistant = ({
       content: `You are a helpful ordering assistant for Ring & Wings restaurant's self-checkout system. You help customers place orders using natural language.
 
 CURRENT MENU:
-${menuContext}
+${menuContext}${categoryContext}
 
 CUSTOMER'S CURRENT ORDER:
 ${currentOrderContext}
@@ -883,6 +953,7 @@ Would any of these work for you?"`
                     message={message} 
                     onAddToCart={handleAddToCart}
                     menuItems={menuItems}
+                    categories={categories}
                   />
                 ))}
                 

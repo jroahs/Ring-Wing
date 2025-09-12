@@ -25,6 +25,9 @@ const PointOfSale = () => {
   const [selectedMealSubCategory, setSelectedMealSubCategory] = useState(null);
   const [selectedBeverageSubCategory, setSelectedBeverageSubCategory] = useState(null);
   const [activeCategory, setActiveCategory] = useState('Meals'); // For tracking which category is active
+  const [categories, setCategories] = useState([]);
+  // Dynamic subcategory selection state for all categories
+  const [selectedSubCategories, setSelectedSubCategories] = useState({});
   const [menuConfig, setMenuConfig] = useState({
     Beverages: {
       subCategories: {
@@ -39,7 +42,7 @@ const PointOfSale = () => {
         'Flavored Wings': {}, 'Combos': {}, 'Snacks': {}
       }
     }
-  });
+  }); // Fallback - will be replaced by dynamic categories
   const [showReceipt, setShowReceipt] = useState(false);
   const [cashAmount, setCashAmount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -186,6 +189,133 @@ const PointOfSale = () => {
 
     fetchMenuItems();
     return () => abortController.abort();
+  }, []);
+
+  // Fetch categories from database - with caching to prevent jumbling
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/categories');
+        if (!response.ok) {
+          throw new Error('Failed to fetch categories');
+        }
+        const data = await response.json();
+        
+        console.log('🎉 PointOfSale: Loaded dynamic categories', data);
+        
+        // DEBUG: Check the exact structure of the raw API response
+        console.log('🔍 RAW API DATA:', JSON.stringify(data, null, 2));
+        
+        // Transform the API data to expected format with stable sorting
+        const transformedCategories = data.map(cat => ({
+          ...cat,
+          name: cat.name || cat.category, // Ensure we have a 'name' field
+          _id: cat._id || cat.category // Ensure we have an ID for keys
+        }));
+        
+        // Apply stable sorting to categories and subcategories
+        const sortedCategories = transformedCategories.sort((a, b) => {
+          console.log(`🔧 Sorting: ${a.name} (sortOrder: ${a.sortOrder}) vs ${b.name} (sortOrder: ${b.sortOrder})`);
+          
+          // First sort by sortOrder - handle undefined/null values
+          const aSortOrder = typeof a.sortOrder === 'number' ? a.sortOrder : 999;
+          const bSortOrder = typeof b.sortOrder === 'number' ? b.sortOrder : 999;
+          
+          if (aSortOrder !== bSortOrder) {
+            console.log(`🔧 Sorting by sortOrder: ${aSortOrder} vs ${bSortOrder}`);
+            return aSortOrder - bSortOrder;
+          }
+          
+          // Then by name
+          const aName = a.name || '';
+          const bName = b.name || '';
+          if (aName !== bName) {
+            console.log(`🔧 Sorting by name: ${aName} vs ${bName}`);
+            return aName.localeCompare(bName);
+          }
+          
+          // Finally by _id for ultimate consistency
+          const aId = (a._id || '').toString();
+          const bId = (b._id || '').toString();
+          console.log(`🔧 Sorting by id: ${aId} vs ${bId}`);
+          return aId.localeCompare(bId);
+        }).map(category => {
+          // Also sort subcategories within each category for consistency
+          if (category.subcategories && Array.isArray(category.subcategories)) {
+            category.subcategories = category.subcategories.sort((a, b) => {
+              // Sort subcategories by sortOrder first, then by name
+              if ((a.sortOrder || 0) !== (b.sortOrder || 0)) {
+                return (a.sortOrder || 0) - (b.sortOrder || 0);
+              }
+              const aName = a.displayName || a.name || a.toString();
+              const bName = b.displayName || b.name || b.toString();
+              return aName.localeCompare(bName);
+            });
+          }
+          if (category.subCategories && Array.isArray(category.subCategories)) {
+            category.subCategories = category.subCategories.sort((a, b) => {
+              // Sort subcategories by sortOrder first, then by name
+              if ((a.sortOrder || 0) !== (b.sortOrder || 0)) {
+                return (a.sortOrder || 0) - (b.sortOrder || 0);
+              }
+              const aName = a.displayName || a.name || a.toString();
+              const bName = b.displayName || b.name || b.toString();
+              return aName.localeCompare(bName);
+            });
+          }
+          return category;
+        });
+        
+        // Temporarily disable caching to force fresh data fetch
+        setCategories(sortedCategories);
+        console.log('📊 PointOfSale: Categories FORCE updated with stable order');
+        console.log('Actual sort order:', sortedCategories.map(c => ({ name: c.name, sortOrder: c.sortOrder })));
+        
+        // Debug: Check the structure of sorted categories
+        console.log('🔄 PointOfSale: Categories sorted for consistency');
+        console.log('Sorted category structure:', sortedCategories.map(cat => ({ 
+          id: cat._id, 
+          name: cat.name, 
+          sortOrder: cat.sortOrder,
+          subCategories: cat.subCategories?.length || 0,
+          subcategories: cat.subcategories?.length || 0
+        })));
+        
+        // Transform categories into menuConfig format for compatibility
+        const dynamicMenuConfig = {};
+        sortedCategories.forEach(category => {
+          const categoryName = category.name || category.category;
+          if (categoryName) {
+            dynamicMenuConfig[categoryName] = {
+              subCategories: {}
+            };
+            
+            // Handle both subcategories and subCategories arrays
+            const subcats = category.subcategories || category.subCategories || [];
+            if (subcats.length > 0) {
+              subcats.forEach(subCat => {
+                const subCatName = subCat.name || subCat.displayName || subCat;
+                if (subCatName) {
+                  dynamicMenuConfig[categoryName].subCategories[subCatName] = {};
+                }
+              });
+            }
+          }
+        });
+        
+        // Update menuConfig with dynamic data, keeping fallback intact
+        setMenuConfig(prev => ({
+          ...prev,
+          ...dynamicMenuConfig
+        }));
+        
+      } catch (error) {
+        console.warn('PointOfSale: Failed to load dynamic categories, using fallback:', error);
+        // Keep existing hard-coded menuConfig as fallback
+      }
+    };
+
+    fetchCategories();
   }, []);
 
   // Add refresh functionality for menu updates
@@ -887,7 +1017,7 @@ const PointOfSale = () => {
     // Reset payment details
     setEWalletDetails({ provider: 'gcash', referenceNumber: '', name: '' });
     setCustomerName(''); // Reset customer name when canceling order
-  };// Filtered items is kept for compatibility with any existing code that might reference it
+  };  // Filtered items is kept for compatibility with any existing code that might reference it
   // But filtering is now done directly in the render for each category section
   const filteredItems = useMemo(() => {
     const searchFiltered = menuItems
@@ -898,7 +1028,7 @@ const PointOfSale = () => {
         item.code.toLowerCase().includes(searchTerm.toLowerCase())
       );
     
-    // Now apply separate category filters
+    // Apply dynamic category filters with backward compatibility
     if (activeCategory === 'Meals') {
       return searchFiltered.filter(item => 
         item.category === 'Meals' && 
@@ -909,10 +1039,17 @@ const PointOfSale = () => {
         item.category === 'Beverages' && 
         (!selectedBeverageSubCategory || item.subCategory === selectedBeverageSubCategory)
       );
+    } else if (activeCategory) {
+      // Handle dynamic categories
+      const selectedSubCategory = selectedSubCategories[activeCategory];
+      return searchFiltered.filter(item => 
+        item.category === activeCategory && 
+        (!selectedSubCategory || item.subCategory === selectedSubCategory)
+      );
     }
     
     return searchFiltered;
-  }, [menuItems, searchTerm, activeCategory, selectedMealSubCategory, selectedBeverageSubCategory]);
+  }, [menuItems, searchTerm, activeCategory, selectedMealSubCategory, selectedBeverageSubCategory, selectedSubCategories]);
 
   useEffect(() => {
     const handleKeyPress = e => {
@@ -936,20 +1073,38 @@ const PointOfSale = () => {
     setActiveCategory(null);
     setSelectedMealSubCategory(null);
     setSelectedBeverageSubCategory(null);
+    setSelectedSubCategories({}); // Clear dynamic subcategory selections
     setSearchTerm('');
   };  // Category tabs component - no longer needed with the new integrated breadcrumb navigation
   const renderCategoryTabs = () => {
     return null;
   };  // Subcategory tabs component - now handles separate states for meals and beverages
   // Displays subcategories in a compact single row with separators
-  const renderSubCategoryTabs = (category) => {
-    if (!menuConfig[category]) return null;
+  const renderSubCategoryTabs = (categoryName) => {
+    if (!menuConfig[categoryName]) return null;
     
-    const subCategories = Object.keys(menuConfig[category].subCategories || {});
+    const subCategories = Object.keys(menuConfig[categoryName].subCategories || {});
     if (subCategories.length === 0) return null;
     
-    const selectedSubCategory = category === 'Meals' ? selectedMealSubCategory : selectedBeverageSubCategory;
-    const setSelectedSubCategory = category === 'Meals' ? setSelectedMealSubCategory : setSelectedBeverageSubCategory;
+    // Use legacy states for Meals/Beverages for backward compatibility
+    const isLegacyCategory = categoryName === 'Meals' || categoryName === 'Beverages';
+    
+    let selectedSubCategory, setSelectedSubCategory;
+    
+    if (isLegacyCategory) {
+      // Use existing specific states for backward compatibility
+      selectedSubCategory = categoryName === 'Meals' ? selectedMealSubCategory : selectedBeverageSubCategory;
+      setSelectedSubCategory = categoryName === 'Meals' ? setSelectedMealSubCategory : setSelectedBeverageSubCategory;
+    } else {
+      // Use dynamic state for new categories
+      selectedSubCategory = selectedSubCategories[categoryName] || null;
+      setSelectedSubCategory = (subCat) => {
+        setSelectedSubCategories(prev => ({
+          ...prev,
+          [categoryName]: subCat
+        }));
+      };
+    }
     
     return (
       <div className="overflow-x-auto whitespace-nowrap py-1 mt-1 flex items-center">
@@ -969,6 +1124,119 @@ const PointOfSale = () => {
             </button>
           </React.Fragment>
         ))}
+      </div>
+    );
+  };
+
+  // Dynamic category section renderer
+  const renderCategorySection = (category) => {
+    // Add null checking and validation
+    if (!category) {
+      console.warn('renderCategorySection: No category provided');
+      return null;
+    }
+    
+    // Handle different data structures: {name: "Meals"} or {category: "Meals"}
+    const categoryName = category.name || category.category || category;
+    if (!categoryName) {
+      console.warn('renderCategorySection: No category name found', category);
+      return null;
+    }
+    
+    // Use legacy states for Meals/Beverages for backward compatibility
+    const isLegacyCategory = categoryName === 'Meals' || categoryName === 'Beverages';
+    
+    let selectedSubCategory, setSelectedSubCategory;
+    
+    if (isLegacyCategory) {
+      // Use existing specific states for backward compatibility
+      selectedSubCategory = categoryName === 'Meals' ? selectedMealSubCategory : selectedBeverageSubCategory;
+      setSelectedSubCategory = categoryName === 'Meals' ? setSelectedMealSubCategory : setSelectedBeverageSubCategory;
+    } else {
+      // Use dynamic state for new categories
+      selectedSubCategory = selectedSubCategories[categoryName] || null;
+      setSelectedSubCategory = (subCat) => {
+        setSelectedSubCategories(prev => ({
+          ...prev,
+          [categoryName]: subCat
+        }));
+      };
+    }
+    
+    return (
+      <div key={category._id || categoryName} className={categoryName === 'Meals' ? 'mb-6' : ''}>
+        {/* Category Breadcrumb with integrated subcategory selector */}
+        <div className="mb-2 bg-white rounded-lg py-1 px-3 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              <span className="font-medium mr-2 text-sm" style={{ color: theme.colors.primary }}>
+                {categoryName}:
+              </span>
+              <button
+                onClick={() => { 
+                  setActiveCategory(categoryName);
+                  setSelectedSubCategory(null);
+                }}
+                className={`text-sm transition-colors ${!selectedSubCategory ? 'font-medium' : ''}`}
+                style={{ 
+                  color: !selectedSubCategory ? theme.colors.accent : theme.colors.primary 
+                }}
+              >
+                All {categoryName}
+              </button>
+              
+              {selectedSubCategory && (
+                <>
+                  <span className="text-gray-400 mx-1">/</span>
+                  <span 
+                    className="text-sm font-medium"
+                    style={{ color: theme.colors.accent }}
+                  >
+                    {selectedSubCategory}
+                  </span>
+                </>
+              )}
+            </div>
+            
+            {/* Clear selection button */}
+            {selectedSubCategory && (
+              <button
+                onClick={() => setSelectedSubCategory(null)}
+                className="text-xs px-2 py-1 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors"
+                style={{ color: theme.colors.primary }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          
+          {/* Subcategories in a single row */}
+          {renderSubCategoryTabs(categoryName)}
+        </div>
+        
+        {/* Display Category Items */}
+        <div className="overflow-x-auto scrollbar-hide" style={{ width: '836px', maxWidth: '100%' }}>
+          <div className="flex gap-3 pb-2" style={{ width: 'max-content' }}>
+            {menuItems
+              .filter(item => 
+                item.category === categoryName && 
+                (!selectedSubCategory || item.subCategory === selectedSubCategory) &&
+                (searchTerm === '' || 
+                 item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                 item.code.toLowerCase().includes(searchTerm.toLowerCase()))
+              )
+              .map(item => (
+                <div key={item._id} className="flex-shrink-0" style={{ width: '200px' }}>
+                  <MenuItemCard
+                    item={item}
+                    onClick={() => item.isAvailable !== false ? addToOrder(item) : null}
+                    isUnavailable={item.isAvailable === false}
+                  />
+                </div>
+              ))
+            }
+          </div>
+        </div>
       </div>
     );
   };
@@ -1105,153 +1373,172 @@ const PointOfSale = () => {
                   </button>
                 </div>
               </div>              {/* Menu Navigation */}
-              <div className="mb-4">{/* Meals Section */}
-                <div className="mb-6">
-                  {/* Meals Breadcrumb with integrated subcategory selector */}
-                  <div className="mb-2 bg-white rounded-lg py-1 px-3 shadow-sm">
-                    <div className="flex items-center justify-between">                    <div>
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium mr-2 text-sm" style={{ color: theme.colors.primary }}>
-                          Meals:
-                        </span>
-                        <button
-                          onClick={() => { 
-                            setActiveCategory('Meals');
-                            setSelectedMealSubCategory(null);
-                          }}
-                          className={`text-sm transition-colors ${!selectedMealSubCategory ? 'font-medium' : ''}`}
-                          style={{ 
-                            color: !selectedMealSubCategory ? theme.colors.accent : theme.colors.primary 
-                          }}
-                        >
-                          All Meals
-                        </button>
-                        
-                        {selectedMealSubCategory && (
-                          <>
-                            <span className="text-gray-400 mx-1">/</span>
-                            <span 
-                              className="text-sm font-medium"
-                              style={{ color: theme.colors.accent }}
-                            >
-                              {selectedMealSubCategory}
+              <div className="mb-4">
+                {/* Dynamic Category Sections */}
+                {categories.length > 0 ? (
+                  categories.map(category => {
+                    const categoryName = category.name || category.category;
+                    if (!categoryName) {
+                      return null;
+                    }
+                    return renderCategorySection(category);
+                  }).filter(Boolean)
+                ) : (
+                  /* Fallback to hard-coded categories while loading */
+                  <>
+                    {/* Meals Section */}
+                    <div className="mb-6">
+                      {/* Meals Breadcrumb with integrated subcategory selector */}
+                      <div className="mb-2 bg-white rounded-lg py-1 px-3 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium mr-2 text-sm" style={{ color: theme.colors.primary }}>
+                              Meals:
                             </span>
-                          </>
-                        )}
-                      </div>
+                            <button
+                              onClick={() => { 
+                                setActiveCategory('Meals');
+                                setSelectedMealSubCategory(null);
+                              }}
+                              className={`text-sm transition-colors ${!selectedMealSubCategory ? 'font-medium' : ''}`}
+                              style={{ 
+                                color: !selectedMealSubCategory ? theme.colors.accent : theme.colors.primary 
+                              }}
+                            >
+                              All Meals
+                            </button>
+                            
+                            {selectedMealSubCategory && (
+                              <>
+                                <span className="text-gray-400 mx-1">/</span>
+                                <span 
+                                  className="text-sm font-medium"
+                                  style={{ color: theme.colors.accent }}
+                                >
+                                  {selectedMealSubCategory}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          
+                          {/* Clear selection button */}
+                          {selectedMealSubCategory && (
+                            <button
+                              onClick={() => setSelectedMealSubCategory(null)}
+                              className="text-xs px-2 py-1 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors"
+                              style={{ color: theme.colors.primary }}
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                        
+                        {/* Subcategories in a single row */}
+                        {renderSubCategoryTabs('Meals')}
                       </div>
                       
-                      {/* Clear selection button */}
-                      {selectedMealSubCategory && (
-                        <button
-                          onClick={() => setSelectedMealSubCategory(null)}
-                          className="text-xs px-2 py-1 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors"
-                          style={{ color: theme.colors.primary }}
-                        >
-                          Clear
-                        </button>
-                      )}
+                      {/* Display Meal Items */}
+                      <div className="overflow-x-auto scrollbar-hide" style={{ width: '836px', maxWidth: '100%' }}>
+                        <div className="flex gap-3 pb-2" style={{ width: 'max-content' }}>
+                          {menuItems
+                            .filter(item => 
+                              item.category === 'Meals' && 
+                              (!selectedMealSubCategory || item.subCategory === selectedMealSubCategory) &&
+                              (searchTerm === '' || 
+                               item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                               item.code.toLowerCase().includes(searchTerm.toLowerCase()))
+                            )
+                            .map(item => (
+                              <div key={item._id} className="flex-shrink-0" style={{ width: '200px' }}>
+                                <MenuItemCard
+                                  item={item}
+                                  onClick={() => item.isAvailable !== false ? addToOrder(item) : null}
+                                  isUnavailable={item.isAvailable === false}
+                                />
+                              </div>
+                            ))
+                          }
+                        </div>
+                      </div>
                     </div>
-                    
-                    {/* Subcategories in a single row */}
-                    {renderSubCategoryTabs('Meals')}
-                  </div>                  {/* Display Meal Items */}
-                  <div className="overflow-x-auto scrollbar-hide" style={{ width: '836px', maxWidth: '100%' }}>
-                    <div className="flex gap-3 pb-2" style={{ width: 'max-content' }}>
-                      {menuItems
-                        .filter(item => 
-                          item.category === 'Meals' && 
-                          // Remove isAvailable filter - show all items
-                          (!selectedMealSubCategory || item.subCategory === selectedMealSubCategory) &&
-                          (searchTerm === '' || 
-                           item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           item.code.toLowerCase().includes(searchTerm.toLowerCase()))
-                        )
-                        .map(item => (
-                          <div key={item._id} className="flex-shrink-0" style={{ width: '200px' }}>
-                            <MenuItemCard
-                              item={item}
-                              onClick={() => item.isAvailable !== false ? addToOrder(item) : null}
-                              isUnavailable={item.isAvailable === false}
-                            />
-                          </div>
-                        ))
-                      }
-                    </div>
-                  </div>
-                </div>                {/* Beverages Section */}
-                <div>
-                  {/* Beverages Breadcrumb with integrated subcategory selector */}
-                  <div className="mb-2 bg-white rounded-lg py-1 px-3 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium mr-2 text-sm" style={{ color: theme.colors.primary }}>
-                          Beverages:
-                        </span>
-                        <button
-                          onClick={() => { 
-                            setActiveCategory('Beverages');
-                            setSelectedBeverageSubCategory(null);
-                          }}
-                          className={`text-sm transition-colors ${!selectedBeverageSubCategory ? 'font-medium' : ''}`}
-                          style={{ 
-                            color: !selectedBeverageSubCategory ? theme.colors.accent : theme.colors.primary 
-                          }}
-                        >
-                          All Beverages
-                        </button>
-                        
-                        {selectedBeverageSubCategory && (
-                          <>
-                            <span className="text-gray-400 mx-1">/</span>
-                            <span 
-                              className="text-sm font-medium"
-                              style={{ color: theme.colors.accent }}
-                            >
-                              {selectedBeverageSubCategory}
+
+                    {/* Beverages Section */}
+                    <div>
+                      {/* Beverages Breadcrumb with integrated subcategory selector */}
+                      <div className="mb-2 bg-white rounded-lg py-1 px-3 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium mr-2 text-sm" style={{ color: theme.colors.primary }}>
+                              Beverages:
                             </span>
-                          </>                        )}
+                            <button
+                              onClick={() => { 
+                                setActiveCategory('Beverages');
+                                setSelectedBeverageSubCategory(null);
+                              }}
+                              className={`text-sm transition-colors ${!selectedBeverageSubCategory ? 'font-medium' : ''}`}
+                              style={{ 
+                                color: !selectedBeverageSubCategory ? theme.colors.accent : theme.colors.primary 
+                              }}
+                            >
+                              All Beverages
+                            </button>
+                            
+                            {selectedBeverageSubCategory && (
+                              <>
+                                <span className="text-gray-400 mx-1">/</span>
+                                <span 
+                                  className="text-sm font-medium"
+                                  style={{ color: theme.colors.accent }}
+                                >
+                                  {selectedBeverageSubCategory}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          
+                          {/* Clear selection button */}
+                          {selectedBeverageSubCategory && (
+                            <button
+                              onClick={() => setSelectedBeverageSubCategory(null)}
+                              className="text-xs px-2 py-1 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors"
+                              style={{ color: theme.colors.primary }}
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                        
+                        {/* Subcategories in a single row */}
+                        {renderSubCategoryTabs('Beverages')}
                       </div>
                       
-                      {/* Clear selection button */}
-                      {selectedBeverageSubCategory && (
-                        <button
-                          onClick={() => setSelectedBeverageSubCategory(null)}
-                          className="text-xs px-2 py-1 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors"
-                          style={{ color: theme.colors.primary }}
-                        >
-                          Clear
-                        </button>
-                      )}
+                      {/* Display Beverage Items */}
+                      <div className="overflow-x-auto scrollbar-hide" style={{ width: '836px', maxWidth: '100%' }}>
+                        <div className="flex gap-3 pb-2" style={{ width: 'max-content' }}>
+                          {menuItems
+                            .filter(item => 
+                              item.category === 'Beverages' && 
+                              (!selectedBeverageSubCategory || item.subCategory === selectedBeverageSubCategory) &&
+                              (searchTerm === '' || 
+                               item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                               item.code.toLowerCase().includes(searchTerm.toLowerCase()))
+                            )
+                            .map(item => (
+                              <div key={item._id} className="flex-shrink-0" style={{ width: '200px' }}>
+                                <MenuItemCard
+                                  item={item}
+                                  onClick={() => item.isAvailable !== false ? addToOrder(item) : null}
+                                  isUnavailable={item.isAvailable === false}
+                                />
+                              </div>
+                            ))
+                          }
+                        </div>
+                      </div>
                     </div>
-                    
-                    {/* Subcategories in a single row */}
-                    {renderSubCategoryTabs('Beverages')}
-                  </div>                  {/* Display Beverage Items */}
-                  <div className="overflow-x-auto scrollbar-hide" style={{ width: '836px', maxWidth: '100%' }}>
-                    <div className="flex gap-3 pb-2" style={{ width: 'max-content' }}>
-                      {menuItems
-                        .filter(item => 
-                          item.category === 'Beverages' && 
-                          // Remove isAvailable filter - show all items
-                          (!selectedBeverageSubCategory || item.subCategory === selectedBeverageSubCategory) &&
-                          (searchTerm === '' || 
-                           item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           item.code.toLowerCase().includes(searchTerm.toLowerCase()))
-                        )
-                        .map(item => (
-                          <div key={item._id} className="flex-shrink-0" style={{ width: '200px' }}>
-                            <MenuItemCard
-                              item={item}
-                              onClick={() => item.isAvailable !== false ? addToOrder(item) : null}
-                              isUnavailable={item.isAvailable === false}
-                            />
-                          </div>
-                        ))
-                      }
-                    </div>
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
             </div>
 
