@@ -43,65 +43,78 @@ const ChatMessage = ({ message, onAddToCart, menuItems }) => {
     return (
       <div className="space-y-3">
         <p className="text-sm" style={{ color: colors.primary }}>{message.text}</p>
-        <div className="grid grid-cols-1 gap-3">
-          {message.suggestions?.map((item, index) => (
-            <motion.div
-              key={index}
-              className="bg-white rounded-xl border border-gray-200 overflow-hidden relative"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              {/* System Alternative Badge */}
-              {item.isSystemAlternative && (
-                <div className="absolute top-2 right-2 z-10 px-2 py-1 rounded-full text-xs font-bold text-white shadow-sm"
-                     style={{ backgroundColor: colors.primary }}>
-                  ⭐ RECOMMENDED
-                </div>
-              )}
-              
-              <div className="flex p-3">
-                <div className="w-16 h-16 flex-shrink-0 mr-3">
-                  <img 
-                    src={item.image || (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png')}
-                    alt={item.name}
-                    className="w-full h-full object-cover rounded-lg"
-                    onError={(e) => {
-                      e.target.src = item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png';
-                    }}
-                  />
-                </div>
-                <div className="flex-1 flex flex-col justify-between">
-                  <div>
-                    <h4 className="font-semibold text-sm text-gray-900 leading-tight mb-1">
-                      {item.name}
-                      {item.isSystemAlternative && (
-                        <span className="ml-2 text-xs font-normal text-gray-500">
-                          (Chef's Alternative)
-                        </span>
-                      )}
-                    </h4>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500">{item.code}</span>
-                      <span 
-                        className="font-bold text-sm"
-                        style={{ color: colors.primary }}
-                      >
-                        ₱{item.price}
-                      </span>
-                    </div>
+        
+        {/* Handle case when no suggestions are available */}
+        {!message.suggestions || message.suggestions.length === 0 ? (
+          <div className="bg-gray-50 rounded-xl p-4 text-center">
+            <p className="text-sm text-gray-600 mb-2">
+              Menu items are being loaded...
+            </p>
+            <p className="text-xs text-gray-500">
+              Please try browsing the menu directly or ask me anything!
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3">
+            {message.suggestions.map((item, index) => (
+              <motion.div
+                key={`${item._id || item.name}-${index}`}
+                className="bg-white rounded-xl border border-gray-200 overflow-hidden relative"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {/* System Alternative Badge */}
+                {item.isSystemAlternative && (
+                  <div className="absolute top-2 right-2 z-10 px-2 py-1 rounded-full text-xs font-bold text-white shadow-sm"
+                       style={{ backgroundColor: colors.primary }}>
+                    ⭐ RECOMMENDED
                   </div>
-                  <button
-                    onClick={() => onAddToCart(item)}
-                    className="mt-2 w-full py-2 rounded-lg text-xs font-semibold text-white transition-all duration-200 active:scale-95"
-                    style={{ backgroundColor: colors.accent }}
-                  >
-                    🛒 Add to Cart
-                  </button>
+                )}
+                
+                <div className="flex p-3">
+                  <div className="w-16 h-16 flex-shrink-0 mr-3">
+                    <img 
+                      src={item.image || (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png')}
+                      alt={item.name}
+                      className="w-full h-full object-cover rounded-lg"
+                      onError={(e) => {
+                        e.target.src = item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png';
+                      }}
+                    />
+                  </div>
+                  <div className="flex-1 flex flex-col justify-between">
+                    <div>
+                      <h4 className="font-semibold text-sm text-gray-900 leading-tight mb-1">
+                        {item.name}
+                        {item.isSystemAlternative && (
+                          <span className="ml-2 text-xs font-normal text-gray-500">
+                            (Chef's Alternative)
+                          </span>
+                        )}
+                      </h4>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">{item.code}</span>
+                        <span 
+                          className="font-bold text-sm"
+                          style={{ color: colors.primary }}
+                        >
+                          ₱{item.price}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => onAddToCart(item)}
+                      className="mt-2 w-full py-2 rounded-lg text-xs font-semibold text-white transition-all duration-200 active:scale-95"
+                      style={{ backgroundColor: colors.accent }}
+                    >
+                      🛒 Add to Cart
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -148,23 +161,136 @@ const SelfCheckoutAIAssistant = ({
   const [messages, setMessages] = useState([
     {
       id: 1,
-      text: "Hi! I'm your ordering assistant. I can help you find items, suggest combinations, or answer questions about our menu. What would you like to try today?",
+      text: "Hi! Ready to order? Here are some popular choices:",
       sender: 'bot',
-      timestamp: new Date()
+      timestamp: new Date(),
+      type: 'text', // Changed from 'menu-suggestions' to 'text'
+      suggestions: []
     }
   ]);
   const [inputText, setInputText] = useState('');
   const [isThinking, setIsThinking] = useState(false);
+  const hasAddedInitialSuggestionsRef = useRef(false); // Use ref instead of state
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
+
+  // Generate unique ID for messages (moved up before use)
+  const generateUniqueId = () => Math.random().toString(36).substr(2, 9);
+
+  // Get initial meal suggestions - popular/featured items
+  const getInitialSuggestions = () => {
+    if (!menuItems || menuItems.length === 0) {
+      // Failsafe: return empty array if no menu items
+      return [];
+    }
+    
+    // Filter available items
+    const availableItems = menuItems.filter(item => 
+      item.isAvailable !== false && 
+      item.name && 
+      item.pricing && 
+      Object.keys(item.pricing).length > 0
+    );
+    
+    if (availableItems.length === 0) {
+      // Failsafe: no qualified items available
+      return [];
+    }
+    
+    const suggestions = [];
+    const usedIds = new Set(); // Prevent duplicates
+    
+    // Priority categories for diverse suggestions
+    const priorityCategories = [
+      { keywords: ['combo', 'solo'], priority: 1 }, // Combo meals first
+      { keywords: ['wings', 'chicken'], priority: 2 }, // Wings/Chicken second
+      { keywords: ['rice', 'meal'], priority: 3 }, // Rice meals third
+      { keywords: ['drink', 'beverage'], priority: 4 } // Drinks last
+    ];
+    
+    // Sort items by priority and price (affordable first)
+    const categorizedItems = availableItems.map(item => {
+      const itemName = item.name.toLowerCase();
+      const pricing = item.pricing || {};
+      const basePrice = Math.min(...Object.values(pricing));
+      
+      // Find category priority
+      let priority = 999;
+      for (const cat of priorityCategories) {
+        if (cat.keywords.some(keyword => itemName.includes(keyword))) {
+          priority = cat.priority;
+          break;
+        }
+      }
+      
+      return {
+        ...item,
+        priority,
+        basePrice,
+        defaultSize: Object.keys(pricing).includes('base') ? 'base' : Object.keys(pricing)[0] || 'regular'
+      };
+    }).sort((a, b) => {
+      // Sort by priority first, then by price (lower price first)
+      if (a.priority !== b.priority) return a.priority - b.priority;
+      return a.basePrice - b.basePrice;
+    });
+    
+    // Select diverse suggestions (max 2)
+    for (const item of categorizedItems) {
+      if (suggestions.length >= 2) break;
+      if (usedIds.has(item._id)) continue;
+      
+      suggestions.push({
+        ...item,
+        price: item.basePrice
+      });
+      usedIds.add(item._id);
+    }
+    
+    // Failsafe: if still no suggestions, take first 2 available items
+    if (suggestions.length === 0 && availableItems.length > 0) {
+      for (let i = 0; i < Math.min(2, availableItems.length); i++) {
+        const item = availableItems[i];
+        const pricing = item.pricing || {};
+        const basePrice = Math.min(...Object.values(pricing));
+        
+        suggestions.push({
+          ...item,
+          price: basePrice,
+          defaultSize: Object.keys(pricing).includes('base') ? 'base' : Object.keys(pricing)[0] || 'regular'
+        });
+      }
+    }
+    
+    return suggestions;
+  };
 
   // Auto-scroll to bottom of messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Generate unique ID for messages
-  const generateUniqueId = () => Math.random().toString(36).substr(2, 9);
+  // Update initial message with suggestions when menuItems are loaded
+  useEffect(() => {
+    if (menuItems && menuItems.length > 0 && !hasAddedInitialSuggestionsRef.current) {
+      const suggestions = getInitialSuggestions();
+      
+      // Add a separate menu suggestions message instead of modifying the initial message
+      if (suggestions.length > 0) {
+        const suggestionsMessage = {
+          id: generateUniqueId(), // Use unique ID instead of fixed ID
+          text: "Here are some great options to get you started:",
+          sender: 'bot',
+          timestamp: new Date(),
+          type: 'menu-suggestions',
+          suggestions: suggestions
+        };
+        
+        setMessages(prevMessages => [...prevMessages, suggestionsMessage]);
+        hasAddedInitialSuggestionsRef.current = true; // Set flag to prevent duplicates
+      }
+    }
+  }, [menuItems]); // Only depend on menuItems
 
   // Get AI response using your existing Gemini integration
   const getAIResponse = async (userInput, signal = null) => {
