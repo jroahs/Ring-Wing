@@ -20,6 +20,7 @@ import RevenueReportsPage from './RevenueReportsPage';
 import TimeClockInterface from './TimeClockInterface';
 import MobileLanding from './MobileLanding';
 import api, { checkApiHealth, startHealthMonitoring } from './services/apiService';
+import { useBreakpoint } from './hooks/useBreakpoint';
 import axios from 'axios';
 
 // API URL configuration
@@ -211,26 +212,21 @@ const MainLayout = () => {
   const [showTimeClock, setShowTimeClock] = useState(false);
   const [userData, setUserData] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowWidth(window.innerWidth);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
+  // Use new breakpoint hook instead of manual window width tracking
+  const { isMobile, isDesktop, above } = useBreakpoint();
+  
   useEffect(() => {
     const storedData = localStorage.getItem('userData');
     if (storedData) {
       setUserData(JSON.parse(storedData));
     }
-  }, []);  const handleSidebarToggle = (isOpen, mobile) => {
+  }, []);
+
+  const handleSidebarToggle = (isOpen, mobile) => {
     setSidebarOpen(isOpen);
-    setIsMobile(mobile);
+    // Note: mobile parameter from Sidebar component is now ignored 
+    // in favor of useBreakpoint detection
   };
 
   // Small global margin to account for sidebar
@@ -239,11 +235,11 @@ const MainLayout = () => {
       return '0'; // No margin on mobile
     }
     
-    // Small, consistent margin for desktop
-    if (windowWidth >= 1920) {
-      return '6rem'; // Slightly larger for big screens
+    // Small, consistent margin for desktop/tablet
+    if (above('tablet')) { // Above tablet = desktop
+      return '6rem'; // Larger margin for desktop
     } else {
-      return '4rem'; // Smaller margin for normal desktop
+      return '4rem'; // Smaller margin for tablet
     }
   };
 
