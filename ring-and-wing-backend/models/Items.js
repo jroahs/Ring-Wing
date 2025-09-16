@@ -84,20 +84,22 @@ const itemSchema = new mongoose.Schema({
 
 // Virtual fields
 itemSchema.virtual('totalQuantity').get(function() {
-  return this.inventory.reduce((sum, batch) => sum + batch.quantity, 0);
+  return this.inventory && Array.isArray(this.inventory) ? this.inventory.reduce((sum, batch) => sum + batch.quantity, 0) : 0;
 });
 
 // Daily usage tracking
 itemSchema.virtual('dailyUsage').get(function() {
-  return this.inventory.reduce((sum, batch) => {
+  return this.inventory && Array.isArray(this.inventory) ? this.inventory.reduce((sum, batch) => {
     if (batch.dailyStartQuantity && batch.dailyEndQuantity !== undefined) {
       return sum + (batch.dailyStartQuantity - batch.dailyEndQuantity);
     }
     return sum;
-  }, 0);
+  }, 0) : 0;
 });
 
 itemSchema.virtual('expirationAlerts').get(function() {
+  if (!this.inventory || !Array.isArray(this.inventory)) return [];
+  
   const now = new Date();
   return this.inventory.map(batch => {
     const expirationDate = new Date(batch.expirationDate);

@@ -144,6 +144,20 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
+// Debug middleware to catch all ingredient mapping requests
+app.use((req, res, next) => {
+  if (req.method === 'PUT' && req.path.includes('/ingredients/')) {
+    console.log(`[SERVER_DEBUG] PUT /ingredients request intercepted:`, {
+      method: req.method,
+      path: req.path,
+      params: req.params,
+      body: req.body,
+      timestamp: new Date().toISOString()
+    });
+  }
+  next();
+});
+
 // HTTP logging
 app.use(morgan('combined'));
 
@@ -302,6 +316,7 @@ app.use('/api/items', require('./routes/itemRoutes'));
 app.use('/api/vendors', require('./routes/vendorRoutes'));
 app.use('/api/revenue', revenueRoutes);
 app.use('/api/settings', require('./routes/settingsRoutes'));
+app.use('/api/inventory', require('./routes/inventoryRoutes'));
 
 // Health routes for server monitoring
 app.use('/api/health', healthRoutes);

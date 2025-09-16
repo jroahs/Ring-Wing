@@ -5,6 +5,7 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const { lightCheck, standardCheck, criticalCheck } = require('../middleware/dbConnectionMiddleware');
+const { ingredientMappingMonitor, costAnalysisMonitor } = require('../middleware/connectionMonitoringMiddleware');
 
 // Configure storage with better filename handling
 const storage = multer.diskStorage({
@@ -201,6 +202,248 @@ router.delete('/:id', criticalCheck, async (req, res) => {
     res.status(500).json({ 
       message: 'Server error during deletion',
       ...(process.env.NODE_ENV === 'development' && { error: err.message })
+    });
+  }
+});
+
+// ==========================================
+// INVENTORY INTEGRATION ENDPOINTS
+// ==========================================
+
+const InventoryAvailabilityService = require('../services/inventoryAvailabilityService');
+const InventoryBusinessLogicService = require('../services/inventoryBusinessLogicService');
+
+// Check menu item availability based on ingredient stock
+router.post('/check-availability', lightCheck, async (req, res) => {
+  try {
+    const { menuItems } = req.body;
+    
+    if (!menuItems || !Array.isArray(menuItems)) {
+      return res.status(400).json({
+        success: false,
+        message: 'menuItems array is required'
+      });
+    }
+
+    // Use checkOrderAvailability which accepts an array of menu items
+    const availabilityResults = await InventoryAvailabilityService.checkOrderAvailability(menuItems);
+    
+    res.json({
+      success: true,
+      data: availabilityResults
+    });
+  } catch (error) {
+    console.error('Error checking menu availability:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check menu availability',
+      error: error.message
+    });
+  }
+});
+
+// Get menu item ingredients  
+router.get('/ingredients/:menuItemId', lightCheck, async (req, res) => {
+  try {
+    const { menuItemId } = req.params;
+    const ingredients = await InventoryBusinessLogicService.getMenuItemIngredients(menuItemId);
+    
+    res.json({
+      success: true,
+      data: ingredients
+    });
+  } catch (error) {
+    const logger = require('../config/logger');
+    if (logger && typeof logger.error === 'function') {
+      logger.error('Error getting menu item ingredients:', {
+        error: error.message,
+        errorName: error.name,
+        menuItemId: req.params.menuItemId,
+        requestId: req.connectionRequestId,
+        connectionReadyState: require('mongoose').connection.readyState,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      console.error('Error getting menu item ingredients:', error);
+    }
+    
+    console.error('Error getting menu item ingredients:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get menu item ingredients',
+      error: error.message,
+      requestId: req.connectionRequestId
+    });
+  }
+});
+
+// Rate limiting storage
+const requestCounts = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const MAX_REQUESTS = 50; // Increased to 50 requests per minute for development
+
+// Rate limiting middleware for ingredient updates
+const rateLimitMiddleware = (req, res, next) => {
+  const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
+  const now = Date.now();
+  
+  // Clean old entries
+  for (const [ip, data] of requestCounts.entries()) {
+    if (now - data.windowStart > RATE_LIMIT_WINDOW) {
+      requestCounts.delete(ip);
+    }
+  }
+  
+  // Check current IP
+  const clientData = requestCounts.get(clientIP) || { count: 0, windowStart: now };
+  
+  if (now - clientData.windowStart > RATE_LIMIT_WINDOW) {
+    // Reset window
+    clientData.count = 1;
+    clientData.windowStart = now;
+  } else {
+    clientData.count++;
+  }
+  
+  requestCounts.set(clientIP, clientData);
+  
+  if (clientData.count > MAX_REQUESTS) {
+    console.log(`[RATE_LIMIT] Blocking request from ${clientIP}: ${clientData.count}/${MAX_REQUESTS} requests in window`);
+    return res.status(429).json({
+      success: false,
+      message: 'Too many requests. Please wait before trying again.',
+      retryAfter: Math.ceil((RATE_LIMIT_WINDOW - (now - clientData.windowStart)) / 1000),
+      debug: {
+        count: clientData.count,
+        maxRequests: MAX_REQUESTS,
+        windowStart: new Date(clientData.windowStart).toISOString()
+      }
+    });
+  }
+  
+  next();
+};
+
+// Update menu item ingredients
+router.put('/ingredients/:menuItemId', rateLimitMiddleware, standardCheck, async (req, res) => {
+  let startTime = Date.now();
+  
+  console.log(`[ROUTE_HIT] PUT /ingredients/${req.params.menuItemId} - Request received at ${new Date().toISOString()}`);
+  console.log(`[ROUTE_HIT] Request body:`, JSON.stringify(req.body, null, 2));
+  console.log(`[ROUTE_HIT] Request headers:`, JSON.stringify(req.headers, null, 2));
+  
+  try {
+    const { menuItemId } = req.params;
+    const { ingredients } = req.body;
+    
+    console.log(`[${new Date().toISOString()}] Ingredient mapping request for menu item: ${menuItemId}`);
+    
+    // Enhanced validation
+    if (!menuItemId || menuItemId.length !== 24) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid menu item ID is required (24 character hex string)'
+      });
+    }
+    
+    if (!ingredients || !Array.isArray(ingredients)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ingredients array is required'
+      });
+    }
+    
+    // Allow empty array for unmapping all ingredients
+    if (ingredients.length === 0) {
+      console.log('Received request to unmap all ingredients for menu item:', menuItemId);
+    } else if (ingredients.length > 20) {
+      return res.status(400).json({
+        success: false,
+        message: 'Too many ingredients. Maximum 20 ingredients allowed per menu item.'
+      });
+    }
+    
+    // Add timeout protection
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Operation timeout after 30 seconds')), 30000);
+    });
+    
+    const operationPromise = InventoryBusinessLogicService.updateMenuItemIngredients(menuItemId, ingredients);
+    
+    const result = await Promise.race([operationPromise, timeoutPromise]);
+    
+    const duration = Date.now() - startTime;
+    console.log(`[${new Date().toISOString()}] Ingredient mapping completed in ${duration}ms`);
+    
+    res.json({
+      success: true,
+      data: result,
+      processingTime: duration
+    });
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    console.error(`[${new Date().toISOString()}] Error updating menu item ingredients (${duration}ms):`, error.message);
+    
+    // Different error responses based on error type
+    let statusCode = 500;
+    let message = 'Failed to update menu item ingredients';
+    
+    if (error.message.includes('timeout')) {
+      statusCode = 408;
+      message = 'Request timeout. The operation took too long to complete.';
+    } else if (error.message.includes('Too many ingredients')) {
+      statusCode = 400;
+      message = error.message;
+    } else if (error.message.includes('required') || error.message.includes('Invalid')) {
+      statusCode = 400;
+      message = error.message;
+    } else if (error.message.includes('connection') || error.message.includes('database')) {
+      statusCode = 503;
+      message = 'Database connection issue. Please try again in a moment.';
+    }
+    
+    res.status(statusCode).json({
+      success: false,
+      message: message,
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      processingTime: duration
+    });
+  }
+});
+
+// Get cost analysis for menu item
+router.get('/cost-analysis/:menuItemId', lightCheck, async (req, res) => {
+  try {
+    const { menuItemId } = req.params;
+    const costAnalysis = await InventoryBusinessLogicService.calculateMenuItemCost(menuItemId);
+    
+    res.json({
+      success: true,
+      data: costAnalysis
+    });
+  } catch (error) {
+    const logger = require('../config/logger');
+    if (logger && typeof logger.error === 'function') {
+      logger.error('Error getting cost analysis:', {
+        error: error.message,
+        errorName: error.name,
+        menuItemId: req.params.menuItemId,
+        requestId: req.connectionRequestId,
+        connectionReadyState: require('mongoose').connection.readyState,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      console.error('Error getting cost analysis:', error);
+    }
+    
+    console.error('Error getting cost analysis:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get cost analysis',
+      error: error.message,
+      requestId: req.connectionRequestId
     });
   }
 });
