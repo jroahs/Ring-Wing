@@ -244,6 +244,14 @@ const InventorySystem = () => {
   // Add loading state for bulk operations
   const [bulkOperationLoading, setBulkOperationLoading] = useState(false);
 
+  // New inventory features state
+  const [inventoryReservations, setInventoryReservations] = useState([]);
+  const [inventoryAlerts, setInventoryAlerts] = useState([]);
+  const [showReservationsModal, setShowReservationsModal] = useState(false);
+  const [showInventoryAlertsModal, setShowInventoryAlertsModal] = useState(false);
+  const [realTimeStatus, setRealTimeStatus] = useState({});
+  const [costAnalysis, setCostAnalysis] = useState({});
+
   useEffect(() => {
     const handleResize = () => {
       setWindowWidth(window.innerWidth);
@@ -272,6 +280,11 @@ const InventorySystem = () => {
         ]);
         setItems(itemsRes.data);
         setVendors(vendorsRes.data);
+        
+        // Fetch new inventory features
+        await fetchInventoryReservations();
+        await fetchInventoryAlerts();
+        
         setLoading(false);
       } catch (err) {
         console.error('Fetch error:', err.response?.data || err.message);
@@ -281,6 +294,69 @@ const InventorySystem = () => {
     };
     fetchData();
   }, []);
+
+  // New inventory feature functions
+  const fetchInventoryReservations = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/inventory/reservations`);
+      if (response.data.success) {
+        setInventoryReservations(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching reservations:', error);
+    }
+  };
+
+  const fetchInventoryAlerts = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/inventory/alerts`);
+      if (response.data.success) {
+        setInventoryAlerts(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching inventory alerts:', error);
+    }
+  };
+
+  const createReservation = async (orderData) => {
+    try {
+      const response = await axios.post(`${API_URL}/api/inventory/reserve`, orderData);
+      if (response.data.success) {
+        await fetchInventoryReservations();
+        toast.success('Inventory reservation created successfully');
+        return response.data.data;
+      }
+    } catch (error) {
+      console.error('Error creating reservation:', error);
+      toast.error('Failed to create reservation: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const completeReservation = async (reservationId) => {
+    try {
+      const response = await axios.patch(`${API_URL}/api/inventory/reservations/${reservationId}/complete`);
+      if (response.data.success) {
+        await fetchInventoryReservations();
+        toast.success('Reservation completed successfully');
+      }
+    } catch (error) {
+      console.error('Error completing reservation:', error);
+      toast.error('Failed to complete reservation: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const cancelReservation = async (reservationId) => {
+    try {
+      const response = await axios.delete(`${API_URL}/api/inventory/reservations/${reservationId}`);
+      if (response.data.success) {
+        await fetchInventoryReservations();
+        toast.success('Reservation cancelled successfully');
+      }
+    } catch (error) {
+      console.error('Error cancelling reservation:', error);
+      toast.error('Failed to cancel reservation: ' + (error.response?.data?.message || error.message));
+    }
+  };
   const [lastAlertsHash, setLastAlertsHash] = useState('');
   const [isFirstLoad, setIsFirstLoad] = useState(true);
   
@@ -972,6 +1048,18 @@ const InventorySystem = () => {
             variant="accent"
           >
             Bulk End-of-Day Count
+          </Button>
+          <Button
+            onClick={() => setShowReservationsModal(true)}
+            variant="primary"
+          >
+            Inventory Reservations ({inventoryReservations.length})
+          </Button>
+          <Button
+            onClick={() => setShowInventoryAlertsModal(true)}
+            variant="secondary"
+          >
+            System Alerts ({inventoryAlerts.length})
           </Button>
           <Button
             onClick={() => setShowConversionModal(true)}
@@ -1961,6 +2049,156 @@ const InventorySystem = () => {
               >
                 Close
               </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Inventory Reservations Modal */}
+        {showReservationsModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white p-6 rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Inventory Reservations</h2>
+                <Button onClick={() => setShowReservationsModal(false)} variant="ghost">✕</Button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto">
+                {inventoryReservations.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left">Reservation ID</th>
+                          <th className="px-4 py-2 text-left">Order ID</th>
+                          <th className="px-4 py-2 text-left">Items</th>
+                          <th className="px-4 py-2 text-left">Status</th>
+                          <th className="px-4 py-2 text-left">Created</th>
+                          <th className="px-4 py-2 text-left">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {inventoryReservations.map((reservation) => (
+                          <tr key={reservation.reservationId} className="border-t">
+                            <td className="px-4 py-2 font-mono text-sm">{reservation.reservationId}</td>
+                            <td className="px-4 py-2">{reservation.orderId}</td>
+                            <td className="px-4 py-2">
+                              {reservation.items?.map((item, index) => (
+                                <div key={index} className="text-sm">
+                                  Qty: {item.quantity} (ID: {item.menuItemId?.substring(0, 8)}...)
+                                </div>
+                              ))}
+                            </td>
+                            <td className="px-4 py-2">
+                              <span className={`px-2 py-1 rounded text-sm ${
+                                reservation.status === 'active' ? 'bg-yellow-100 text-yellow-800' :
+                                reservation.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {reservation.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2 text-sm">
+                              {new Date(reservation.createdAt).toLocaleString()}
+                            </td>
+                            <td className="px-4 py-2">
+                              <div className="flex gap-2">
+                                {reservation.status === 'active' && (
+                                  <>
+                                    <Button 
+                                      onClick={() => completeReservation(reservation.reservationId)}
+                                      variant="primary"
+                                      size="sm"
+                                    >
+                                      Complete
+                                    </Button>
+                                    <Button 
+                                      onClick={() => cancelReservation(reservation.reservationId)}
+                                      variant="ghost"
+                                      size="sm"
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500 py-8">
+                    No inventory reservations found
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-4 flex justify-between">
+                <Button onClick={fetchInventoryReservations} variant="secondary">
+                  Refresh
+                </Button>
+                <Button onClick={() => setShowReservationsModal(false)} variant="primary">
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* System Alerts Modal */}
+        {showInventoryAlertsModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white p-6 rounded-lg w-full max-w-3xl max-h-[90vh] flex flex-col">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">System Inventory Alerts</h2>
+                <Button onClick={() => setShowInventoryAlertsModal(false)} variant="ghost">✕</Button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto">
+                {inventoryAlerts.length > 0 ? (
+                  <div className="space-y-3">
+                    {inventoryAlerts.map((alert, index) => (
+                      <div key={index} className={`p-4 rounded-lg border-l-4 ${
+                        alert.type === 'low_stock' ? 'bg-yellow-50 border-yellow-400' :
+                        alert.type === 'out_of_stock' ? 'bg-red-50 border-red-400' :
+                        alert.type === 'expiring_soon' ? 'bg-orange-50 border-orange-400' :
+                        'bg-blue-50 border-blue-400'
+                      }`}>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-medium text-gray-900">
+                              {alert.type?.replace('_', ' ').toUpperCase() || 'SYSTEM ALERT'}
+                            </h3>
+                            <p className="text-gray-700 mt-1">{alert.message}</p>
+                            {alert.itemId && (
+                              <p className="text-sm text-gray-500 mt-1">
+                                Item ID: {alert.itemId}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right text-sm text-gray-500">
+                            {alert.timestamp ? new Date(alert.timestamp).toLocaleString() : 'Recent'}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500 py-8">
+                    No system alerts found
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-4 flex justify-between">
+                <Button onClick={fetchInventoryAlerts} variant="secondary">
+                  Refresh Alerts
+                </Button>
+                <Button onClick={() => setShowInventoryAlertsModal(false)} variant="primary">
+                  Close
+                </Button>
+              </div>
             </div>
           </div>
         )}

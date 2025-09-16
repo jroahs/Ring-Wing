@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import MenuItemImage from './components/MenuItemImage';
+import ConnectionMonitor from './components/ConnectionMonitor';
 
 // Function to generate AI descriptions for menu items
 const generateMenuItemDescription = async (itemName, basicDescription) => {
@@ -215,6 +216,14 @@ const MenuPage = () => {
   const [newSubCategoryName, setNewSubCategoryName] = useState('');
   const [selectedCategoryForSubCat, setSelectedCategoryForSubCat] = useState('');
 
+  // Inventory integration state
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [selectedIngredients, setSelectedIngredients] = useState([]);
+  const [currentFormItem, setCurrentFormItem] = useState(null); // Track item being edited in form
+  const [showIngredientModal, setShowIngredientModal] = useState(false);
+  const [itemCostAnalysis, setItemCostAnalysis] = useState({});
+  const [itemAvailability, setItemAvailability] = useState({});
+
   const { register, handleSubmit, reset, watch, setValue, getValues, formState: { errors } } = useForm({
     defaultValues: initialItem
   });
@@ -279,7 +288,7 @@ const MenuPage = () => {
   // Extract fetchData function to reuse for refresh
   const fetchData = async (signal = null) => {
     try {
-      const [menuRes, addOnsRes, categoriesRes] = await Promise.all([
+      const [menuRes, addOnsRes, categoriesRes, inventoryRes] = await Promise.all([
         fetch('http://localhost:5000/api/menu?limit=1000', {  // High limit to get all items
           signal: signal
         }),
@@ -287,6 +296,9 @@ const MenuPage = () => {
           signal: signal
         }),
         fetch('http://localhost:5000/api/categories', {
+          signal: signal
+        }),
+        fetch('http://localhost:5000/api/items', {  // Use the existing items endpoint
           signal: signal
         })
       ]);
@@ -304,6 +316,48 @@ const MenuPage = () => {
       const validMenuItems = Array.isArray(menuData) ? menuData : (menuData.items || []);
       setMenuItems(validMenuItems);
       setAddOns(addOnsData);
+
+      // Fetch inventory items for ingredient mapping
+      if (inventoryRes.ok) {
+        const inventoryData = await inventoryRes.json();
+        // Handle the existing items API structure
+        const items = Array.isArray(inventoryData) ? inventoryData : [];
+        setInventoryItems(items);
+      }
+
+      // Load availability data for all menu items (batched to avoid overwhelming database)
+      const batchSize = 5; // Process 5 items at a time
+      const menuItemIds = validMenuItems.map(item => item._id).filter(Boolean);
+      
+      // SMART AVAILABILITY CHECKING: Only check items that haven't been checked recently
+      const now = Date.now();
+      const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+      
+      const itemsToCheck = menuItemIds.filter(itemId => {
+        const lastChecked = itemAvailability[itemId];
+        return !lastChecked || (now - lastChecked.timestamp) > CACHE_DURATION;
+      });
+      
+      console.log(`📊 Availability check: ${itemsToCheck.length}/${menuItemIds.length} items need checking`);
+      
+      if (itemsToCheck.length > 0) {
+        // Process in smaller batches with longer delays to prevent flooding
+        const batchSize = 3; // Reduced batch size
+        
+        for (let i = 0; i < itemsToCheck.length; i += batchSize) {
+          const batch = itemsToCheck.slice(i, i + batchSize);
+          
+          // Longer delays between batches (2 seconds instead of 500ms)
+          setTimeout(() => {
+            batch.forEach(itemId => {
+              checkMenuItemAvailability(itemId);
+              fetchCostAnalysis(itemId);
+            });
+          }, (i / batchSize) * 2000); // 2 second delay between batches
+        }
+      }
+      
+      console.log('✅ Smart batch availability checking enabled with caching');
       
       // Fetch categories (optional, fallback to static config)
       if (categoriesRes.ok) {
@@ -465,10 +519,10 @@ const MenuPage = () => {
       }
     };
 
-    // Reduce refresh frequency to prevent scrambling
+    // Reduce refresh frequency to prevent request flooding
     const intervalId = setInterval(() => {
       fetchData();
-    }, 120000); // Refresh every 2 minutes instead of 30 seconds
+    }, 300000); // Refresh every 5 minutes instead of 2 minutes (reduced server load)
 
     window.addEventListener('focus', handleWindowFocus);
 
@@ -477,6 +531,71 @@ const MenuPage = () => {
       clearInterval(intervalId);
     };
   }, []);
+
+  // Load existing ingredients when editing an item
+  useEffect(() => {
+    if (currentFormItem && currentFormItem._id) {
+      // Load existing ingredients for the menu item being edited
+      fetchMenuItemIngredients(currentFormItem._id);
+      // Load cost analysis and availability
+      fetchCostAnalysis(currentFormItem._id);
+      checkMenuItemAvailability(currentFormItem._id);
+    } else if (selectedItem && selectedItem._id && !currentFormItem) {
+      // Load existing ingredients for the menu item being viewed (not in form)
+      fetchMenuItemIngredients(selectedItem._id);
+      // Load cost analysis and availability
+      fetchCostAnalysis(selectedItem._id);
+      checkMenuItemAvailability(selectedItem._id);
+    } else {
+      // Clear ingredients when creating new item or no item selected
+      setSelectedIngredients([]);
+    }
+  }, [currentFormItem, selectedItem]);
+
+  const fetchMenuItemIngredients = async (menuItemId) => {
+    try {
+      console.log('Fetching ingredients for menu item:', menuItemId);
+      const response = await fetch(`http://localhost:5000/api/menu/ingredients/${menuItemId}`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Fetched ingredients data:', data);
+        
+        if (data.success && data.data && data.data.ingredients) {
+          // Transform backend data to frontend format
+          const transformedIngredients = data.data.ingredients.map(ing => {
+            // Handle both cases: populate worked (inventoryItemId) or failed (ingredientId)
+            const itemId = ing.inventoryItemId || ing.ingredientId;
+            
+            return {
+              ingredientId: itemId,
+              _id: itemId,
+              name: ing.name || 'Unknown Item',
+              quantityNeeded: ing.quantity,
+              quantity: ing.quantity,
+              unit: ing.unit,
+              tolerance: ing.tolerance || 0.1,
+              isRequired: ing.isRequired !== false,
+              notes: ing.notes || '',
+              currentStock: ing.currentStock || 0,
+              unitCost: ing.unitCost || 0
+            };
+          });
+          
+          console.log('Transformed ingredients:', transformedIngredients);
+          setSelectedIngredients(transformedIngredients);
+        } else {
+          console.log('No ingredients found or invalid data structure');
+          setSelectedIngredients([]);
+        }
+      } else {
+        console.error('Failed to fetch ingredients, status:', response.status);
+        setSelectedIngredients([]);
+      }
+    } catch (error) {
+      console.error('Error fetching menu item ingredients:', error);
+      setSelectedIngredients([]);
+    }
+  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -496,6 +615,261 @@ const MenuPage = () => {
     reader.onloadend = () => setImagePreview(reader.result);
     reader.readAsDataURL(file);
     setImageFile(file);
+  };
+
+  // Inventory integration functions
+  const fetchCostAnalysis = async (menuItemId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/menu/cost-analysis/${menuItemId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setItemCostAnalysis(prev => ({
+          ...prev,
+          [menuItemId]: data.success ? data.data : data
+        }));
+      } else {
+        console.warn(`Cost analysis not available for item ${menuItemId} (Status: ${response.status})`);
+        // Set fallback cost analysis
+        const menuItem = menuItems.find(m => m._id === menuItemId);
+        setItemCostAnalysis(prev => ({
+          ...prev,
+          [menuItemId]: {
+            menuItemId,
+            menuItemName: menuItem?.name || 'Unknown',
+            sellingPrice: parseFloat(menuItem?.price || 0),
+            totalCost: 0,
+            profit: parseFloat(menuItem?.price || 0),
+            profitMargin: 100,
+            ingredientBreakdown: [],
+            hasIngredientMapping: selectedIngredients.length > 0,
+            fallback: true
+          }
+        }));
+      }
+    } catch (error) {
+      const isConnectionError = error.message.includes('Failed to fetch') || 
+                                error.message.includes('NetworkError') ||
+                                error.message.includes('timeout');
+      
+      if (isConnectionError) {
+        console.error('CONNECTION ISSUE DETECTED during cost analysis:', {
+          error: error.message,
+          menuItemId,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      console.warn('Cost analysis service unavailable:', error.message);
+      // Set fallback cost analysis
+      const menuItem = menuItems.find(m => m._id === menuItemId);
+      setItemCostAnalysis(prev => ({
+        ...prev,
+        [menuItemId]: {
+          menuItemId,
+          menuItemName: menuItem?.name || 'Unknown',
+          sellingPrice: parseFloat(menuItem?.price || 0),
+          totalCost: 0,
+          profit: parseFloat(menuItem?.price || 0),
+          profitMargin: 100,
+          ingredientBreakdown: [],
+          hasIngredientMapping: selectedIngredients.length > 0,
+          fallback: true
+        }
+      }));
+    }
+  };
+
+  const checkMenuItemAvailability = async (menuItemId) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/menu/check-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          menuItems: [{ menuItemId, quantity: 1 }]
+        })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setItemAvailability(prev => ({
+          ...prev,
+          [menuItemId]: {
+            ...(data.success ? data.data : data),
+            timestamp: Date.now() // Add timestamp for caching
+          }
+        }));
+      } else {
+        console.warn(`Availability check failed for item ${menuItemId}`);
+        // Set default availability when service is unavailable
+        setItemAvailability(prev => ({
+          ...prev,
+          [menuItemId]: { 
+            isAvailable: true, 
+            hasIngredientTracking: false,
+            timestamp: Date.now()
+          }
+        }));
+      }
+    } catch (error) {
+      console.warn('Availability check service unavailable:', error.message);
+      // Set default availability when service is unavailable
+      setItemAvailability(prev => ({
+        ...prev,
+        [menuItemId]: { 
+          isAvailable: true, 
+          hasIngredientTracking: false,
+          timestamp: Date.now()
+        }
+      }));
+    }
+  };
+
+  // Manual refresh function for availability checking when needed
+  const refreshAvailabilityForItems = (itemIds) => {
+    if (!Array.isArray(itemIds)) itemIds = [itemIds];
+    
+    console.log(`🔄 Manual availability refresh for ${itemIds.length} items`);
+    
+    itemIds.forEach((itemId, index) => {
+      setTimeout(() => {
+        checkMenuItemAvailability(itemId);
+        fetchCostAnalysis(itemId);
+      }, index * 500); // Stagger requests by 500ms each
+    });
+  };
+
+  const addIngredientToMenu = (ingredient, quantity = 1, unit = 'pieces') => {
+    const newIngredient = {
+      ingredientId: ingredient._id,
+      name: ingredient.name,
+      quantityNeeded: quantity,
+      unit: unit
+    };
+    
+    setSelectedIngredients(prev => {
+      const existing = prev.find(ing => ing.ingredientId === ingredient._id);
+      if (existing) {
+        return prev.map(ing => 
+          ing.ingredientId === ingredient._id 
+            ? { ...ing, quantityNeeded: quantity, unit }
+            : ing
+        );
+      }
+      return [...prev, newIngredient];
+    });
+  };
+
+  const removeIngredientFromMenu = (ingredientId) => {
+    setSelectedIngredients(prev => prev.filter(ing => ing.ingredientId !== ingredientId));
+  };
+
+  const updateMenuItemIngredients = async (menuItemId, ingredients) => {
+    // Prevent concurrent requests
+    if (updateMenuItemIngredients.isRunning) {
+      console.warn('Ingredient update already in progress');
+      return false;
+    }
+    
+    updateMenuItemIngredients.isRunning = true;
+    
+    try {
+      console.log('Updating ingredients for menu item:', menuItemId, ingredients);
+      
+      // Validate inputs before sending
+      if (!menuItemId || !Array.isArray(ingredients)) {
+        throw new Error('Invalid input: menuItemId and ingredients array required');
+      }
+      
+      if (ingredients.length === 0) {
+        console.log('Removing all ingredient mappings for menu item:', menuItemId);
+      } else {
+        if (ingredients.length > 20) {
+          throw new Error('Too many ingredients. Maximum 20 ingredients allowed.');
+        }
+        
+        // Validate each ingredient
+        for (let i = 0; i < ingredients.length; i++) {
+          const ing = ingredients[i];
+          if (!ing.inventoryItemId || !ing.quantity || !ing.unit) {
+            throw new Error(`Ingredient ${i + 1}: Missing required fields (inventoryItemId, quantity, unit)`);
+          }
+          if (isNaN(ing.quantity) || ing.quantity <= 0) {
+            throw new Error(`Ingredient ${i + 1}: Quantity must be a positive number`);
+          }
+        }
+      }
+      
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      const response = await fetch(`http://localhost:5000/api/menu/ingredients/${menuItemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ingredients }),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      const data = await response.json();
+      console.log('Update response:', data);
+      
+      if (response.ok && data.success !== false) {
+        // Refresh cost analysis and availability after updating ingredients (with delay)
+        setTimeout(() => {
+          try {
+            fetchCostAnalysis(menuItemId);
+            checkMenuItemAvailability(menuItemId);
+          } catch (refreshError) {
+            console.warn('Error refreshing data after ingredient update:', refreshError);
+          }
+        }, 1000); // Increased delay to 1 second
+        return true;
+      } else {
+        let errorMessage = data.message || 'Unknown error';
+        if (response.status === 429) {
+          errorMessage = 'Too many requests. Please wait a moment before trying again.';
+        } else if (response.status === 408) {
+          errorMessage = 'Request timed out. Please try again.';
+        } else if (response.status === 503) {
+          errorMessage = 'Database temporarily unavailable. Please try again in a moment.';
+        }
+        console.error('Failed to update ingredients:', errorMessage);
+        alert('Error: ' + errorMessage);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error updating menu item ingredients:', error);
+      
+      // Log connection-related errors with more detail
+      const isConnectionError = error.message.includes('Failed to fetch') || 
+                                error.message.includes('NetworkError') ||
+                                error.message.includes('timeout') ||
+                                error.name === 'AbortError';
+      
+      if (isConnectionError) {
+        console.error('CONNECTION ISSUE DETECTED during ingredient mapping:', {
+          error: error.message,
+          errorName: error.name,
+          menuItemId,
+          ingredientCount: ingredients.length,
+          timestamp: new Date().toISOString(),
+          stack: error.stack
+        });
+      }
+      
+      let errorMessage = error.message;
+      if (error.name === 'AbortError') {
+        errorMessage = 'Request timed out. Please check your connection and try again.';
+      } else if (error.message.includes('Failed to fetch')) {
+        errorMessage = 'Connection lost. Please check your network connection and try again.';
+      }
+      
+      alert('Error updating ingredients: ' + errorMessage);
+      return false;
+    } finally {
+      updateMenuItemIngredients.isRunning = false;
+    }
   };
 
   const onSubmit = async (data) => {
@@ -540,7 +914,7 @@ const MenuPage = () => {
       formData.append('modifiers', JSON.stringify(data.modifiers || []));
       formData.append('preparationTime', data.preparationTime.toString());
       formData.append('isAvailable', data.isAvailable.toString());
-      formData.append('ingredients', JSON.stringify(data.ingredients));
+      formData.append('ingredients', JSON.stringify(selectedIngredients));
   
       if (imageFile) formData.append('image', imageFile);
   
@@ -567,11 +941,59 @@ const MenuPage = () => {
           ? newItems.map(item => item._id === responseData._id ? responseData : item)
           : [...newItems, responseData];
       });
-  
-      reset({ ...initialItem, category: data.category, subCategory: data.subCategory });
-      setImagePreview(null);
-      setImageFile(null);
-      setSelectedItem(null);
+
+      // For new items, keep the form open and set currentFormItem so ingredients can be mapped
+      if (!selectedItem?._id) {
+        // New item created - set it as currentFormItem for ingredient mapping
+        setCurrentFormItem(responseData);
+        setSelectedItem(responseData); // Keep form open for ingredient mapping
+        
+        // Reset form but keep it open for ingredient mapping
+        reset({
+          ...responseData,
+          pricing: responseData.pricing || {},
+          modifiers: responseData.modifiers || []
+        });
+        setImagePreview(responseData.image ? `http://localhost:5000${responseData.image}` : null);
+        setImageFile(null);
+        
+        // Auto-save ingredients if they were added during creation
+        if (selectedIngredients.length > 0) {
+          console.log('Auto-saving ingredients for newly created item:', responseData._id);
+          setTimeout(async () => {
+            try {
+              const ingredientsData = selectedIngredients.map(ing => ({
+                inventoryItemId: ing.ingredientId || ing._id,
+                quantity: Number(ing.quantityNeeded || ing.quantity || 1),
+                unit: (ing.unit || 'pieces').toLowerCase().trim(),
+                tolerance: Number(ing.tolerance || 0.1),
+                isRequired: ing.isRequired !== false,
+                notes: (ing.notes || '').substring(0, 500)
+              }));
+              
+              const success = await updateMenuItemIngredients(responseData._id, ingredientsData);
+              if (success) {
+                alert(`✅ Menu item "${responseData.name}" created successfully with ${selectedIngredients.length} ingredients mapped!`);
+              } else {
+                alert(`✅ Menu item "${responseData.name}" created successfully!\n⚠️ However, there was an issue saving ingredients. You can try adding them again.`);
+              }
+            } catch (error) {
+              console.error('Error auto-saving ingredients:', error);
+              alert(`✅ Menu item "${responseData.name}" created successfully!\n⚠️ However, there was an issue saving ingredients. You can try adding them again.`);
+            }
+          }, 1000);
+        } else {
+          alert(`✅ Menu item "${responseData.name}" created successfully!\n\nYou can now add ingredients to this item using the "Add Ingredients" button below.`);
+        }
+      } else {
+        // Existing item updated - close form
+        reset({ ...initialItem, category: data.category, subCategory: data.subCategory });
+        setImagePreview(null);
+        setImageFile(null);
+        setSelectedItem(null);
+        setCurrentFormItem(null);
+        alert(`✅ Menu item "${responseData.name}" updated successfully!`);
+      }
     } catch (error) {
       if (error.name !== 'AbortError') {
         console.error('Error saving item:', error);
@@ -785,7 +1207,10 @@ const MenuPage = () => {
             <button
               style={{ backgroundColor: colors.accent, color: colors.background }}
               className="px-4 py-2 rounded-lg hover:opacity-90 flex items-center gap-2 shadow-md transition-all"
-              onClick={() => setSelectedItem(initialItem)}
+              onClick={() => {
+                setSelectedItem(initialItem);
+                setCurrentFormItem(null); // Clear form item for new item creation
+              }}
             >
               <PlusIcon className="w-5 h-5" />
               <span>Add New Item</span>
@@ -1014,20 +1439,24 @@ const MenuPage = () => {
                 <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Code</th>
                 <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Item</th>
                 <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Category</th>
+                <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Availability</th>
                 <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Price</th>
                 <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Actions</th>
               </tr>
             </thead>
             <tbody>              {filteredMenuItems.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="py-10">
+                  <td colSpan="6" className="py-10">
                     <div className="flex flex-col items-center justify-center gap-3">
                       <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: colors.activeBg }}>
                         <PlusIcon className="w-8 h-8" style={{ color: colors.accent }} />
                       </div>
                       <p className="text-gray-500 font-medium">No menu items found</p>
                       <button
-                        onClick={() => setSelectedItem(initialItem)}
+                        onClick={() => {
+                          setSelectedItem(initialItem);
+                          setCurrentFormItem(null); // Clear form item for new item creation
+                        }}
                         className="mt-2 px-4 py-2 rounded-lg flex items-center gap-2"
                         style={{ backgroundColor: colors.accent, color: colors.background }}
                       >
@@ -1069,6 +1498,47 @@ const MenuPage = () => {
                             }}>
                         {item.category}
                       </span>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex flex-col gap-1">
+                        {/* Real-time availability status */}
+                        <div className="flex items-center gap-2">
+                          {itemAvailability[item._id] ? (
+                            <>
+                              <div className={`w-2 h-2 rounded-full ${
+                                itemAvailability[item._id].isAvailable ? 'bg-green-500' : 'bg-red-500'
+                              }`} />
+                              <span className={`text-xs font-medium ${
+                                itemAvailability[item._id].isAvailable ? 'text-green-700' : 'text-red-700'
+                              }`}>
+                                {itemAvailability[item._id].isAvailable ? 'Available' : 'Out of Stock'}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <div className="w-2 h-2 rounded-full bg-gray-400" />
+                              <span className="text-xs text-gray-500">Checking...</span>
+                            </>
+                          )}
+                        </div>
+                        
+                        {/* Ingredient tracking indicator */}
+                        {itemAvailability[item._id]?.hasIngredientTracking && (
+                          <div className="flex items-center gap-1">
+                            <svg className="w-3 h-3 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            <span className="text-xs text-blue-600">Tracked</span>
+                          </div>
+                        )}
+                        
+                        {/* Cost analysis preview */}
+                        {itemCostAnalysis[item._id] && (
+                          <div className="text-xs text-gray-500">
+                            Cost: ₱{itemCostAnalysis[item._id].totalCost || 0}
+                          </div>
+                        )}
+                      </div>
                     </td><td className="p-3 relative">
   <div className="flex flex-col">
     <button 
@@ -1118,7 +1588,10 @@ const MenuPage = () => {
                         <button
                           style={{ backgroundColor: colors.accent, color: colors.background }}
                           className="flex items-center gap-1 px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity"
-                          onClick={() => setSelectedItem(item)}
+                          onClick={() => {
+                            setSelectedItem(item);
+                            setCurrentFormItem(item); // Set form item for ingredient mapping
+                          }}
                         >
                           <EditIcon className="w-4 h-4" />
                           <span className="text-sm">Edit</span>
@@ -1128,6 +1601,7 @@ const MenuPage = () => {
                           className="flex items-center gap-1 px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity"
                           onClick={() => {
                             setSelectedItem(item);
+                            setCurrentFormItem(item); // Set form item for ingredient mapping
                             setShowDeleteModal(true);
                           }}
                         >
@@ -1152,7 +1626,10 @@ const MenuPage = () => {
           {selectedItem._id ? 'Edit' : 'Add'} Menu Item
         </h2>
         <button 
-          onClick={() => setSelectedItem(null)} 
+          onClick={() => {
+            setSelectedItem(null);
+            setCurrentFormItem(null); // Clear form item when closing
+          }} 
           className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1475,6 +1952,102 @@ const MenuPage = () => {
           </div>
         </div>
 
+        {/* Ingredient Mapping Section */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium" style={{ color: colors.primary }}>
+              Ingredient Mapping
+            </h3>
+            <div className="flex gap-2">
+              {selectedIngredients.length > 0 && (currentFormItem || (selectedItem && selectedItem._id)) && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (confirm('Are you sure you want to remove all ingredient mappings? This will unmap all ingredients from this menu item.')) {
+                      const itemId = currentFormItem?._id || selectedItem?._id;
+                      if (itemId) {
+                        const success = await updateMenuItemIngredients(itemId, []);
+                        if (success) {
+                          setSelectedIngredients([]);
+                          alert('All ingredient mappings removed successfully!');
+                        }
+                      }
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg flex items-center gap-1.5 hover:opacity-90 transition-opacity text-sm text-white"
+                  style={{ backgroundColor: '#dc2626' }}
+                >
+                  <TrashIcon className="w-4 h-4" />
+                  Unmap All
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowIngredientModal(true)}
+                className="px-3 py-1.5 rounded-lg flex items-center gap-1.5 hover:opacity-90 transition-opacity text-sm"
+                style={{ backgroundColor: colors.accent, color: colors.background }}
+              >
+                <PlusIcon className="w-4 h-4" />
+                Add Ingredients
+              </button>
+            </div>
+          </div>
+          
+          <div className="p-4 rounded-lg border" style={{ borderColor: colors.muted, backgroundColor: colors.background }}>
+            {selectedIngredients.length > 0 ? (
+              <div className="space-y-2">
+                {selectedIngredients.map((ingredient, index) => (
+                  <div key={ingredient.ingredientId} className="flex items-center justify-between p-2 border rounded" style={{ borderColor: colors.muted }}>
+                    <div className="flex-1">
+                      <span className="font-medium">{ingredient.name}</span>
+                      <span className="text-sm text-gray-500 ml-2">
+                        Qty: {ingredient.quantityNeeded} {ingredient.unit}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeIngredientFromMenu(ingredient.ingredientId)}
+                      className="text-red-600 hover:text-red-800 p-1"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p>No ingredients mapped yet</p>
+                <p className="text-sm">
+                  {currentFormItem || (selectedItem && selectedItem._id) 
+                    ? 'Click "Add Ingredients" to map inventory items to this menu item'
+                    : 'You can add ingredients now and they will be saved when you create the menu item'
+                  }
+                </p>
+              </div>
+            )}
+            
+            {selectedIngredients.length > 0 && (
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 className="font-medium text-blue-900 mb-2">
+                  {currentFormItem || (selectedItem && selectedItem._id) 
+                    ? 'Cost Analysis Preview' 
+                    : 'Ingredients Ready for Mapping'
+                  }
+                </h4>
+                <div className="text-sm text-blue-700">
+                  <p>Mapped Ingredients: {selectedIngredients.length}</p>
+                  <p className="text-xs mt-1">
+                    {currentFormItem || (selectedItem && selectedItem._id)
+                      ? 'Cost analysis will be calculated after saving the ingredients'
+                      : 'These ingredients will be automatically mapped when you save the menu item'
+                    }
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Availability Toggle Section */}
         <div className="mb-8">
           <h3 className="text-lg font-medium mb-4" style={{ color: colors.primary }}>
@@ -1509,7 +2082,10 @@ const MenuPage = () => {
               type="button"
               className="px-6 py-2.5 border rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
               style={{ borderColor: colors.muted }}
-              onClick={() => setSelectedItem(null)}
+              onClick={() => {
+                setSelectedItem(null);
+                setCurrentFormItem(null); // Clear form item when canceling
+              }}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1745,7 +2321,218 @@ const MenuPage = () => {
             </div>
           </div>
         )}
+
+        {/* Ingredient Selection Modal */}
+        {showIngredientModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white p-6 rounded-lg w-full max-w-3xl max-h-[90vh] flex flex-col">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Select Ingredients for Menu Item</h2>
+                <button onClick={() => setShowIngredientModal(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto">
+                <div className="mb-4">
+                  <input
+                    type="text"
+                    placeholder="Search ingredients..."
+                    className="w-full p-2 border rounded"
+                    style={{ borderColor: colors.muted }}
+                  />
+                </div>
+                
+                {inventoryItems.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {inventoryItems.map((item) => {
+                      const isSelected = selectedIngredients.some(ing => ing.ingredientId === item._id);
+                      return (
+                        <div key={item._id} className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                          isSelected ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'
+                        }`} style={{ borderColor: isSelected ? '#3b82f6' : colors.muted }}>
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h4 className="font-medium">{item.name}</h4>
+                              <p className="text-sm text-gray-500">
+                                Stock: {item.totalQuantity || 0} {item.unit || 'units'}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                Cost: ₱{item.cost || 0} per {item.unit || 'unit'}
+                              </p>
+                              {item.category && (
+                                <p className="text-xs text-gray-400">Category: {item.category}</p>
+                              )}
+                              {item.status && (
+                                <span className={`text-xs px-2 py-1 rounded ${
+                                  item.status === 'In Stock' ? 'bg-green-100 text-green-800' :
+                                  item.status === 'Low Stock' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-red-100 text-red-800'
+                                }`}>
+                                  {item.status}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              {!isSelected ? (
+                                <button
+                                  onClick={() => addIngredientToMenu(item)}
+                                  className="px-3 py-1 rounded text-sm"
+                                  style={{ backgroundColor: colors.accent, color: colors.background }}
+                                >
+                                  Add
+                                </button>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="number"
+                                    placeholder="Qty"
+                                    className="w-16 p-1 border rounded text-sm"
+                                    defaultValue={selectedIngredients.find(ing => ing.ingredientId === item._id)?.quantityNeeded || 1}
+                                    onChange={(e) => {
+                                      const quantity = parseFloat(e.target.value) || 1;
+                                      const currentIngredient = selectedIngredients.find(ing => ing.ingredientId === item._id);
+                                      const unit = currentIngredient?.unit || item.unit || 'pieces';
+                                      addIngredientToMenu(item, quantity, unit);
+                                    }}
+                                  />
+                                  <select
+                                    className="text-xs p-1 border rounded"
+                                    value={selectedIngredients.find(ing => ing.ingredientId === item._id)?.unit || item.unit || 'pieces'}
+                                    onChange={(e) => {
+                                      const currentIngredient = selectedIngredients.find(ing => ing.ingredientId === item._id);
+                                      const quantity = currentIngredient?.quantityNeeded || 1;
+                                      addIngredientToMenu(item, quantity, e.target.value);
+                                    }}
+                                  >
+                                    <option value="grams">g</option>
+                                    <option value="kg">kg</option>
+                                    <option value="ml">ml</option>
+                                    <option value="liters">L</option>
+                                    <option value="pieces">pcs</option>
+                                    <option value="cups">cups</option>
+                                    <option value="tablespoons">tbsp</option>
+                                    <option value="teaspoons">tsp</option>
+                                    <option value="ounces">oz</option>
+                                    <option value="pounds">lbs</option>
+                                  </select>
+                                  <button
+                                    onClick={() => removeIngredientFromMenu(item._id)}
+                                    className="text-red-600 hover:text-red-800 text-sm"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>No inventory items available</p>
+                    <p className="text-sm">Add inventory items first to map them to menu items</p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-4 flex justify-between">
+                <div className="text-sm text-gray-600">
+                  Selected: {selectedIngredients.length} ingredients
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowIngredientModal(false)}
+                    className="px-4 py-2 border rounded-lg"
+                    style={{ borderColor: colors.muted }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (updateMenuItemIngredients.isRunning) {
+                        return; // Prevent multiple clicks
+                      }
+                      
+                      // Determine which item ID to use - prioritize currentFormItem for editing, then selectedItem for viewing
+                      const itemToSave = currentFormItem || selectedItem;
+                      
+                      if (selectedIngredients.length > 0) {
+                        // If we have a menu item ID, save ingredients immediately
+                        if (itemToSave && itemToSave._id) {
+                          // Validate ingredients before saving
+                          try {
+                            for (let i = 0; i < selectedIngredients.length; i++) {
+                              const ing = selectedIngredients[i];
+                              if (!ing.ingredientId && !ing._id) {
+                                throw new Error(`Ingredient ${i + 1}: Missing ID`);
+                              }
+                              if (!ing.quantityNeeded && !ing.quantity) {
+                                throw new Error(`Ingredient ${i + 1}: Missing quantity`);
+                              }
+                              if (!ing.unit || ing.unit.trim() === '') {
+                                throw new Error(`Ingredient ${i + 1}: Missing unit`);
+                              }
+                            }
+                            
+                            // Prepare ingredients data for saving
+                            const ingredientsData = selectedIngredients.map(ing => ({
+                              inventoryItemId: ing.ingredientId || ing._id,
+                              quantity: Number(ing.quantityNeeded || ing.quantity || 1),
+                              unit: (ing.unit || 'pieces').toLowerCase().trim(),
+                              tolerance: Number(ing.tolerance || 0.1),
+                              isRequired: ing.isRequired !== false,
+                              notes: (ing.notes || '').substring(0, 500) // Limit notes length
+                            }));
+                            
+                            console.log('Saving ingredients for item:', itemToSave._id, ingredientsData);
+                            const success = await updateMenuItemIngredients(itemToSave._id, ingredientsData);
+                            
+                            if (success) {
+                              alert('Ingredients saved successfully!');
+                              setShowIngredientModal(false);
+                              // Refresh the ingredients display
+                              setTimeout(() => {
+                                fetchMenuItemIngredients(itemToSave._id);
+                              }, 500);
+                            } else {
+                              // Error already handled in updateMenuItemIngredients
+                            }
+                          } catch (validationError) {
+                            console.error('Validation error:', validationError);
+                            alert('Validation error: ' + validationError.message);
+                          }
+                        } else {
+                          // No menu item ID yet - just close modal and ingredients will be saved after menu item creation
+                          alert(`${selectedIngredients.length} ingredients prepared! They will be automatically saved when you save the menu item.`);
+                          setShowIngredientModal(false);
+                        }
+                      } else {
+                        alert('Please add at least one ingredient before saving.');
+                      }
+                    }}
+                    disabled={updateMenuItemIngredients.isRunning || selectedIngredients.length === 0}
+                    className={`px-4 py-2 rounded-lg text-white ${
+                      updateMenuItemIngredients.isRunning || selectedIngredients.length === 0 
+                        ? 'opacity-50 cursor-not-allowed' 
+                        : 'hover:opacity-90'
+                    }`}
+                    style={{ backgroundColor: colors.accent }}
+                  >
+                    {updateMenuItemIngredients.isRunning 
+                      ? 'Saving...' 
+                      : (currentFormItem || (selectedItem && selectedItem._id))
+                        ? 'Save Ingredients'
+                        : 'Prepare Ingredients'
+                    }
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+      <ConnectionMonitor />
     </div>
   );
 };
