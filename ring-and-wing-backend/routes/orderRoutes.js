@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
 const { criticalCheck, standardCheck } = require('../middleware/dbConnectionMiddleware');
+const InventoryBusinessLogicService = require('../services/inventoryBusinessLogicService');
 
 // Advanced validation middleware
 const validateOrder = (req, res, next) => {
@@ -205,6 +206,34 @@ router.patch('/:id', async (req, res, next) => {
         success: false, 
         message: 'Order not found' 
       });
+    }
+
+    // ✨ NEW: Consume inventory reservations when order is completed
+    if (status === 'completed') {
+      try {
+        // Get user ID from request (set by auth middleware) or from body
+        const userId = req.user?.id || req.user?._id || req.body.userId || 'system';
+        
+        console.log(`🏁 Order ${order._id} completed - attempting to consume inventory reservations`);
+        
+        const consumptionResult = await InventoryBusinessLogicService.completeOrderProcessing(
+          order._id.toString(),
+          userId
+        );
+        
+        if (consumptionResult.success && consumptionResult.hasInventoryIntegration) {
+          console.log(`✅ Inventory consumed for order ${order._id}:`, {
+            itemsConsumed: consumptionResult.itemsConsumed,
+            valueConsumed: consumptionResult.valueConsumed
+          });
+        } else {
+          console.log(`ℹ️ Order ${order._id} completed without inventory tracking`);
+        }
+      } catch (invError) {
+        console.error('❌ Inventory consumption error:', invError);
+        // Don't fail the order update - log error and continue
+        // Ingredient tracking is optional and shouldn't block order completion
+      }
     }
 
     res.json({

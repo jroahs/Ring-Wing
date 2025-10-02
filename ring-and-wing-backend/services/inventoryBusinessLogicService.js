@@ -265,7 +265,7 @@ class InventoryBusinessLogicService {
       console.log(`🏁 Completing order processing for ${orderId}`);
       
       // Find reservation for this order
-      const { InventoryReservation } = require('../models/InventoryReservation');
+      const InventoryReservation = require('../models/InventoryReservation');
       const reservation = await InventoryReservation.findOne({ orderId });
       
       if (!reservation) {

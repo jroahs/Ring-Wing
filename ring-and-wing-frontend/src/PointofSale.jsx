@@ -44,6 +44,7 @@ const PointOfSale = () => {
     }
   }); // Fallback - will be replaced by dynamic categories
   const [showReceipt, setShowReceipt] = useState(false);
+  const [savedOrderData, setSavedOrderData] = useState(null);
   const [cashAmount, setCashAmount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -761,12 +762,60 @@ const PointOfSale = () => {
       }
     }
 
-    setShowReceipt(true);
-
     try {
+      // Save order FIRST to get the real receipt number from backend
+      const orderResponse = await saveOrderToDB();
+      
+      // Update currentOrder with the saved order data (including receiptNumber)
+      if (orderResponse?.data) {
+        setCurrentOrder(orderResponse.data.items || []);
+        // Store the saved order for receipt display
+        setSavedOrderData(orderResponse.data);
+      }
+      
+      // NOW show and print receipt with real receipt number
+      setShowReceipt(true);
       await new Promise(resolve => setTimeout(resolve, 100));
       await handlePrint();
-      await saveOrderToDB();      if (currentPaymentMethod === 'cash') {
+      
+      // ✨ NEW: Create inventory reservation for items with ingredient mappings
+      if (orderResponse?.data?._id) {
+        try {
+          const userData = localStorage.getItem('userData');
+          const user = userData ? JSON.parse(userData) : null;
+          
+          const reservationResponse = await fetch('http://localhost:5000/api/inventory/reserve', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({
+              orderId: orderResponse.data._id,
+              items: currentCart.map(item => ({
+                menuItemId: item._id,
+                quantity: item.quantity,
+                name: item.name
+              })),
+              reservedBy: user?.id || 'system'
+            })
+          });
+          
+          const reservationData = await reservationResponse.json();
+          console.log('📦 Reservation API Response:', reservationData);
+          
+          if (reservationResponse.ok && reservationData.success) {
+            console.log('✅ Inventory reservation created for order:', orderResponse.data._id);
+          } else {
+            console.warn('⚠️ Inventory reservation failed:', reservationData);
+          }
+        } catch (invError) {
+          console.error('❌ Inventory reservation error:', invError);
+          // Don't block order - ingredient tracking is optional
+        }
+      }
+      
+      if (currentPaymentMethod === 'cash') {
         // Use centralized cash float service to process the transaction
         console.log('💳 Processing cash transaction:', { paymentMethod: currentPaymentMethod, cashValue, totalDue });
         await processTransaction(cashValue, totalDue, 'pos_order');
@@ -777,6 +826,7 @@ const PointOfSale = () => {
       setCurrentOrder([]);      setCashAmount(0);
       setSearchTerm('');
       setShowReceipt(false);
+      setSavedOrderData(null); // Clear saved order data
       // Reset payment details
       setEWalletDetails({ provider: 'gcash', referenceNumber: '', name: '' });
       setCustomerName(''); // Reset customer name
@@ -871,6 +921,43 @@ const PointOfSale = () => {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to update order');
       }      const orderData = await response.json();
+      
+      // ✨ NEW: Create inventory reservation for pending order items with ingredient mappings
+      if (orderData?.data?._id) {
+        try {
+          const userData = localStorage.getItem('userData');
+          const user = userData ? JSON.parse(userData) : null;
+          
+          const reservationResponse = await fetch('http://localhost:5000/api/inventory/reserve', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({
+              orderId: orderData.data._id,
+              items: pendingOrderItems.map(item => ({
+                menuItemId: item._id,
+                quantity: item.quantity,
+                name: item.name
+              })),
+              reservedBy: user?.id || 'system'
+            })
+          });
+          
+          const reservationData = await reservationResponse.json();
+          console.log('📦 Reservation API Response (pending order):', reservationData);
+          
+          if (reservationResponse.ok && reservationData.success) {
+            console.log('✅ Inventory reservation created for pending order:', orderData.data._id);
+          } else {
+            console.warn('⚠️ Inventory reservation failed:', reservationData);
+          }
+        } catch (invError) {
+          console.error('❌ Inventory reservation error:', invError);
+          // Don't block order - ingredient tracking is optional
+        }
+      }
 
       if (currentPaymentMethod === 'cash') {
         // Use centralized cash float service to process the transaction
@@ -1792,7 +1879,7 @@ const PointOfSale = () => {
                   items: isPendingOrderMode ? pendingOrderItems : (orderViewType === 'ready' ? readyOrderCart : pendingOrderCart),
                   receiptNumber: isPendingOrderMode && editingPendingOrder ? 
                     editingPendingOrder.receiptNumber : 
-                    generateReceiptNumber(),
+                    (savedOrderData?.receiptNumber || generateReceiptNumber()),
                   server: (() => {
                     try {
                       const userData = localStorage.getItem('userData');

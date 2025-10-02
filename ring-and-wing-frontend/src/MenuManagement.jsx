@@ -1,7 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import MenuItemImage from './components/MenuItemImage';
 import ConnectionMonitor from './components/ConnectionMonitor';
+
+// Debounce utility function to prevent rapid-fire requests
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
 
 // Function to generate AI descriptions for menu items
 const generateMenuItemDescription = async (itemName, basicDescription) => {
@@ -1005,6 +1018,49 @@ const MenuPage = () => {
   };
   
 
+  // Debounced toggle availability function to prevent database connection flooding
+  const toggleAvailabilityDebounced = useCallback(
+    debounce(async (itemId, newAvailability) => {
+      try {
+        console.log(`🔄 Toggling availability for item ${itemId} to ${newAvailability}`);
+        
+        const response = await fetch(`http://localhost:5000/api/menu/${itemId}/availability`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isAvailable: newAvailability })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to update availability');
+        }
+
+        const result = await response.json();
+        console.log('✅ Availability updated successfully:', result);
+        
+        // Update local state
+        setMenuItems(prev => 
+          prev.map(item => 
+            item._id === itemId ? { ...item, isAvailable: newAvailability } : item
+          )
+        );
+        
+        // Update selected item if it's the one being edited
+        if (selectedItem?._id === itemId) {
+          setSelectedItem(prev => ({ ...prev, isAvailable: newAvailability }));
+        }
+      } catch (error) {
+        console.error('Error toggling availability:', error);
+        alert(`Failed to update availability: ${error.message}`);
+        // Revert the checkbox state on error
+        if (selectedItem?._id === itemId) {
+          reset({ ...selectedItem, isAvailable: !newAvailability });
+        }
+      }
+    }, 500), // 500ms debounce
+    [selectedItem, setMenuItems, reset]
+  );
+
   const handleDelete = async () => {
     if (!selectedItem?._id || isDeleting) return;
 
@@ -1555,7 +1611,7 @@ const MenuPage = () => {
                 className="ml-1.5 px-1.5 py-0.5 rounded text-xs"
                 style={{ backgroundColor: colors.activeBg, color: colors.accent }}
               >
-                +{Object.keys(item.pricing).length - 1} more
+                +{Object.keys(item.pricing).length - 1}
               </span>
             )}
             <ViewIcon className="w-4 h-4 ml-1.5" style={{ color: colors.accent }} />
@@ -2068,6 +2124,12 @@ const MenuPage = () => {
                 type="checkbox"
                 {...register('isAvailable')}
                 className="sr-only peer"
+                onChange={(e) => {
+                  // Only toggle if editing an existing item
+                  if (selectedItem?._id) {
+                    toggleAvailabilityDebounced(selectedItem._id, e.target.checked);
+                  }
+                }}
               />
               <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
             </label>
@@ -2532,7 +2594,7 @@ const MenuPage = () => {
           </div>
         )}
       </div>
-      <ConnectionMonitor />
+      {/* <ConnectionMonitor /> */}
     </div>
   );
 };

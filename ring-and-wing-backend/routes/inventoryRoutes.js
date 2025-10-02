@@ -55,27 +55,47 @@ router.get('/reservations', async (req, res) => {
 // Create inventory reservation
 router.post('/reserve', async (req, res) => {
   try {
+    console.log('🎯 === RESERVATION ENDPOINT HIT ===');
+    console.log('🎯 Request body:', JSON.stringify(req.body, null, 2));
+    
     const { orderId, items, reservedBy } = req.body;
     
+    console.log('📦 Reservation request received:', { orderId, itemCount: items?.length, reservedBy });
+    
     if (!orderId || !items || !Array.isArray(items) || items.length === 0) {
+      console.log('❌ Validation failed:', { orderId: !!orderId, itemsIsArray: Array.isArray(items), itemsLength: items?.length });
       return res.status(400).json({
         success: false,
         message: 'Invalid request: orderId and items array are required'
       });
     }
 
-    const reservation = await InventoryReservationService.createReservation({
+    console.log('✅ Validation passed, calling createOrderReservation...');
+    
+    // Use createOrderReservation which is the correct method
+    const result = await InventoryReservationService.createOrderReservation(
       orderId,
       items,
-      reservedBy: reservedBy || 'test-user'
-    });
+      reservedBy || 'system',
+      {}
+    );
 
+    console.log('📋 Reservation service result:', { success: result.success, hasReservation: !!result.reservation });
+
+    if (!result.success) {
+      console.log('⚠️ Reservation creation result:', result);
+      return res.status(400).json(result);
+    }
+
+    console.log('✅ Reservation created successfully:', result.reservation?._id);
+    
     res.json({
       success: true,
-      data: reservation
+      data: result.reservation,
+      message: result.message
     });
   } catch (error) {
-    console.error('Error creating reservation:', error);
+    console.error('❌ Error creating reservation:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create reservation',

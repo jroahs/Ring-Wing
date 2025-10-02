@@ -325,6 +325,40 @@ const rateLimitMiddleware = (req, res, next) => {
   next();
 };
 
+// PATCH update menu item availability only (lightweight endpoint with rate limiting)
+router.patch('/:id/availability', rateLimitMiddleware, lightCheck, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isAvailable } = req.body;
+
+    if (typeof isAvailable !== 'boolean') {
+      return res.status(400).json({ message: 'isAvailable must be a boolean value' });
+    }
+
+    const updatedItem = await MenuItem.findByIdAndUpdate(
+      id,
+      { $set: { isAvailable } },
+      { new: true, select: '_id name isAvailable' } // Only return minimal fields
+    );
+
+    if (!updatedItem) {
+      return res.status(404).json({ message: 'Menu item not found' });
+    }
+
+    res.json({ 
+      success: true,
+      data: updatedItem,
+      message: `Menu item availability updated to ${isAvailable ? 'available' : 'unavailable'}`
+    });
+  } catch (err) {
+    console.error('Error updating menu item availability:', err);
+    res.status(500).json({ 
+      message: 'Failed to update availability',
+      error: err.message
+    });
+  }
+});
+
 // Update menu item ingredients
 router.put('/ingredients/:menuItemId', rateLimitMiddleware, standardCheck, async (req, res) => {
   let startTime = Date.now();

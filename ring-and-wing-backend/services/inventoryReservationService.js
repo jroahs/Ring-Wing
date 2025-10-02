@@ -13,6 +13,23 @@ const AuditTrailService = require('./auditTrailService');
 class InventoryReservationService {
   
   /**
+   * Check if MongoDB supports transactions (replica set required)
+   * @returns {Promise<boolean>}
+   */
+  static async supportsTransactions() {
+    try {
+      const admin = mongoose.connection.db.admin();
+      const result = await admin.serverInfo();
+      // Check if it's a replica set or sharded cluster
+      const isMaster = await admin.command({ isMaster: 1 });
+      return isMaster.setName !== undefined || isMaster.msg === 'isdbgrid';
+    } catch (error) {
+      console.warn('Could not determine transaction support, assuming no support:', error.message);
+      return false;
+    }
+  }
+  
+  /**
    * Create a reservation for an order with atomic transaction
    * @param {string} orderId - The order ID
    * @param {object[]} orderItems - Array of {menuItemId, quantity, name} objects
@@ -21,15 +38,23 @@ class InventoryReservationService {
    * @returns {Promise<object>} - Reservation result
    */
   static async createOrderReservation(orderId, orderItems, userId, options = {}) {
-    const session = await mongoose.startSession();
+    // Check transaction support
+    const useTransactions = await this.supportsTransactions();
+    console.log(`📊 MongoDB transaction support: ${useTransactions ? 'enabled' : 'disabled (standalone mode)'}`);
+    
+    let session = null;
     
     try {
-      session.startTransaction();
+      // Start session only if transactions are supported
+      if (useTransactions) {
+        session = await mongoose.startSession();
+        session.startTransaction();
+      }
       
       // Check for existing reservation (idempotency)
-      const existingReservation = await InventoryReservation.findOne({ orderId }).session(session);
+      const existingReservation = await InventoryReservation.findOne({ orderId });
       if (existingReservation) {
-        await session.abortTransaction();
+        if (session) await session.abortTransaction();
         return {
           success: true,
           reservation: existingReservation,
@@ -39,7 +64,7 @@ class InventoryReservationService {
       }
       
       // Verify order exists
-      const order = await Order.findById(orderId).session(session);
+      const order = await Order.findById(orderId);
       if (!order) {
         throw new Error('Order not found');
       }
@@ -49,7 +74,7 @@ class InventoryReservationService {
       
       if (ingredientRequirements.length === 0) {
         // No ingredients to reserve - return successful no-op
-        await session.abortTransaction();
+        if (session) await session.abortTransaction();
         return {
           success: true,
           reservation: null,
@@ -62,7 +87,7 @@ class InventoryReservationService {
       const availabilityCheck = await InventoryAvailabilityService.checkOrderAvailability(orderItems);
       
       if (!availabilityCheck.isAvailable && !options.allowPartial && !options.managerOverride) {
-        await session.abortTransaction();
+        if (session) await session.abortTransaction();
         return {
           success: false,
           error: 'Insufficient inventory',
@@ -77,22 +102,25 @@ class InventoryReservationService {
       const adjustmentItems = [];
       
       for (const requirement of ingredientRequirements) {
-        const ingredient = await Item.findById(requirement.ingredientId).session(session);
+        const ingredient = await Item.findById(requirement.ingredientId);
         if (!ingredient) {
           throw new Error(`Ingredient not found: ${requirement.ingredientId}`);
         }
         
         let quantityToReserve = requirement.totalRequired;
         
+        // Calculate total stock from inventory batches
+        const totalStock = ingredient.inventory?.reduce((sum, batch) => sum + batch.quantity, 0) || 0;
+        
         // Check if we have enough stock
-        if (ingredient.currentStock < quantityToReserve) {
+        if (totalStock < quantityToReserve) {
           if (options.managerOverride) {
             // Manager override - allow reservation but flag it
-            console.warn(`Manager override: Reserving ${quantityToReserve} of ${ingredient.name} with only ${ingredient.currentStock} available`);
+            console.warn(`Manager override: Reserving ${quantityToReserve} of ${ingredient.name} with only ${totalStock} available`);
           } else if (options.allowPartial) {
-            quantityToReserve = Math.max(0, ingredient.currentStock);
+            quantityToReserve = Math.max(0, totalStock);
           } else {
-            throw new Error(`Insufficient stock for ${ingredient.name}: need ${quantityToReserve}, have ${ingredient.currentStock}`);
+            throw new Error(`Insufficient stock for ${ingredient.name}: need ${quantityToReserve}, have ${totalStock}`);
           }
         }
         
@@ -119,10 +147,11 @@ class InventoryReservationService {
           });
           
           // Prepare audit trail adjustment
+          const currentStock = ingredient.inventory?.reduce((sum, batch) => sum + batch.quantity, 0) || 0;
           adjustmentItems.push({
             itemId: requirement.ingredientId,
-            quantityBefore: ingredient.currentStock,
-            quantityAfter: ingredient.currentStock, // Stock doesn't change, only reserved
+            quantityBefore: currentStock,
+            quantityAfter: currentStock, // Stock doesn't change, only reserved
             quantityChanged: 0, // No change in total stock
             unit: requirement.unit,
             reason: `Reserved for order ${order.orderNumber || orderId}`,
@@ -132,7 +161,7 @@ class InventoryReservationService {
       }
       
       if (reservationItems.length === 0) {
-        await session.abortTransaction();
+        if (session) await session.abortTransaction();
         return {
           success: false,
           error: 'No items could be reserved',
@@ -158,29 +187,35 @@ class InventoryReservationService {
         overrideTimestamp: options.managerOverride ? new Date() : undefined
       });
       
-      await reservation.save({ session });
+      await reservation.save(session ? { session } : {});
       
-      // Create audit trail
+      // Create audit trail (skip session if not supported, and don't fail if audit trail fails)
       if (adjustmentItems.length > 0) {
-        await AuditTrailService.createAdjustment(
-          orderId,
-          'order_reservation',
-          adjustmentItems,
-          userId,
-          { 
-            notes: `Inventory reserved for order ${order.orderNumber || orderId}`,
-            session 
-          }
-        );
+        try {
+          await AuditTrailService.createAdjustment(
+            orderId,
+            'order_reservation',
+            adjustmentItems,
+            userId,
+            { 
+              notes: `Inventory reserved for order ${order.orderNumber || orderId}`,
+              ...(session ? { session } : {})
+            }
+          );
+          console.log(`✅ Audit trail created for reservation`);
+        } catch (auditError) {
+          console.warn('⚠️ Could not create audit trail (non-critical):', auditError.message);
+          // Don't fail the reservation if audit trail fails
+        }
       }
       
-      await session.commitTransaction();
+      if (session) await session.commitTransaction();
       
       // Populate the reservation for response
       await reservation.populate([
         { path: 'orderId', select: 'orderNumber status customer totalAmount' },
         { path: 'createdBy', select: 'username position' },
-        { path: 'reservations.ingredientId', select: 'name category unit currentStock' }
+        { path: 'reservations.ingredientId', select: 'name category unit quantity' }
       ]);
       
       return {
@@ -193,7 +228,7 @@ class InventoryReservationService {
       };
       
     } catch (error) {
-      await session.abortTransaction();
+      if (session) await session.abortTransaction();
       console.error('Error creating inventory reservation:', error);
       
       // Handle specific error types
@@ -221,7 +256,7 @@ class InventoryReservationService {
       
       throw error;
     } finally {
-      session.endSession();
+      if (session) session.endSession();
     }
   }
   
@@ -232,12 +267,21 @@ class InventoryReservationService {
    * @returns {Promise<object>} - Consumption result
    */
   static async consumeReservation(reservationId, userId) {
-    const session = await mongoose.startSession();
+    const supportsTransactions = await this.supportsTransactions();
+    console.log(`🔧 Consuming reservation - transaction support: ${supportsTransactions}`);
+    let session = null;
+    
+    if (supportsTransactions) {
+      session = await mongoose.startSession();
+      session.startTransaction();
+    }
     
     try {
-      session.startTransaction();
-      
-      const reservation = await InventoryReservation.findById(reservationId).session(session);
+      console.log(`🔧 Finding reservation ${reservationId} with session: ${session ? 'YES' : 'NO'}`);
+      const reservation = supportsTransactions 
+        ? await InventoryReservation.findById(reservationId).session(session)
+        : await InventoryReservation.findById(reservationId);
+        
       if (!reservation) {
         throw new Error('Reservation not found');
       }
@@ -258,13 +302,19 @@ class InventoryReservationService {
           continue; // Skip already processed items
         }
         
-        const ingredient = await Item.findById(reservationItem.ingredientId).session(session);
+        const ingredient = supportsTransactions
+          ? await Item.findById(reservationItem.ingredientId).session(session)
+          : await Item.findById(reservationItem.ingredientId);
+          
         if (!ingredient) {
           console.warn(`Ingredient not found during consumption: ${reservationItem.ingredientId}`);
           continue;
         }
         
-        // Consume from FIFO batches
+        console.log(`🔧 Consuming ${reservationItem.quantityReserved} ${reservationItem.unit} of ${ingredient.name}`);
+        const stockBefore = ingredient.inventory.reduce((sum, b) => sum + b.quantity, 0);
+        
+        // Consume from FIFO batches (this handles the actual inventory update and save)
         const consumptionResult = await this.consumeFromBatches(
           ingredient,
           reservationItem.quantityReserved,
@@ -272,13 +322,11 @@ class InventoryReservationService {
           session
         );
         
-        // Update ingredient stock
-        const newStock = Math.max(0, ingredient.currentStock - reservationItem.quantityReserved);
-        await Item.findByIdAndUpdate(
-          ingredient._id,
-          { currentStock: newStock },
-          { session, new: true }
-        );
+        // Refetch to get updated totalQuantity virtual
+        const updatedIngredient = await Item.findById(ingredient._id);
+        const stockAfter = updatedIngredient.inventory.reduce((sum, b) => sum + b.quantity, 0);
+        
+        console.log(`✅ Stock updated: ${stockBefore} → ${stockAfter} (consumed: ${consumptionResult.consumed})`);
         
         // Mark reservation item as consumed
         reservationItem.status = 'consumed';
@@ -286,9 +334,9 @@ class InventoryReservationService {
         // Prepare audit trail
         adjustmentItems.push({
           itemId: reservationItem.ingredientId,
-          quantityBefore: ingredient.currentStock,
-          quantityAfter: newStock,
-          quantityChanged: -reservationItem.quantityReserved,
+          quantityBefore: stockBefore,
+          quantityAfter: stockAfter,
+          quantityChanged: -consumptionResult.consumed,
           unit: reservationItem.unit,
           reason: `Consumed for completed order ${reservation.orderId}`,
           totalValueImpact: -reservationItem.totalCost
@@ -297,24 +345,38 @@ class InventoryReservationService {
       
       // Update reservation status
       reservation.status = 'consumed';
-      reservation.modifiedBy = userId;
-      await reservation.save({ session });
-      
-      // Create consumption audit trail
-      if (adjustmentItems.length > 0) {
-        await AuditTrailService.createAdjustment(
-          reservation.orderId,
-          'order_consumption',
-          adjustmentItems,
-          userId,
-          {
-            notes: `Inventory consumed for order completion`,
-            session
-          }
-        );
+      // Only set modifiedBy if userId is a valid ObjectId
+      if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+        reservation.modifiedBy = userId;
       }
       
-      await session.commitTransaction();
+      if (supportsTransactions) {
+        await reservation.save({ session });
+      } else {
+        await reservation.save();
+      }
+      
+      // Create consumption audit trail (non-critical)
+      if (adjustmentItems.length > 0) {
+        try {
+          await AuditTrailService.createAdjustment(
+            reservation.orderId,
+            'order_consumption',
+            adjustmentItems,
+            userId,
+            {
+              notes: `Inventory consumed for order completion`,
+              ...(supportsTransactions && { session })
+            }
+          );
+        } catch (auditError) {
+          console.warn('⚠️ Could not create consumption audit trail (non-critical):', auditError.message);
+        }
+      }
+      
+      if (supportsTransactions) {
+        await session.commitTransaction();
+      }
       
       return {
         success: true,
@@ -325,11 +387,15 @@ class InventoryReservationService {
       };
       
     } catch (error) {
-      await session.abortTransaction();
+      if (supportsTransactions && session) {
+        await session.abortTransaction();
+      }
       console.error('Error consuming reservation:', error);
       throw error;
     } finally {
-      session.endSession();
+      if (session) {
+        session.endSession();
+      }
     }
   }
   
@@ -341,12 +407,19 @@ class InventoryReservationService {
    * @returns {Promise<object>} - Release result
    */
   static async releaseReservation(reservationId, userId, reason = 'Manual release') {
-    const session = await mongoose.startSession();
+    const supportsTransactions = await this.supportsTransactions();
+    let session = null;
+    
+    if (supportsTransactions) {
+      session = await mongoose.startSession();
+      session.startTransaction();
+    }
     
     try {
-      session.startTransaction();
-      
-      const reservation = await InventoryReservation.findById(reservationId).session(session);
+      const reservation = supportsTransactions
+        ? await InventoryReservation.findById(reservationId).session(session)
+        : await InventoryReservation.findById(reservationId);
+        
       if (!reservation) {
         throw new Error('Reservation not found');
       }
@@ -380,25 +453,39 @@ class InventoryReservationService {
       
       // Update reservation status
       reservation.status = 'released';
-      reservation.modifiedBy = userId;
+      // Only set modifiedBy if userId is a valid ObjectId
+      if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+        reservation.modifiedBy = userId;
+      }
       reservation.notes = `${reservation.notes || ''}\nReleased: ${reason}`.trim();
-      await reservation.save({ session });
       
-      // Create release audit trail
-      if (adjustmentItems.length > 0) {
-        await AuditTrailService.createAdjustment(
-          reservation.orderId,
-          'order_release',
-          adjustmentItems,
-          userId,
-          {
-            notes: `Reservation released: ${reason}`,
-            session
-          }
-        );
+      if (supportsTransactions) {
+        await reservation.save({ session });
+      } else {
+        await reservation.save();
       }
       
-      await session.commitTransaction();
+      // Create release audit trail (non-critical)
+      if (adjustmentItems.length > 0) {
+        try {
+          await AuditTrailService.createAdjustment(
+            reservation.orderId,
+            'order_release',
+            adjustmentItems,
+            userId,
+            {
+              notes: `Reservation released: ${reason}`,
+              ...(supportsTransactions && { session })
+            }
+          );
+        } catch (auditError) {
+          console.warn('⚠️ Could not create release audit trail (non-critical):', auditError.message);
+        }
+      }
+      
+      if (supportsTransactions) {
+        await session.commitTransaction();
+      }
       
       return {
         success: true,
@@ -409,11 +496,15 @@ class InventoryReservationService {
       };
       
     } catch (error) {
-      await session.abortTransaction();
+      if (supportsTransactions && session) {
+        await session.abortTransaction();
+      }
       console.error('Error releasing reservation:', error);
       throw error;
     } finally {
-      session.endSession();
+      if (session) {
+        session.endSession();
+      }
     }
   }
   
@@ -503,7 +594,7 @@ class InventoryReservationService {
         .populate('orderId', 'orderNumber status customer totalAmount')
         .populate('createdBy', 'username position')
         .populate('modifiedBy', 'username position')
-        .populate('reservations.ingredientId', 'name category unit currentStock');
+        .populate('reservations.ingredientId', 'name category unit quantity');
       
       if (!reservation) {
         throw new Error('Reservation not found');
@@ -545,12 +636,57 @@ class InventoryReservationService {
    * @private
    */
   static async consumeFromBatches(ingredient, quantityToConsume, reservedBatches, session) {
-    // Simplified consumption - in production, this would update actual batch quantities
-    // and handle FIFO consumption properly
+    // FIFO consumption from inventory batches
+    let remainingToConsume = quantityToConsume;
+    const consumedBatches = [];
+    
+    console.log(`📦 Starting batch consumption for ${ingredient.name}: ${quantityToConsume} ${ingredient.unit}`);
+    console.log(`📦 Available batches:`, ingredient.inventory.map(b => ({ 
+      id: b._id, 
+      quantity: b.quantity, 
+      exp: b.expirationDate 
+    })));
+    
+    // Sort batches by expiration date (FIFO - oldest first)
+    const sortedBatches = [...ingredient.inventory].sort((a, b) => 
+      new Date(a.expirationDate) - new Date(b.expirationDate)
+    );
+    
+    for (const batch of sortedBatches) {
+      if (remainingToConsume <= 0) break;
+      
+      const consumeFromThisBatch = Math.min(batch.quantity, remainingToConsume);
+      
+      if (consumeFromThisBatch > 0) {
+        batch.quantity -= consumeFromThisBatch;
+        remainingToConsume -= consumeFromThisBatch;
+        
+        consumedBatches.push({
+          batchId: batch._id,
+          consumed: consumeFromThisBatch,
+          remaining: batch.quantity
+        });
+        
+        console.log(`  ✓ Consumed ${consumeFromThisBatch} from batch ${batch._id}, remaining: ${batch.quantity}`);
+      }
+    }
+    
+    // Remove batches with 0 quantity
+    ingredient.inventory = ingredient.inventory.filter(b => b.quantity > 0);
+    
+    // Save the updated ingredient
+    const supportsTransactions = await this.supportsTransactions();
+    if (supportsTransactions && session) {
+      await ingredient.save({ session });
+    } else {
+      await ingredient.save();
+    }
+    
+    console.log(`✅ Batch consumption complete. Remaining to consume: ${remainingToConsume}`);
     
     return {
-      consumed: quantityToConsume,
-      batches: reservedBatches
+      consumed: quantityToConsume - remainingToConsume,
+      batches: consumedBatches
     };
   }
 
@@ -585,18 +721,65 @@ class InventoryReservationService {
    */
   static async getActiveReservations() {
     try {
-      // For testing mode, return mock data
-      // In production, this would query InventoryReservation model
+      console.log('📋 Fetching active inventory reservations...');
+      
+      // Query database for all reservations, sorted by most recent
+      const reservations = await InventoryReservation.find()
+        .populate('orderId', 'receiptNumber orderNumber status totalAmount customer')
+        .populate('reservations.ingredientId', 'name unit category')
+        .sort({ createdAt: -1 })
+        .limit(100) // Limit to most recent 100
+        .lean();
+      
+      console.log(`✅ Found ${reservations.length} reservations`);
+      
+      // Categorize by status
+      const categorized = {
+        active: reservations.filter(r => r.status === 'reserved'),
+        consumed: reservations.filter(r => r.status === 'consumed'),
+        released: reservations.filter(r => r.status === 'released'),
+        expired: reservations.filter(r => r.status === 'expired'),
+        all: reservations
+      };
+      
+      // Format for frontend display
+      const formattedReservations = reservations.map(reservation => ({
+        reservationId: reservation._id,
+        orderId: reservation.orderId?._id || reservation.orderId,
+        orderNumber: reservation.orderId?.receiptNumber || reservation.orderId?.orderNumber || 'N/A',
+        status: reservation.status,
+        items: reservation.reservations?.map(item => ({
+          ingredientId: item.ingredientId?._id || item.ingredientId,
+          ingredientName: item.ingredientId?.name || 'Unknown',
+          quantity: item.quantityReserved,
+          unit: item.unit,
+          status: item.status
+        })) || [],
+        totalCost: reservation.totalReservationCost || 0,
+        createdAt: reservation.createdAt,
+        expiresAt: reservation.expiresAt,
+        notes: reservation.notes
+      }));
+      
       return {
         success: true,
-        data: {
-          active: [],
-          message: 'No active reservations (test mode)'
+        data: formattedReservations,
+        summary: {
+          total: reservations.length,
+          active: categorized.active.length,
+          consumed: categorized.consumed.length,
+          released: categorized.released.length,
+          expired: categorized.expired.length
         }
       };
     } catch (error) {
       console.error('Error getting active reservations:', error);
-      throw error;
+      // Return empty array instead of throwing to prevent UI breaking
+      return {
+        success: false,
+        data: [],
+        error: error.message
+      };
     }
   }
 }

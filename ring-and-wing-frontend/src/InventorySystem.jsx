@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BarChart, PieChart, Bar, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from 'recharts';
+import { BarChart, PieChart, Bar, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell, ResponsiveContainer } from 'recharts';
 import { saveAs } from 'file-saver';
 import axios from 'axios';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import { API_URL } from './App';  // Import API_URL from App.jsx
 import { Button } from './components/ui/Button'; // Import Button component
+import { PrintableInventoryReport } from './components/ui/PrintableInventoryReport';
 import { toast } from 'react-toastify';
 import { getCurrentUser, hasInventoryAccess, hasPermission } from './utils/permissions';
 
@@ -98,7 +101,7 @@ const AlertDashboard = ({ alerts, onRestock, onDispose }) => {
     return getPriority(a) - getPriority(b);
   });
 
-  return (    <div className="relative z-50" style={{ width: '450px' }}>
+  return (    <div className="relative" style={{ width: '450px', zIndex: 10 }}>
       <div className="border rounded-lg shadow-sm relative" style={{ borderColor: colors.muted }}>
         <div 
           className="flex items-center justify-between p-3 bg-gray-50 border-b cursor-pointer"
@@ -130,7 +133,7 @@ const AlertDashboard = ({ alerts, onRestock, onDispose }) => {
         </div>
 
         {!isCollapsed && (
-          <div className="absolute top-full left-0 right-0 bg-white border rounded-b-lg shadow-lg" style={{ borderColor: colors.muted }}>
+          <div className="absolute top-full left-0 right-0 bg-white border rounded-b-lg shadow-lg z-50" style={{ borderColor: colors.muted }}>
             <div className="p-3 border-b" style={{ borderColor: colors.muted }}>
               <div className="flex gap-2">
                 <button
@@ -202,6 +205,7 @@ const InventorySystem = () => {
   const [showReports, setShowReports] = useState(false);
   const [alerts, setAlerts] = useState([]);
   const [auditLog, setAuditLog] = useState([]);
+  const printableReportRef = useRef();
   const [newItem, setNewItem] = useState({
     name: '',
     category: '',
@@ -246,11 +250,121 @@ const InventorySystem = () => {
 
   // New inventory features state
   const [inventoryReservations, setInventoryReservations] = useState([]);
-  const [inventoryAlerts, setInventoryAlerts] = useState([]);
   const [showReservationsModal, setShowReservationsModal] = useState(false);
-  const [showInventoryAlertsModal, setShowInventoryAlertsModal] = useState(false);
   const [realTimeStatus, setRealTimeStatus] = useState({});
   const [costAnalysis, setCostAnalysis] = useState({});
+
+  // PDF Download Function
+  const handleDownloadInventoryPDF = async () => {
+    if (!printableReportRef.current) {
+      alert('Report not available. Please try again.');
+      return;
+    }
+
+    try {
+      const element = printableReportRef.current;
+      
+      // Force the element to be visible and properly sized
+      const originalStyles = {
+        display: element.style.display,
+        position: element.style.position,
+        left: element.style.left,
+        top: element.style.top,
+        zIndex: element.style.zIndex,
+        width: element.style.width,
+        height: element.style.height,
+        visibility: element.style.visibility,
+        opacity: element.style.opacity
+      };
+      
+      // Make element visible and positioned properly
+      element.style.display = 'block';
+      element.style.position = 'absolute';
+      element.style.left = '-9999px'; // Move off-screen instead of z-index
+      element.style.top = '0px';
+      element.style.width = '800px';
+      element.style.height = 'auto';
+      element.style.visibility = 'visible';
+      element.style.opacity = '1';
+      element.style.backgroundColor = 'white';
+      
+      // Force layout recalculation
+      element.offsetHeight;
+      
+      // Wait for charts to render
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const actualHeight = element.scrollHeight;
+      console.log('Capturing inventory report:', element.offsetWidth, 'x', actualHeight);
+      
+      // Convert HTML to canvas
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#ffffff',
+        logging: false,
+        width: 800,
+        height: actualHeight,
+        scrollX: 0,
+        scrollY: 0,
+        foreignObjectRendering: false,
+        onclone: (clonedDoc) => {
+          // Ensure SVG elements render properly
+          const svgElements = clonedDoc.querySelectorAll('svg');
+          svgElements.forEach(svg => {
+            svg.style.backgroundColor = 'white';
+            svg.style.overflow = 'visible';
+            
+            const textElements = svg.querySelectorAll('text, tspan');
+            textElements.forEach(text => {
+              text.style.fill = '#000000';
+              text.setAttribute('fill', '#000000');
+            });
+          });
+        }
+      });
+      
+      // Restore original styles
+      Object.keys(originalStyles).forEach(key => {
+        element.style[key] = originalStyles[key];
+      });
+      
+      if (!canvas || canvas.width === 0 || canvas.height === 0) {
+        throw new Error('Failed to capture content.');
+      }
+      
+      // Create PDF
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      
+      const imgWidth = 210; // A4 width
+      const pageHeight = 297; // A4 height
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+      
+      // Add image to PDF (handle multiple pages if needed)
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      
+      // Save PDF
+      const fileName = `Inventory_Analytics_${new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(fileName);
+      
+      toast.success('PDF downloaded successfully!');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert(`Failed to generate PDF: ${error.message}`);
+    }
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -283,7 +397,6 @@ const InventorySystem = () => {
         
         // Fetch new inventory features
         await fetchInventoryReservations();
-        await fetchInventoryAlerts();
         
         setLoading(false);
       } catch (err) {
@@ -299,24 +412,19 @@ const InventorySystem = () => {
   const fetchInventoryReservations = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/inventory/reservations`);
+      console.log('📦 Reservations API response:', response.data);
       if (response.data.success) {
-        setInventoryReservations(response.data.data);
+        // Handle nested response structure from backend
+        const reservationsData = response.data.data?.data || response.data.data || [];
+        console.log('📦 Setting reservations:', reservationsData.length, 'items');
+        setInventoryReservations(Array.isArray(reservationsData) ? reservationsData : []);
       }
     } catch (error) {
       console.error('Error fetching reservations:', error);
     }
   };
 
-  const fetchInventoryAlerts = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/api/inventory/alerts`);
-      if (response.data.success) {
-        setInventoryAlerts(response.data.data);
-      }
-    } catch (error) {
-      console.error('Error fetching inventory alerts:', error);
-    }
-  };
+
 
   const createReservation = async (orderData) => {
     try {
@@ -1056,12 +1164,6 @@ const InventorySystem = () => {
             Inventory Reservations ({inventoryReservations.length})
           </Button>
           <Button
-            onClick={() => setShowInventoryAlertsModal(true)}
-            variant="secondary"
-          >
-            System Alerts ({inventoryAlerts.length})
-          </Button>
-          <Button
             onClick={() => setShowConversionModal(true)}
             variant="secondary"
           >
@@ -1071,7 +1173,7 @@ const InventorySystem = () => {
             onClick={() => setShowReports(true)}
             variant="secondary"
           >
-            View Reports
+            Analytics
           </Button>
           <Button
             onClick={() => setShowAuditLog(true)}
@@ -1952,103 +2054,208 @@ const InventorySystem = () => {
 )}
 
         {showReports && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-            <div className="bg-white p-6 rounded-lg w-full max-w-2xl">
-              <h2 className="text-xl font-bold mb-4">Inventory Analytics</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-medium mb-2">Stock by Category</h3>
-                  <PieChart width={300} height={300}>
-                    <Pie
-                      data={categoryData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={100}
-                      fill="#8884d8"
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {categoryData.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={[colors.accent, colors.secondary, '#36A2EB', '#FFCE56'][
-                            index % 4
-                          ]}
-                        />
-                      ))}
-                    </Pie>
-                    <Legend />
-                    <Tooltip />
-                  </PieChart>
-                </div>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+            <div className="bg-white p-6 rounded-lg w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold" style={{ color: colors.primary }}>Inventory Analytics</h2>
+                <button
+                  onClick={() => setShowReports(false)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
 
-                <div>
-                  <h3 className="font-medium mb-2">Current Stock Levels</h3>
-                  <BarChart width={300} height={300} data={items.slice(0, 5)}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="totalQuantity" fill={colors.accent}>
-                      {items.slice(0, 5).map((item, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={
-                            item.status === 'Out of Stock'
-                              ? '#FF6863'
-                              : item.status === 'Low Stock'
-                              ? '#FFCE56'
-                              : colors.accent
-                          }
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
+              {/* Summary Statistics */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-4" style={{ color: colors.primary }}>Inventory Summary</h3>
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="border rounded-lg p-4" style={{ borderColor: colors.muted + '40' }}>
+                    <div className="text-sm" style={{ color: colors.muted }}>Total Items</div>
+                    <div className="text-2xl font-bold" style={{ color: colors.primary }}>
+                      {items.length}
+                    </div>
+                  </div>
+                  <div className="border rounded-lg p-4" style={{ borderColor: colors.muted + '40' }}>
+                    <div className="text-sm" style={{ color: colors.muted }}>Total Quantity</div>
+                    <div className="text-2xl font-bold" style={{ color: colors.primary }}>
+                      {items.reduce((sum, item) => sum + (item.totalQuantity || 0), 0).toFixed(0)}
+                    </div>
+                  </div>
+                  <div className="border rounded-lg p-4" style={{ borderColor: colors.muted + '40' }}>
+                    <div className="text-sm" style={{ color: colors.muted }}>Low Stock</div>
+                    <div className="text-2xl font-bold" style={{ color: colors.accent }}>
+                      {items.filter(item => item.status === 'Low Stock').length}
+                    </div>
+                  </div>
+                  <div className="border rounded-lg p-4" style={{ borderColor: colors.muted + '40' }}>
+                    <div className="text-sm" style={{ color: colors.muted }}>Out of Stock</div>
+                    <div className="text-2xl font-bold" style={{ color: '#ef4444' }}>
+                      {items.filter(item => item.status === 'Out of Stock').length}
+                    </div>
+                  </div>
                 </div>
-              </div>              <Button
-                onClick={() => setShowReports(false)}
-                variant="primary"
-                className="mt-4"
-              >
-                Close
-              </Button>
+              </div>
+
+              {/* Inventory Table */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-4" style={{ color: colors.primary }}>Current Inventory</h3>
+                <div className="overflow-x-auto border rounded-lg" style={{ borderColor: colors.muted + '40' }}>
+                  <table className="w-full text-sm">
+                    <thead style={{ backgroundColor: colors.primary, color: 'white' }}>
+                      <tr>
+                        <th className="px-4 py-3 text-left">Item Name</th>
+                        <th className="px-4 py-3 text-left">Category</th>
+                        <th className="px-4 py-3 text-center">Quantity</th>
+                        <th className="px-4 py-3 text-center">Unit</th>
+                        <th className="px-4 py-3 text-center">Status</th>
+                        <th className="px-4 py-3 text-right">Total Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((item, index) => {
+                        const totalValue = (item.batches || []).reduce((sum, batch) => 
+                          sum + (batch.quantity * batch.unitCost || 0), 0
+                        );
+                        
+                        return (
+                          <tr 
+                            key={item._id || index}
+                            style={{ 
+                              backgroundColor: index % 2 === 0 ? 'white' : colors.muted + '10',
+                              borderBottom: `1px solid ${colors.muted}40`
+                            }}
+                          >
+                            <td className="px-4 py-3 font-medium">{item.name}</td>
+                            <td className="px-4 py-3">{item.category || 'N/A'}</td>
+                            <td className="px-4 py-3 text-center">{(item.totalQuantity || 0).toFixed(2)}</td>
+                            <td className="px-4 py-3 text-center">{item.unit || 'N/A'}</td>
+                            <td className="px-4 py-3 text-center">
+                              <span 
+                                className="px-3 py-1 rounded-full text-xs font-medium"
+                                style={{
+                                  backgroundColor: 
+                                    item.status === 'Out of Stock' ? '#fee2e2' :
+                                    item.status === 'Low Stock' ? '#fef3c7' :
+                                    '#d1fae5',
+                                  color:
+                                    item.status === 'Out of Stock' ? '#dc2626' :
+                                    item.status === 'Low Stock' ? '#d97706' :
+                                    '#059669'
+                                }}
+                              >
+                                {item.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right font-medium">
+                              ₱{totalValue.toFixed(2)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot style={{ backgroundColor: colors.muted + '20', fontWeight: 'bold' }}>
+                      <tr>
+                        <td colSpan="5" className="px-4 py-3 text-right">Total Inventory Value:</td>
+                        <td className="px-4 py-3 text-right" style={{ color: colors.primary }}>
+                          ₱{items.reduce((sum, item) => {
+                            const itemValue = (item.batches || []).reduce((batchSum, batch) => 
+                              batchSum + (batch.quantity * batch.unitCost || 0), 0
+                            );
+                            return sum + itemValue;
+                          }, 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 justify-end pt-4 border-t">
+                <Button
+                  onClick={handleDownloadInventoryPDF}
+                  variant="accent"
+                >
+                  Download PDF Report (with Charts)
+                </Button>
+                <Button
+                  onClick={() => setShowReports(false)}
+                  variant="secondary"
+                >
+                  Close
+                </Button>
+              </div>
             </div>
           </div>
         )}
 
+        {/* Hidden printable report for PDF generation */}
+        <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+          <PrintableInventoryReport 
+            ref={printableReportRef}
+            items={items}
+            alerts={alerts}
+            reportDate={new Date()}
+          />
+        </div>
+
         {showAuditLog && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-            <div className="bg-white p-6 rounded-lg w-full max-w-2xl">
-              <h2 className="text-xl font-bold mb-4">Audit Log</h2>
-              <div className="max-h-96 overflow-y-auto">
-                <table className="w-full">
-                  <thead>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+            <div className="bg-white p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold" style={{ color: colors.primary }}>Audit Log</h2>
+                <button
+                  onClick={() => setShowAuditLog(false)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0" style={{ backgroundColor: colors.primary, color: 'white' }}>
                     <tr>
-                      <th className="text-left">Timestamp</th>
-                      <th className="text-left">Action</th>
-                      <th className="text-left">User</th>
-                      <th className="text-left">Item ID</th>
+                      <th className="px-4 py-3 text-left">Timestamp</th>
+                      <th className="px-4 py-3 text-left">Action</th>
+                      <th className="px-4 py-3 text-left">User</th>
+                      <th className="px-4 py-3 text-left">Item ID</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {auditLog.map(log => (
-                      <tr key={log.id} className="border-t">
-                        <td className="py-2">{new Date(log.timestamp).toLocaleString()}</td>
-                        <td>{log.action}</td>
-                        <td>{log.user}</td>
-                        <td>{log.itemId}</td>
+                    {auditLog.length > 0 ? (
+                      auditLog.slice().reverse().map((log, index) => (
+                        <tr 
+                          key={log.id} 
+                          className="border-t"
+                          style={{ backgroundColor: index % 2 === 0 ? 'white' : colors.muted + '10' }}
+                        >
+                          <td className="px-4 py-3">{new Date(log.timestamp).toLocaleString()}</td>
+                          <td className="px-4 py-3 font-medium">{log.action}</td>
+                          <td className="px-4 py-3">{log.user}</td>
+                          <td className="px-4 py-3 font-mono text-xs">{log.itemId}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="4" className="px-4 py-8 text-center text-gray-500">
+                          No audit log entries yet. Actions will appear here as you perform inventory operations.
+                        </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
-              </div>              <Button
-                onClick={() => setShowAuditLog(false)}
-                variant="primary"
-                className="mt-4"
-              >
-                Close
-              </Button>
+              </div>
+              
+              <div className="mt-4 pt-4 border-t flex justify-end">
+                <Button
+                  onClick={() => setShowAuditLog(false)}
+                  variant="secondary"
+                >
+                  Close
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -2056,11 +2263,46 @@ const InventorySystem = () => {
         {/* Inventory Reservations Modal */}
         {showReservationsModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white p-6 rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div className="bg-white p-6 rounded-lg w-full max-w-6xl max-h-[90vh] flex flex-col">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">Inventory Reservations</h2>
+                <div>
+                  <h2 className="text-xl font-bold">Inventory Reservations</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Track ingredients reserved for pending orders
+                  </p>
+                </div>
                 <Button onClick={() => setShowReservationsModal(false)} variant="ghost">✕</Button>
               </div>
+              
+              {/* Summary Stats */}
+              {inventoryReservations.length > 0 && (
+                <div className="grid grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">
+                      {inventoryReservations.filter(r => r.status === 'reserved').length}
+                    </div>
+                    <div className="text-xs text-yellow-600 font-medium">Active</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">
+                      {inventoryReservations.filter(r => r.status === 'consumed').length}
+                    </div>
+                    <div className="text-xs text-green-600 font-medium">Consumed</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">
+                      {inventoryReservations.filter(r => r.status === 'released').length}
+                    </div>
+                    <div className="text-xs text-gray-600 font-medium">Released</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">
+                      {inventoryReservations.length}
+                    </div>
+                    <div className="text-xs text-blue-600 font-medium">Total</div>
+                  </div>
+                </div>
+              )}
               
               <div className="flex-1 overflow-y-auto">
                 {inventoryReservations.length > 0 ? (
@@ -2068,57 +2310,87 @@ const InventorySystem = () => {
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-4 py-2 text-left">Reservation ID</th>
-                          <th className="px-4 py-2 text-left">Order ID</th>
-                          <th className="px-4 py-2 text-left">Items</th>
+                          <th className="px-4 py-2 text-left">Order #</th>
+                          <th className="px-4 py-2 text-left">Ingredients Reserved</th>
                           <th className="px-4 py-2 text-left">Status</th>
                           <th className="px-4 py-2 text-left">Created</th>
+                          <th className="px-4 py-2 text-left">Expires</th>
                           <th className="px-4 py-2 text-left">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {inventoryReservations.map((reservation) => (
-                          <tr key={reservation.reservationId} className="border-t">
-                            <td className="px-4 py-2 font-mono text-sm">{reservation.reservationId}</td>
-                            <td className="px-4 py-2">{reservation.orderId}</td>
-                            <td className="px-4 py-2">
-                              {reservation.items?.map((item, index) => (
-                                <div key={index} className="text-sm">
-                                  Qty: {item.quantity} (ID: {item.menuItemId?.substring(0, 8)}...)
-                                </div>
-                              ))}
+                          <tr key={reservation.reservationId} className="border-t hover:bg-gray-50">
+                            <td className="px-4 py-3 font-medium">
+                              {reservation.orderNumber || `Order ${String(reservation.orderId).substring(0, 8)}`}
                             </td>
-                            <td className="px-4 py-2">
-                              <span className={`px-2 py-1 rounded text-sm ${
-                                reservation.status === 'active' ? 'bg-yellow-100 text-yellow-800' :
-                                reservation.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                'bg-red-100 text-red-800'
+                            <td className="px-4 py-3">
+                              {reservation.items && reservation.items.length > 0 ? (
+                                <div className="space-y-1">
+                                  {reservation.items.map((item, index) => (
+                                    <div key={index} className="text-sm">
+                                      <span className="font-medium">{item.ingredientName || 'Unknown'}</span>
+                                      {' '}- {item.quantity} {item.unit}
+                                      {item.status && item.status !== 'reserved' && (
+                                        <span className="ml-2 text-xs text-gray-500">({item.status})</span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-sm text-gray-400">No items</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                reservation.status === 'reserved' ? 'bg-yellow-100 text-yellow-800' :
+                                reservation.status === 'consumed' ? 'bg-green-100 text-green-800' :
+                                reservation.status === 'released' ? 'bg-gray-100 text-gray-800' :
+                                reservation.status === 'expired' ? 'bg-red-100 text-red-800' :
+                                'bg-blue-100 text-blue-800'
                               }`}>
                                 {reservation.status}
                               </span>
                             </td>
-                            <td className="px-4 py-2 text-sm">
-                              {new Date(reservation.createdAt).toLocaleString()}
+                            <td className="px-4 py-3 text-sm text-gray-600">
+                              {new Date(reservation.createdAt).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
                             </td>
-                            <td className="px-4 py-2">
+                            <td className="px-4 py-3 text-sm text-gray-600">
+                              {reservation.expiresAt ? (
+                                <>
+                                  {new Date(reservation.expiresAt).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                  {new Date(reservation.expiresAt) < new Date() && (
+                                    <span className="ml-1 text-red-600 font-medium">(Expired)</span>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-gray-400">N/A</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
                               <div className="flex gap-2">
-                                {reservation.status === 'active' && (
-                                  <>
-                                    <Button 
-                                      onClick={() => completeReservation(reservation.reservationId)}
-                                      variant="primary"
-                                      size="sm"
-                                    >
-                                      Complete
-                                    </Button>
-                                    <Button 
-                                      onClick={() => cancelReservation(reservation.reservationId)}
-                                      variant="ghost"
-                                      size="sm"
-                                    >
-                                      Cancel
-                                    </Button>
-                                  </>
+                                {reservation.status === 'reserved' && (
+                                  <Button 
+                                    onClick={() => cancelReservation(reservation.reservationId)}
+                                    variant="ghost"
+                                    size="sm"
+                                    title="Release this reservation"
+                                  >
+                                    Release
+                                  </Button>
+                                )}
+                                {(reservation.status === 'consumed' || reservation.status === 'released') && (
+                                  <span className="text-xs text-gray-400 italic">No actions</span>
                                 )}
                               </div>
                             </td>
@@ -2146,62 +2418,7 @@ const InventorySystem = () => {
           </div>
         )}
 
-        {/* System Alerts Modal */}
-        {showInventoryAlertsModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white p-6 rounded-lg w-full max-w-3xl max-h-[90vh] flex flex-col">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">System Inventory Alerts</h2>
-                <Button onClick={() => setShowInventoryAlertsModal(false)} variant="ghost">✕</Button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto">
-                {inventoryAlerts.length > 0 ? (
-                  <div className="space-y-3">
-                    {inventoryAlerts.map((alert, index) => (
-                      <div key={index} className={`p-4 rounded-lg border-l-4 ${
-                        alert.type === 'low_stock' ? 'bg-yellow-50 border-yellow-400' :
-                        alert.type === 'out_of_stock' ? 'bg-red-50 border-red-400' :
-                        alert.type === 'expiring_soon' ? 'bg-orange-50 border-orange-400' :
-                        'bg-blue-50 border-blue-400'
-                      }`}>
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="font-medium text-gray-900">
-                              {alert.type?.replace('_', ' ').toUpperCase() || 'SYSTEM ALERT'}
-                            </h3>
-                            <p className="text-gray-700 mt-1">{alert.message}</p>
-                            {alert.itemId && (
-                              <p className="text-sm text-gray-500 mt-1">
-                                Item ID: {alert.itemId}
-                              </p>
-                            )}
-                          </div>
-                          <div className="text-right text-sm text-gray-500">
-                            {alert.timestamp ? new Date(alert.timestamp).toLocaleString() : 'Recent'}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-500 py-8">
-                    No system alerts found
-                  </div>
-                )}
-              </div>
-              
-              <div className="mt-4 flex justify-between">
-                <Button onClick={fetchInventoryAlerts} variant="secondary">
-                  Refresh Alerts
-                </Button>
-                <Button onClick={() => setShowInventoryAlertsModal(false)} variant="primary">
-                  Close
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+
       </div>
     </div>
   );
