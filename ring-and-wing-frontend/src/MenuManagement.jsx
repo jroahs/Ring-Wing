@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import MenuItemImage from './components/MenuItemImage';
 import ConnectionMonitor from './components/ConnectionMonitor';
+import { LoadingSpinner } from './components/ui';
 
 // Debounce utility function to prevent rapid-fire requests
 const debounce = (func, wait) => {
@@ -301,29 +302,33 @@ const MenuPage = () => {
   // Extract fetchData function to reuse for refresh
   const fetchData = async (signal = null) => {
     try {
-      const [menuRes, addOnsRes, categoriesRes, inventoryRes] = await Promise.all([
-        fetch('http://localhost:5000/api/menu?limit=1000', {  // High limit to get all items
-          signal: signal
-        }),
-        fetch('http://localhost:5000/api/add-ons', {
-          signal: signal
-        }),
-        fetch('http://localhost:5000/api/categories', {
-          signal: signal
-        }),
-        fetch('http://localhost:5000/api/items', {  // Use the existing items endpoint
-          signal: signal
-        })
-      ]);
+      // Stagger API calls with 200ms delays to prevent connection pool exhaustion
+      const menuRes = await fetch('http://localhost:5000/api/menu?limit=1000', {  // High limit to get all items
+        signal: signal
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const addOnsRes = await fetch('http://localhost:5000/api/add-ons', {
+        signal: signal
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const categoriesRes = await fetch('http://localhost:5000/api/categories', {
+        signal: signal
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const inventoryRes = await fetch('http://localhost:5000/api/items', {  // Use the existing items endpoint
+        signal: signal
+      });
 
       if (!menuRes.ok || !addOnsRes.ok) {
         throw new Error('Failed to fetch menu or add-ons data');
       }
 
-      const [menuData, addOnsData] = await Promise.all([
-        menuRes.json(),
-        addOnsRes.json()
-      ]);
+      // Parse responses sequentially
+      const menuData = await menuRes.json();
+      const addOnsData = await addOnsRes.json();
 
       // Handle both array and object with items property response formats
       const validMenuItems = Array.isArray(menuData) ? menuData : (menuData.items || []);
@@ -351,7 +356,7 @@ const MenuPage = () => {
         return !lastChecked || (now - lastChecked.timestamp) > CACHE_DURATION;
       });
       
-      console.log(`📊 Availability check: ${itemsToCheck.length}/${menuItemIds.length} items need checking`);
+      console.log(`Availability check: ${itemsToCheck.length}/${menuItemIds.length} items need checking`);
       
       if (itemsToCheck.length > 0) {
         // Process in smaller batches with longer delays to prevent flooding
@@ -370,15 +375,15 @@ const MenuPage = () => {
         }
       }
       
-      console.log('✅ Smart batch availability checking enabled with caching');
+      console.log('Smart batch availability checking enabled with caching');
       
       // Fetch categories (optional, fallback to static config)
       if (categoriesRes.ok) {
         const categoriesData = await categoriesRes.json();
-        console.log('🎉 MenuManagement: Loaded dynamic categories', categoriesData);
+        console.log('MenuManagement: Loaded dynamic categories', categoriesData);
         
         // Debug the raw category structure
-        console.log('🔍 Raw categories data:', categoriesData.map(cat => ({
+        console.log('Raw categories data:', categoriesData.map(cat => ({
           id: cat._id,
           name: cat.name,
           category: cat.category,
@@ -401,10 +406,10 @@ const MenuPage = () => {
         // Also log subcategories as strings if they exist
         categoriesData.forEach(cat => {
           if (cat.subcategories && cat.subcategories.length > 0) {
-            console.log(`🏷️ ${cat.name} subcategories:`, cat.subcategories);
+            console.log(`${cat.name} subcategories:`, cat.subcategories);
           }
           if (cat.subCategories && cat.subCategories.length > 0) {
-            console.log(`🏷️ ${cat.name} subCategories:`, cat.subCategories);
+            console.log(`${cat.name} subCategories:`, cat.subCategories);
           }
         });
         
@@ -456,7 +461,7 @@ const MenuPage = () => {
         
         // Temporarily disable caching to force fresh data fetch  
         setCategories(sortedCategories);
-        console.log('📊 MenuManagement: Categories FORCE updated with stable order');
+        console.log('MenuManagement: Categories FORCE updated with stable order');
         console.log('Actual sort order:', sortedCategories.map(c => ({ name: c.name, sortOrder: c.sortOrder })));
         
         // Create dynamic menuConfig for existing functionality - always update
@@ -492,9 +497,9 @@ const MenuPage = () => {
             }
           });
           
-          console.log('🔧 MenuManagement: Generated pure database config', dynamicMenuConfig);
+          console.log('MenuManagement: Generated pure database config', dynamicMenuConfig);
           setMenuConfig(dynamicMenuConfig);
-          console.log('🎯 MenuManagement: Using database-driven config', dynamicMenuConfig);
+          console.log('MenuManagement: Using database-driven config', dynamicMenuConfig);
         
       } else {
         console.warn('MenuManagement: Failed to fetch categories, using empty config');
@@ -523,27 +528,11 @@ const MenuPage = () => {
     return () => controller.abort();
   }, []); // Remove dependency to prevent re-fetching
 
-  // Add refresh mechanisms for real-time updates - but less frequent
-  useEffect(() => {
-    const handleWindowFocus = () => {
-      // Only refresh if window was focused after being away for a while
-      if (document.hidden === false) {
-        fetchData();
-      }
-    };
-
-    // Reduce refresh frequency to prevent request flooding
-    const intervalId = setInterval(() => {
-      fetchData();
-    }, 300000); // Refresh every 5 minutes instead of 2 minutes (reduced server load)
-
-    window.addEventListener('focus', handleWindowFocus);
-
-    return () => {
-      window.removeEventListener('focus', handleWindowFocus);
-      clearInterval(intervalId);
-    };
-  }, []);
+  // REMOVED: 5-minute polling + window focus refresh
+  // Menu management is not time-critical - staff can manually refresh if needed
+  // This removes 60+ requests/hour when menu management is open
+  // Data is still fetched on mount and after any edit operations
+  // Manual refresh button available in UI for explicit updates
 
   // Load existing ingredients when editing an item
   useEffect(() => {
@@ -740,7 +729,7 @@ const MenuPage = () => {
   const refreshAvailabilityForItems = (itemIds) => {
     if (!Array.isArray(itemIds)) itemIds = [itemIds];
     
-    console.log(`🔄 Manual availability refresh for ${itemIds.length} items`);
+    console.log(`Manual availability refresh for ${itemIds.length} items`);
     
     itemIds.forEach((itemId, index) => {
       setTimeout(() => {
@@ -1022,7 +1011,7 @@ const MenuPage = () => {
   const toggleAvailabilityDebounced = useCallback(
     debounce(async (itemId, newAvailability) => {
       try {
-        console.log(`🔄 Toggling availability for item ${itemId} to ${newAvailability}`);
+        console.log(`Toggling availability for item ${itemId} to ${newAvailability}`);
         
         const response = await fetch(`http://localhost:5000/api/menu/${itemId}/availability`, {
           method: 'PATCH',
@@ -1036,7 +1025,7 @@ const MenuPage = () => {
         }
 
         const result = await response.json();
-        console.log('✅ Availability updated successfully:', result);
+        console.log('Availability updated successfully:', result);
         
         // Update local state
         setMenuItems(prev => 
@@ -1232,7 +1221,13 @@ const MenuPage = () => {
   });
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-500">Loading menu items...</div>;
+    return (
+      <LoadingSpinner 
+        fullScreen 
+        variant="ring" 
+        message="Loading menu items..." 
+      />
+    );
   }
 
   if (error) {
@@ -2390,7 +2385,7 @@ const MenuPage = () => {
             <div className="bg-white p-6 rounded-lg w-full max-w-3xl max-h-[90vh] flex flex-col">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">Select Ingredients for Menu Item</h2>
-                <button onClick={() => setShowIngredientModal(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+                <button onClick={() => setShowIngredientModal(false)} className="text-gray-500 hover:text-gray-700">×</button>
               </div>
               
               <div className="flex-1 overflow-y-auto">

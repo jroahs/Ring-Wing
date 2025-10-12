@@ -277,7 +277,7 @@ class CashFloatService {
     
     if (numCashAmount < numTotal) {
       const shortfall = numTotal - numCashAmount;
-      console.error('🚫 Insufficient cash amount:', {
+      console.error('Insufficient cash amount:', {
         cashAmount: numCashAmount,
         orderTotal: numTotal,
         shortfall

@@ -310,7 +310,7 @@ const ReceiptHistory = () => {
                     onClick={() => setSelectedOrder(null)}
                     className="p-2 rounded-full hover:bg-gray-100"
                   >
-                    ✕
+                    ×
                   </button>
                 </div>
               </div>

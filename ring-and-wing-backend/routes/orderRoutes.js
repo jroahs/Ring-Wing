@@ -208,13 +208,13 @@ router.patch('/:id', async (req, res, next) => {
       });
     }
 
-    // ✨ NEW: Consume inventory reservations when order is completed
+    // NEW: Consume inventory reservations when order is completed
     if (status === 'completed') {
       try {
         // Get user ID from request (set by auth middleware) or from body
         const userId = req.user?.id || req.user?._id || req.body.userId || 'system';
         
-        console.log(`🏁 Order ${order._id} completed - attempting to consume inventory reservations`);
+        console.log(`Order ${order._id} completed - attempting to consume inventory reservations`);
         
         const consumptionResult = await InventoryBusinessLogicService.completeOrderProcessing(
           order._id.toString(),
@@ -222,15 +222,15 @@ router.patch('/:id', async (req, res, next) => {
         );
         
         if (consumptionResult.success && consumptionResult.hasInventoryIntegration) {
-          console.log(`✅ Inventory consumed for order ${order._id}:`, {
+          console.log(`Inventory consumed for order ${order._id}:`, {
             itemsConsumed: consumptionResult.itemsConsumed,
             valueConsumed: consumptionResult.valueConsumed
           });
         } else {
-          console.log(`ℹ️ Order ${order._id} completed without inventory tracking`);
+          console.log(`Order ${order._id} completed without inventory tracking`);
         }
       } catch (invError) {
-        console.error('❌ Inventory consumption error:', invError);
+        console.error('Inventory consumption error:', invError);
         // Don't fail the order update - log error and continue
         // Ingredient tracking is optional and shouldn't block order completion
       }

@@ -107,7 +107,6 @@ function Login() {
       if (response.status !== 200) {
         const errorMessage = response.data?.message || 'Login failed';
         setError(errorMessage);
-        setIsLoading(false);
         return;
       }
 
@@ -115,7 +114,7 @@ function Login() {
 
       // Store token
       localStorage.setItem('authToken', data.token);
-        // Store user data
+      // Store user data
       localStorage.setItem('userData', JSON.stringify({
         id: data._id,
         username: data.username,
@@ -126,7 +125,9 @@ function Login() {
       }));
 
       // Configure axios defaults for future requests
-      axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;      // Navigate to appropriate page based on position
+      axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+      
+      // Navigate to appropriate page based on position
       console.log('User position:', data.position);
       
       switch (data.position) {
@@ -236,7 +237,6 @@ function Login() {
                 value={username}
                 onChange={handleInputChange(setUsername)}
                 placeholder="Enter your username"
-                disabled={isLoading}
                 required
                 autoComplete="username"
                 error={error && error.includes('username') ? error : ''}
@@ -248,7 +248,6 @@ function Login() {
                 value={password}
                 onChange={handleInputChange(setPassword)}
                 placeholder="Enter your password"
-                disabled={isLoading}
                 required
                 autoComplete="current-password"
                 error={error && error.includes('password') ? error : ''}
@@ -275,27 +274,13 @@ function Login() {
               whileTap="tap"
             >
               {isLoading ? (
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24">
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                </motion.div>
+                  <span>Signing in...</span>
+                </>
               ) : (
                 <>
                   <span>Sign In</span>

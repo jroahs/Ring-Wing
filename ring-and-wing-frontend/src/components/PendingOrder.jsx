@@ -253,7 +253,7 @@ const PendingOrder = ({ order, processPayment, cashFloat = 0, colors = theme.col
               className="py-3 text-base font-medium"
               onClick={() => setIsDiscountApplied(!isDiscountApplied)}
             >
-              {isDiscountApplied ? '✓ PWD/Senior Discount Applied (20%)' : 'PWD/Senior Discount (20%)'}
+              {isDiscountApplied ? 'PWD/Senior Discount Applied (20%)' : 'PWD/Senior Discount (20%)'}
             </Button>
             {isDiscountApplied && (
               <div className="mt-2 text-xs bg-blue-50 px-2 py-1 rounded text-blue-600">

@@ -205,9 +205,9 @@ const processPaymentWithInventory = async (paymentDetails = null) => {
     await saveOrderToDB(result.orderId); // Pass the order ID from inventory service
 
     if (currentPaymentMethod === 'cash') {
-      console.log('💳 Processing cash transaction:', { paymentMethod: currentPaymentMethod, cashValue, totalDue });
+      console.log('Processing cash transaction:', { paymentMethod: currentPaymentMethod, cashValue, totalDue });
       await processTransaction(cashValue, totalDue, 'pos_order');
-      console.log('💳 Cash transaction processed successfully');
+      console.log('Cash transaction processed successfully');
     }
 
     // Clear cart and reset state

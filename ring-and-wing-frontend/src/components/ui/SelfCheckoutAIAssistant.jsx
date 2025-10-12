@@ -67,7 +67,7 @@ const ChatMessage = ({ message, onAddToCart, menuItems, categories = [] }) => {
                 {item.isSystemAlternative && (
                   <div className="absolute top-2 right-2 z-10 px-2 py-1 rounded-full text-xs font-bold text-white shadow-sm"
                        style={{ backgroundColor: colors.primary }}>
-                    ⭐ RECOMMENDED
+                    RECOMMENDED
                   </div>
                 )}
                 
@@ -111,7 +111,7 @@ const ChatMessage = ({ message, onAddToCart, menuItems, categories = [] }) => {
                       className="mt-2 w-full py-2 rounded-lg text-xs font-semibold text-white transition-all duration-200 active:scale-95"
                       style={{ backgroundColor: colors.accent }}
                     >
-                      🛒 Add to Cart
+                      Add to Cart
                     </button>
                   </div>
                 </div>
@@ -338,12 +338,12 @@ const SelfCheckoutAIAssistant = ({
         if (response.ok) {
           const categoriesData = await response.json();
           setCategories(categoriesData);
-          console.log('🎉 AI Assistant: Loaded dynamic categories', categoriesData);
+          console.log('AI Assistant: Loaded dynamic categories', categoriesData);
         } else {
           throw new Error('Categories API unavailable');
         }
       } catch (error) {
-        console.log('🔄 AI Assistant: Using fallback category logic');
+        console.log('AI Assistant: Using fallback category logic');
         // Set fallback for category detection
         setCategories([
           { category: 'Meals', subCategories: [] },
@@ -567,12 +567,12 @@ Example responses:
       // Enhanced follow-up for different types of interactions
       if (suggestions.length > 0) {
         setTimeout(() => {
-          let followUpText = "Tap any item above to add it to your cart! 😊";
+          let followUpText = "Tap any item above to add it to your cart!";
           
           if (isUnavailableQuery) {
-            followUpText = "These alternatives should satisfy your craving! Tap any item to add it to your cart, or let me know if you'd like other suggestions. 😊";
+            followUpText = "These alternatives should satisfy your craving! Tap any item to add it to your cart, or let me know if you'd like other suggestions.";
           } else if (detectOrderIntent(currentInput)) {
-            followUpText = "Perfect choices! Tap any item to add to your cart, or tell me if you'd like something different! 😊";
+            followUpText = "Perfect choices! Tap any item to add to your cart, or tell me if you'd like something different!";
           }
           
           const followUpMessage = {
@@ -754,7 +754,7 @@ Would any of these work for you?"`
     // Add confirmation message with next steps
     const confirmMessage = {
       id: generateUniqueId(),
-      text: `Added ${item.name} to your cart! 🛒 Want to add a drink or try something else?`,
+      text: `Added ${item.name} to your cart! Want to add a drink or try something else?`,
       sender: 'bot',
       timestamp: new Date()
     };

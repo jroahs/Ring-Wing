@@ -120,7 +120,7 @@ const IngredientMapper = ({
 
   const removeMapping = async (mappingId) => {
     try {
-      console.log('🗑️ Attempting to remove mapping with ID:', mappingId);
+      console.log('Attempting to remove mapping with ID:', mappingId);
       
       // Find the mapping to determine if it's new or existing
       const mappingToRemove = mappings.find(mapping => 
@@ -128,11 +128,11 @@ const IngredientMapper = ({
       );
       
       if (!mappingToRemove) {
-        console.warn('⚠️ Mapping not found for removal, ID:', mappingId);
+        console.warn('Mapping not found for removal, ID:', mappingId);
         return;
       }
       
-      console.log('📦 Found mapping to remove:', {
+      console.log('Found mapping to remove:', {
         id: mappingToRemove.id,
         _id: mappingToRemove._id,
         isNew: mappingToRemove.isNew,
@@ -141,7 +141,7 @@ const IngredientMapper = ({
       
       // If it's an existing mapping (has _id and not isNew), call DELETE API
       if (mappingToRemove._id && !mappingToRemove.isNew) {
-        console.log('🔥 Calling DELETE API for mapping:', mappingToRemove._id);
+        console.log('Calling DELETE API for mapping:', mappingToRemove._id);
         
         const response = await fetch(`/api/ingredients/mappings/${mappingToRemove._id}`, {
           method: 'DELETE',
@@ -153,14 +153,14 @@ const IngredientMapper = ({
         
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('❌ DELETE API failed:', response.status, errorText);
+          console.error('DELETE API failed:', response.status, errorText);
           throw new Error(`Failed to delete ingredient mapping: ${response.status} ${errorText}`);
         }
         
         const result = await response.json();
-        console.log('✅ Successfully deleted ingredient mapping from database:', result);
+        console.log('Successfully deleted ingredient mapping from database:', result);
       } else {
-        console.log('📝 Skipping API call - mapping is new (isNew:', mappingToRemove.isNew, ')');
+        console.log('Skipping API call - mapping is new (isNew:', mappingToRemove.isNew, ')');
       }
       
       // Remove from local state
@@ -168,11 +168,11 @@ const IngredientMapper = ({
         mapping.id !== mappingId && mapping._id !== mappingId
       );
       
-      console.log('🔄 Updating local state. Before:', mappings.length, 'After:', updatedMappings.length);
+      console.log('Updating local state. Before:', mappings.length, 'After:', updatedMappings.length);
       setMappings(updatedMappings);
       
     } catch (error) {
-      console.error('💥 Error removing ingredient mapping:', error);
+      console.error('Error removing ingredient mapping:', error);
       // Still remove from UI even if API call fails, user can try again
       const updatedMappings = mappings.filter(mapping => 
         mapping.id !== mappingId && mapping._id !== mappingId

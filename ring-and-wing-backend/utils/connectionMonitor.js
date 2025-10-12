@@ -35,24 +35,24 @@ class ConnectionMonitor {
     }
     
     this.isMonitoring = true;
-    logger.info('🔍 Starting enhanced connection monitoring...');
+    logger.info('Starting enhanced connection monitoring...');
     
-    // Tier 1: Basic connection check every 15 seconds (very frequent)
+    // Tier 1: Basic connection check every 5 minutes (reduced from 15s to prevent overwhelming DB)
     this.monitorInterval = setInterval(() => {
       this.performBasicConnectionCheck();
-    }, 15000);
+    }, 300000); // Changed from 15000 (15s) to 300000 (5min) - 20x reduction
 
-    // Tier 2: Aggressive monitoring every 30 seconds when issues detected
+    // Tier 2: Aggressive monitoring every 5 minutes when issues detected (reduced from 30s)
     this.aggressiveMonitorInterval = setInterval(() => {
       if (this.consecutiveFailures > 0) {
         this.performAggressiveCheck();
       }
-    }, 30000);
+    }, 300000); // Changed from 30000 (30s) to 300000 (5min) - 10x reduction
 
-    // Tier 3: Detailed diagnostics every 3 minutes
+    // Tier 3: Detailed diagnostics every 15 minutes (increased from 3 min)
     this.diagnosticsInterval = setInterval(() => {
       this.logDetailedDiagnostics();
-    }, 180000);
+    }, 900000); // Changed from 180000 (3min) to 900000 (15min) - 5x reduction
 
     // Initial check
     this.performBasicConnectionCheck();
@@ -116,9 +116,9 @@ class ConnectionMonitor {
         
         // Alert on slow responses
         if (pingTime > this.alertThresholds.slowResponseTime) {
-          logger.warn(`⚠️ Slow database response detected: ${pingTime}ms`);
+          logger.warn(`Slow database response detected: ${pingTime}ms`);
           if (pingTime > this.alertThresholds.criticalResponseTime) {
-            logger.error(`🚨 CRITICAL: Very slow database response: ${pingTime}ms`);
+            logger.error(`CRITICAL: Very slow database response: ${pingTime}ms`);
           }
         }
       } else {
@@ -144,7 +144,7 @@ class ConnectionMonitor {
    * Perform more aggressive connection checking when issues are detected
    */
   async performAggressiveCheck() {
-    logger.info('🔍 Performing aggressive connection check due to detected issues...');
+    logger.info('Performing aggressive connection check due to detected issues...');
     
     try {
       if (mongoose.connection.readyState === 1) {
@@ -157,7 +157,7 @@ class ConnectionMonitor {
         ]);
         const checkTime = Date.now() - checkStart;
         
-        logger.info(`✅ Aggressive check passed in ${checkTime}ms`);
+        logger.info(`Aggressive check passed in ${checkTime}ms`);
         
         if (checkTime > 3000) {
           logger.warn(`Aggressive check was slow: ${checkTime}ms - potential connection instability`);
@@ -228,8 +228,8 @@ class ConnectionMonitor {
    * Handle prolonged disconnection scenarios
    */
   handleProlongedDisconnection() {
-    logger.error(`🚨 ALERT: Database has been unhealthy for ${this.consecutiveFailures} consecutive checks`);
-    logger.error('🔧 Attempting emergency reconnection...');
+    logger.error(`ALERT: Database has been unhealthy for ${this.consecutiveFailures} consecutive checks`);
+    logger.error('Attempting emergency reconnection...');
     
     // Log current connection pool status
     this.logConnectionPoolStatus();
@@ -245,7 +245,7 @@ class ConnectionMonitor {
    */
   async forceReconnection() {
     try {
-      logger.warn('🔄 Forcing database reconnection...');
+      logger.warn('Forcing database reconnection...');
       
       if (mongoose.connection.readyState !== 0) {
         await mongoose.connection.close(true); // Force close
@@ -257,11 +257,11 @@ class ConnectionMonitor {
       // Reconnect with our enhanced options
       await mongoose.connect(process.env.MONGO_URI);
       
-      logger.info('✅ Force reconnection successful');
+      logger.info('Force reconnection successful');
       this.consecutiveFailures = 0;
       
     } catch (error) {
-      logger.error('❌ Force reconnection failed:', error.message);
+      logger.error('Force reconnection failed:', error.message);
     }
   }
 
@@ -297,7 +297,7 @@ class ConnectionMonitor {
       }
     }
 
-    logger.info('📊 Connection diagnostics:', diagnostics);
+    logger.info('Connection diagnostics:', diagnostics);
     
     // Log connection health summary
     const healthySamples = this.connectionHistory.filter(h => h.isHealthy).length;
@@ -305,7 +305,7 @@ class ConnectionMonitor {
       ? ((healthySamples / this.connectionHistory.length) * 100).toFixed(2)
       : 0;
       
-    logger.info(`📈 Connection health: ${healthPercentage}% healthy over last ${this.connectionHistory.length} checks`);
+    logger.info(`Connection health: ${healthPercentage}% healthy over last ${this.connectionHistory.length} checks`);
   }
 
   /**
@@ -321,7 +321,7 @@ class ConnectionMonitor {
           name: mongoose.connection.name
         };
         
-        logger.info('🏊 Connection pool status:', poolStats);
+        logger.info('Connection pool status:', poolStats);
       } else {
         logger.warn('Cannot access connection pool - connection not established');
       }

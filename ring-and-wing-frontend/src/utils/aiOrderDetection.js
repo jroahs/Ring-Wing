@@ -6,7 +6,7 @@ import { findBestMenuItemMatch } from './orderParser'; // Assuming findBestMenuI
 
 export const detectOrderIntentWithAI = async (message, menuItems, chatHistory = [], detectedLanguage = 'english') => {  // Early rejection of obvious non-order messages
   const quickCheck = message.toLowerCase();
-  console.log('🔍 AI Order Detection - checking message:', quickCheck);
+  console.log('AI Order Detection - checking message:', quickCheck);
     if (quickCheck.length < 2 || 
       (quickCheck.endsWith('?') && !quickCheck.includes('can i get') && !quickCheck.includes('can i have')) ||
       (quickCheck.includes('what') && !quickCheck.includes('what about') && !quickCheck.includes('ok') && !quickCheck.includes('sure')) || 
@@ -26,7 +26,7 @@ export const detectOrderIntentWithAI = async (message, menuItems, chatHistory = 
     return { hasOrderIntent: false, items: [] };
   }
 
-  console.log('✅ AI Order Detection - passed early checks, proceeding to AI analysis');
+  console.log('AI Order Detection - passed early checks, proceeding to AI analysis');
 
   // Prepare system prompt for order detection
   const systemPrompt = {    role: "system",

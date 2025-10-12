@@ -4,11 +4,11 @@ const InventoryAvailabilityService = require('../services/inventoryAvailabilityS
 const InventoryReservationService = require('../services/inventoryReservationService');
 const InventoryBusinessLogicService = require('../services/inventoryBusinessLogicService');
 
-console.log('🔧 Inventory routes loaded successfully!');
+console.log('Inventory routes loaded successfully!');
 
 // Test endpoint to verify routes are loaded
 router.get('/test', async (req, res) => {
-  console.log('📍 Test endpoint called');
+  console.log('Test endpoint called');
   res.json({
     success: true,
     message: 'Inventory routes are working!',
@@ -55,22 +55,22 @@ router.get('/reservations', async (req, res) => {
 // Create inventory reservation
 router.post('/reserve', async (req, res) => {
   try {
-    console.log('🎯 === RESERVATION ENDPOINT HIT ===');
-    console.log('🎯 Request body:', JSON.stringify(req.body, null, 2));
+    console.log('=== RESERVATION ENDPOINT HIT ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
     
     const { orderId, items, reservedBy } = req.body;
     
-    console.log('📦 Reservation request received:', { orderId, itemCount: items?.length, reservedBy });
+    console.log('Reservation request received:', { orderId, itemCount: items?.length, reservedBy });
     
     if (!orderId || !items || !Array.isArray(items) || items.length === 0) {
-      console.log('❌ Validation failed:', { orderId: !!orderId, itemsIsArray: Array.isArray(items), itemsLength: items?.length });
+      console.log('Validation failed:', { orderId: !!orderId, itemsIsArray: Array.isArray(items), itemsLength: items?.length });
       return res.status(400).json({
         success: false,
         message: 'Invalid request: orderId and items array are required'
       });
     }
 
-    console.log('✅ Validation passed, calling createOrderReservation...');
+    console.log('Validation passed, calling createOrderReservation...');
     
     // Use createOrderReservation which is the correct method
     const result = await InventoryReservationService.createOrderReservation(
@@ -80,14 +80,14 @@ router.post('/reserve', async (req, res) => {
       {}
     );
 
-    console.log('📋 Reservation service result:', { success: result.success, hasReservation: !!result.reservation });
+    console.log('Reservation service result:', { success: result.success, hasReservation: !!result.reservation });
 
     if (!result.success) {
-      console.log('⚠️ Reservation creation result:', result);
+      console.log('Reservation creation result:', result);
       return res.status(400).json(result);
     }
 
-    console.log('✅ Reservation created successfully:', result.reservation?._id);
+    console.log('Reservation created successfully:', result.reservation?._id);
     
     res.json({
       success: true,
@@ -95,7 +95,7 @@ router.post('/reserve', async (req, res) => {
       message: result.message
     });
   } catch (error) {
-    console.error('❌ Error creating reservation:', error);
+    console.error('Error creating reservation:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create reservation',

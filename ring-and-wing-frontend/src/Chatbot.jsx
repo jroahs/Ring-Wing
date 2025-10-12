@@ -190,32 +190,10 @@ function ChatbotPage() {
     return () => controller.abort();
   }, []);
 
-  // Add refresh functionality for menu updates
-  useEffect(() => {
-    const refreshMenuData = async () => {
-      try {
-        const response = await fetch("http://localhost:5000/api/menu?limit=1000");
-        const data = await response.json();
-        const items = data.items || [];
-        setMenuData(items);
-        console.log(`Menu refreshed: ${items.length} items loaded`);
-      } catch (err) {
-        console.warn('Menu refresh failed:', err);
-      }
-    };
-
-    // Refresh on window focus
-    const handleFocus = () => refreshMenuData();
-    window.addEventListener('focus', handleFocus);
-
-    // Periodic refresh every 30 seconds
-    const intervalId = setInterval(refreshMenuData, 30000);
-
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-      clearInterval(intervalId);
-    };
-  }, []);
+  // REMOVED: Aggressive 30-second polling + window focus refresh
+  // Menu data is already fetched on mount above (line 143)
+  // Manual refresh can be added as a user button if needed
+  // This change reduces requests from 240/hour to just initial fetch
 
   // Cleanup effect for AI requests
   useEffect(() => {
@@ -1369,7 +1347,7 @@ ${popularItemsInfo}`
     }
     
     if (!isConfirmation && !isPricingQuery && !isDirectItemMention) {
-      console.log('🚫 detectOrderFromSuggestion - no confirmation/pricing/direct mention patterns matched');
+      console.log('detectOrderFromSuggestion - no confirmation/pricing/direct mention patterns matched');
       return null;
     }// Extract quantity - use suggested quantity if available
     const quantityWords = {
@@ -1424,7 +1402,7 @@ ${popularItemsInfo}`
                itemName.includes(cleanInput) || 
                cleanInput.includes(itemName);
       });
-      console.log('🎯 Found direct item mention:', selectedItem?.name);
+      console.log('Found direct item mention:', selectedItem?.name);
     }// If no specific item mentioned and only one suggestion, use it
     if (!selectedItem && recentlySuggestedItems.length === 1) {
       selectedItem = recentlySuggestedItems[0];
@@ -1687,7 +1665,7 @@ ${popularItemsInfo}`
       const match = inputMessage.match(pattern);
       if (match) {
         detectedMainItem = match[1].trim();
-        console.log('🍽️ Detected pairing question for:', detectedMainItem);
+        console.log('Detected pairing question for:', detectedMainItem);
         setPairingContext({ 
           mainItem: detectedMainItem, 
           timestamp: Date.now() 
@@ -1776,11 +1754,11 @@ ${popularItemsInfo}`
       }
     }    // SECOND: Check for order confirmations from AI suggestions BEFORE AI detection
     if (!staticResponseSent && recentlySuggestedItems.length > 0) {
-      console.log('🔍 Checking suggestions for input:', input, 'Recent items:', recentlySuggestedItems.length);
+      console.log('Checking suggestions for input:', input, 'Recent items:', recentlySuggestedItems.length);
       const suggestionOrder = detectOrderFromSuggestion(input);
       
       if (suggestionOrder) {
-        console.log('🎯 Suggestion order detected:', suggestionOrder.type);
+        console.log('Suggestion order detected:', suggestionOrder.type);
         if (suggestionOrder.type === 'clarification') {
           setMessages(prev => [...prev, {
             id: generateUniqueId(),
@@ -1866,7 +1844,7 @@ ${popularItemsInfo}`
               );
               
               if (mainItem && !currentOrder.some(orderItem => orderItem.name === mainItem.name)) {
-                console.log('🍽️ Adding main item from pairing context:', mainItem.name);
+                console.log('Adding main item from pairing context:', mainItem.name);
                 const mainItemSize = mainItem.pricing ? Object.keys(mainItem.pricing)[0] : 'base';
                 addToCurrentOrder(mainItem, mainItemSize, 1);
                 addedMainItem = true;
@@ -2016,7 +1994,7 @@ ${popularItemsInfo}`
             );
             
             if (mainItem && !currentOrder.some(orderItem => orderItem.name === mainItem.name)) {
-              console.log('🍽️ Adding main item from pairing context (AI path):', mainItem.name);
+              console.log('Adding main item from pairing context (AI path):', mainItem.name);
               const mainItemSize = mainItem.pricing ? Object.keys(mainItem.pricing)[0] : 'base';
               addToCurrentOrder(mainItem, mainItemSize, 1);
               addedMainItemFromPairing = true;
@@ -2240,14 +2218,14 @@ ${popularItemsInfo}`
           const mentionedItems = [];
           const lowerResponse = responseText.toLowerCase();
           
-          console.log('🔍 AI Response Text:', responseText);
-          console.log('🔍 Lowercase Response:', lowerResponse);
+          console.log('AI Response Text:', responseText);
+          console.log('Lowercase Response:', lowerResponse);
           
           // Check each menu item to see if it's mentioned in the response
           menuData.forEach(item => {
             const itemNameLower = item.name.toLowerCase();
             if (lowerResponse.includes(itemNameLower)) {
-              console.log(`✅ Found mentioned item: ${item.name}`);
+              console.log(`Found mentioned item: ${item.name}`);
               mentionedItems.push({
                 name: item.name,
                 price: item.pricing ? "₱" + Object.values(item.pricing)[0] : "",
@@ -2259,7 +2237,7 @@ ${popularItemsInfo}`
             }
           });
           
-          console.log('🔍 Total mentioned items found:', mentionedItems.length);
+          console.log('Total mentioned items found:', mentionedItems.length);
           return mentionedItems;
         };        // Track mentioned items as suggestions
         const mentionedItems = extractMentionedItems(aiText);
@@ -2274,22 +2252,22 @@ ${popularItemsInfo}`
                                    enhancedInput.toLowerCase().includes('have');
         
         if (mentionedItems.length > 0) {
-          console.log('🎯 AI mentioned specific items:', mentionedItems.map(i => i.name));
+          console.log('AI mentioned specific items:', mentionedItems.map(i => i.name));
           setRecentlySuggestedItems(mentionedItems);
           setLastSuggestionTime(Date.now());
           
           // For recommendation requests or "what do you have" queries, still show carousel with mentioned items
           if (isRecommendationRequest || isWhatDoYouHaveQuery) {
-            console.log('📋 Request with mentioned items - will show enhanced carousel');
+            console.log('Request with mentioned items - will show enhanced carousel');
             shouldShowCarousel = false; // Allow carousel but will include mentioned items
           } else {
             shouldShowCarousel = true; // Normal mentioned items behavior
           }
         } else if (isRecommendationRequest || isWhatDoYouHaveQuery) {
-          console.log('📋 Menu browsing request detected - will show menu carousel for easier browsing');
+          console.log('Menu browsing request detected - will show menu carousel for easier browsing');
           shouldShowCarousel = false; // Allow the menu carousel system to trigger
         } else {
-          console.log('⚠️ No mentioned items found in AI response');
+          console.log('No mentioned items found in AI response');
         }
         
         // Text response
@@ -2301,7 +2279,7 @@ ${popularItemsInfo}`
         };
           setMessages(prev => [...prev, botResponse]);        // Add carousel of suggested items based on the query for certain types of questions
         // BUT only if AI didn't already mention specific items
-        console.log('🔍 Menu card conditions:', {
+        console.log('Menu card conditions:', {
           shouldShowMenuItems,
           staticResponseSent,
           shouldShowCarousel,
@@ -2309,11 +2287,11 @@ ${popularItemsInfo}`
         });
         
         if (shouldShowMenuItems && !staticResponseSent && !shouldShowCarousel) {
-          console.log('🔄 Second system triggered - showing menu carousel because shouldShowCarousel is false');
+          console.log('Second system triggered - showing menu carousel because shouldShowCarousel is false');
           
           // Get mentioned items from AI response to prioritize them
           const aiMentionedItems = extractMentionedItems(aiText);
-          console.log('🎯 AI mentioned items for carousel:', aiMentionedItems.map(i => i.name));
+          console.log('AI mentioned items for carousel:', aiMentionedItems.map(i => i.name));
           
           // Extract categories and filter relevant items
           // Determine which category to show based on the query
@@ -2345,12 +2323,12 @@ ${popularItemsInfo}`
             // For recommendation requests or "what do you have" queries, ensure good variety
             if (query.includes('recommend') || query.includes('suggest') || 
                 (query.includes('what') && query.includes('have'))) {
-              console.log('🍽️ Building diverse menu carousel for browsing request');
+              console.log('Building diverse menu carousel for browsing request');
               
               // Start with mentioned items if any
               if (aiMentionedItems.length > 0) {
                 relevantItems = [...aiMentionedItems.map(item => item.fullItem || item)];
-                console.log('🎯 Added mentioned items to carousel first:', relevantItems.map(i => i.name));
+                console.log('Added mentioned items to carousel first:', relevantItems.map(i => i.name));
               }
               
               // For "what drinks do you have" etc, filter by category
@@ -2362,7 +2340,7 @@ ${popularItemsInfo}`
               }
               
               if (targetCategory) {
-                console.log(`🎯 Filtering for category: ${targetCategory}`);
+                console.log(`Filtering for category: ${targetCategory}`);
                 const categoryItems = availableItems.filter(item => 
                   item.category === targetCategory && 
                   !relevantItems.some(existing => existing.name === item.name)
@@ -2417,7 +2395,7 @@ ${popularItemsInfo}`
             // Limit to a reasonable number of items for display
           relevantItems = relevantItems.slice(0, Math.min(6, relevantItems.length));
           
-          console.log('🎠 Building carousel with', relevantItems.length, 'items:', relevantItems.map(i => i.name));
+          console.log('Building carousel with', relevantItems.length, 'items:', relevantItems.map(i => i.name));
 
           if (relevantItems.length > 0) {
             // Track suggested items for order confirmation
@@ -2430,14 +2408,14 @@ ${popularItemsInfo}`
               fullItem: item // Store the complete item data
             }));
             
-            console.log('🎠 Carousel items prepared:', suggestedItems.map(i => i.name));
+            console.log('Carousel items prepared:', suggestedItems.map(i => i.name));
             
             setRecentlySuggestedItems(suggestedItems);
             setLastSuggestionTime(Date.now());
             
             // Add a small delay so the text appears first
             setTimeout(() => {
-              console.log('🎠 Adding menu carousel to messages');
+              console.log('Adding menu carousel to messages');
               const menuMessage = {
                 id: generateUniqueId(),
                 text: "",
@@ -2449,7 +2427,7 @@ ${popularItemsInfo}`
               setMessages(prev => [...prev, menuMessage]);
             }, 800);
           } else {
-            console.log('❌ No relevant items found for carousel');
+            console.log('No relevant items found for carousel');
           }
         }
       } catch (error) {

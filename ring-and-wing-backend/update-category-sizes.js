@@ -17,7 +17,7 @@ const connectDB = async () => {
 
 const updateCategorySizes = async () => {
   try {
-    console.log('🔧 Updating category sizes...');
+    console.log('Updating category sizes...');
 
     // Define the sizing configuration
     const sizingConfig = {
@@ -70,13 +70,13 @@ const updateCategorySizes = async () => {
         }
         
         await category.save();
-        console.log(`✅ ${categoryName} updated successfully`);
+        console.log(`${categoryName} updated successfully`);
       } else {
-        console.log(`❌ Category ${categoryName} not found`);
+        console.log(`Category ${categoryName} not found`);
       }
     }
 
-    console.log('🎉 Category sizes update complete!');
+    console.log('Category sizes update complete!');
     
   } catch (error) {
     console.error('Error updating category sizes:', error);

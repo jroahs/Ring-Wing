@@ -1,21 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { FiClock, FiCoffee, FiCalendar, FiFilter, FiSearch, FiX, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
-
-// Custom hook for responsive margin calculation
-const useResponsiveMargin = () => {
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-
-  useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  return {
-    marginLeft: windowWidth < 768 ? '0' : windowWidth >= 1920 ? '8rem' : '5rem',
-    paddingTop: windowWidth < 768 ? '4rem' : '0'
-  };
-};
+import { LoadingSpinner } from './components/ui';
 
 const OrderSystem = () => {
   const [orders, setOrders] = useState([]);
@@ -36,8 +21,6 @@ const OrderSystem = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersPerPage] = useState(12); // 12 orders per page (3x4 grid)
   const [totalOrders, setTotalOrders] = useState(0);
-  
-  const { marginLeft, paddingTop } = useResponsiveMargin();
 
   // Debounced search effect - faster response
   useEffect(() => {
@@ -191,9 +174,11 @@ const OrderSystem = () => {
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#f1670f]"></div>
-      </div>
+      <LoadingSpinner 
+        fullScreen 
+        variant="pulse" 
+        message="Loading orders..." 
+      />
     );
   }
 
@@ -214,8 +199,7 @@ const OrderSystem = () => {
 
   return (
     <div 
-      className="h-full flex flex-col bg-[#fefdfd] transition-all duration-300"
-      style={{ marginLeft, paddingTop }}
+      className="h-full flex flex-col bg-[#fefdfd]"
     >
       <main className="flex-1 overflow-auto bg-[#f9f9f9]">
         <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">

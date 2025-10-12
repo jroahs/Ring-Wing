@@ -98,9 +98,9 @@ export const useMenu = () => {
     
     // Fallback to default categories if API fails or returns empty
     if (!categoriesData || categoriesData.length === 0) {
-      console.warn('🔄 useMenu: Using fallback categories - API returned empty/invalid data');
+      console.warn('useMenu: Using fallback categories - API returned empty/invalid data');
       categoriesData = [...FALLBACK_CATEGORIES];
-      console.log('🔄 useMenu: Fallback categories with subcategories loaded');
+      console.log('useMenu: Fallback categories with subcategories loaded');
     }
     
     setCategories(categoriesData);
@@ -148,9 +148,9 @@ export const useMenu = () => {
       
       // Fallback to default categories if API fails or returns empty
       if (!categoriesData || categoriesData.length === 0) {
-        console.warn('🔄 useMenu: Using fallback categories - API returned empty/invalid data');
+        console.warn('useMenu: Using fallback categories - API returned empty/invalid data');
         categoriesData = [...FALLBACK_CATEGORIES];
-        console.log('🔄 useMenu: Fallback categories with subcategories loaded');
+        console.log('useMenu: Fallback categories with subcategories loaded');
       }
       
       setCategories(categoriesData);
@@ -160,7 +160,7 @@ export const useMenu = () => {
       setError('Failed to load menu');
       
       // Set fallback categories even on error (exact SelfCheckout behavior)
-      console.log('🔄 useMenu: Using error fallback categories');
+      console.log('useMenu: Using error fallback categories');
       setCategories([...FALLBACK_CATEGORIES]);
     } finally {
       setLoading(false);

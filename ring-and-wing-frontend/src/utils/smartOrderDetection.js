@@ -4,7 +4,7 @@
 
 export const detectOrder = (message, menuItems, recentSuggestions = []) => {
   const input = message.toLowerCase().trim();
-  console.log('🧠 Smart Order Detection:', input);
+  console.log('Smart Order Detection:', input);
   
   // Find any menu items mentioned in the message
   const mentionedItems = menuItems.filter(item => {
@@ -39,12 +39,12 @@ export const detectOrder = (message, menuItems, recentSuggestions = []) => {
   const isNonOrder = nonOrderPatterns.some(pattern => input.includes(pattern));
   
   if (isNonOrder) {
-    console.log('🚫 Not an order - contains non-order pattern');
+    console.log('Not an order - contains non-order pattern');
     return { isOrder: false, items: [] };
   }
   
   if ((hasOrderIndicator || isJustItemName) && mentionedItems.length > 0) {
-    console.log('✅ Order detected!', mentionedItems.map(i => i.name));
+    console.log('Order detected!', mentionedItems.map(i => i.name));
     return {
       isOrder: true,
       items: mentionedItems.map(item => ({
@@ -55,7 +55,7 @@ export const detectOrder = (message, menuItems, recentSuggestions = []) => {
     };
   }
   
-  console.log('🤔 No clear order intent');
+  console.log('No clear order intent');
   return { isOrder: false, items: [] };
 };
 

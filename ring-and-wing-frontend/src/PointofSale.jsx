@@ -202,10 +202,10 @@ const PointOfSale = () => {
         }
         const data = await response.json();
         
-        console.log('🎉 PointOfSale: Loaded dynamic categories', data);
+        console.log('PointOfSale: Loaded dynamic categories', data);
         
         // DEBUG: Check the exact structure of the raw API response
-        console.log('🔍 RAW API DATA:', JSON.stringify(data, null, 2));
+        console.log('RAW API DATA:', JSON.stringify(data, null, 2));
         
         // Transform the API data to expected format with stable sorting
         const transformedCategories = data.map(cat => ({
@@ -216,14 +216,14 @@ const PointOfSale = () => {
         
         // Apply stable sorting to categories and subcategories
         const sortedCategories = transformedCategories.sort((a, b) => {
-          console.log(`🔧 Sorting: ${a.name} (sortOrder: ${a.sortOrder}) vs ${b.name} (sortOrder: ${b.sortOrder})`);
+          console.log(`Sorting: ${a.name} (sortOrder: ${a.sortOrder}) vs ${b.name} (sortOrder: ${b.sortOrder})`);
           
           // First sort by sortOrder - handle undefined/null values
           const aSortOrder = typeof a.sortOrder === 'number' ? a.sortOrder : 999;
           const bSortOrder = typeof b.sortOrder === 'number' ? b.sortOrder : 999;
           
           if (aSortOrder !== bSortOrder) {
-            console.log(`🔧 Sorting by sortOrder: ${aSortOrder} vs ${bSortOrder}`);
+            console.log(`Sorting by sortOrder: ${aSortOrder} vs ${bSortOrder}`);
             return aSortOrder - bSortOrder;
           }
           
@@ -231,14 +231,14 @@ const PointOfSale = () => {
           const aName = a.name || '';
           const bName = b.name || '';
           if (aName !== bName) {
-            console.log(`🔧 Sorting by name: ${aName} vs ${bName}`);
+            console.log(`Sorting by name: ${aName} vs ${bName}`);
             return aName.localeCompare(bName);
           }
           
           // Finally by _id for ultimate consistency
           const aId = (a._id || '').toString();
           const bId = (b._id || '').toString();
-          console.log(`🔧 Sorting by id: ${aId} vs ${bId}`);
+          console.log(`Sorting by id: ${aId} vs ${bId}`);
           return aId.localeCompare(bId);
         }).map(category => {
           // Also sort subcategories within each category for consistency
@@ -269,11 +269,11 @@ const PointOfSale = () => {
         
         // Temporarily disable caching to force fresh data fetch
         setCategories(sortedCategories);
-        console.log('📊 PointOfSale: Categories FORCE updated with stable order');
+        console.log('PointOfSale: Categories FORCE updated with stable order');
         console.log('Actual sort order:', sortedCategories.map(c => ({ name: c.name, sortOrder: c.sortOrder })));
         
         // Debug: Check the structure of sorted categories
-        console.log('🔄 PointOfSale: Categories sorted for consistency');
+        console.log('PointOfSale: Categories sorted for consistency');
         console.log('Sorted category structure:', sortedCategories.map(cat => ({ 
           id: cat._id, 
           name: cat.name, 
@@ -319,47 +319,11 @@ const PointOfSale = () => {
     fetchCategories();
   }, []);
 
-  // Add refresh functionality for menu updates
-  useEffect(() => {
-    const refreshMenuData = async () => {
-      try {
-        const response = await fetch('http://localhost:5000/api/menu?limit=1000');
-        if (!response.ok) return;
-        const responseData = await response.json();
-        const rawData = Array.isArray(responseData) ? responseData : responseData.items || [];
-        
-        const transformedItems = rawData.map(item => ({
-          _id: item._id,
-          code: item.code || 'N/A',
-          name: item.name,
-          category: item.category,
-          subCategory: item.subCategory || '',
-          pricing: item.pricing,
-          description: item.description,
-          image: item.image ? `http://localhost:5000${item.image}` : 
-                 (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png'),
-          modifiers: item.modifiers || [],
-          isAvailable: item.isAvailable
-        }));
-        
-        setMenuItems(transformedItems);
-      } catch (err) {
-        console.warn('Menu refresh failed:', err);
-      }
-    };
-
-    // Refresh on window focus (when user returns to tab)
-    const handleFocus = () => refreshMenuData();
-    window.addEventListener('focus', handleFocus);
-
-    // Periodic refresh every 30 seconds
-    const intervalId = setInterval(refreshMenuData, 30000);
-
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-      clearInterval(intervalId);
-    };
-  }, []);
+  // REMOVED: Aggressive 30-second polling + window focus refresh for menu updates
+  // With 3+ POS terminals, this was causing 360+ requests/hour (120 per terminal)
+  // Menu data is already loaded in initial useEffect (line 149)
+  // Manual refresh button can be added if real-time updates are critical
+  // This change reduces POS requests from 360/hour to just initial loads
 
   // Debug function to check subcategories
   useEffect(() => {
@@ -778,7 +742,7 @@ const PointOfSale = () => {
       await new Promise(resolve => setTimeout(resolve, 100));
       await handlePrint();
       
-      // ✨ NEW: Create inventory reservation for items with ingredient mappings
+      // NEW: Create inventory reservation for items with ingredient mappings
       if (orderResponse?.data?._id) {
         try {
           const userData = localStorage.getItem('userData');
@@ -802,10 +766,10 @@ const PointOfSale = () => {
           });
           
           const reservationData = await reservationResponse.json();
-          console.log('📦 Reservation API Response:', reservationData);
+          console.log('Reservation API Response:', reservationData);
           
           if (reservationResponse.ok && reservationData.success) {
-            console.log('✅ Inventory reservation created for order:', orderResponse.data._id);
+            console.log('Inventory reservation created for order:', orderResponse.data._id);
           } else {
             console.warn('⚠️ Inventory reservation failed:', reservationData);
           }
@@ -817,9 +781,9 @@ const PointOfSale = () => {
       
       if (currentPaymentMethod === 'cash') {
         // Use centralized cash float service to process the transaction
-        console.log('💳 Processing cash transaction:', { paymentMethod: currentPaymentMethod, cashValue, totalDue });
+        console.log('Processing cash transaction:', { paymentMethod: currentPaymentMethod, cashValue, totalDue });
         await processTransaction(cashValue, totalDue, 'pos_order');
-        console.log('💳 Cash transaction processed successfully');
+        console.log('Cash transaction processed successfully');
       }
         // Clear both the specific cart and currentOrder
       setCart([]);
@@ -922,7 +886,7 @@ const PointOfSale = () => {
         throw new Error(errorData.message || 'Failed to update order');
       }      const orderData = await response.json();
       
-      // ✨ NEW: Create inventory reservation for pending order items with ingredient mappings
+      // NEW: Create inventory reservation for pending order items with ingredient mappings
       if (orderData?.data?._id) {
         try {
           const userData = localStorage.getItem('userData');
@@ -946,10 +910,10 @@ const PointOfSale = () => {
           });
           
           const reservationData = await reservationResponse.json();
-          console.log('📦 Reservation API Response (pending order):', reservationData);
+          console.log('Reservation API Response (pending order):', reservationData);
           
           if (reservationResponse.ok && reservationData.success) {
-            console.log('✅ Inventory reservation created for pending order:', orderData.data._id);
+            console.log('Inventory reservation created for pending order:', orderData.data._id);
           } else {
             console.warn('⚠️ Inventory reservation failed:', reservationData);
           }
@@ -961,9 +925,9 @@ const PointOfSale = () => {
 
       if (currentPaymentMethod === 'cash') {
         // Use centralized cash float service to process the transaction
-        console.log('💳 Processing pending order cash transaction:', { paymentMethod: currentPaymentMethod, cashValue, totalDue });
+        console.log('Processing pending order cash transaction:', { paymentMethod: currentPaymentMethod, cashValue, totalDue });
         await processTransaction(cashValue, totalDue, `pending_order_${editingPendingOrder._id}`);
-        console.log('💳 Pending order cash transaction processed successfully');
+        console.log('Pending order cash transaction processed successfully');
       }
 
       // Set up receipt data using the actual order details

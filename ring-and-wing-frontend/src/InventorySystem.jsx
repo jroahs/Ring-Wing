@@ -7,6 +7,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { API_URL } from './App';  // Import API_URL from App.jsx
 import { Button } from './components/ui/Button'; // Import Button component
+import { LoadingSpinner } from './components/ui';
 import { PrintableInventoryReport } from './components/ui/PrintableInventoryReport';
 import { toast } from 'react-toastify';
 import { getCurrentUser, hasInventoryAccess, hasPermission } from './utils/permissions';
@@ -253,6 +254,8 @@ const InventorySystem = () => {
   const [showReservationsModal, setShowReservationsModal] = useState(false);
   const [realTimeStatus, setRealTimeStatus] = useState({});
   const [costAnalysis, setCostAnalysis] = useState({});
+  const [isRefreshThrottled, setIsRefreshThrottled] = useState(false);
+  const lastRefreshTime = useRef(0);
 
   // PDF Download Function
   const handleDownloadInventoryPDF = async () => {
@@ -406,21 +409,47 @@ const InventorySystem = () => {
       }
     };
     fetchData();
+    
+    // Set up automatic refresh every 5 minutes to check for newly expired items
+    // This ensures expiration alerts show up even if no manual edits are made
+    const refreshInterval = setInterval(() => {
+      console.log('Auto-refreshing inventory to check for expired items...');
+      fetchData();
+    }, 5 * 60 * 1000); // 5 minutes
+    
+    // Cleanup interval on component unmount
+    return () => clearInterval(refreshInterval);
   }, []);
 
   // New inventory feature functions
   const fetchInventoryReservations = async () => {
+    // Throttle: 5-second cooldown to prevent spam clicking
+    const now = Date.now();
+    const THROTTLE_DELAY = 5000; // 5 seconds
+    
+    if (now - lastRefreshTime.current < THROTTLE_DELAY) {
+      const remainingTime = Math.ceil((THROTTLE_DELAY - (now - lastRefreshTime.current)) / 1000);
+      console.log(`Refresh throttled. Please wait ${remainingTime} more second(s).`);
+      return;
+    }
+    
+    setIsRefreshThrottled(true);
+    lastRefreshTime.current = now;
+    
     try {
       const response = await axios.get(`${API_URL}/api/inventory/reservations`);
-      console.log('📦 Reservations API response:', response.data);
+      console.log('Reservations API response:', response.data);
       if (response.data.success) {
         // Handle nested response structure from backend
         const reservationsData = response.data.data?.data || response.data.data || [];
-        console.log('📦 Setting reservations:', reservationsData.length, 'items');
+        console.log('Setting reservations:', reservationsData.length, 'items');
         setInventoryReservations(Array.isArray(reservationsData) ? reservationsData : []);
       }
     } catch (error) {
       console.error('Error fetching reservations:', error);
+    } finally {
+      // Reset throttle after cooldown period
+      setTimeout(() => setIsRefreshThrottled(false), THROTTLE_DELAY);
     }
   };
 
@@ -923,11 +952,13 @@ const InventorySystem = () => {
       const itemToSubmit = {
         ...newItem,
         isCountBased,
-        minimumThreshold: isCountBased ? 5 : 
-                         (newItem.unit === 'grams' ? 500 :
-                          newItem.unit === 'kilograms' ? 0.5 :
-                          newItem.unit === 'milliliters' ? 500 :
-                          newItem.unit === 'liters' ? 0.5 : 5)
+        // Use the user-entered minimumThreshold from the form, with fallback to defaults
+        minimumThreshold: newItem.minimumThreshold || 
+                         (isCountBased ? 5 : 
+                          (newItem.unit === 'grams' ? 500 :
+                           newItem.unit === 'kilograms' ? 0.5 :
+                           newItem.unit === 'milliliters' ? 500 :
+                           newItem.unit === 'liters' ? 0.5 : 5))
       };
         const { data } = await axios.post(`${API_URL}/api/items`, itemToSubmit);
       setItems([...items, data]);
@@ -947,7 +978,13 @@ const InventorySystem = () => {
       cost: item.cost,
       price: item.price,
       vendor: item.vendor,
-      inventory: item.inventory,
+      // Convert Date objects to YYYY-MM-DD format for HTML date inputs
+      inventory: item.inventory.map(batch => ({
+        ...batch,
+        expirationDate: batch.expirationDate 
+          ? new Date(batch.expirationDate).toISOString().split('T')[0] 
+          : ''
+      })),
       isCountBased: item.isCountBased,
       minimumThreshold: item.minimumThreshold
     });
@@ -968,11 +1005,13 @@ const InventorySystem = () => {
       const itemToSubmit = {
         ...newItem,
         isCountBased,
-        minimumThreshold: isCountBased ? 5 : 
-                         (newItem.unit === 'grams' ? 500 :
-                          newItem.unit === 'kilograms' ? 0.5 :
-                          newItem.unit === 'milliliters' ? 500 :
-                          newItem.unit === 'liters' ? 0.5 : 5)
+        // Use the user-entered minimumThreshold from the form, with fallback to defaults
+        minimumThreshold: newItem.minimumThreshold || 
+                         (isCountBased ? 5 : 
+                          (newItem.unit === 'grams' ? 500 :
+                           newItem.unit === 'kilograms' ? 0.5 :
+                           newItem.unit === 'milliliters' ? 500 :
+                           newItem.unit === 'liters' ? 0.5 : 5))
       };
       
       const { data } = await axios.put(`${API_URL}/api/items/${editingItem._id}`, itemToSubmit);
@@ -1015,7 +1054,15 @@ const InventorySystem = () => {
   ).map(([name, value]) => ({ name, value }));
 
   // Loading and error states
-  if (loading) return <div className="p-4">Loading inventory...</div>;
+  if (loading) {
+    return (
+      <LoadingSpinner 
+        fullScreen 
+        variant="ring" 
+        message="Loading inventory data..." 
+      />
+    );
+  }
   
 
   const getMainContentMargin = () => {
@@ -1162,6 +1209,22 @@ const InventorySystem = () => {
             variant="primary"
           >
             Inventory Reservations ({inventoryReservations.length})
+          </Button>
+          <Button
+            onClick={async () => {
+              toast.info('Checking for expired items...', { autoClose: 1000 });
+              try {
+                const itemsRes = await axios.get(`${API_URL}/api/items`);
+                setItems(itemsRes.data);
+                toast.success('Inventory refreshed!', { autoClose: 2000 });
+              } catch (err) {
+                toast.error('Failed to refresh: ' + err.message);
+              }
+            }}
+            variant="secondary"
+            title="Manually refresh inventory to check for newly expired items"
+          >
+            Check Expiration
           </Button>
           <Button
             onClick={() => setShowConversionModal(true)}
@@ -1614,8 +1677,8 @@ const InventorySystem = () => {
                       required
                       min="0"
                       step={newItem.unit === 'kilograms' || newItem.unit === 'liters' ? '0.1' : '1'}
-                      value={newItem.minimumStock}
-                      onChange={(e) => setNewItem({...newItem, minimumStock: parseFloat(e.target.value)})}
+                      value={newItem.minimumThreshold}
+                      onChange={(e) => setNewItem({...newItem, minimumThreshold: parseFloat(e.target.value)})}
                       className="w-full p-2 border rounded"
                       style={{ borderColor: colors.muted }}
                     />
@@ -2271,7 +2334,7 @@ const InventorySystem = () => {
                     Track ingredients reserved for pending orders
                   </p>
                 </div>
-                <Button onClick={() => setShowReservationsModal(false)} variant="ghost">✕</Button>
+                <Button onClick={() => setShowReservationsModal(false)} variant="ghost">×</Button>
               </div>
               
               {/* Summary Stats */}
@@ -2407,8 +2470,13 @@ const InventorySystem = () => {
               </div>
               
               <div className="mt-4 flex justify-between">
-                <Button onClick={fetchInventoryReservations} variant="secondary">
-                  Refresh
+                <Button 
+                  onClick={fetchInventoryReservations} 
+                  variant="secondary"
+                  disabled={isRefreshThrottled}
+                  title={isRefreshThrottled ? "Please wait 5 seconds between refreshes" : "Refresh reservations"}
+                >
+                  {isRefreshThrottled ? "Refreshing..." : "Refresh"}
                 </Button>
                 <Button onClick={() => setShowReservationsModal(false)} variant="primary">
                   Close

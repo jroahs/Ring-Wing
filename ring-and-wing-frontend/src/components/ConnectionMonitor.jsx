@@ -42,8 +42,10 @@ const ConnectionMonitor = () => {
   };
 
   useEffect(() => {
-    // Check connection every 30 seconds
-    const interval = setInterval(checkConnection, 30000);
+    // REDUCED: Check connection every 5 minutes instead of 30 seconds
+    // This reduces per-user requests from 120/hour to 12/hour
+    // Frontend monitoring is redundant with backend monitoring
+    const interval = setInterval(checkConnection, 300000); // Changed from 30000 (30s) to 300000 (5min)
     // Initial check
     checkConnection();
     

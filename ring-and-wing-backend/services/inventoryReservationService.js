@@ -40,7 +40,7 @@ class InventoryReservationService {
   static async createOrderReservation(orderId, orderItems, userId, options = {}) {
     // Check transaction support
     const useTransactions = await this.supportsTransactions();
-    console.log(`📊 MongoDB transaction support: ${useTransactions ? 'enabled' : 'disabled (standalone mode)'}`);
+    console.log(`MongoDB transaction support: ${useTransactions ? 'enabled' : 'disabled (standalone mode)'}`);
     
     let session = null;
     
@@ -202,9 +202,9 @@ class InventoryReservationService {
               ...(session ? { session } : {})
             }
           );
-          console.log(`✅ Audit trail created for reservation`);
+          console.log(`Audit trail created for reservation`);
         } catch (auditError) {
-          console.warn('⚠️ Could not create audit trail (non-critical):', auditError.message);
+          console.warn('Could not create audit trail (non-critical):', auditError.message);
           // Don't fail the reservation if audit trail fails
         }
       }
@@ -268,7 +268,7 @@ class InventoryReservationService {
    */
   static async consumeReservation(reservationId, userId) {
     const supportsTransactions = await this.supportsTransactions();
-    console.log(`🔧 Consuming reservation - transaction support: ${supportsTransactions}`);
+    console.log(`Consuming reservation - transaction support: ${supportsTransactions}`);
     let session = null;
     
     if (supportsTransactions) {
@@ -277,7 +277,7 @@ class InventoryReservationService {
     }
     
     try {
-      console.log(`🔧 Finding reservation ${reservationId} with session: ${session ? 'YES' : 'NO'}`);
+      console.log(`Finding reservation ${reservationId} with session: ${session ? 'YES' : 'NO'}`);
       const reservation = supportsTransactions 
         ? await InventoryReservation.findById(reservationId).session(session)
         : await InventoryReservation.findById(reservationId);
@@ -311,7 +311,7 @@ class InventoryReservationService {
           continue;
         }
         
-        console.log(`🔧 Consuming ${reservationItem.quantityReserved} ${reservationItem.unit} of ${ingredient.name}`);
+        console.log(`Consuming ${reservationItem.quantityReserved} ${reservationItem.unit} of ${ingredient.name}`);
         const stockBefore = ingredient.inventory.reduce((sum, b) => sum + b.quantity, 0);
         
         // Consume from FIFO batches (this handles the actual inventory update and save)
@@ -326,7 +326,7 @@ class InventoryReservationService {
         const updatedIngredient = await Item.findById(ingredient._id);
         const stockAfter = updatedIngredient.inventory.reduce((sum, b) => sum + b.quantity, 0);
         
-        console.log(`✅ Stock updated: ${stockBefore} → ${stockAfter} (consumed: ${consumptionResult.consumed})`);
+        console.log(`Stock updated: ${stockBefore} → ${stockAfter} (consumed: ${consumptionResult.consumed})`);
         
         // Mark reservation item as consumed
         reservationItem.status = 'consumed';
@@ -370,7 +370,7 @@ class InventoryReservationService {
             }
           );
         } catch (auditError) {
-          console.warn('⚠️ Could not create consumption audit trail (non-critical):', auditError.message);
+          console.warn('Could not create consumption audit trail (non-critical):', auditError.message);
         }
       }
       
@@ -479,7 +479,7 @@ class InventoryReservationService {
             }
           );
         } catch (auditError) {
-          console.warn('⚠️ Could not create release audit trail (non-critical):', auditError.message);
+          console.warn('Could not create release audit trail (non-critical):', auditError.message);
         }
       }
       
@@ -640,8 +640,8 @@ class InventoryReservationService {
     let remainingToConsume = quantityToConsume;
     const consumedBatches = [];
     
-    console.log(`📦 Starting batch consumption for ${ingredient.name}: ${quantityToConsume} ${ingredient.unit}`);
-    console.log(`📦 Available batches:`, ingredient.inventory.map(b => ({ 
+    console.log(`Starting batch consumption for ${ingredient.name}: ${quantityToConsume} ${ingredient.unit}`);
+    console.log(`Available batches:`, ingredient.inventory.map(b => ({ 
       id: b._id, 
       quantity: b.quantity, 
       exp: b.expirationDate 
@@ -667,7 +667,7 @@ class InventoryReservationService {
           remaining: batch.quantity
         });
         
-        console.log(`  ✓ Consumed ${consumeFromThisBatch} from batch ${batch._id}, remaining: ${batch.quantity}`);
+        console.log(`  Consumed ${consumeFromThisBatch} from batch ${batch._id}, remaining: ${batch.quantity}`);
       }
     }
     
@@ -682,7 +682,7 @@ class InventoryReservationService {
       await ingredient.save();
     }
     
-    console.log(`✅ Batch consumption complete. Remaining to consume: ${remainingToConsume}`);
+    console.log(`Batch consumption complete. Remaining to consume: ${remainingToConsume}`);
     
     return {
       consumed: quantityToConsume - remainingToConsume,
@@ -721,7 +721,7 @@ class InventoryReservationService {
    */
   static async getActiveReservations() {
     try {
-      console.log('📋 Fetching active inventory reservations...');
+      console.log('Fetching active inventory reservations...');
       
       // Query database for all reservations, sorted by most recent
       const reservations = await InventoryReservation.find()
@@ -731,7 +731,7 @@ class InventoryReservationService {
         .limit(100) // Limit to most recent 100
         .lean();
       
-      console.log(`✅ Found ${reservations.length} reservations`);
+      console.log(`Found ${reservations.length} reservations`);
       
       // Categorize by status
       const categorized = {

@@ -14,3 +14,5 @@ export { PaymentProcessingModal } from './PaymentProcessingModal';
 export { SearchBar } from './SearchBar';
 export { default as StaffForm } from './StaffForm';
 export { default as StaffList } from './StaffList';
+export { default as LoadingSpinner } from './LoadingSpinner';
+export { default as BrandedLoadingScreen } from './BrandedLoadingScreen';

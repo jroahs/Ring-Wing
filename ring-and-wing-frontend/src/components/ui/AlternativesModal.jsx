@@ -19,7 +19,7 @@ const AlternativeCard = ({ item, isRecommended, onAddToCart }) => {
           className="absolute top-3 left-3 z-10 px-3 py-1.5 rounded-full text-sm font-bold text-white shadow-md"
           style={{ backgroundColor: theme.colors.primary }}
         >
-          ⭐ RECOMMENDED
+          RECOMMENDED
         </div>
       )}
       
@@ -62,7 +62,7 @@ const AlternativeCard = ({ item, isRecommended, onAddToCart }) => {
               backgroundColor: theme.colors.primary
             }}
           >
-            🛒 Add to Cart
+            Add to Cart
           </button>
         </div>
       </div>
@@ -193,7 +193,7 @@ export const AlternativesModal = ({
                   backgroundColor: 'white'
                 }}
               >
-                👈 Back to Menu
+                ← Back to Menu
               </button>
             </div>
           </motion.div>

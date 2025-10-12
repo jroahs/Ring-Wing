@@ -21,6 +21,8 @@ import TimeClockInterface from './TimeClockInterface';
 import MobileLanding from './MobileLanding';
 import api, { checkApiHealth, startHealthMonitoring } from './services/apiService';
 import { useBreakpoint } from './hooks/useBreakpoint';
+import { LoadingProvider } from './contexts/LoadingContext';
+import BrandedLoadingScreen from './components/ui/BrandedLoadingScreen';
 import axios from 'axios';
 
 // API URL configuration
@@ -151,9 +153,11 @@ const ProtectedRoute = ({ children }) => {
   // Show loading while validating token
   if (isValidatingToken) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
+      <BrandedLoadingScreen 
+        message="Verifying authentication..." 
+        showLogo={false}
+        variant="minimal"
+      />
     );
   }
 
@@ -293,84 +297,86 @@ const colors = {
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/login" element={<Login />} />
-        
-        {/* Customer-facing routes - not protected */}
-        <Route path="/mobile" element={<MobileLanding />} />
-        <Route path="/self-checkout" element={<SelfCheckout />} />
-        
-        {/* Chatbot is semi-protected - only authenticated users */}
-        <Route path="/chatbot" element={<ProtectedRoute><Chatbot /></ProtectedRoute>} />
-          {/* All admin/dashboard routes are protected by MainLayout */}
-        <Route element={<MainLayout />}>          {/* Routes accessible by managers and admin */}
-          <Route path="/dashboard" element={
-            <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
-              <Dashboard colors={colors} />
-            </PositionProtectedRoute>
-          } />
+    <LoadingProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<Login />} />
+          <Route path="/login" element={<Login />} />
           
-          {/* POS routes - accessible by cashiers and managers */}
-          <Route path="/pos" element={
-            <PositionProtectedRoute requiredPositions={['cashier', 'shift_manager', 'general_manager', 'admin']}>
-              <PointofSale />
-            </PositionProtectedRoute>
-          } />
-          <Route path="/orders" element={
-            <PositionProtectedRoute requiredPositions={['cashier', 'shift_manager', 'general_manager', 'admin']}>
-              <OrderSystem />
-            </PositionProtectedRoute>
-          } />
+          {/* Customer-facing routes - not protected */}
+          <Route path="/mobile" element={<MobileLanding />} />
+          <Route path="/self-checkout" element={<SelfCheckout />} />
           
-          {/* Time clock accessible to all */}
-          <Route path="/timeclock" element={<TimeClock />} />
+          {/* Chatbot is semi-protected - only authenticated users */}
+          <Route path="/chatbot" element={<ProtectedRoute><Chatbot /></ProtectedRoute>} />
+            {/* All admin/dashboard routes are protected by MainLayout */}
+          <Route element={<MainLayout />}>          {/* Routes accessible by managers and admin */}
+            <Route path="/dashboard" element={
+              <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
+                <Dashboard colors={colors} />
+              </PositionProtectedRoute>
+            } />
+            
+            {/* POS routes - accessible by cashiers and managers */}
+            <Route path="/pos" element={
+              <PositionProtectedRoute requiredPositions={['cashier', 'shift_manager', 'general_manager', 'admin']}>
+                <PointofSale />
+              </PositionProtectedRoute>
+            } />
+            <Route path="/orders" element={
+              <PositionProtectedRoute requiredPositions={['cashier', 'shift_manager', 'general_manager', 'admin']}>
+                <OrderSystem />
+              </PositionProtectedRoute>
+            } />
+            
+            {/* Time clock accessible to all */}
+            <Route path="/timeclock" element={<TimeClock />} />
+            
+            {/* Inventory routes - only for inventory staff and managers */}
+            <Route path="/inventory" element={
+              <PositionProtectedRoute requiredPositions={['inventory', 'shift_manager', 'general_manager', 'admin']}>
+                <InventorySystem />
+              </PositionProtectedRoute>
+            } />
+            
+            {/* Menu management - managers only */}
+            <Route path="/menu" element={
+              <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
+                <MenuManagement colors={colors} />
+              </PositionProtectedRoute>
+            } />
+              {/* Manager-only routes */}
+            <Route path="/employees" element={
+              <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
+                <EmployeeManagement colors={colors} />
+              </PositionProtectedRoute>
+            } />
+            <Route path="/payroll" element={
+              <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
+                <PayrollSystem />
+              </PositionProtectedRoute>
+            } />
+            <Route path="/expenses" element={
+              <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
+                <ExpenseTracker colors={colors} />
+              </PositionProtectedRoute>
+            } />
+            <Route path="/revenue-reports" element={
+              <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
+                <RevenueReportsPage />
+              </PositionProtectedRoute>
+            } />
+            <Route path="/reports" element={
+              <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
+                <RevenueReportsPage />
+              </PositionProtectedRoute>
+            } />
+          </Route>
           
-          {/* Inventory routes - only for inventory staff and managers */}
-          <Route path="/inventory" element={
-            <PositionProtectedRoute requiredPositions={['inventory', 'shift_manager', 'general_manager', 'admin']}>
-              <InventorySystem />
-            </PositionProtectedRoute>
-          } />
-          
-          {/* Menu management - managers only */}
-          <Route path="/menu" element={
-            <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
-              <MenuManagement colors={colors} />
-            </PositionProtectedRoute>
-          } />
-            {/* Manager-only routes */}
-          <Route path="/employees" element={
-            <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
-              <EmployeeManagement colors={colors} />
-            </PositionProtectedRoute>
-          } />
-          <Route path="/payroll" element={
-            <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
-              <PayrollSystem />
-            </PositionProtectedRoute>
-          } />
-          <Route path="/expenses" element={
-            <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
-              <ExpenseTracker colors={colors} />
-            </PositionProtectedRoute>
-          } />
-          <Route path="/revenue-reports" element={
-            <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
-              <RevenueReportsPage />
-            </PositionProtectedRoute>
-          } />
-          <Route path="/reports" element={
-            <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
-              <RevenueReportsPage />
-            </PositionProtectedRoute>
-          } />
-        </Route>
-        
-        <Route path="*" element={<Navigate to="/login" />} />
-      </Routes>
-    </Router>
+          <Route path="*" element={<Navigate to="/login" />} />
+        </Routes>
+      </Router>
+    </LoadingProvider>
   );
 }
 

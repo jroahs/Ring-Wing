@@ -872,7 +872,7 @@ const StaffManagement = () => {
                             style={{ color: colors.muted }}
                             title="Clear search"
                           >
-                            ✕
+                            ×
                           </button>
                         )}
                       </div>

@@ -477,7 +477,7 @@ const AssistantPanel = ({
           ...prev,
           {
             id: generateUniqueId(),
-            text: "Here are some popular items to get you started! 😊",
+            text: "Here are some popular items to get you started!",
             sender: 'bot',
             timestamp: new Date(),
             type: 'menu-suggestions',
@@ -742,10 +742,10 @@ Example responses:
       // Add follow-up message for suggestions
       if (suggestions.length > 0) {
         setTimeout(() => {
-          let followUpText = "Tap any item above to add it to your cart! 😊";
+          let followUpText = "Tap any item above to add it to your cart!";
           
           if (isUnavailableQuery) {
-            followUpText = "These alternatives should satisfy your craving! Tap any item to add it to your cart, or let me know if you'd like other suggestions. 😊";
+            followUpText = "These alternatives should satisfy your craving! Tap any item to add it to your cart, or let me know if you'd like other suggestions.";
           }
           
           const followUpMessage = {

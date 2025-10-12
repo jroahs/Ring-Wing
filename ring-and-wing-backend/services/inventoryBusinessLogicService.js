@@ -155,7 +155,7 @@ class InventoryBusinessLogicService {
         allowPartial = false
       } = options;
       
-      console.log(`🔄 Processing order ${orderData.orderNumber || orderData._id} with inventory integration`);
+      console.log(`Processing order ${orderData.orderNumber || orderData._id} with inventory integration`);
       
       // Step 1: Validate manager override permissions if needed
       if (managerOverride && !canOverrideInventory(user.position)) {
@@ -172,7 +172,7 @@ class InventoryBusinessLogicService {
       
       if (mappedItemIds.length === 0) {
         // No ingredient mappings - process normally without inventory integration
-        console.log(`✅ Order ${orderData.orderNumber || orderData._id} has no ingredient mappings - processing normally`);
+        console.log(`Order ${orderData.orderNumber || orderData._id} has no ingredient mappings - processing normally`);
         return {
           success: true,
           order: orderData,
@@ -262,7 +262,7 @@ class InventoryBusinessLogicService {
    */
   static async completeOrderProcessing(orderId, userId) {
     try {
-      console.log(`🏁 Completing order processing for ${orderId}`);
+      console.log(`Completing order processing for ${orderId}`);
       
       // Find reservation for this order
       const InventoryReservation = require('../models/InventoryReservation');
@@ -312,7 +312,7 @@ class InventoryBusinessLogicService {
    */
   static async cancelOrderProcessing(orderId, userId, reason = 'Order cancelled') {
     try {
-      console.log(`❌ Cancelling order processing for ${orderId}: ${reason}`);
+      console.log(`Cancelling order processing for ${orderId}: ${reason}`);
       
       // Find reservation for this order
       const { InventoryReservation } = require('../models/InventoryReservation');
@@ -363,7 +363,7 @@ class InventoryBusinessLogicService {
       
       // Add business logic for handling insufficient stock
       if (!availabilityResult.isAvailable) {
-        console.warn(`⚠️ Insufficient inventory for order:`, {
+        console.warn(`Insufficient inventory for order:`, {
           insufficientItems: availabilityResult.insufficientIngredients.length,
           substitutionOptions: availabilityResult.substitutionOptions.length
         });
@@ -483,7 +483,7 @@ class InventoryBusinessLogicService {
    */
   static async cleanupFailedOrderProcessing(orderId, userId) {
     try {
-      console.log(`🧹 Cleaning up failed processing for order ${orderId}`);
+      console.log(`Cleaning up failed processing for order ${orderId}`);
       
       // Release any reservations that might have been created
       await this.cancelOrderProcessing(orderId, userId, 'Cleanup after processing failure');
@@ -558,7 +558,7 @@ class InventoryBusinessLogicService {
       }
       
       // Log the override attempt for audit
-      console.log(`🔓 Manager override requested:`, {
+      console.log(`Manager override requested:`, {
         user: userId,
         position,
         order: orderData.orderNumber || orderData._id,

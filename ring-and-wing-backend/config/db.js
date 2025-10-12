@@ -4,9 +4,9 @@ const { logger } = require('./logger');
 
 // Enhanced connection options for maximum connection stability (MongoDB 8.x compatible)
 const mongooseOptions = {
-  // Connection pooling - simplified and stable
-  maxPoolSize: 10,      // Reduced to prevent overwhelming MongoDB
-  minPoolSize: 1,       // Minimal connections
+  // Connection pooling - Emergency increase to handle concurrent users
+  maxPoolSize: 25,      // Increased from 10 to handle parallel API calls + background monitoring
+  minPoolSize: 3,       // Increased from 1 for faster response times
   
   // Simplified timeout settings
   socketTimeoutMS: 30000,   // 30 seconds socket timeout
@@ -192,17 +192,17 @@ const startKeepAliveMonitoring = () => {
     clearInterval(connectionHealthInterval);
   }
   
-  // Ping every 2 minutes (less aggressive)
+  // Ping every 5 minutes (reduced from 2 minutes to prevent connection pool pressure)
   keepAliveInterval = setInterval(async () => {
     await pingDb();
-  }, 120000);
+  }, 300000); // Changed from 120000 (2min) to 300000 (5min) - 2.5x reduction
   
-  // Comprehensive health check every 2 minutes
+  // Comprehensive health check every 5 minutes (reduced from 2 minutes)
   connectionHealthInterval = setInterval(async () => {
     await performHealthCheck();
-  }, 120000);
+  }, 300000); // Changed from 120000 (2min) to 300000 (5min) - 2.5x reduction
   
-  logger.info('MongoDB aggressive keep-alive monitoring activated (30s ping, 2m health check)');
+  logger.info('MongoDB keep-alive monitoring activated (5min ping, 5min health check)');
 };
 
 /**

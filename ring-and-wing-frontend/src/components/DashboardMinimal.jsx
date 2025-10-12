@@ -44,7 +44,12 @@ const DashboardMinimal = () => {
     const fetchDashboardData = async () => {
       try {
         setIsLoading(true);
-          // Fetch orders from today only
+        
+        // OPTIMIZED: Stagger API calls with delays to prevent connection pool exhaustion
+        // Previously all 6 calls fired simultaneously, causing 18 connections with 3 managers
+        // Now they're staggered with 250ms delays = smoother load, no pool exhaustion
+        
+        // Fetch orders from today only
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const ordersResponse = await fetch('http://localhost:5000/api/orders', {
@@ -59,12 +64,20 @@ const DashboardMinimal = () => {
           return orderDate.getTime() === today.getTime();
         });
         
-        setOrders(todayOrders);        // Fetch sales stats - using daily period to show today's data only
+        setOrders(todayOrders);
+        
+        // Delay before next call
+        await new Promise(resolve => setTimeout(resolve, 250));
+        
+        // Fetch sales stats - using daily period to show today's data only
         const statsResponse = await fetch('http://localhost:5000/api/revenue/daily', {
           signal: controller.signal
         });
         const statsData = await statsResponse.json();
         const revenueData = statsData.data || {};
+
+        // Delay before next call
+        await new Promise(resolve => setTimeout(resolve, 250));
 
         // Fetch monthly revenue data for Revenue Overview section
         const monthlyStatsResponse = await fetch('http://localhost:5000/api/revenue/monthly', {
@@ -72,12 +85,20 @@ const DashboardMinimal = () => {
         });
         const monthlyStatsData = await monthlyStatsResponse.json();
         const monthlyRevenueData = monthlyStatsData.data || {};
-          // Fetch historical monthly revenue data for the chart
+        
+        // Delay before next call
+        await new Promise(resolve => setTimeout(resolve, 250));
+        
+        // Fetch historical monthly revenue data for the chart
         const monthlyHistoricalResponse = await fetch('http://localhost:5000/api/revenue/historical/monthly', {
           signal: controller.signal
         });
         const monthlyHistoricalData = await monthlyHistoricalResponse.json();
-          // Prepare revenue data for charts from historical monthly data
+        
+        // Delay before next call
+        await new Promise(resolve => setTimeout(resolve, 250));
+        
+        // Prepare revenue data for charts from historical monthly data
         let chartRevenueData = [];
         
         if (monthlyHistoricalData.success && monthlyHistoricalData.data) {
@@ -90,6 +111,9 @@ const DashboardMinimal = () => {
         }
         
         setRevenueData(chartRevenueData);
+        
+        // Delay before next call
+        await new Promise(resolve => setTimeout(resolve, 250));
         
         // Fetch expenses
         const expensesResponse = await fetch('http://localhost:5000/api/expenses', {
@@ -141,6 +165,9 @@ const DashboardMinimal = () => {
         }
         
         setMonthlyExpenses(monthlyExpenseData);
+        
+        // Delay before final call
+        await new Promise(resolve => setTimeout(resolve, 250));
         
         // Fetch staff data
         const token = localStorage.getItem('authToken');
