@@ -22,14 +22,20 @@ const PaymentVerificationDashboard = () => {
 
   // Initialize Socket.io connection for real-time updates
   useEffect(() => {
-    const newSocket = io(API_URL);
+    // Get authentication token for socket connection
+    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+    
+    const newSocket = io(API_URL, {
+      auth: {
+        token: token // Add JWT token for authentication
+      }
+    });
     socketRef.current = newSocket;
 
-    // Join staff room for payment notifications
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      newSocket.emit('subscribeToStaff');
-    }
+    // Server automatically joins authenticated users to 'staff' room
+    newSocket.on('connect', () => {
+      console.log('Payment Verification Dashboard connected - Authenticated:', newSocket.auth.token ? 'Yes' : 'No');
+    });
 
     // Listen for new payment orders
     newSocket.on('newPaymentOrder', (data) => {

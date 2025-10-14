@@ -115,7 +115,14 @@ const SelfCheckoutContent = () => {
   // Initialize Socket.io connection
   useEffect(() => {
     if (currentOrder && currentOrder._id) {
-      const newSocket = io(API_URL);
+      // Get authentication token (optional for customers, but helpful for tracking)
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      
+      const newSocket = io(API_URL, {
+        auth: {
+          token: token // Add token if available (customers may not have one)
+        }
+      });
       setSocket(newSocket);
 
       // Join order-specific room

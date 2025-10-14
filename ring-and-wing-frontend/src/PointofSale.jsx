@@ -146,13 +146,19 @@ const PointOfSale = () => {
   useEffect(() => {
     if (!API_URL) return;
 
+    // Get authentication token for socket connection
+    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+
     const socketConnection = io(API_URL, {
+      auth: {
+        token: token // Add JWT token for authentication
+      },
       transports: ['websocket', 'polling']
     });
 
     socketConnection.on('connect', () => {
-      console.log('POS connected to Socket.io');
-      socketConnection.emit('join', 'staff');
+      console.log('POS connected to Socket.io - Authenticated:', socketConnection.auth.token ? 'Yes' : 'No');
+      // Server automatically joins authenticated users to 'staff' room
     });
 
     socketConnection.on('newPaymentOrder', (order) => {

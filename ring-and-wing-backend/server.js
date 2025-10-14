@@ -738,6 +738,7 @@ io.use((socket, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     socket.userId = decoded._id;
     socket.userRole = decoded.role;
+    socket.userPosition = decoded.position; // Add position for more granular control
     socket.isAuthenticated = true;
     next();
   } catch (error) {
@@ -749,13 +750,15 @@ io.use((socket, next) => {
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  logger.info(`Socket connected: ${socket.id} (Auth: ${socket.isAuthenticated})`);
+  logger.info(`Socket connected: ${socket.id} (Auth: ${socket.isAuthenticated}, Role: ${socket.userRole}, Position: ${socket.userPosition})`);
   
   // Join room for authenticated users (for role-based updates)
   if (socket.isAuthenticated) {
     socket.join(`user-${socket.userId}`);
-    if (socket.userRole === 'manager' || socket.userRole === 'admin') {
+    // Include managers, admins, and cashiers in staff room for payment verification notifications
+    if (socket.userRole === 'manager' || socket.userRole === 'admin' || socket.userPosition === 'cashier') {
       socket.join('staff');
+      logger.info(`Socket ${socket.id} joined 'staff' room (Role: ${socket.userRole}, Position: ${socket.userPosition})`);
     }
   }
   
