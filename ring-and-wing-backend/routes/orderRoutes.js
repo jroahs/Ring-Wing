@@ -4,6 +4,9 @@ const router = express.Router();
 const Order = require('../models/Order');
 const { criticalCheck, standardCheck } = require('../middleware/dbConnectionMiddleware');
 const InventoryBusinessLogicService = require('../services/inventoryBusinessLogicService');
+const paymentVerificationController = require('../controllers/paymentVerificationController');
+const { auth, isManager } = require('../middleware/authMiddleware');
+const uploadMiddleware = require('../config/multer');
 
 // Advanced validation middleware
 const validateOrder = (req, res, next) => {
@@ -245,5 +248,44 @@ router.patch('/:id', async (req, res, next) => {
     next(err);
   }
 });
+
+// ========================================
+// PAYMENT VERIFICATION ROUTES
+// ========================================
+
+/**
+ * Upload proof of payment
+ * POST /api/orders/:id/upload-proof
+ * Public endpoint - customer uploads proof after payment
+ */
+router.post('/:id/upload-proof', uploadMiddleware, criticalCheck, paymentVerificationController.uploadProof);
+
+/**
+ * Get verification status for an order
+ * GET /api/orders/:id/verification-status
+ * Public endpoint - customer can check their order status
+ */
+router.get('/:id/verification-status', standardCheck, paymentVerificationController.getVerificationStatus);
+
+/**
+ * Get all pending verification orders
+ * GET /api/orders/pending-verification
+ * Requires: admin or cashier role
+ */
+router.get('/pending-verification', auth, standardCheck, paymentVerificationController.getPendingVerification);
+
+/**
+ * Verify payment and approve order
+ * PUT /api/orders/:id/verify-payment
+ * Requires: admin or cashier role
+ */
+router.put('/:id/verify-payment', auth, criticalCheck, paymentVerificationController.verifyPayment);
+
+/**
+ * Reject payment with reason
+ * PUT /api/orders/:id/reject-payment
+ * Requires: admin or cashier role
+ */
+router.put('/:id/reject-payment', auth, criticalCheck, paymentVerificationController.rejectPayment);
 
 module.exports = router;

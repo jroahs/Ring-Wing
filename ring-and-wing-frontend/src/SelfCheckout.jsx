@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import PropTypes from 'prop-types';
+import theme from './theme';
 import { API_URL } from './App';
 import { AlternativesModal } from './components/ui/AlternativesModal';
 import { useAlternatives } from './hooks/useAlternatives';
@@ -7,6 +8,11 @@ import SelfCheckoutAIAssistant from './components/ui/SelfCheckoutAIAssistant';
 import { CartProvider, useCartContext } from './contexts/CartContext';
 import { MenuProvider, useMenuContext } from './contexts/MenuContext';
 import LayoutSelector from './components/layouts/LayoutSelector';
+import OrderTypeSelector from './components/OrderTypeSelector';
+import PaymentMethodSelector from './components/PaymentMethodSelector';
+import ProofOfPaymentUpload from './components/ProofOfPaymentUpload';
+import OrderTimeoutTimer from './components/OrderTimeoutTimer';
+import io from 'socket.io-client';
 
 const colors = {
   primary: '#2e0304',
@@ -96,6 +102,45 @@ const SelfCheckoutContent = () => {
   const [orderNumber, setOrderNumber] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [orderSubmitted, setOrderSubmitted] = useState(false);
+  
+  // Payment verification states
+  const [showPaymentFlow, setShowPaymentFlow] = useState(false); // Controls when to show overlay
+  const [fulfillmentType, setFulfillmentType] = useState(null); // null, 'dine_in', 'takeout', 'delivery'
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null); // null, 'gcash', 'paymaya'
+  const [uploadedProof, setUploadedProof] = useState(null);
+  const [readyToUploadProof, setReadyToUploadProof] = useState(false); // User confirms they've made payment
+  const [currentOrder, setCurrentOrder] = useState(null); // Stores order with timer info
+  const [socket, setSocket] = useState(null);
+
+  // Initialize Socket.io connection
+  useEffect(() => {
+    if (currentOrder && currentOrder._id) {
+      const newSocket = io(API_URL);
+      setSocket(newSocket);
+
+      // Join order-specific room
+      newSocket.emit('subscribeToOrder', currentOrder._id);
+
+      // Listen for payment verification events
+      newSocket.on('paymentVerified', (data) => {
+        if (data.orderId === currentOrder._id) {
+          setCurrentOrder(prev => ({ ...prev, status: 'payment_verified' }));
+          alert('Payment verified! Your order is being processed.');
+        }
+      });
+
+      newSocket.on('paymentRejected', (data) => {
+        if (data.orderId === currentOrder._id) {
+          setCurrentOrder(prev => ({ ...prev, status: 'cancelled' }));
+          alert(`Payment rejected: ${data.reason}`);
+        }
+      });
+
+      return () => {
+        newSocket.close();
+      };
+    }
+  }, [currentOrder]);
 
   const calculateTotal = () => {
     return getTotals();
@@ -104,6 +149,7 @@ const SelfCheckoutContent = () => {
   const saveOrderToDB = async () => {
     const calculatedTotals = calculateTotal();
     
+    // Base order data
     const orderData = {
       items: cartItems.map(item => ({
         name: item.name,
@@ -115,21 +161,67 @@ const SelfCheckoutContent = () => {
         subtotal: calculatedTotals.subtotal,
         total: calculatedTotals.total
       },
-      paymentMethod: 'pending',
       orderType: 'self_checkout',
-      status: 'pending'
+      fulfillmentType: fulfillmentType
     };
+
+    // Add payment-specific fields based on fulfillment type
+    if (fulfillmentType === 'dine_in') {
+      // Traditional dine-in flow
+      orderData.paymentMethod = 'pending';
+      orderData.status = 'pending';
+    } else {
+      // Takeout/Delivery with e-wallet verification
+      orderData.paymentMethod = 'e-wallet';
+      orderData.status = 'pending_payment';
+      orderData.paymentDetails = {
+        eWalletProvider: selectedPaymentMethod
+      };
+    }
   
     try {
+      // Step 1: Create the order
       const response = await fetch(`${API_URL}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderData)
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to create order');
+      }
+      
       const data = await response.json();
+      const orderId = data.data._id;
+      
       setOrderNumber(data.data.receiptNumber);
+      
+      // Step 2: Upload proof of payment if provided (for takeout/delivery)
+      if (fulfillmentType !== 'dine_in' && uploadedProof) {
+        // uploadedProof is already a FormData object from ProofOfPaymentUpload
+        const proofResponse = await fetch(`${API_URL}/api/orders/${orderId}/upload-proof`, {
+          method: 'POST',
+          body: uploadedProof // Send FormData directly
+        });
+        
+        if (!proofResponse.ok) {
+          console.error('Failed to upload proof, but order was created');
+        } else {
+          const proofData = await proofResponse.json();
+          if (proofData.success) {
+            // Update current order with proof data including expiresAt
+            setCurrentOrder(proofData.data);
+            setOrderSubmitted(true);
+            return; // Exit early since we have the updated order
+          }
+        }
+      }
+      
+      // If no proof or proof upload failed, still show order confirmation
+      setCurrentOrder(data.data);
       setOrderSubmitted(true);
     } catch (error) {
+      console.error('Order submission error:', error);
       alert('Failed to submit order. Please try again.');
     }
   };
@@ -139,19 +231,355 @@ const SelfCheckoutContent = () => {
       alert('Please add items to your order');
       return;
     }
+
+    // Show payment flow when user clicks process order
+    if (!showPaymentFlow) {
+      setShowPaymentFlow(true);
+      return;
+    }
+
+    // For dine-in, submit immediately
+    if (fulfillmentType === 'dine_in') {
+      await saveOrderToDB();
+      clearCart();
+      return;
+    }
+
+    // For takeout/delivery, proof must be uploaded first
+    if (!uploadedProof) {
+      alert('Please upload proof of payment before submitting');
+      return;
+    }
+
     await saveOrderToDB();
     clearCart();
   };
 
+  const handleFulfillmentTypeSelect = (type) => {
+    setFulfillmentType(type);
+  };
+
+  const handlePaymentMethodSelect = (method) => {
+    setSelectedPaymentMethod(method);
+  };
+
+  const handleProofSubmit = async (proofData) => {
+    setUploadedProof(proofData);
+  };
+
+  const handleTimeout = () => {
+    alert('Your order has expired. Please create a new order.');
+    resetFlow();
+  };
+
+  const resetFlow = () => {
+    setShowPaymentFlow(false);
+    setFulfillmentType(null);
+    setSelectedPaymentMethod(null);
+    setUploadedProof(null);
+    setReadyToUploadProof(false);
+    setCurrentOrder(null);
+    setOrderSubmitted(false);
+    setOrderNumber('');
+  };
+
+  // Determine current step based on state
+  const getCurrentStep = () => {
+    if (!showPaymentFlow) return 'menu'; // Still browsing menu
+    if (orderSubmitted) return 'confirmation';
+    if (!fulfillmentType) return 'selectType';
+    if (fulfillmentType === 'dine_in') return 'readyToSubmit';
+    if (!selectedPaymentMethod) return 'selectPayment';
+    if (!readyToUploadProof) return 'viewPaymentDetails'; // NEW: Show QR code and details
+    if (!uploadedProof) return 'uploadProof';
+    return 'readyToSubmit';
+  };
+
+  const currentStep = getCurrentStep();
+
+  // Render payment verification flow overlay
+  const renderPaymentFlow = () => {
+    // Don't show overlay if user hasn't clicked process order yet
+    if (currentStep === 'menu') return null;
+
+    if (currentStep === 'confirmation') {
+      return (
+        <div style={styles.overlay}>
+          <div style={styles.flowContainer}>
+            <h2 style={styles.flowTitle}>
+              {fulfillmentType === 'dine_in' ? 'Order Submitted!' : 'Order Awaiting Verification'}
+            </h2>
+            <p style={styles.orderNumber}>Order Number: <strong>{orderNumber}</strong></p>
+            
+            {fulfillmentType === 'dine_in' ? (
+              <div style={styles.successMessage}>
+                <p>✓ Please proceed to the counter for payment</p>
+                <button onClick={resetFlow} style={styles.newOrderButton}>
+                  Start New Order
+                </button>
+              </div>
+            ) : (
+              <div style={styles.verificationFlow}>
+                {currentOrder && currentOrder.proofOfPayment?.expiresAt && (
+                  <OrderTimeoutTimer
+                    expiresAt={currentOrder.proofOfPayment.expiresAt}
+                    onTimeout={handleTimeout}
+                    orderStatus={currentOrder.status}
+                  />
+                )}
+                <p style={styles.verificationNote}>
+                  Your payment is being verified by our staff. You will be notified once verification is complete.
+                </p>
+                <button onClick={resetFlow} style={styles.newOrderButton}>
+                  Start New Order
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    if (currentStep === 'selectType') {
+      return (
+        <div style={styles.overlay}>
+          <div style={styles.flowContainer}>
+            <h2 style={styles.flowTitle}>Select Order Type</h2>
+            <OrderTypeSelector onSelect={handleFulfillmentTypeSelect} />
+          </div>
+        </div>
+      );
+    }
+
+    if (fulfillmentType !== 'dine_in') {
+      if (currentStep === 'selectPayment') {
+        return (
+          <div style={styles.overlay}>
+            <div style={styles.flowContainer}>
+              <h2 style={styles.flowTitle}>Select Payment Method</h2>
+              <PaymentMethodSelector
+                selectedMethod={selectedPaymentMethod}
+                onSelect={handlePaymentMethodSelect}
+                orderTotal={calculateTotal().total}
+              />
+              <button onClick={() => setFulfillmentType(null)} style={styles.backButton}>
+                ← Back to Order Type
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      // NEW STEP: Show payment details and QR code with Continue button
+      if (currentStep === 'viewPaymentDetails') {
+        return (
+          <div style={styles.overlay}>
+            <div style={styles.flowContainer}>
+              <h2 style={styles.flowTitle}>Make Your Payment</h2>
+              <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#fff3cd', borderRadius: '8px', border: '1px solid #ffc107' }}>
+                <p style={{ margin: 0, color: '#856404', fontSize: '14px' }}>
+                  ⚠️ Please complete your payment before proceeding. You will need to upload proof in the next step.
+                </p>
+              </div>
+              <PaymentMethodSelector
+                selectedMethod={selectedPaymentMethod}
+                onSelect={handlePaymentMethodSelect}
+                orderTotal={calculateTotal().total}
+              />
+              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                <button onClick={() => {
+                  setSelectedPaymentMethod(null);
+                  setReadyToUploadProof(false);
+                }} style={styles.backButton}>
+                  ← Change Payment Method
+                </button>
+                <button 
+                  onClick={() => setReadyToUploadProof(true)}
+                  style={{
+                    ...styles.submitButton,
+                    flex: 1,
+                    backgroundColor: theme.colors.primary,
+                    color: 'white',
+                    padding: '15px 30px',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  I've Made Payment - Continue to Upload Proof →
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (currentStep === 'uploadProof') {
+        return (
+          <div style={styles.overlay}>
+            <div style={styles.flowContainer}>
+              <h2 style={styles.flowTitle}>Upload Proof of Payment</h2>
+              <ProofOfPaymentUpload
+                paymentMethod={selectedPaymentMethod}
+                orderTotal={calculateTotal().total}
+                onProofSubmit={handleProofSubmit}
+              />
+              <button onClick={() => setReadyToUploadProof(false)} style={styles.backButton}>
+                ← Back to Payment Details
+              </button>
+            </div>
+          </div>
+        );
+      }
+    }
+
+    if (currentStep === 'readyToSubmit') {
+      return (
+        <div style={styles.overlay}>
+          <div style={styles.flowContainer}>
+            <h2 style={styles.flowTitle}>Ready to Submit Order</h2>
+            <div style={styles.readyMessage}>
+              <p>✓ Order Type: <strong>{fulfillmentType === 'dine_in' ? 'Dine-In' : fulfillmentType === 'takeout' ? 'Takeout' : 'Delivery'}</strong></p>
+              {fulfillmentType !== 'dine_in' && (
+                <>
+                  <p>✓ Payment Method: <strong>{selectedPaymentMethod === 'gcash' ? 'GCash' : 'PayMaya'}</strong></p>
+                  <p>✓ Proof Uploaded: <strong>Yes</strong></p>
+                </>
+              )}
+              <p>✓ Total: <strong>₱{calculateTotal().total}</strong></p>
+            </div>
+            <button onClick={processOrder} style={styles.submitButton}>
+              Submit Order
+            </button>
+            <button 
+              onClick={() => fulfillmentType === 'dine_in' ? setFulfillmentType(null) : setUploadedProof(null)} 
+              style={styles.backButton}
+            >
+              ← Back
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
-    <LayoutSelector
-      searchTerm={searchTerm}
-      onSearchChange={setSearchTerm}
-      orderNumber={orderNumber}
-      orderSubmitted={orderSubmitted}
-      onProcessOrder={processOrder}
-    />
+    <>
+      <LayoutSelector
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        orderNumber={orderNumber}
+        orderSubmitted={orderSubmitted}
+        onProcessOrder={processOrder}
+      />
+      {renderPaymentFlow()}
+    </>
   );
+};
+
+const styles = {
+  overlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(46, 3, 4, 0.95)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+    padding: '20px',
+    overflowY: 'auto'
+  },
+  flowContainer: {
+    backgroundColor: colors.background,
+    borderRadius: '16px',
+    padding: '32px',
+    maxWidth: '800px',
+    width: '100%',
+    maxHeight: '90vh',
+    overflowY: 'auto'
+  },
+  flowTitle: {
+    fontSize: '28px',
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: '24px',
+    textAlign: 'center'
+  },
+  orderNumber: {
+    fontSize: '18px',
+    color: colors.secondary,
+    textAlign: 'center',
+    marginBottom: '24px'
+  },
+  successMessage: {
+    textAlign: 'center',
+    padding: '24px',
+    backgroundColor: '#E8F5E9',
+    borderRadius: '12px',
+    marginBottom: '24px'
+  },
+  verificationFlow: {
+    textAlign: 'center'
+  },
+  verificationNote: {
+    fontSize: '16px',
+    color: colors.secondary,
+    marginBottom: '24px',
+    padding: '16px',
+    backgroundColor: '#FFF3E0',
+    borderRadius: '8px',
+    border: `1px solid ${colors.accent}`
+  },
+  readyMessage: {
+    padding: '24px',
+    backgroundColor: '#E8F5E9',
+    borderRadius: '12px',
+    marginBottom: '24px'
+  },
+  submitButton: {
+    width: '100%',
+    padding: '16px',
+    backgroundColor: colors.accent,
+    color: '#fff',
+    fontSize: '18px',
+    fontWeight: '600',
+    border: 'none',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    marginBottom: '12px',
+    transition: 'all 0.3s ease'
+  },
+  backButton: {
+    width: '100%',
+    padding: '12px',
+    backgroundColor: colors.muted,
+    color: '#fff',
+    fontSize: '16px',
+    fontWeight: '500',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
+  },
+  newOrderButton: {
+    padding: '16px 32px',
+    backgroundColor: colors.primary,
+    color: '#fff',
+    fontSize: '16px',
+    fontWeight: '600',
+    border: 'none',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    marginTop: '16px',
+    transition: 'all 0.3s ease'
+  }
 };
 
 export default SelfCheckout;

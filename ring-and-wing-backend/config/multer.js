@@ -5,10 +5,18 @@ const fs = require('fs');
 // Configure storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Check if this is a menu image upload
-    const uploadPath = req.originalUrl.includes('/menu') ? 
-      path.join(__dirname, '../public/uploads/menu') : 
-      path.join(__dirname, '../public/uploads');
+    // Determine upload path based on the route
+    let uploadPath;
+    
+    if (req.originalUrl.includes('/menu')) {
+      uploadPath = path.join(__dirname, '../public/uploads/menu');
+    } else if (req.originalUrl.includes('/upload-proof') || req.originalUrl.includes('/payment-proofs')) {
+      uploadPath = path.join(__dirname, '../public/uploads/payment-proofs');
+    } else if (req.originalUrl.includes('/qr') || req.originalUrl.includes('/merchant-wallets')) {
+      uploadPath = path.join(__dirname, '../public/uploads/qr-codes');
+    } else {
+      uploadPath = path.join(__dirname, '../public/uploads');
+    }
     
     // Create directory with proper error handling
     fs.mkdir(uploadPath, { recursive: true }, (err) => {
@@ -22,7 +30,17 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `img-${uniqueSuffix}${ext}`);
+    
+    // Generate appropriate filename based on upload type
+    let prefix = 'img';
+    if (req.originalUrl.includes('/upload-proof') || req.originalUrl.includes('/payment-proofs')) {
+      const orderId = req.params.id || 'unknown';
+      prefix = `payment-proof-${orderId}`;
+    } else if (req.originalUrl.includes('/qr') || req.originalUrl.includes('/merchant-wallets')) {
+      prefix = 'qr-code';
+    }
+    
+    cb(null, `${prefix}-${uniqueSuffix}${ext}`);
   }
 });
 

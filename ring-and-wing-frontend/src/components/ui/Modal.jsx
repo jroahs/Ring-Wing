@@ -118,7 +118,7 @@ export const Modal = ({
           {/* Footer */}
           {footer && (
             <div 
-              className="flex justify-end gap-2 p-4 border-t"
+              className="p-4 border-t"
               style={{ borderColor: theme.colors.muted + '20' }}
             >
               {footer}

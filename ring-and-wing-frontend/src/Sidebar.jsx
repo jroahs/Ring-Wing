@@ -163,6 +163,12 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
       positions: ['cashier', 'shift_manager', 'general_manager', 'admin']
     },
     { 
+      path: '/payment-verification', 
+      icon: <FiCreditCard size={iconSize} className="text-white" />, 
+      label: 'Payment Verification',
+      positions: ['cashier', 'shift_manager', 'general_manager', 'admin']
+    },
+    { 
       path: '/inventory-management',
       icon: <FiDatabase size={iconSize} className="text-white" />,
       label: 'Inventory & Menu',

@@ -696,6 +696,90 @@ process.on('SIGINT', () => {
 // Server setup
 const server = http.createServer(app);
 
+// ========================================
+// SOCKET.IO SETUP FOR REAL-TIME UPDATES
+// ========================================
+const socketIo = require('socket.io');
+const jwt = require('jsonwebtoken');
+
+const io = socketIo(server, {
+  cors: {
+    origin: function(origin, callback) {
+      const allowedOrigins = [
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://localhost:3000',
+        process.env.FRONTEND_URL
+      ].filter(Boolean);
+      
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST']
+  },
+  transports: ['websocket', 'polling']
+});
+
+// Socket.io authentication middleware
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  
+  if (!token) {
+    // Allow unauthenticated connections for customer order status updates
+    socket.isAuthenticated = false;
+    return next();
+  }
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded._id;
+    socket.userRole = decoded.role;
+    socket.isAuthenticated = true;
+    next();
+  } catch (error) {
+    logger.warn('Socket.io authentication failed:', error.message);
+    socket.isAuthenticated = false;
+    next(); // Still allow connection but mark as unauthenticated
+  }
+});
+
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  logger.info(`Socket connected: ${socket.id} (Auth: ${socket.isAuthenticated})`);
+  
+  // Join room for authenticated users (for role-based updates)
+  if (socket.isAuthenticated) {
+    socket.join(`user-${socket.userId}`);
+    if (socket.userRole === 'manager' || socket.userRole === 'admin') {
+      socket.join('staff');
+    }
+  }
+  
+  // Handle order status subscription (for customers tracking their orders)
+  socket.on('subscribeToOrder', (orderId) => {
+    socket.join(`order-${orderId}`);
+    logger.info(`Socket ${socket.id} subscribed to order ${orderId}`);
+  });
+  
+  socket.on('unsubscribeFromOrder', (orderId) => {
+    socket.leave(`order-${orderId}`);
+    logger.info(`Socket ${socket.id} unsubscribed from order ${orderId}`);
+  });
+  
+  socket.on('disconnect', () => {
+    logger.info(`Socket disconnected: ${socket.id}`);
+  });
+});
+
+// Make io available to routes
+app.set('io', io);
+
+logger.info('✅ Socket.io initialized successfully');
+
 // Connection handling configuration
 server.keepAliveTimeout = 65 * 1000; // 65 seconds
 server.headersTimeout = 66 * 1000; // Slightly longer than keepAliveTimeout

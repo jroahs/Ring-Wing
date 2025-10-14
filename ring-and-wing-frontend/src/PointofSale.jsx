@@ -13,6 +13,8 @@ import { CashAlert } from './components/ui/CashAlert';
 import { useCashFloat } from './hooks/useCashFloat';
 import { FiClock, FiPlus, FiSettings, FiDollarSign, FiCheckCircle, FiCoffee, FiPieChart } from 'react-icons/fi';
 import EndOfShiftModal from './components/EndOfShiftModal';
+import io from 'socket.io-client';
+import { API_URL } from './App';
 
 const PointOfSale = () => {  
   const [menuItems, setMenuItems] = useState([]);
@@ -79,6 +81,11 @@ const PointOfSale = () => {
   const [editingPendingOrder, setEditingPendingOrder] = useState(null);
   const [isPendingOrderMode, setIsPendingOrderMode] = useState(false);
   const [pendingOrderItems, setPendingOrderItems] = useState([]);
+  const [takeoutOrders, setTakeoutOrders] = useState([]); // NEW: For payment verification orders
+  const [socket, setSocket] = useState(null); // NEW: Socket.io connection
+  const [selectedVerificationOrder, setSelectedVerificationOrder] = useState(null); // NEW: For verification modal
+  const [showVerificationModal, setShowVerificationModal] = useState(false); // NEW: Modal state
+  const [expandedImage, setExpandedImage] = useState(false); // NEW: Image expand state
   const receiptRef = useRef();
   // Check if user is manager based on position hierarchy
   useEffect(() => {
@@ -133,7 +140,51 @@ const PointOfSale = () => {
     fetchActiveOrders();
     const interval = setInterval(fetchActiveOrders, 5000);
     return () => clearInterval(interval);
-  }, []);  useEffect(() => {
+  }, []);
+
+  // NEW: Socket.io setup for takeout order real-time updates
+  useEffect(() => {
+    if (!API_URL) return;
+
+    const socketConnection = io(API_URL, {
+      transports: ['websocket', 'polling']
+    });
+
+    socketConnection.on('connect', () => {
+      console.log('POS connected to Socket.io');
+      socketConnection.emit('join', 'staff');
+    });
+
+    socketConnection.on('newPaymentOrder', (order) => {
+      console.log('New payment order received:', order);
+      // Add to takeout orders if it's a takeout/delivery order
+      if (order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery') {
+        setTakeoutOrders(prev => [order, ...prev]);
+      }
+    });
+
+    socketConnection.on('paymentVerified', ({ orderId }) => {
+      console.log('Payment verified:', orderId);
+      // Remove from takeout orders
+      setTakeoutOrders(prev => prev.filter(order => order._id !== orderId));
+      // Refresh ready orders to show the verified order
+      fetchReadyOrders();
+    });
+
+    socketConnection.on('paymentRejected', ({ orderId }) => {
+      console.log('Payment rejected:', orderId);
+      // Remove from takeout orders
+      setTakeoutOrders(prev => prev.filter(order => order._id !== orderId));
+    });
+
+    setSocket(socketConnection);
+
+    return () => {
+      socketConnection.disconnect();
+    };
+  }, [API_URL]);
+
+  useEffect(() => {
     const handleResize = () => {
       setWindowWidth(window.innerWidth);
     };
@@ -377,7 +428,75 @@ const PointOfSale = () => {
     } catch (error) {
       console.error('Error fetching orders:', error);
     }
-  };  const processExistingOrderPayment = async (orderId, newStatus) => {    try {
+  };
+
+  // NEW: Fetch takeout/delivery orders awaiting payment verification
+  const fetchTakeoutOrders = async () => {
+    try {
+      // Use 'token' to match other POS API calls
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      
+      console.log('Fetching takeout orders with token:', token ? 'exists' : 'missing');
+      console.log('API_URL:', API_URL);
+      
+      const response = await fetch(
+        `${API_URL}/api/orders/pending-verification?verificationStatus=pending`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      
+      console.log('Takeout orders response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to fetch takeout orders:', errorText);
+        throw new Error('Failed to fetch takeout orders');
+      }
+      
+      const data = await response.json();
+      console.log('Takeout orders response:', data);
+      
+      // Backend returns data in 'data' property, not 'orders'
+      const ordersArray = data.data || [];
+      console.log('Orders array:', ordersArray);
+      console.log('Number of orders returned:', ordersArray.length);
+      
+      // Check if orders array exists and has data
+      if (ordersArray.length === 0) {
+        console.log('No orders in response');
+        setTakeoutOrders([]);
+        return;
+      }
+      
+      // Log each order's fulfillmentType
+      ordersArray.forEach(order => {
+        console.log(`Order ${order.receiptNumber}: fulfillmentType="${order.fulfillmentType}", status="${order.status}", paymentMethod="${order.paymentMethod}"`);
+      });
+      
+      // Filter for takeout/delivery orders only
+      const takeoutDeliveryOrders = ordersArray.filter(order => {
+        return order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery';
+      });
+      
+      console.log('Filtered takeout/delivery orders:', takeoutDeliveryOrders.length);
+      
+      setTakeoutOrders(takeoutDeliveryOrders);
+    } catch (error) {
+      console.error('Error fetching takeout orders:', error);
+    }
+  };
+
+  // Fetch takeout orders when component mounts or when switching to dineTakeout view
+  useEffect(() => {
+    if (orderViewType === 'dineTakeout') {
+      fetchTakeoutOrders();
+    }
+  }, [orderViewType]);
+
+  const processExistingOrderPayment = async (orderId, newStatus) => {    try {
       // Case 1: Payment processing flow from legacy payment component or ready orders
       if (typeof orderId === 'object' && orderId._id) {
         const order = orderId;
@@ -707,6 +826,111 @@ const PointOfSale = () => {
     };
   };
 
+  // NEW: Quick verify payment from POS
+  const handleQuickVerify = async (orderId, notes = '') => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      
+      // Step 1: Verify the payment
+      const verifyResponse = await fetch(
+        `${API_URL}/api/orders/${orderId}/verify-payment`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ notes })
+        }
+      );
+
+      if (!verifyResponse.ok) throw new Error('Failed to verify payment');
+
+      const verifiedOrder = await verifyResponse.json();
+
+      // Step 2: Change status to "preparing" (move to next step in workflow: received -> preparing -> ready)
+      const statusResponse = await fetch(
+        `${API_URL}/api/orders/${orderId}/status`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ status: 'preparing' })
+        }
+      );
+
+      if (!statusResponse.ok) {
+        console.warn('Failed to update status to preparing, but payment verified');
+      }
+
+      // Step 3: Get the full order details for receipt generation
+      const orderResponse = await fetch(`${API_URL}/api/orders/${orderId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (orderResponse.ok) {
+        const orderData = await orderResponse.json();
+        const fullOrder = orderData.data || orderData;
+
+        // Set up order data for receipt
+        setSavedOrderData(fullOrder);
+        setCurrentOrder(fullOrder.items || []);
+
+        // Step 4: Generate and print receipt
+        setShowReceipt(true);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await handlePrint();
+        
+        // Close receipt after printing
+        setShowReceipt(false);
+      }
+
+      // Step 5: Remove from takeout orders list and refresh
+      setTakeoutOrders(prev => prev.filter(order => order._id !== orderId));
+      fetchActiveOrders();
+      
+      alert('Payment verified! Order is now preparing. Receipt printed.');
+    } catch (error) {
+      console.error('Error verifying payment:', error);
+      alert('Failed to verify payment. Please try again.');
+    }
+  };
+
+  // NEW: Quick reject payment from POS
+  const handleQuickReject = async (orderId, reason = '') => {
+    if (!reason) {
+      reason = prompt('Enter reason for rejection (optional):') || 'Invalid payment proof';
+    }
+    
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      
+      const response = await fetch(
+        `${API_URL}/api/orders/${orderId}/reject-payment`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ reason })
+        }
+      );
+
+      if (!response.ok) throw new Error('Failed to reject payment');
+
+      // Remove from takeout orders list
+      setTakeoutOrders(prev => prev.filter(order => order._id !== orderId));
+      
+      alert('Payment rejected. Customer will be notified.');
+    } catch (error) {
+      console.error('Error rejecting payment:', error);
+      alert('Failed to reject payment. Please try again.');
+    }
+  };
+
   const handlePrint = useReactToPrint({ content: () => receiptRef.current });  const processPayment = async (paymentDetails = null) => {
     const currentCart = orderViewType === 'ready' ? readyOrderCart : pendingOrderCart;
     const setCart = orderViewType === 'ready' ? setReadyOrderCart : setPendingOrderCart;
@@ -855,10 +1079,11 @@ const PointOfSale = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token')}`
         },        body: JSON.stringify({
-          status: 'received',
+          status: 'received',  // Pending orders that are paid start as received (first step in workflow)
           paymentMethod: currentPaymentMethod,
           customerName: customerName || '', // Add customer name to pending order
           discountCards: discountCardDetails?.discountCards || [],
+          fulfillmentType: 'dine_in', // POS orders are dine-in by default
           totals: {
             ...totals,
             ...paymentDetailsForOrder
@@ -1004,8 +1229,9 @@ const PointOfSale = () => {
         paymentDetails, // Additional field for payment details        
         customerName: customerName || '', // Add customer name to order data
         discountCards: discountCardDetails?.discountCards || [],
-        status: 'received',
+        status: 'received',  // POS orders start as received (first step in workflow)
         orderType: 'pos',  // Changed from 'self_checkout' to 'pos' for orders created in POS
+        fulfillmentType: 'dine_in', // POS orders are dine-in by default
         server: (() => {
           try {
             const userData = localStorage.getItem('userData');
@@ -1416,9 +1642,9 @@ const PointOfSale = () => {
                     title="Ready Orders"
                   >
                     <FiCoffee className="mr-2" />                    <span className="hidden md:inline">Ready Orders</span>
-                    {activeOrders.filter(o => o.status === 'ready').length > 0 && (
+                    {activeOrders.filter(o => ['received', 'preparing', 'ready'].includes(o.status)).length > 0 && (
                       <span className="ml-2 bg-orange-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                        {activeOrders.filter(o => o.status === 'ready').length}
+                        {activeOrders.filter(o => ['received', 'preparing', 'ready'].includes(o.status)).length}
                       </span>
                     )}
                   </button>
@@ -1599,7 +1825,7 @@ const PointOfSale = () => {
               style={{ backgroundColor: theme.colors.background, maxHeight: 'calc(100vh - 48px)' }}
             >
               <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
-                {/* Order View Toggle - move above cart */}
+                {/* Order View Toggle - three tabs now */}
                 <div className="flex justify-center mb-2 gap-2">
                   <button
                     className={`px-4 py-1 rounded-lg font-semibold text-sm transition-colors ${orderViewType === 'ready' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}
@@ -1616,26 +1842,32 @@ const PointOfSale = () => {
                     className={`px-4 py-1 rounded-lg font-semibold text-sm transition-colors ${orderViewType === 'pending' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}
                     onClick={() => {
                       setOrderViewType('pending');
-                      // When switching to pending view, if not already editing, ensure isPendingOrderMode is false.
-                      // If the user then selects a pending order, isPendingOrderMode will be set to true.
                       if (!isPendingOrderMode) {
                         setEditingPendingOrder(null);
-                        // pendingOrderItems should only be cleared if not actively editing.
-                        // If isPendingOrderMode was true, it means we were editing, and switching to 'pending' tab
-                        // shouldn't clear the items of the order being edited.
-                        // However, if we switch TO 'pending' FROM 'ready', and we were NOT in pendingOrderMode,
-                        // it's safe to ensure pendingOrderItems is clear.
-                        // The main concern is clearing pendingOrderItems when switching TO 'ready'.
                       }
                     }}
                   >
                     Pending Orders
                   </button>
-                </div>                {/* Cart (Current Order) - always visible below toggle */}
+                  <button
+                    className={`px-4 py-1 rounded-lg font-semibold text-sm transition-colors ${orderViewType === 'dineTakeout' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}
+                    onClick={() => {
+                      setOrderViewType('dineTakeout');
+                      setIsPendingOrderMode(false);
+                      setEditingPendingOrder(null);
+                      setPendingOrderItems([]);
+                    }}
+                  >
+                    Dine/Take-outs
+                  </button>
+                </div>
+
+                {/* Cart (Current Order) - hidden for Dine/Take-outs tab since orders are locked */}
+                {orderViewType !== 'dineTakeout' &&
                 <div className="flex-1 overflow-y-auto space-y-1.5 mb-4">
-                  {/* Editing Order Header: Only shown when editing a specific pending order on the pending tab */}
-                  {orderViewType === 'pending' && isPendingOrderMode && editingPendingOrder && (
-                    <div className="bg-orange-50 p-2 mb-2 rounded-lg">
+                    {/* Editing Order Header: Only shown when editing a specific pending order on the pending tab */}
+                    {orderViewType === 'pending' && isPendingOrderMode && editingPendingOrder && (
+                      <div className="bg-orange-50 p-2 mb-2 rounded-lg">
                       <div className="flex justify-between items-center">
                         <span className="font-medium text-orange-700">
                           Editing Order #{editingPendingOrder.receiptNumber || editingPendingOrder._id?.substring(0, 6)}
@@ -1775,40 +2007,107 @@ const PointOfSale = () => {
                       )}
                     </>
                   )}
-                </div> {/* End of flex-1 overflow-y-auto space-y-1.5 mb-4 */}
+                </div>} {/* End of flex-1 overflow-y-auto space-y-1.5 mb-4 and orderViewType !== 'dineTakeout' conditional */}
                 
-                {/* Ready Orders Section (only render if there are ready orders and tab is selected) */}
-                {orderViewType === 'ready' && activeOrders.filter(order => order.status === "ready").length > 0 && (
+                {/* NEW: Dine/Take-outs Section (Payment Verification) */}
+                {orderViewType === 'dineTakeout' && (
                   <div className="mt-4 pt-4 border-t-2">
-                    <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-                      {activeOrders
-                        .filter(order => order.status === "ready")
-                        .map(order => (
-                          <div 
-                            key={order._id}
-                            className="p-3 rounded-lg flex justify-between"
-                            style={{ backgroundColor: "#fef3e8" }}
-                          >
-                            <div>
-                              <span className="font-medium" style={{ color: theme.colors.primary }}>
-                                Order #{order.receiptNumber || order._id?.substring(0, 6)}
-                              </span>
-                              <span className="ml-2 text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700">
-                                Ready
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => setShowOrderProcessingModal(true)}
-                              className="text-xs px-2 py-1 rounded bg-orange-500 text-white hover:bg-orange-600"
+                    <h3 className="text-lg font-semibold mb-3" style={{ color: theme.colors.primary }}>
+                      Awaiting Payment Verification ({takeoutOrders.length})
+                    </h3>
+                    <div className="space-y-3 max-h-[70vh] overflow-y-auto">
+                      {takeoutOrders.length > 0 ? (
+                        takeoutOrders.map(order => {
+                          const isExpiringSoon = order.proofOfPayment?.expiresAt && 
+                            new Date(order.proofOfPayment.expiresAt) - new Date() < 5 * 60 * 1000;
+                          const isExpired = order.proofOfPayment?.expiresAt && 
+                            new Date(order.proofOfPayment.expiresAt) < new Date();
+                          
+                          return (
+                            <div 
+                              key={order._id}
+                              onClick={() => {
+                                setSelectedVerificationOrder(order);
+                                setShowVerificationModal(true);
+                              }}
+                              className={`p-3 rounded-lg border cursor-pointer hover:shadow-lg transition-shadow ${
+                                isExpired ? 'bg-red-50 border-red-300' : 
+                                isExpiringSoon ? 'bg-yellow-50 border-yellow-300' : 
+                                'bg-white border-gray-200'
+                              }`}
                             >
-                              Complete
-                            </button>
-                          </div>
-                        ))}
+                              {/* Compact Order Header */}
+                              <div className="flex justify-between items-center mb-2">
+                                <div className="flex-1">
+                                  <div className="font-bold text-base" style={{ color: theme.colors.primary }}>
+                                    #{order.receiptNumber}
+                                  </div>
+                                  <div className="text-xs text-gray-600">
+                                    {order.fulfillmentType === 'delivery' ? '🚗 Delivery' : '🥡 Takeout'} • 
+                                    {order.paymentMethod === 'gcash' ? ' GCash' : order.paymentMethod === 'paymaya' ? ' PayMaya' : ' E-Wallet'} • 
+                                    ₱{order.totals?.total}
+                                  </div>
+                                  {/* Show transaction reference if available */}
+                                  {order.proofOfPayment?.transactionReference && (
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      📄 Ref: {order.proofOfPayment.transactionReference}
+                                    </div>
+                                  )}
+                                  {order.proofOfPayment?.accountName && (
+                                    <div className="text-xs text-gray-500">
+                                      👤 {order.proofOfPayment.accountName}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="text-right">
+                                  <span className={`text-xs px-2 py-1 rounded-full ${
+                                    isExpired ? 'bg-red-100 text-red-700' :
+                                    isExpiringSoon ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-blue-100 text-blue-700'
+                                  }`}>
+                                    {isExpired ? 'EXPIRED' : 'Pending'}
+                                  </span>
+                                  {order.proofOfPayment?.expiresAt && !isExpired && (
+                                    <div className="text-xs mt-1 text-gray-500">
+                                      ⏱️ {new Date(order.proofOfPayment.expiresAt).toLocaleTimeString()}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Payment Proof Thumbnail */}
+                              {order.proofOfPayment?.imageUrl && (
+                                <div className="mb-2">
+                                  <img 
+                                    src={`${API_URL}${order.proofOfPayment.imageUrl}`}
+                                    alt="Payment Proof"
+                                    className="w-full h-32 object-contain border rounded bg-gray-50"
+                                    title="Click card to view details"
+                                  />
+                                </div>
+                              )}
+
+                              {/* Click to view details hint */}
+                              <div className="text-xs text-center text-gray-400 mt-2">
+                                Click to view details and verify
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center text-gray-400 py-8">
+                          <FiCoffee className="mx-auto text-4xl mb-2" />
+                          <p>No orders awaiting verification</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
-              </div>              <div className="mt-auto">                <PaymentPanel
+              </div>
+
+              {/* Payment Panel - hidden for Dine/Take-outs tab since orders are locked */}
+              {orderViewType !== 'dineTakeout' && (
+              <div className="mt-auto">                <PaymentPanel
                   total={isPendingOrderMode ? 
                     calculatePendingOrderTotal().total :
                     calculateTotal().total}
@@ -1836,6 +2135,7 @@ const PointOfSale = () => {
                   }
                 />
               </div>
+              )}
             </div>            {/* Receipt Modal */}            <Modal isOpen={showReceipt} onClose={() => setShowReceipt(false)} size="lg">
               <Receipt
                 ref={receiptRef}
@@ -2006,6 +2306,161 @@ const PointOfSale = () => {
             onCustomerNameChange={setCustomerName}
             orderItems={isPendingOrderMode ? pendingOrderItems : (orderViewType === 'ready' ? readyOrderCart : pendingOrderCart)}
           />
+        )}
+
+        {/* Payment Verification Modal */}
+        {showVerificationModal && selectedVerificationOrder && (
+          <Modal 
+            isOpen={showVerificationModal} 
+            onClose={() => {
+              setShowVerificationModal(false);
+              setSelectedVerificationOrder(null);
+              setExpandedImage(false);
+            }}
+            size="lg"
+            className="overflow-visible"
+            footer={
+              <div className="flex gap-3 w-full -mx-4 -my-14 px-4 py-3" style={{ width: 'calc(100% + 2rem)' }}>
+                <button
+                  onClick={() => {
+                    handleQuickVerify(selectedVerificationOrder._id);
+                    setShowVerificationModal(false);
+                    setSelectedVerificationOrder(null);
+                    setExpandedImage(false);
+                  }}
+                  className="flex-1 py-3 rounded bg-green-500 text-white hover:bg-green-600 font-semibold shadow-lg text-base"
+                >
+                  ✓ Verify Payment
+                </button>
+                <button
+                  onClick={() => {
+                    handleQuickReject(selectedVerificationOrder._id);
+                    setShowVerificationModal(false);
+                    setSelectedVerificationOrder(null);
+                    setExpandedImage(false);
+                  }}
+                  className="flex-1 py-3 rounded bg-red-500 text-white hover:bg-red-600 font-semibold shadow-lg text-base"
+                >
+                  ✗ Reject Payment
+                </button>
+              </div>
+            }
+          >
+            <div className="p-6 max-h-[calc(90vh-180px)] overflow-y-auto">
+              {/* Header with Order # and Thumbnail */}
+              <div className="flex justify-between items-start mb-6">
+                <h2 className="text-2xl font-bold flex-1" style={{ color: theme.colors.primary }}>
+                  Order #{selectedVerificationOrder.receiptNumber}
+                </h2>
+                
+                {/* 1x1 Thumbnail - Top Right */}
+                {selectedVerificationOrder.proofOfPayment?.imageUrl && (
+                  <div className="ml-4">
+                    <img 
+                      src={`${API_URL}${selectedVerificationOrder.proofOfPayment.imageUrl}`}
+                      alt="Payment Proof"
+                      className="w-20 h-20 object-cover cursor-pointer hover:ring-2 ring-blue-500 rounded border-2 border-gray-300 transition-all"
+                      onClick={() => setExpandedImage(!expandedImage)}
+                      title="Click to expand/collapse"
+                    />
+                    <p className="text-xs text-center text-gray-500 mt-1">Click to expand</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Expanded Image Overlay (inside modal) */}
+              {expandedImage && selectedVerificationOrder.proofOfPayment?.imageUrl && (
+                <div 
+                  className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[200] p-4"
+                  onClick={() => setExpandedImage(false)}
+                >
+                  <div className="relative max-w-4xl max-h-[90vh]">
+                    <img 
+                      src={`${API_URL}${selectedVerificationOrder.proofOfPayment.imageUrl}`}
+                      alt="Payment Proof Full Size"
+                      className="max-w-full max-h-[90vh] object-contain"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <button
+                      onClick={() => setExpandedImage(false)}
+                      className="absolute top-2 right-2 bg-white rounded-full p-2 hover:bg-gray-100"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Details - Prominent Display */}
+              <div className="mb-6">
+                <h3 className="font-semibold text-lg mb-3">Payment Details</h3>
+                {(selectedVerificationOrder.proofOfPayment?.accountName || selectedVerificationOrder.proofOfPayment?.transactionReference) && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    {selectedVerificationOrder.proofOfPayment?.accountName && (
+                      <div className="mb-2">
+                        <span className="text-sm font-semibold">Account Name:</span>
+                        <span className="ml-2 text-base font-medium">{selectedVerificationOrder.proofOfPayment.accountName}</span>
+                      </div>
+                    )}
+                    {selectedVerificationOrder.proofOfPayment?.transactionReference && (
+                      <div>
+                        <span className="text-sm font-semibold">Reference #:</span>
+                        <span className="ml-2 text-base font-medium">{selectedVerificationOrder.proofOfPayment.transactionReference}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Order Summary */}
+              <div className="mb-6">
+                <h3 className="font-semibold text-lg mb-3">Order Summary</h3>
+                <div className="bg-gray-50 p-4 rounded">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="text-gray-600">Amount:</span>
+                      <span className="font-semibold ml-2">₱{selectedVerificationOrder.totals?.total}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Payment:</span>
+                      <span className="font-semibold ml-2">
+                        {selectedVerificationOrder.paymentMethod === 'gcash' ? 'GCash' : 
+                         selectedVerificationOrder.paymentMethod === 'paymaya' ? 'Maya' : 
+                         selectedVerificationOrder.paymentDetails?.eWalletProvider === 'gcash' ? 'GCash' :
+                         selectedVerificationOrder.paymentDetails?.eWalletProvider === 'paymaya' ? 'Maya' :
+                         'E-Wallet'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Type:</span>
+                      <span className="font-semibold ml-2">{selectedVerificationOrder.fulfillmentType}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Time:</span>
+                      <span className="font-semibold ml-2">
+                        {new Date(selectedVerificationOrder.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items */}
+              <div className="mb-6">
+                <h3 className="font-semibold text-lg mb-3">Items</h3>
+                <div className="space-y-2">
+                  {selectedVerificationOrder.items?.map((item, idx) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span>
+                        {item.quantity}x {item.name} {item.selectedSize && `(${item.selectedSize})`}
+                      </span>
+                      <span className="font-medium">₱{(item.price * item.quantity).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Modal>
         )}
       </div>
     </div>

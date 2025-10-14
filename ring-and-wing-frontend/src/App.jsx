@@ -19,6 +19,7 @@ import TimeClock from './TimeClock';
 import RevenueReportsPage from './RevenueReportsPage';
 import TimeClockInterface from './TimeClockInterface';
 import MobileLanding from './MobileLanding';
+import PaymentVerification from './PaymentVerification';
 import api, { checkApiHealth, startHealthMonitoring } from './services/apiService';
 import { useBreakpoint } from './hooks/useBreakpoint';
 import { LoadingProvider } from './contexts/LoadingContext';
@@ -326,6 +327,13 @@ function App() {
             <Route path="/orders" element={
               <PositionProtectedRoute requiredPositions={['cashier', 'shift_manager', 'general_manager', 'admin']}>
                 <OrderSystem />
+              </PositionProtectedRoute>
+            } />
+            
+            {/* Payment Verification - accessible by cashiers and managers */}
+            <Route path="/payment-verification" element={
+              <PositionProtectedRoute requiredPositions={['cashier', 'shift_manager', 'general_manager', 'admin']}>
+                <PaymentVerification />
               </PositionProtectedRoute>
             } />
             

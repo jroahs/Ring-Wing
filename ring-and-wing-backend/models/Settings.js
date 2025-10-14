@@ -85,6 +85,66 @@ const settingsSchema = new mongoose.Schema({
     }
   },
   
+  // NEW: Merchant Wallet Configuration (GCash/PayMaya)
+  merchantWallets: {
+    gcash: {
+      enabled: { 
+        type: Boolean, 
+        default: false 
+      },
+      accountNumber: { 
+        type: String, 
+        default: '' 
+      },
+      accountName: { 
+        type: String, 
+        default: '' 
+      },
+      qrCodeUrl: { 
+        type: String, 
+        default: '' 
+      } // Path to uploaded QR code image
+    },
+    paymaya: {
+      enabled: { 
+        type: Boolean, 
+        default: false 
+      },
+      accountNumber: { 
+        type: String, 
+        default: '' 
+      },
+      accountName: { 
+        type: String, 
+        default: '' 
+      },
+      qrCodeUrl: { 
+        type: String, 
+        default: '' 
+      } // Path to uploaded QR code image
+    }
+  },
+  
+  // NEW: Payment Verification Settings
+  paymentVerification: {
+    timeoutMinutes: {
+      type: Number,
+      default: 120, // 2 hours default timeout
+      min: 30,
+      max: 1440 // Max 24 hours
+    },
+    autoCancel: {
+      type: Boolean,
+      default: true // Auto-cancel orders after timeout
+    },
+    warningThresholds: {
+      green: { type: Number, default: 60 }, // > 60 minutes = green
+      yellow: { type: Number, default: 30 }, // > 30 minutes = yellow
+      orange: { type: Number, default: 15 }, // > 15 minutes = orange
+      red: { type: Number, default: 0 } // < 15 minutes = red (urgent)
+    }
+  },
+  
   // Metadata
   createdAt: { 
     type: Date, 
