@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import MenuItemImage from './components/MenuItemImage';
 import ConnectionMonitor from './components/ConnectionMonitor';
 import { LoadingSpinner } from './components/ui';
+import { io } from 'socket.io-client'; // 🔥 NEW: Real-time socket events (Sprint 22)
 
 // Debounce utility function to prevent rapid-fire requests
 const debounce = (func, wait) => {
@@ -237,6 +238,9 @@ const MenuPage = () => {
   const [showIngredientModal, setShowIngredientModal] = useState(false);
   const [itemCostAnalysis, setItemCostAnalysis] = useState({});
   const [itemAvailability, setItemAvailability] = useState({});
+  
+  // 🔥 NEW: Socket.io state for real-time updates (Sprint 22)
+  const [socket, setSocket] = useState(null);
 
   const { register, handleSubmit, reset, watch, setValue, getValues, formState: { errors } } = useForm({
     defaultValues: initialItem
@@ -343,39 +347,65 @@ const MenuPage = () => {
         setInventoryItems(items);
       }
 
-      // Load availability data for all menu items (batched to avoid overwhelming database)
-      const batchSize = 5; // Process 5 items at a time
+      // 🔥 SPRINT 22 FIX: Batch availability check on initial load
+      // CHECK ALL ITEMS AT ONCE using the batch API (no more 3-per-tick polling)
       const menuItemIds = validMenuItems.map(item => item._id).filter(Boolean);
       
-      // SMART AVAILABILITY CHECKING: Only check items that haven't been checked recently
-      const now = Date.now();
-      const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
-      
-      const itemsToCheck = menuItemIds.filter(itemId => {
-        const lastChecked = itemAvailability[itemId];
-        return !lastChecked || (now - lastChecked.timestamp) > CACHE_DURATION;
-      });
-      
-      console.log(`Availability check: ${itemsToCheck.length}/${menuItemIds.length} items need checking`);
-      
-      if (itemsToCheck.length > 0) {
-        // Process in smaller batches with longer delays to prevent flooding
-        const batchSize = 3; // Reduced batch size
+      if (menuItemIds.length > 0) {
+        console.log(`[MenuManagement] Batch checking availability for ${menuItemIds.length} items...`);
         
-        for (let i = 0; i < itemsToCheck.length; i += batchSize) {
-          const batch = itemsToCheck.slice(i, i + batchSize);
+        try {
+          // Call batch API ONCE for all items
+          const response = await fetch('http://localhost:5000/api/menu/check-availability', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              menuItems: menuItemIds.map(id => ({ menuItemId: id, quantity: 1 }))
+            })
+          });
           
-          // Longer delays between batches (2 seconds instead of 500ms)
-          setTimeout(() => {
-            batch.forEach(itemId => {
-              checkMenuItemAvailability(itemId);
-              fetchCostAnalysis(itemId);
-            });
-          }, (i / batchSize) * 2000); // 2 second delay between batches
+          if (response.ok) {
+            const result = await response.json();
+            console.log('[MenuManagement] Batch API response:', result);
+            
+            // Extract itemAvailabilities array from response
+            const itemAvailabilities = result.data?.itemAvailabilities || result.itemAvailabilities || [];
+            
+            if (itemAvailabilities.length > 0) {
+              // Build availability map from itemAvailabilities array
+              const availabilityMap = {};
+              itemAvailabilities.forEach(item => {
+                availabilityMap[item.menuItemId] = {
+                  isAvailable: item.isAvailable,
+                  hasIngredientTracking: item.hasIngredientTracking || false,
+                  insufficientIngredients: item.insufficientIngredients || [],
+                  timestamp: Date.now()
+                };
+              });
+              setItemAvailability(availabilityMap);
+              console.log(`[MenuManagement] ✅ Loaded availability for ${Object.keys(availabilityMap).length} items`);
+              
+              // Fetch cost analysis for items with ingredient tracking (batched, 5 at a time)
+              const trackedItems = itemAvailabilities.filter(item => item.hasIngredientTracking);
+              console.log(`[MenuManagement] Fetching cost analysis for ${trackedItems.length} tracked items...`);
+              
+              const batchSize = 5;
+              for (let i = 0; i < trackedItems.length; i += batchSize) {
+                const batch = trackedItems.slice(i, i + batchSize);
+                setTimeout(() => {
+                  batch.forEach(item => {
+                    fetchCostAnalysis(item.menuItemId);
+                  });
+                }, (i / batchSize) * 500); // 500ms delay between batches
+              }
+            } else {
+              console.warn('[MenuManagement] No itemAvailabilities in response');
+            }
+          }
+        } catch (error) {
+          console.warn('[MenuManagement] Batch availability check failed:', error.message);
         }
       }
-      
-      console.log('Smart batch availability checking enabled with caching');
       
       // Fetch categories (optional, fallback to static config)
       if (categoriesRes.ok) {
@@ -528,6 +558,95 @@ const MenuPage = () => {
     return () => controller.abort();
   }, []); // Remove dependency to prevent re-fetching
 
+  // 🔥 NEW: Socket.io connection for real-time updates (Sprint 22)
+  useEffect(() => {
+    const API_URL = 'http://localhost:5000';
+    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+    
+    // Initialize socket connection with JWT authentication
+    const socketConnection = io(API_URL, {
+      auth: { token: token },
+      transports: ['websocket', 'polling']
+    });
+    
+    socketConnection.on('connect', () => {
+      console.log('[MenuManagement] Socket connected - Authenticated:', socketConnection.auth.token ? 'Yes' : 'No');
+    });
+    
+    socketConnection.on('disconnect', () => {
+      console.log('[MenuManagement] Socket disconnected');
+    });
+    
+    setSocket(socketConnection);
+    
+    // Cleanup on unmount
+    return () => {
+      console.log('[MenuManagement] Cleaning up socket connection');
+      socketConnection.disconnect();
+    };
+  }, []);
+  
+  // 🔥 NEW: Socket event listeners for real-time inventory updates (Sprint 22)
+  useEffect(() => {
+    if (!socket) return;
+    
+    // Listen for ingredient mapping changes
+    const handleIngredientMappingChanged = (data) => {
+      console.log('[MenuManagement] Ingredient mapping changed:', data);
+      if (data.menuItemId) {
+        // SOCKET FIX: Don't refetch - socket event contains fresh data
+        // Just trigger a fetch ONLY for cost analysis since that's not in the event
+        console.log(`[MenuManagement] Updating cost analysis for ${data.menuItemId} (NO availability refetch)`);
+        fetchCostAnalysis(data.menuItemId);
+        // Availability will be updated by menuAvailabilityChanged event
+      }
+    };
+    
+    // Listen for menu availability changes
+    const handleMenuAvailabilityChanged = (data) => {
+      console.log('[MenuManagement] Menu availability changed:', data);
+      if (data.menuItemId) {
+        // Update availability state immediately from socket data (NO API CALL)
+        setItemAvailability(prev => ({
+          ...prev,
+          [data.menuItemId]: {
+            isAvailable: data.isAvailable,
+            reason: data.reason,
+            insufficientIngredients: data.insufficientIngredients || [],
+            hasIngredientTracking: (data.insufficientIngredients && data.insufficientIngredients.length > 0) || false,
+            timestamp: Date.now()
+          }
+        }));
+        console.log(`[MenuManagement] ✅ Availability updated from socket for ${data.menuItemId}:`, data.isAvailable);
+      }
+    };
+    
+    // Handle user logout events (multi-tab logout synchronization)
+    const handleUserLogout = (data) => {
+      console.log('[MenuManagement] User logged out event received:', data);
+      localStorage.removeItem('token');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userPosition');
+      localStorage.removeItem('userRole');
+      window.location.href = '/';
+    };
+    
+    // Register socket event listeners
+    socket.on('ingredientMappingChanged', handleIngredientMappingChanged);
+    socket.on('menuAvailabilityChanged', handleMenuAvailabilityChanged);
+    socket.on('userLoggedOut', handleUserLogout);
+    
+    console.log('[MenuManagement] Socket event listeners registered');
+    
+    // Cleanup listeners on unmount
+    return () => {
+      socket.off('ingredientMappingChanged', handleIngredientMappingChanged);
+      socket.off('menuAvailabilityChanged', handleMenuAvailabilityChanged);
+      socket.off('userLoggedOut', handleUserLogout);
+      console.log('[MenuManagement] Socket event listeners removed');
+    };
+  }, [socket]);
+
   // REMOVED: 5-minute polling + window focus refresh
   // Menu management is not time-critical - staff can manually refresh if needed
   // This removes 60+ requests/hour when menu management is open
@@ -535,24 +654,29 @@ const MenuPage = () => {
   // Manual refresh button available in UI for explicit updates
 
   // Load existing ingredients when editing an item
+  // SOCKET FIX: Only fetch data on initial item selection (by ID change),
+  // not on every state change. Socket events handle real-time updates.
   useEffect(() => {
-    if (currentFormItem && currentFormItem._id) {
+    const currentItemId = currentFormItem?._id;
+    const selectedItemId = selectedItem?._id;
+    
+    if (currentItemId) {
       // Load existing ingredients for the menu item being edited
-      fetchMenuItemIngredients(currentFormItem._id);
-      // Load cost analysis and availability
-      fetchCostAnalysis(currentFormItem._id);
-      checkMenuItemAvailability(currentFormItem._id);
-    } else if (selectedItem && selectedItem._id && !currentFormItem) {
+      fetchMenuItemIngredients(currentItemId);
+      // Initial cost analysis and availability (socket will handle updates)
+      fetchCostAnalysis(currentItemId);
+      checkMenuItemAvailability(currentItemId);
+    } else if (selectedItemId && !currentFormItem) {
       // Load existing ingredients for the menu item being viewed (not in form)
-      fetchMenuItemIngredients(selectedItem._id);
-      // Load cost analysis and availability
-      fetchCostAnalysis(selectedItem._id);
-      checkMenuItemAvailability(selectedItem._id);
+      fetchMenuItemIngredients(selectedItemId);
+      // Initial cost analysis and availability (socket will handle updates)
+      fetchCostAnalysis(selectedItemId);
+      checkMenuItemAvailability(selectedItemId);
     } else {
       // Clear ingredients when creating new item or no item selected
       setSelectedIngredients([]);
     }
-  }, [currentFormItem, selectedItem]);
+  }, [currentFormItem?._id, selectedItem?._id]); // SOCKET FIX: Narrow dependency to only ID changes
 
   const fetchMenuItemIngredients = async (menuItemId) => {
     try {

@@ -345,6 +345,20 @@ router.patch('/:id/availability', rateLimitMiddleware, lightCheck, async (req, r
       return res.status(404).json({ message: 'Menu item not found' });
     }
 
+    // 🔥 SPRINT 22: Emit socket event for real-time updates
+    const SocketService = require('../services/socketService');
+    const io = req.app.get('io');
+    if (io) {
+      SocketService.emitMenuAvailabilityChanged(
+        io,
+        id,  // menuItemId
+        isAvailable,  // isAvailable
+        isAvailable ? 'Manually enabled' : 'Manually disabled',  // reason
+        []  // insufficientIngredients
+      );
+      console.log(`[SOCKET] Emitted menuAvailabilityChanged for manual toggle: ${updatedItem.name} -> ${isAvailable}`);
+    }
+
     res.json({ 
       success: true,
       data: updatedItem,
@@ -403,7 +417,10 @@ router.put('/ingredients/:menuItemId', rateLimitMiddleware, standardCheck, async
       setTimeout(() => reject(new Error('Operation timeout after 30 seconds')), 30000);
     });
     
-    const operationPromise = InventoryBusinessLogicService.updateMenuItemIngredients(menuItemId, ingredients);
+    // 🔥 NEW: Get io object for real-time socket events (Sprint 22)
+    const io = req.app.get('io');
+    
+    const operationPromise = InventoryBusinessLogicService.updateMenuItemIngredients(menuItemId, ingredients, io);
     
     const result = await Promise.race([operationPromise, timeoutPromise]);
     

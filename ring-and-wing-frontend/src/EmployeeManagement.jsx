@@ -9,8 +9,11 @@ import { StaffForm, Button } from './components/ui';
 import { PasswordInput } from './components/ui/PasswordInput';
 import StaffAvatar from './components/StaffAvatar'; // Import StaffAvatar component
 import { colors } from './theme'; // Import centralized colors
+import { useMultiTabLogout } from './hooks/useMultiTabLogout';
 
 const StaffManagement = () => {
+  // Enable multi-tab logout synchronization
+  useMultiTabLogout();
 
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);const [staff, setStaff] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

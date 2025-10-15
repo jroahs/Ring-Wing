@@ -8,8 +8,13 @@ import PayrollSchedule from './components/PayrollSchedule';
 import PayrollReports from './PayrollReports';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { useMultiTabLogout } from './hooks/useMultiTabLogout';
 
-const PayrollSystem = () => {  const colors = {
+const PayrollSystem = () => {  
+  // Enable multi-tab logout synchronization
+  useMultiTabLogout();
+  
+  const colors = {
     primary: '#2e0304',
     background: '#fefdfd',
     accent: '#f1670f',

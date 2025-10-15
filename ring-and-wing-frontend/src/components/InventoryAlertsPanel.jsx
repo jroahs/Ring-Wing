@@ -13,6 +13,8 @@ import {
   AlertCircle,
   Timer
 } from 'lucide-react';
+import { io } from 'socket.io-client'; // 🔥 NEW: Real-time alert updates (Sprint 22)
+import { API_URL } from '../App'; // 🔥 NEW: Import API_URL for socket connection
 
 /**
  * Real-time Inventory Alerts Dashboard
@@ -24,6 +26,7 @@ const InventoryAlertsPanel = ({ className = "", isExpanded = false, onToggle }) 
   const [filter, setFilter] = useState('all');
   const [lastRefresh, setLastRefresh] = useState(Date.now());
   const [dismissedAlerts, setDismissedAlerts] = useState(new Set());
+  const [socket, setSocket] = useState(null); // 🔥 NEW: Socket.io for real-time alerts (Sprint 22)
 
   // Alert types configuration
   const alertTypes = {
@@ -193,12 +196,138 @@ const InventoryAlertsPanel = ({ className = "", isExpanded = false, onToggle }) 
     }
   }, []);
 
-  // Auto-refresh alerts with smart caching (reduced frequency)
+  // Auto-refresh alerts with smart caching (reduced frequency since we have real-time updates)
   useEffect(() => {
     fetchAlerts();
-    const interval = setInterval(fetchAlerts, 120000); // Increased from 30s to 2 minutes
+    const interval = setInterval(fetchAlerts, 600000); // 10 minutes (reduced from 2min since Socket.io handles real-time updates)
     return () => clearInterval(interval);
   }, [fetchAlerts]);
+
+  // 🔥 NEW: Socket.io connection for real-time alert updates (Sprint 22)
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.warn('[InventoryAlertsPanel] No auth token found - socket connection skipped');
+      return;
+    }
+
+    console.log('[InventoryAlertsPanel] Initializing socket connection...');
+    
+    const socketConnection = io(API_URL, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
+    });
+
+    socketConnection.on('connect', () => {
+      console.log('[InventoryAlertsPanel] Socket connected - Authenticated: Yes');
+      console.log('[InventoryAlertsPanel] Socket ID:', socketConnection.id);
+    });
+
+    socketConnection.on('connect_error', (error) => {
+      console.error('[InventoryAlertsPanel] Socket connection error:', error.message);
+    });
+
+    socketConnection.on('disconnect', (reason) => {
+      console.log('[InventoryAlertsPanel] Socket disconnected:', reason);
+    });
+
+    setSocket(socketConnection);
+
+    return () => {
+      console.log('[InventoryAlertsPanel] Cleaning up socket connection...');
+      socketConnection.disconnect();
+    };
+  }, []);
+
+  // 🔥 NEW: Socket.io event listeners for real-time alert updates (Sprint 22)
+  useEffect(() => {
+    if (!socket) return;
+
+    console.log('[InventoryAlertsPanel] Registering socket event listeners...');
+
+    // Event 1: Alert triggered - add new alert instantly
+    socket.on('alertTriggered', (data) => {
+      console.log('[InventoryAlertsPanel] alertTriggered event received:', data);
+      
+      const newAlert = {
+        id: `${data.alertType}_${data.itemId}_${Date.now()}`,
+        type: data.alertType, // low_stock, out_of_stock, expiring_reservation, etc.
+        title: data.itemName,
+        message: data.message,
+        details: data.details || {},
+        timestamp: new Date().toISOString(),
+        severity: data.severity || 'medium'
+      };
+
+      setAlerts(prevAlerts => {
+        // Check for duplicate alerts (same type + item)
+        const isDuplicate = prevAlerts.some(
+          alert => alert.type === newAlert.type && 
+                  alert.details.itemId === newAlert.details.itemId
+        );
+        
+        if (isDuplicate) {
+          console.log('[InventoryAlertsPanel] Duplicate alert detected, updating existing');
+          // Update existing alert instead of adding duplicate
+          return prevAlerts.map(alert => 
+            alert.type === newAlert.type && alert.details.itemId === newAlert.details.itemId
+              ? newAlert
+              : alert
+          );
+        }
+
+        // Add new alert to top of list
+        return [newAlert, ...prevAlerts];
+      });
+
+      console.log(`[InventoryAlertsPanel] Added new ${data.alertType} alert for ${data.itemName}`);
+    });
+
+    // Event 2: Stock level changed - update or remove alerts
+    socket.on('stockLevelChanged', (data) => {
+      console.log('[InventoryAlertsPanel] stockLevelChanged event received:', data);
+      
+      // If stock is back to normal, remove low_stock/out_of_stock alerts
+      if (data.newStock > (data.minStock || 0)) {
+        setAlerts(prevAlerts => 
+          prevAlerts.filter(alert => 
+            !(
+              (alert.type === 'low_stock' || alert.type === 'out_of_stock') &&
+              alert.details.itemId === data.itemId
+            )
+          )
+        );
+        console.log(`[InventoryAlertsPanel] Removed stock alerts for item ${data.itemId} (stock restored)`);
+      }
+      // If stock dropped to low/out, trigger fetchAlerts to get updated alert
+      else if (data.newStock === 0 || data.newStock <= (data.minStock || 0)) {
+        console.log(`[InventoryAlertsPanel] Stock critical for item ${data.itemId}, refreshing alerts...`);
+        fetchAlerts();
+      }
+    });
+
+    // Listen for user logout events (multi-tab logout synchronization)
+    socket.on('userLoggedOut', (data) => {
+      console.log('[InventoryAlertsPanel] User logged out event received:', data);
+      localStorage.removeItem('token');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userPosition');
+      localStorage.removeItem('userRole');
+      window.location.href = '/';
+    });
+
+    // Cleanup event listeners on unmount
+    return () => {
+      console.log('[InventoryAlertsPanel] Cleaning up socket event listeners...');
+      socket.off('alertTriggered');
+      socket.off('stockLevelChanged');
+      socket.off('userLoggedOut');
+    };
+  }, [socket, fetchAlerts]);
+
 
   const dismissAlert = (alertId) => {
     setDismissedAlerts(prev => new Set([...prev, alertId]));

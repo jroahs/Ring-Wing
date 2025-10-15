@@ -2,8 +2,12 @@
 import { useState, useEffect } from 'react';
 import PaymentVerificationDashboard from './components/PaymentVerificationDashboard';
 import { colors, theme } from './theme';
+import { useMultiTabLogout } from './hooks/useMultiTabLogout';
 
 const PaymentVerification = () => {
+  // Enable multi-tab logout synchronization
+  useMultiTabLogout();
+  
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8 ml-0 md:ml-20 pt-16 md:pt-4 transition-all duration-300" style={{ backgroundColor: colors.background }}>
       <div className="max-w-7xl mx-auto">

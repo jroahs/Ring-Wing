@@ -47,6 +47,7 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const [hoveredItem, setHoveredItem] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const dropdownRefs = useRef({});
   useEffect(() => {
     const handleResize = () => {
@@ -96,10 +97,24 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
   }, [location.pathname]);
 
   const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+  
+  const confirmLogout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
+    localStorage.removeItem('token');
+    localStorage.removeItem('userPosition');
+    localStorage.removeItem('userRole');
+    setShowLogoutConfirm(false);
     navigate('/login');
-  };  const handleDropdownToggle = (itemPath, event) => {
+  };
+  
+  const cancelLogout = () => {
+    setShowLogoutConfirm(false);
+  };
+
+  const handleDropdownToggle = (itemPath, event) => {
     // Hide tooltip when dropdown is clicked
     setHoveredItem(null);
     
@@ -524,6 +539,37 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
                 )}
               </div>
             ))}
+        </div>,
+        document.body
+      )}
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000]">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="mb-4">
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Confirm Logout</h3>
+              <p className="text-gray-600">
+                Are you sure you want to logout? This will close all your open tabs.
+              </p>
+            </div>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={cancelLogout}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmLogout}
+                style={{ backgroundColor: colors.accent }}
+                className="px-4 py-2 text-white rounded-lg hover:opacity-90 transition-opacity font-medium"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
         </div>,
         document.body
       )}

@@ -161,11 +161,23 @@ const PointOfSale = () => {
       // Server automatically joins authenticated users to 'staff' room
     });
 
-    socketConnection.on('newPaymentOrder', (order) => {
-      console.log('New payment order received:', order);
-      // Add to takeout orders if it's a takeout/delivery order
-      if (order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery') {
-        setTakeoutOrders(prev => [order, ...prev]);
+    socketConnection.on('newPaymentOrder', (data) => {
+      console.log('[POS] New payment order received:', data);
+      // Extract order from socket payload
+      const order = data.order || data;
+      console.log('[POS] Extracted order:', order);
+      // Add to takeout orders if it's a takeout/delivery/dine-in order
+      if (order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery' || order.fulfillmentType === 'dine-in') {
+        setTakeoutOrders(prev => {
+          // Prevent duplicates
+          const exists = prev.some(o => o._id === order._id);
+          if (exists) {
+            console.log('[POS] Order already exists, skipping duplicate');
+            return prev;
+          }
+          console.log('[POS] Adding new order to takeout list');
+          return [order, ...prev];
+        });
       }
     });
 
@@ -181,6 +193,36 @@ const PointOfSale = () => {
       console.log('Payment rejected:', orderId);
       // Remove from takeout orders
       setTakeoutOrders(prev => prev.filter(order => order._id !== orderId));
+    });
+
+    // Listen for user logout events (multi-tab logout synchronization)
+    socketConnection.on('userLoggedOut', (data) => {
+      console.log('[POS] User logged out event received:', data);
+      // Clear all auth data
+      localStorage.removeItem('token');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userPosition');
+      localStorage.removeItem('userRole');
+      // Redirect to login page
+      window.location.href = '/';
+    });
+
+    // Listen for menu availability changes (Sprint 22)
+    socketConnection.on('menuAvailabilityChanged', (data) => {
+      console.log('[POS] Menu availability changed:', data);
+      if (data.menuItemId) {
+        // Update menu items availability in real-time
+        setMenuItems(prev => prev.map(item => 
+          item._id === data.menuItemId 
+            ? { ...item, isAvailable: data.isAvailable }
+            : item
+        ));
+        
+        // If item is now unavailable, show notification
+        if (!data.isAvailable) {
+          console.warn(`[POS] Item ${data.menuItemId} is now unavailable: ${data.reason}`);
+        }
+      }
     });
 
     setSocket(socketConnection);
@@ -1001,7 +1043,7 @@ const PointOfSale = () => {
           if (reservationResponse.ok && reservationData.success) {
             console.log('Inventory reservation created for order:', orderResponse.data._id);
           } else {
-            console.warn('⚠️ Inventory reservation failed:', reservationData);
+            console.warn('Inventory reservation failed:', reservationData);
           }
         } catch (invError) {
           console.error('❌ Inventory reservation error:', invError);
@@ -1146,10 +1188,10 @@ const PointOfSale = () => {
           if (reservationResponse.ok && reservationData.success) {
             console.log('Inventory reservation created for pending order:', orderData.data._id);
           } else {
-            console.warn('⚠️ Inventory reservation failed:', reservationData);
+            console.warn('Inventory reservation failed:', reservationData);
           }
         } catch (invError) {
-          console.error('❌ Inventory reservation error:', invError);
+          console.error('Inventory reservation error:', invError);
           // Don't block order - ingredient tracking is optional
         }
       }
@@ -2049,19 +2091,19 @@ const PointOfSale = () => {
                                     #{order.receiptNumber}
                                   </div>
                                   <div className="text-xs text-gray-600">
-                                    {order.fulfillmentType === 'delivery' ? '🚗 Delivery' : '🥡 Takeout'} • 
+                                    {order.fulfillmentType === 'delivery' ? 'Delivery' : 'Takeout'} • 
                                     {order.paymentMethod === 'gcash' ? ' GCash' : order.paymentMethod === 'paymaya' ? ' PayMaya' : ' E-Wallet'} • 
                                     ₱{order.totals?.total}
                                   </div>
                                   {/* Show transaction reference if available */}
                                   {order.proofOfPayment?.transactionReference && (
                                     <div className="text-xs text-gray-500 mt-1">
-                                      📄 Ref: {order.proofOfPayment.transactionReference}
+                                      Ref: {order.proofOfPayment.transactionReference}
                                     </div>
                                   )}
                                   {order.proofOfPayment?.accountName && (
                                     <div className="text-xs text-gray-500">
-                                      👤 {order.proofOfPayment.accountName}
+                                      {order.proofOfPayment.accountName}
                                     </div>
                                   )}
                                 </div>
@@ -2075,7 +2117,7 @@ const PointOfSale = () => {
                                   </span>
                                   {order.proofOfPayment?.expiresAt && !isExpired && (
                                     <div className="text-xs mt-1 text-gray-500">
-                                      ⏱️ {new Date(order.proofOfPayment.expiresAt).toLocaleTimeString()}
+                                      {new Date(order.proofOfPayment.expiresAt).toLocaleTimeString()}
                                     </div>
                                   )}
                                 </div>
@@ -2336,7 +2378,7 @@ const PointOfSale = () => {
                   }}
                   className="flex-1 py-3 rounded bg-green-500 text-white hover:bg-green-600 font-semibold shadow-lg text-base"
                 >
-                  ✓ Verify Payment
+                  Verify Payment
                 </button>
                 <button
                   onClick={() => {
@@ -2347,7 +2389,7 @@ const PointOfSale = () => {
                   }}
                   className="flex-1 py-3 rounded bg-red-500 text-white hover:bg-red-600 font-semibold shadow-lg text-base"
                 >
-                  ✗ Reject Payment
+                  Reject Payment
                 </button>
               </div>
             }
@@ -2391,7 +2433,7 @@ const PointOfSale = () => {
                       onClick={() => setExpandedImage(false)}
                       className="absolute top-2 right-2 bg-white rounded-full p-2 hover:bg-gray-100"
                     >
-                      ✕
+                      ×
                     </button>
                   </div>
                 </div>

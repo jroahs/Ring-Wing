@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const SocketService = require('../services/socketService');
 
 const registerUser = async (req, res) => {
   try {
@@ -148,6 +149,13 @@ const loginUser = async (req, res) => {
 // Add a logout endpoint
 const logoutUser = async (req, res) => {
   try {
+    // Emit socket event to logout all tabs for this user
+    const io = req.app.get('io');
+    if (io && req.user && req.user.id) {
+      SocketService.emitUserLogout(io, req.user.id, 'manual');
+      console.log(`[AuthController] Emitted logout event for user ${req.user.id}`);
+    }
+    
     res.clearCookie('token');
     res.json({ message: 'Logged out successfully' });
   } catch (err) {

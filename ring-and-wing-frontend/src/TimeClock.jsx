@@ -7,8 +7,13 @@ import Webcam from 'react-webcam';
 import { API_URL } from './App';
 import { motion, AnimatePresence } from 'framer-motion';
 import StaffAvatar from './components/StaffAvatar';
+import { useMultiTabLogout } from './hooks/useMultiTabLogout';
 
-const TimeClock = () => {  // Colors for consistent styling
+const TimeClock = () => {  
+  // Enable multi-tab logout synchronization
+  useMultiTabLogout();
+  
+  // Colors for consistent styling
   const colors = {
     primary: '#2e0304',
     background: '#fefdfd',

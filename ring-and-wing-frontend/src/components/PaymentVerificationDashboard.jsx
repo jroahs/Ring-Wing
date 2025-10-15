@@ -54,6 +54,16 @@ const PaymentVerificationDashboard = () => {
       fetchOrders(); // Refresh list
     });
 
+    // Listen for user logout events (multi-tab logout synchronization)
+    newSocket.on('userLoggedOut', (data) => {
+      console.log('[PaymentVerificationDashboard] User logged out event received:', data);
+      localStorage.removeItem('token');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userPosition');
+      localStorage.removeItem('userRole');
+      window.location.href = '/';
+    });
+
     return () => {
       newSocket.close();
     };
@@ -283,9 +293,9 @@ const PaymentVerificationDashboard = () => {
 
   const getStatusBadge = (status) => {
     const badges = {
-      pending: { bg: '#FFF3CD', color: '#856404', text: '⏳ Pending' },
-      verified: { bg: '#D4EDDA', color: '#155724', text: '✓ Verified' },
-      rejected: { bg: '#F8D7DA', color: '#721C24', text: '✗ Rejected' }
+      pending: { bg: '#FFF3CD', color: '#856404', text: 'Pending' },
+      verified: { bg: '#D4EDDA', color: '#155724', text: 'Verified' },
+      rejected: { bg: '#F8D7DA', color: '#721C24', text: 'Rejected' }
     };
     
     const badge = badges[status] || badges.pending;
@@ -451,7 +461,7 @@ const PaymentVerificationDashboard = () => {
                               'text-gray-700'
                             }`}
                           >
-                            {timeRemaining.expired ? '⚠️ Expired' : `⏱️ ${timeRemaining.text}`}
+                            {timeRemaining.expired ? 'Expired' : `${timeRemaining.text}`}
                           </span>
                         )}
                       </td>

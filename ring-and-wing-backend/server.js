@@ -54,7 +54,7 @@ let dbConnection;
     // Start enhanced connection monitoring after successful connection
     setTimeout(() => {
       connectionMonitor.startMonitoring();
-      logger.info('🔍 Advanced connection monitoring activated');
+      logger.info('Advanced connection monitoring activated');
     }, 5000); // Wait 5 seconds to ensure connection is stable
     
   } catch (error) {
@@ -457,12 +457,12 @@ app.post('/api/chat', async (req, res) => {
       // Check if content has parts array (older format)
       if (candidate.content && candidate.content.parts && candidate.content.parts[0]) {
         content = candidate.content.parts[0].text;
-        logger.info('✅ Extracted content from parts array:', content);
+        logger.info('Extracted content from parts array:', content);
       }
       // Check if content has text directly (newer format)
       else if (candidate.content && candidate.content.text) {
         content = candidate.content.text;
-        logger.info('✅ Extracted content from content.text:', content);
+        logger.info('Extracted content from content.text:', content);
       }
       // Check if there's a text field directly on the candidate
       else if (candidate.text) {
@@ -470,7 +470,7 @@ app.post('/api/chat', async (req, res) => {
         logger.debug('Extracted content from candidate.text');
       }
       else {
-        logger.error('❌ Could not extract content from Gemini response');
+        logger.error('Could not extract content from Gemini response');
         logger.error('Candidate structure:');
         console.log(JSON.stringify(candidate, null, 2));
         logger.error('Full response data:');
@@ -537,7 +537,7 @@ app.use((err, req, res, next) => {
     message: err.message,
     path: req.path,
     method: req.method,
-    stack: process.env.NODE_ENV === 'production' ? '🔒' : err.stack
+    stack: process.env.NODE_ENV === 'production' ? '[REDACTED]' : err.stack
   });
 
   if (err instanceof multer.MulterError) {
@@ -781,7 +781,7 @@ io.on('connection', (socket) => {
 // Make io available to routes
 app.set('io', io);
 
-logger.info('✅ Socket.io initialized successfully');
+logger.info('Socket.io initialized successfully');
 
 // Connection handling configuration
 server.keepAliveTimeout = 65 * 1000; // 65 seconds

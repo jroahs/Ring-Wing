@@ -11,6 +11,7 @@ import { LoadingSpinner } from './components/ui';
 import { PrintableInventoryReport } from './components/ui/PrintableInventoryReport';
 import { toast } from 'react-toastify';
 import { getCurrentUser, hasInventoryAccess, hasPermission } from './utils/permissions';
+import { io } from 'socket.io-client'; // 🔥 NEW: Real-time socket events (Sprint 22)
 
 const colors = {
   primary: '#2e0304',
@@ -257,6 +258,9 @@ const InventorySystem = () => {
   const [isRefreshThrottled, setIsRefreshThrottled] = useState(false);
   const lastRefreshTime = useRef(0);
 
+  // 🔥 NEW: Socket.io for real-time inventory updates (Sprint 22)
+  const [socket, setSocket] = useState(null);
+
   // PDF Download Function
   const handleDownloadInventoryPDF = async () => {
     if (!printableReportRef.current) {
@@ -410,16 +414,181 @@ const InventorySystem = () => {
     };
     fetchData();
     
-    // Set up automatic refresh every 5 minutes to check for newly expired items
+    // Set up automatic refresh every 10 minutes as fallback (reduced from 5min since we have real-time updates)
     // This ensures expiration alerts show up even if no manual edits are made
     const refreshInterval = setInterval(() => {
-      console.log('Auto-refreshing inventory to check for expired items...');
+      console.log('Auto-refreshing inventory (fallback polling)...');
       fetchData();
-    }, 5 * 60 * 1000); // 5 minutes
+    }, 10 * 60 * 1000); // 10 minutes (reduced from 5 since Socket.io handles real-time updates)
     
     // Cleanup interval on component unmount
     return () => clearInterval(refreshInterval);
   }, []);
+
+  // 🔥 NEW: Socket.io connection for real-time inventory updates (Sprint 22)
+  useEffect(() => {
+    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+    if (!token) {
+      console.warn('[InventorySystem] No auth token found - socket connection skipped');
+      return;
+    }
+
+    console.log('[InventorySystem] Initializing socket connection...');
+    
+    const socketConnection = io(API_URL, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
+    });
+
+    socketConnection.on('connect', () => {
+      console.log('[InventorySystem] Socket connected - Authenticated: Yes');
+      console.log('[InventorySystem] Socket ID:', socketConnection.id);
+    });
+
+    socketConnection.on('connect_error', (error) => {
+      console.error('[InventorySystem] Socket connection error:', error.message);
+    });
+
+    socketConnection.on('disconnect', (reason) => {
+      console.log('[InventorySystem] Socket disconnected:', reason);
+    });
+
+    setSocket(socketConnection);
+
+    return () => {
+      console.log('[InventorySystem] Cleaning up socket connection...');
+      socketConnection.disconnect();
+    };
+  }, []);
+
+  // 🔥 NEW: Socket.io event listeners for real-time inventory updates (Sprint 22)
+  useEffect(() => {
+    if (!socket) return;
+
+    console.log('[InventorySystem] Registering socket event listeners...');
+
+    // Event 1: Stock level changed - update item quantities instantly
+    socket.on('stockLevelChanged', (data) => {
+      console.log('[InventorySystem] stockLevelChanged event received:', data);
+      
+      setItems(prevItems => prevItems.map(item => 
+        item._id === data.itemId 
+          ? { 
+              ...item, 
+              totalQuantity: data.newStock,
+              inventory: data.inventory || item.inventory // Update batches if provided
+            }
+          : item
+      ));
+
+      // Log for debugging
+      console.log(`[InventorySystem] Updated item ${data.itemId} stock to ${data.newStock} ${data.unit}`);
+    });
+
+    // Event 2: Reservation created - add to reservation list instantly
+    socket.on('reservationCreated', (data) => {
+      console.log('[InventorySystem] reservationCreated event received:', data);
+      
+      setInventoryReservations(prevReservations => {
+        // Avoid duplicates
+        const exists = prevReservations.some(r => r._id === data.reservation._id);
+        if (exists) {
+          console.log('[InventorySystem] Reservation already exists, skipping duplicate');
+          return prevReservations;
+        }
+        return [data.reservation, ...prevReservations];
+      });
+
+      console.log(`[InventorySystem] Added new reservation: Order ${data.reservation.orderId}`);
+    });
+
+    // Event 3: Reservation completed - update status instantly
+    socket.on('reservationCompleted', (data) => {
+      console.log('[InventorySystem] reservationCompleted event received:', data);
+      
+      setInventoryReservations(prevReservations => 
+        prevReservations.map(r => 
+          r._id === data.reservationId 
+            ? { ...r, status: 'completed', completedAt: new Date().toISOString() }
+            : r
+        )
+      );
+
+      console.log(`[InventorySystem] Marked reservation ${data.reservationId} as completed`);
+    });
+
+    // Event 4: Reservation released/cancelled - remove from list instantly
+    socket.on('reservationReleased', (data) => {
+      console.log('[InventorySystem] reservationReleased event received:', data);
+      
+      setInventoryReservations(prevReservations => 
+        prevReservations.filter(r => r._id !== data.reservationId)
+      );
+
+      console.log(`[InventorySystem] Removed reservation ${data.reservationId} from list`);
+    });
+
+    // Event 5: Alert triggered - add critical alert to list instantly
+    socket.on('alertTriggered', (data) => {
+      console.log('[InventorySystem] alertTriggered event received:', data);
+      
+      // Convert socket alert format to UI alert format
+      const newAlert = {
+        id: data.id,
+        type: data.type === 'low_stock' ? 'stock' : data.type,
+        message: data.message,
+        date: new Date(data.timestamp).toISOString(),
+        severity: data.severity,
+        itemId: data.details?.itemId,
+        itemName: data.details?.itemName,
+        currentStock: data.details?.currentStock,
+        unit: data.details?.unit
+      };
+      
+      setAlerts(prevAlerts => {
+        // Avoid duplicates (check if alert with same itemId already exists)
+        const exists = prevAlerts.some(a => 
+          a.itemId === newAlert.itemId && 
+          a.type === newAlert.type &&
+          Math.abs(new Date(a.date).getTime() - new Date(newAlert.date).getTime()) < 60000 // Within 1 minute
+        );
+        
+        if (exists) {
+          console.log('[InventorySystem] Alert already exists, skipping duplicate');
+          return prevAlerts;
+        }
+        
+        return [newAlert, ...prevAlerts];
+      });
+
+      console.log(`[InventorySystem] Added critical alert for ${data.details?.itemName}`);
+    });
+
+    // Listen for user logout events (multi-tab logout synchronization)
+    socket.on('userLoggedOut', (data) => {
+      console.log('[InventorySystem] User logged out event received:', data);
+      localStorage.removeItem('token');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userPosition');
+      localStorage.removeItem('userRole');
+      window.location.href = '/';
+    });
+
+    // Cleanup event listeners on unmount
+    return () => {
+      console.log('[InventorySystem] Cleaning up socket event listeners...');
+      socket.off('stockLevelChanged');
+      socket.off('reservationCreated');
+      socket.off('reservationCompleted');
+      socket.off('reservationReleased');
+      socket.off('alertTriggered');
+      socket.off('userLoggedOut');
+    };
+  }, [socket]);
+
 
   // New inventory feature functions
   const fetchInventoryReservations = async () => {

@@ -258,9 +258,10 @@ class InventoryBusinessLogicService {
    * Called when payment is successful and order is finalized
    * @param {string} orderId - Order ID
    * @param {string} userId - User completing the order
+   * @param {object} io - Socket.io instance for real-time updates (optional)
    * @returns {Promise<object>} - Completion result
    */
-  static async completeOrderProcessing(orderId, userId) {
+  static async completeOrderProcessing(orderId, userId, io = null) {
     try {
       console.log(`Completing order processing for ${orderId}`);
       
@@ -277,10 +278,11 @@ class InventoryBusinessLogicService {
         };
       }
       
-      // Consume the reservation
+      // Consume the reservation (pass io for socket emissions)
       const consumptionResult = await InventoryReservationService.consumeReservation(
         reservation._id,
-        userId
+        userId,
+        io  // 🔥 Pass io for real-time stock level updates
       );
       
       if (!consumptionResult.success) {
@@ -401,9 +403,10 @@ class InventoryBusinessLogicService {
   
   /**
    * Generate inventory alerts for low stock
+   * @param {object} io - Socket.io instance for real-time alerts (optional)
    * @returns {Promise<object>} - Alert information
    */
-  static async generateInventoryAlerts() {
+  static async generateInventoryAlerts(io = null) {
     try {
       let lowStockItems = [];
       let restockAlerts = [];
@@ -446,6 +449,31 @@ class InventoryBusinessLogicService {
         }
         return (b.affectedMenuItems || 0) - (a.affectedMenuItems || 0);
       });
+      
+      // 🔥 Emit socket event for critical alerts (Sprint 22)
+      if (io && allAlerts.length > 0) {
+        const criticalAlerts = allAlerts.filter(a => a.priority === 'critical');
+        if (criticalAlerts.length > 0) {
+          const SocketService = require('./socketService');
+          // Emit for each critical alert
+          criticalAlerts.forEach(alert => {
+            SocketService.emitAlertTriggered(
+              io,
+              alert.type,
+              `Critical: ${alert.name || 'Item'} Out of Stock`,
+              `${alert.name || 'Item'} is critically low (${alert.availableStock || 0} ${alert.unit || ''} remaining)`,
+              'critical',
+              {
+                itemId: alert.ingredientId || alert._id,
+                itemName: alert.name,
+                currentStock: alert.availableStock || 0,
+                unit: alert.unit,
+                affectedMenuItems: alert.affectedMenuItems || 0
+              }
+            );
+          });
+        }
+      }
       
       return {
         success: true,
@@ -690,9 +718,10 @@ class InventoryBusinessLogicService {
    * Update menu item ingredients mapping
    * @param {string} menuItemId - Menu item ID
    * @param {Array} ingredients - Array of ingredient mappings
+   * @param {object} io - Socket.io instance for real-time events (optional)
    * @returns {Promise<object>} Update result
    */
-  static async updateMenuItemIngredients(menuItemId, ingredients) {
+  static async updateMenuItemIngredients(menuItemId, ingredients, io = null) {
     const startTime = Date.now();
     
     // Log operation start with connection state
@@ -1014,6 +1043,38 @@ class InventoryBusinessLogicService {
           success: true,
           timestamp: new Date().toISOString()
         });
+        
+        // 🔥 NEW: Emit socket events for real-time updates (Sprint 22)
+        if (io) {
+          const SocketService = require('./socketService');
+          
+          // Emit ingredient mapping changed event
+          SocketService.emitIngredientMappingChanged(
+            io,
+            menuItemId,
+            created.length,
+            created.length > 0
+          );
+          
+          // Check and emit menu availability after mapping change
+          try {
+            const InventoryAvailabilityService = require('./inventoryAvailabilityService');
+            const availability = await InventoryAvailabilityService.checkMenuItemAvailability(menuItemId, 1);
+            
+            SocketService.emitMenuAvailabilityChanged(
+              io,
+              menuItemId,
+              availability.isAvailable,
+              availability.isAvailable ? 'All ingredients available' : 'Insufficient ingredients',
+              availability.insufficientIngredients || []
+            );
+          } catch (availError) {
+            logger.warn('[INGREDIENT_MAPPING] Failed to check availability for socket emit', {
+              menuItemId,
+              error: availError.message
+            });
+          }
+        }
         
         return {
           success: true,

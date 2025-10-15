@@ -1,4 +1,4 @@
-# 🎯 Critical Distinction: Two Types of "Pending" Orders
+# Critical Distinction: Two Types of "Pending" Orders
 
 ## Summary of Key Insight
 
@@ -7,7 +7,7 @@ Payment verification orders should NOT appear in POS "Pending Orders" because th
 
 ---
 
-## ❌ What We Almost Got Wrong
+## What We Almost Got Wrong
 
 **Initial Plan (Incorrect):**
 - Mix payment verification orders with POS pending orders
@@ -21,7 +21,7 @@ Payment verification orders should NOT appear in POS "Pending Orders" because th
 
 ---
 
-## ✅ The Correct Approach
+## The Correct Approach
 
 ### **Two Completely Separate Workflows:**
 
@@ -30,14 +30,14 @@ Payment verification orders should NOT appear in POS "Pending Orders" because th
 | **Purpose** | Editable draft orders | Locked orders awaiting payment proof |
 | **Status** | `pending` | `pending_payment` |
 | **PaymentMethod** | `pending` | `e-wallet` |
-| **Can Edit?** | ✅ Yes - add/remove items | ❌ No - order is final |
+| **Can Edit?** | Yes - add/remove items | No - order is final |
 | **Workflow** | Customer at counter → Build order → Process payment | Customer paid online → Upload proof → Verify |
 | **Location** | POS "Pending Orders" tab | Verification Dashboard (separate) |
-| **Visibility in POS** | ✅ Visible immediately | ❌ Hidden until verified |
+| **Visibility in POS** | Visible immediately | Hidden until verified |
 
 ---
 
-## 🔄 Complete Order Lifecycle
+## Complete Order Lifecycle
 
 ### **Dine-in Orders (Traditional Flow):**
 ```
@@ -69,7 +69,7 @@ Payment verification orders should NOT appear in POS "Pending Orders" because th
 
 ---
 
-## 🎨 UI Layout
+## UI Layout
 
 ### **Dashboard (for Cashiers/Admins)**
 ```

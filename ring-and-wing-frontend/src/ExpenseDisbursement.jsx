@@ -6,6 +6,7 @@ import ExpenseCard from './components/ui/ExpenseCard.jsx';
 import ExpenseFilters from './components/ui/ExpenseFilters.jsx';
 import ExpenseSummary from './components/ui/ExpenseSummary.jsx';
 import ExpenseFilterPanel from './components/ui/ExpenseFilterPanel.jsx';
+import { useMultiTabLogout } from './hooks/useMultiTabLogout';
 
 const colors = {
   primary: '#2e0304',
@@ -19,6 +20,9 @@ const colors = {
 };
 
 const ExpenseTracker = ({ colors }) => {
+  // Enable multi-tab logout synchronization
+  useMultiTabLogout();
+  
   const [expenses, setExpenses] = useState([]);
   const [formData, setFormData] = useState({
     date: '',

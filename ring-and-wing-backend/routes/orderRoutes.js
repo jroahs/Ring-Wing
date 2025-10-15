@@ -7,6 +7,7 @@ const InventoryBusinessLogicService = require('../services/inventoryBusinessLogi
 const paymentVerificationController = require('../controllers/paymentVerificationController');
 const { auth, isManager } = require('../middleware/authMiddleware');
 const uploadMiddleware = require('../config/multer');
+const SocketService = require('../services/socketService');
 
 // Advanced validation middleware
 const validateOrder = (req, res, next) => {
@@ -41,6 +42,13 @@ router.post('/', validateOrder, criticalCheck, async (req, res, next) => {
 
     const order = new Order(orderData);
     await order.save();
+    
+    // Emit socket event for real-time updates (POS "Dine/Take-outs" tab)
+    const io = req.app.get('io');
+    if (io && (order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery' || order.fulfillmentType === 'dine-in')) {
+      SocketService.emitNewOrder(io, order.toObject());
+      console.log(`[OrderRoutes] Emitted newPaymentOrder for ${order.fulfillmentType} order ${order._id}`);
+    }
     
     res.status(201).json({
       success: true,
@@ -217,11 +225,15 @@ router.patch('/:id', async (req, res, next) => {
         // Get user ID from request (set by auth middleware) or from body
         const userId = req.user?.id || req.user?._id || req.body.userId || 'system';
         
+        // 🔥 Get io instance for real-time socket emissions (Sprint 22)
+        const io = req.app.get('io');
+        
         console.log(`Order ${order._id} completed - attempting to consume inventory reservations`);
         
         const consumptionResult = await InventoryBusinessLogicService.completeOrderProcessing(
           order._id.toString(),
-          userId
+          userId,
+          io  // 🔥 Pass io for real-time stock level updates on completion
         );
         
         if (consumptionResult.success && consumptionResult.hasInventoryIntegration) {

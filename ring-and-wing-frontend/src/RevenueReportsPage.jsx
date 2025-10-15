@@ -2,8 +2,12 @@ import { useState } from 'react';
 import RevenueReports from './components/RevenueReports';
 import ReceiptHistory from './components/ReceiptHistory';
 import { theme } from './theme';
+import { useMultiTabLogout } from './hooks/useMultiTabLogout';
 
 const RevenueReportsPage = () => {
+  // Enable multi-tab logout synchronization
+  useMultiTabLogout();
+  
   const [activeTab, setActiveTab] = useState('revenue'); // 'revenue' or 'receipts'
   const getPageTitle = () => {
     return activeTab === 'revenue' ? 'Revenue Reports' : 'Receipt History';

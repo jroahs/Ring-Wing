@@ -5,9 +5,13 @@ import PaymentSettings from './components/PaymentSettings';
 import PaymentVerificationDashboard from './components/PaymentVerificationDashboard';
 import { colors, theme } from './theme'; // Import centralized colors
 import { FiSettings, FiDollarSign } from 'react-icons/fi';
+import { useMultiTabLogout } from './hooks/useMultiTabLogout';
 
 function Dashboard() {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'verification', or 'settings'
+  
+  // Enable multi-tab logout synchronization
+  useMultiTabLogout();
 
   const getPageTitle = () => {
     if (activeTab === 'overview') return 'Dashboard Overview';

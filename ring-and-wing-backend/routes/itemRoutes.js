@@ -141,6 +141,10 @@ router.post('/', async (req, res) => {
 // Update item
 router.put('/:id', async (req, res) => {
   try {
+    // Get previous state for comparison
+    const previousItem = await Item.findById(req.params.id).lean();
+    const previousQuantity = previousItem?.inventory.reduce((sum, b) => sum + b.quantity, 0) || 0;
+    
     const updatedItem = await Item.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -151,9 +155,27 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Item not found' });
     }
 
+    const newQuantity = updatedItem.inventory.reduce((sum, b) => sum + b.quantity, 0);
+    
+    // 🔥 Emit socket event if quantity changed (Sprint 22)
+    if (previousQuantity !== newQuantity) {
+      const io = req.app.get('io');
+      if (io) {
+        const SocketService = require('../services/socketService');
+        SocketService.emitStockLevelChanged(
+          io,
+          updatedItem._id,
+          updatedItem.name,
+          newQuantity,
+          previousQuantity,
+          updatedItem.unit
+        );
+      }
+    }
+
     res.json({
       ...updatedItem,
-      totalQuantity: updatedItem.inventory.reduce((sum, b) => sum + b.quantity, 0),
+      totalQuantity: newQuantity,
       status: calculateStatus(updatedItem.inventory, updatedItem.minimumThreshold, updatedItem.unit)
     });
   } catch (err) {
@@ -193,6 +215,9 @@ router.patch('/:id/restock', async (req, res) => {
       return res.status(404).json({ message: 'Item not found' });
     }
 
+    // Store previous quantity for socket emission
+    const previousQuantity = item.totalQuantity;
+
     item.inventory.push({
       quantity: Number(quantity),
       expirationDate: expDate,
@@ -201,9 +226,25 @@ router.patch('/:id/restock', async (req, res) => {
     });
 
     const updatedItem = await item.save();
+    const newQuantity = updatedItem.totalQuantity;
+    
+    // 🔥 Emit socket event for stock level change (Sprint 22)
+    const io = req.app.get('io');
+    if (io) {
+      const SocketService = require('../services/socketService');
+      SocketService.emitStockLevelChanged(
+        io,
+        updatedItem._id,
+        updatedItem.name,
+        newQuantity,
+        previousQuantity,
+        updatedItem.unit
+      );
+    }
+    
     res.json({
       ...updatedItem.toObject(),
-      totalQuantity: updatedItem.totalQuantity,
+      totalQuantity: newQuantity,
       status: updatedItem.status
     });
   } catch (err) {

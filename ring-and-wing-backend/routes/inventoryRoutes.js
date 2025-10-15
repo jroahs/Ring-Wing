@@ -19,7 +19,10 @@ router.get('/test', async (req, res) => {
 // Get inventory alerts
 router.get('/alerts', async (req, res) => {
   try {
-    const alerts = await InventoryBusinessLogicService.generateInventoryAlerts();
+    // 🔥 Get io instance for real-time alert emissions (Sprint 22)
+    const io = req.app.get('io');
+    
+    const alerts = await InventoryBusinessLogicService.generateInventoryAlerts(io);
     res.json({
       success: true,
       data: alerts
@@ -72,12 +75,16 @@ router.post('/reserve', async (req, res) => {
 
     console.log('Validation passed, calling createOrderReservation...');
     
+    // 🔥 Get io instance for socket emissions (Sprint 22)
+    const io = req.app.get('io');
+    
     // Use createOrderReservation which is the correct method
     const result = await InventoryReservationService.createOrderReservation(
       orderId,
       items,
       reservedBy || 'system',
-      {}
+      {}, // options
+      io  // 🔥 Pass io for real-time socket events
     );
 
     console.log('Reservation service result:', { success: result.success, hasReservation: !!result.reservation });

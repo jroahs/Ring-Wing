@@ -15,6 +15,8 @@ import {
   Search,
   Download
 } from 'lucide-react';
+import { io } from 'socket.io-client'; // 🔥 NEW: Real-time reservation updates (Sprint 22)
+import { API_URL } from '../App'; // 🔥 NEW: Import API_URL for socket connection
 
 /**
  * Reservation Monitoring Panel
@@ -28,6 +30,7 @@ const ReservationMonitoringPanel = ({ className = "" }) => {
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [showReleaseModal, setShowReleaseModal] = useState(false);
   const [releaseReason, setReleaseReason] = useState('');
+  const [socket, setSocket] = useState(null); // 🔥 NEW: Socket.io for real-time reservations (Sprint 22)
 
   // Reservation status configuration
   const statusConfig = {
@@ -82,12 +85,144 @@ const ReservationMonitoringPanel = ({ className = "" }) => {
     }
   }, [filter, searchTerm]);
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 10 minutes (reduced from 2min since we have real-time updates)
   useEffect(() => {
     fetchReservations();
-    const interval = setInterval(fetchReservations, 120000); // Increased from 30s to 2 minutes
+    const interval = setInterval(fetchReservations, 600000); // 10 minutes (reduced from 2min since Socket.io handles real-time updates)
     return () => clearInterval(interval);
   }, [fetchReservations]);
+
+  // 🔥 NEW: Socket.io connection for real-time reservation updates (Sprint 22)
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.warn('[ReservationMonitoringPanel] No auth token found - socket connection skipped');
+      return;
+    }
+
+    console.log('[ReservationMonitoringPanel] Initializing socket connection...');
+    
+    const socketConnection = io(API_URL, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
+    });
+
+    socketConnection.on('connect', () => {
+      console.log('[ReservationMonitoringPanel] Socket connected - Authenticated: Yes');
+      console.log('[ReservationMonitoringPanel] Socket ID:', socketConnection.id);
+    });
+
+    socketConnection.on('connect_error', (error) => {
+      console.error('[ReservationMonitoringPanel] Socket connection error:', error.message);
+    });
+
+    socketConnection.on('disconnect', (reason) => {
+      console.log('[ReservationMonitoringPanel] Socket disconnected:', reason);
+    });
+
+    setSocket(socketConnection);
+
+    return () => {
+      console.log('[ReservationMonitoringPanel] Cleaning up socket connection...');
+      socketConnection.disconnect();
+    };
+  }, []);
+
+  // 🔥 NEW: Socket.io event listeners for real-time reservation updates (Sprint 22)
+  useEffect(() => {
+    if (!socket) return;
+
+    console.log('[ReservationMonitoringPanel] Registering socket event listeners...');
+
+    // Event 1: Reservation created - add to list instantly
+    socket.on('reservationCreated', (data) => {
+      console.log('[ReservationMonitoringPanel] reservationCreated event received:', data);
+      
+      const newReservation = data.reservation;
+      
+      setReservations(prevReservations => {
+        // Check for duplicates
+        const exists = prevReservations.some(r => r._id === newReservation._id);
+        if (exists) {
+          console.log('[ReservationMonitoringPanel] Reservation already exists, skipping duplicate');
+          return prevReservations;
+        }
+        
+        // Add to top of list if it matches current filter
+        if (filter === 'all' || filter === 'active') {
+          return [newReservation, ...prevReservations];
+        }
+        return prevReservations;
+      });
+
+      console.log(`[ReservationMonitoringPanel] Added new reservation: Order ${newReservation.orderId}`);
+    });
+
+    // Event 2: Reservation completed - update status instantly
+    socket.on('reservationCompleted', (data) => {
+      console.log('[ReservationMonitoringPanel] reservationCompleted event received:', data);
+      
+      setReservations(prevReservations => {
+        // If filtering by 'active', remove the completed reservation
+        if (filter === 'active') {
+          return prevReservations.filter(r => r._id !== data.reservationId);
+        }
+        
+        // Otherwise, update status
+        return prevReservations.map(r => 
+          r._id === data.reservationId 
+            ? { ...r, status: 'completed', completedAt: new Date().toISOString() }
+            : r
+        );
+      });
+
+      console.log(`[ReservationMonitoringPanel] Marked reservation ${data.reservationId} as completed`);
+    });
+
+    // Event 3: Reservation released/cancelled - remove or update instantly
+    socket.on('reservationReleased', (data) => {
+      console.log('[ReservationMonitoringPanel] reservationReleased event received:', data);
+      
+      setReservations(prevReservations => {
+        // If filtering by 'active', remove the released reservation
+        if (filter === 'active') {
+          return prevReservations.filter(r => r._id !== data.reservationId);
+        }
+        
+        // Otherwise, update status
+        return prevReservations.map(r => 
+          r._id === data.reservationId 
+            ? { ...r, status: 'released', releasedAt: new Date().toISOString() }
+            : r
+        );
+      });
+
+      console.log(`[ReservationMonitoringPanel] Removed/updated reservation ${data.reservationId}`);
+    });
+
+    // Listen for user logout events (multi-tab logout synchronization)
+    socket.on('userLoggedOut', (data) => {
+      console.log('[ReservationMonitoringPanel] User logged out event received:', data);
+      localStorage.removeItem('token');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userPosition');
+      localStorage.removeItem('userRole');
+      window.location.href = '/';
+    });
+
+    // Cleanup event listeners on unmount
+    return () => {
+      console.log('[ReservationMonitoringPanel] Cleaning up socket event listeners...');
+      socket.off('reservationCreated');
+      socket.off('reservationCompleted');
+      socket.off('reservationReleased');
+      socket.off('userLoggedOut');
+    };
+  }, [socket, filter]);
+
 
   /**
    * Release reservation manually

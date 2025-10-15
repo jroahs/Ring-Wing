@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { FiClock, FiCoffee, FiCalendar, FiFilter, FiSearch, FiX, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { LoadingSpinner } from './components/ui';
+import { useMultiTabLogout } from './hooks/useMultiTabLogout';
 
 const OrderSystem = () => {
   const [orders, setOrders] = useState([]);
@@ -16,6 +17,9 @@ const OrderSystem = () => {
   const searchInputRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Enable multi-tab logout synchronization
+  useMultiTabLogout();
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);

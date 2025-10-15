@@ -35,9 +35,10 @@ class InventoryReservationService {
    * @param {object[]} orderItems - Array of {menuItemId, quantity, name} objects
    * @param {string} userId - User performing the reservation
    * @param {object} options - Additional options
+   * @param {object} io - Socket.io instance for real-time events (optional)
    * @returns {Promise<object>} - Reservation result
    */
-  static async createOrderReservation(orderId, orderItems, userId, options = {}) {
+  static async createOrderReservation(orderId, orderItems, userId, options = {}, io = null) {
     // Check transaction support
     const useTransactions = await this.supportsTransactions();
     console.log(`MongoDB transaction support: ${useTransactions ? 'enabled' : 'disabled (standalone mode)'}`);
@@ -218,6 +219,15 @@ class InventoryReservationService {
         { path: 'reservations.ingredientId', select: 'name category unit quantity' }
       ]);
       
+      // 🔥 NEW: Emit socket events for real-time updates (Sprint 22)
+      if (io) {
+        const SocketService = require('./socketService');
+        SocketService.emitReservationCreated(
+          io,
+          reservation.toObject() // Pass full reservation object for frontend
+        );
+      }
+      
       return {
         success: true,
         reservation,
@@ -264,9 +274,10 @@ class InventoryReservationService {
    * Consume a reservation (convert reserved inventory to actual consumption)
    * @param {string} reservationId - The reservation ID
    * @param {string} userId - User consuming the reservation
+   * @param {object} io - Socket.io instance for real-time events (optional)
    * @returns {Promise<object>} - Consumption result
    */
-  static async consumeReservation(reservationId, userId) {
+  static async consumeReservation(reservationId, userId, io = null) {
     const supportsTransactions = await this.supportsTransactions();
     console.log(`Consuming reservation - transaction support: ${supportsTransactions}`);
     let session = null;
@@ -378,6 +389,33 @@ class InventoryReservationService {
         await session.commitTransaction();
       }
       
+      // 🔥 NEW: Emit socket events for real-time updates (Sprint 22)
+      if (io) {
+        const SocketService = require('./socketService');
+        
+        // Emit reservation completed event
+        SocketService.emitReservationCompleted(io, reservationId, reservation.orderId);
+        
+        // Emit stock level changes for consumed items
+        for (const item of adjustmentItems) {
+          try {
+            const ingredient = await Item.findById(item.itemId);
+            if (ingredient) {
+              SocketService.emitStockLevelChanged(
+                io,
+                item.itemId,
+                ingredient.name,
+                item.quantityAfter,
+                item.quantityBefore,
+                item.unit
+              );
+            }
+          } catch (stockEmitError) {
+            console.warn('Failed to emit stock level change:', stockEmitError.message);
+          }
+        }
+      }
+      
       return {
         success: true,
         reservation,
@@ -404,9 +442,10 @@ class InventoryReservationService {
    * @param {string} reservationId - The reservation ID
    * @param {string} userId - User releasing the reservation
    * @param {string} reason - Reason for release
+   * @param {object} io - Socket.io instance for real-time events (optional)
    * @returns {Promise<object>} - Release result
    */
-  static async releaseReservation(reservationId, userId, reason = 'Manual release') {
+  static async releaseReservation(reservationId, userId, reason = 'Manual release', io = null) {
     const supportsTransactions = await this.supportsTransactions();
     let session = null;
     
@@ -485,6 +524,12 @@ class InventoryReservationService {
       
       if (supportsTransactions) {
         await session.commitTransaction();
+      }
+      
+      // 🔥 NEW: Emit socket events for real-time updates (Sprint 22)
+      if (io) {
+        const SocketService = require('./socketService');
+        SocketService.emitReservationReleased(io, reservationId, reservation.orderId, reason);
       }
       
       return {
