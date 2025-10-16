@@ -92,9 +92,9 @@ const colors = {
 
 const initialItem = {
   name: '',
-  category: 'Beverages',
+  category: 'Meals',
   code: '',
-  subCategory: 'Coffee',
+  subCategory: 'Rice Meals', // Default to first Meals subcategory
   pricing: {},
   description: '',
   image: '',
@@ -230,6 +230,17 @@ const MenuPage = () => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newSubCategoryName, setNewSubCategoryName] = useState('');
   const [selectedCategoryForSubCat, setSelectedCategoryForSubCat] = useState('');
+  
+  // Size management states
+  const [showSizeModal, setShowSizeModal] = useState(false);
+  const [editingSubcategory, setEditingSubcategory] = useState(null);
+  const [editingCategoryId, setEditingCategoryId] = useState(null);
+  const [subcategorySizes, setSubcategorySizes] = useState([]);
+  const [newSizeName, setNewSizeName] = useState('');
+  const [newSizeDisplayName, setNewSizeDisplayName] = useState('');
+  const [commonSizes, setCommonSizes] = useState([]); // Previously used sizes across all subcategories
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [filteredSizes, setFilteredSizes] = useState([]);
 
   // Inventory integration state
   const [inventoryItems, setInventoryItems] = useState([]);
@@ -249,21 +260,196 @@ const MenuPage = () => {
   const selectedCategory = watch('category');
   const selectedSubCategory = watch('subCategory');
 
+  // Handle selectedItem changes - populate form with existing data
   useEffect(() => {
-    if (!selectedItem?._id) {
-      const validSubs = Object.keys(menuConfig[selectedCategory]?.subCategories || {});
-      const currentSub = watch('subCategory');
+    if (selectedItem?._id) {
+      // Normalize pricing data for editing
+      const normalizedPricing = { ...selectedItem.pricing };
       
+      console.log('Raw pricing from database:', normalizedPricing);
+      
+      // Detect if this is a single-price item (no size-based pricing)
+      const hasSizePricing = Object.keys(normalizedPricing).some(key => 
+        key !== 'base' && key !== 'single' && key !== '_id'
+      );
+      
+      // Convert 'base' pricing to 'single' for items without size variations
+      if (!hasSizePricing && normalizedPricing.base !== undefined) {
+        normalizedPricing.single = normalizedPricing.base;
+        console.log('Converted base price to single:', normalizedPricing.base);
+        delete normalizedPricing.base; // Remove base to avoid confusion
+      }
+      
+      // If there's no pricing at all, initialize single as empty
+      if (Object.keys(normalizedPricing).filter(k => k !== '_id').length === 0) {
+        normalizedPricing.single = '';
+        console.log('No pricing found, initializing single price as empty');
+      }
+      
+      // Ensure all pricing values are properly initialized as numbers or empty strings
+      // This fixes form field initialization issues when editing items
+      Object.keys(normalizedPricing).forEach(key => {
+        if (key === '_id') return; // Skip MongoDB _id field
+        
+        const value = normalizedPricing[key];
+        if (value === null || value === undefined) {
+          normalizedPricing[key] = '';
+        } else if (typeof value === 'number') {
+          // Keep numbers as-is
+          normalizedPricing[key] = value;
+        } else {
+          // Convert to number if possible, otherwise empty string
+          const parsed = parseFloat(value);
+          normalizedPricing[key] = isNaN(parsed) ? '' : parsed;
+        }
+      });
+      
+      console.log('Initializing edit form with pricing:', normalizedPricing);
+      
+      // Determine if subcategory has sizes to set ignoreSizes flag
+      const backendCategory = categories.find(c => (c.name || c.category) === selectedItem.category);
+      let subcatHasSizes = false;
+      
+      if (backendCategory) {
+        const subcat = (backendCategory.subCategories || backendCategory.subcategories || [])
+          .find(sub => (sub.name || sub.displayName) === selectedItem.subCategory);
+        subcatHasSizes = subcat?.sizes && subcat.sizes.length > 0;
+        console.log(`Subcategory "${selectedItem.subCategory}" has sizes:`, subcatHasSizes, subcat?.sizes);
+      }
+      
+      // Set ignoreSizes flag if subcategory has sizes but item uses single pricing
+      const shouldIgnoreSizes = subcatHasSizes && !hasSizePricing;
+      
+      const formData = {
+        ...selectedItem,
+        pricing: normalizedPricing,
+        ignoreSizes: shouldIgnoreSizes
+      };
+      
+      console.log('Resetting form with data:', formData);
+      console.log('Edit form initialized with ignoreSizes:', shouldIgnoreSizes);
+      
+      // Reset form with normalized data
+      reset(formData);
+      
+      // Double-check that pricing.single is set (workaround for form hook issues)
+      if (normalizedPricing.single !== undefined && normalizedPricing.single !== null) {
+        setTimeout(() => {
+          const currentValue = getValues('pricing.single');
+          if (currentValue !== normalizedPricing.single) {
+            console.warn('Form pricing.single mismatch detected, forcing setValue');
+            setValue('pricing.single', normalizedPricing.single);
+          }
+        }, 100);
+      }
+    }
+  }, [selectedItem, reset, categories, setValue, getValues]);
+
+  useEffect(() => {
+    // Prefer backend-driven `categories` (set in fetchData). Fallback to menuConfig / MENU_CONFIG.
+    if (!selectedItem?._id) {
+      const categoryName = watch('category');
+
+      // derive list of valid subcategory names from dynamic `categories`
+      const backendCategory = categories.find(c => (c.name || c.category) === categoryName);
+      let validSubs = [];
+
+      if (backendCategory) {
+        const subs = backendCategory.subCategories || backendCategory.subcategories || [];
+        validSubs = subs.map(s => (s && (s.name || s.displayName)) || '').filter(Boolean);
+      }
+
+      // fallback to dynamic menuConfig structure if backend category not found
+      if (validSubs.length === 0) {
+        validSubs = Object.keys(menuConfig[categoryName]?.subCategories || {});
+      }
+
+      // final fallback to initial config constants (MENU_CONFIG) if still empty
+      if (!validSubs || validSubs.length === 0) {
+        const fallback = (typeof MENU_CONFIG !== 'undefined' && MENU_CONFIG[categoryName])
+          ? (MENU_CONFIG[categoryName].subCategories || [])
+          : [];
+        validSubs = fallback;
+      }
+
+      const currentSub = watch('subCategory');
       if (!validSubs.includes(currentSub)) {
         const defaultSub = validSubs[0] || '';
         // Preserve existing form values while updating subcategory
-        reset({ 
+        reset({
           ...watch(),
-          subCategory: defaultSub 
+          subCategory: defaultSub
         });
       }
     }
-  }, [selectedCategory, reset, selectedItem, watch, menuConfig]);
+  }, [selectedCategory, reset, selectedItem, watch, menuConfig, categories]);
+
+  // Set default subcategory when categories first load (for initial form)
+  useEffect(() => {
+    if (categories.length > 0 && !selectedItem?._id) {
+      const currentCategory = watch('category');
+      const currentSubCategory = watch('subCategory');
+      
+      // Find the backend category
+      const backendCategory = categories.find(c => (c.name || c.category) === currentCategory);
+      
+      if (backendCategory) {
+        const subs = backendCategory.subCategories || backendCategory.subcategories || [];
+        const validSubs = subs
+          .filter(s => s.isActive !== false)
+          .map(s => (s && (s.name || s.displayName)) || '')
+          .filter(Boolean);
+        
+        // If current subcategory is not in the list, set to first valid one
+        if (validSubs.length > 0 && !validSubs.includes(currentSubCategory)) {
+          setValue('subCategory', validSubs[0]);
+        }
+      }
+    }
+  }, [categories, selectedItem, watch, setValue]);
+
+  // Clear pricing when subcategory changes (for new items only, not editing)
+  useEffect(() => {
+    if (!selectedItem?._id && selectedSubCategory) {
+      // Get the sizes for the new subcategory
+      const backendCategory = categories.find(c => (c.name || c.category) === selectedCategory);
+      let newSizes = [];
+      
+      if (backendCategory) {
+        const subcategory = (backendCategory.subCategories || backendCategory.subcategories || [])
+          .find(sub => (sub.name || sub.displayName) === selectedSubCategory);
+        
+        if (subcategory && subcategory.sizes && subcategory.sizes.length > 0) {
+          newSizes = subcategory.sizes;
+        }
+      }
+      
+      // Fallback to menuConfig
+      if (newSizes.length === 0 && menuConfig[selectedCategory]?.subCategories[selectedSubCategory]?.sizes) {
+        newSizes = menuConfig[selectedCategory].subCategories[selectedSubCategory].sizes;
+      }
+      
+      // Clear all pricing fields to prevent stale data
+      const currentPricing = watch('pricing') || {};
+      const clearedPricing = {};
+      
+      // Only initialize fields that match the new sizes
+      if (newSizes.length > 0) {
+        newSizes.forEach(size => {
+          const sizeName = size.name || size;
+          clearedPricing[sizeName] = ''; // Initialize as empty
+        });
+        console.log('Subcategory changed - cleared pricing for new sizes:', Object.keys(clearedPricing));
+      } else {
+        // No sizes, so we need single pricing
+        clearedPricing.single = '';
+        console.log('Subcategory changed - cleared pricing for single price mode');
+      }
+      
+      setValue('pricing', clearedPricing);
+      setValue('ignoreSizes', false); // Reset ignore sizes checkbox
+    }
+  }, [selectedSubCategory, selectedItem, categories, selectedCategory, menuConfig, watch, setValue]);
 
   const createAddOn = async () => {
     try {
@@ -509,9 +695,22 @@ const MenuPage = () => {
                 subcats.forEach(subCat => {
                   const subCatName = subCat.name || subCat;
                   if (subCatName) {
-                    // Extract sizes from subcategory, ensuring proper format
+                    // Extract sizes from subcategory, preserving full size objects
                     const sizes = subCat.sizes && subCat.sizes.length > 0 
-                      ? subCat.sizes.map(size => size.displayName || size.name || size)
+                      ? subCat.sizes.map(size => {
+                          // Ensure we always have an object with name and displayName
+                          if (typeof size === 'object' && size.name) {
+                            return {
+                              name: size.name,
+                              displayName: size.displayName || size.name
+                            };
+                          }
+                          // Fallback for string sizes
+                          return {
+                            name: size,
+                            displayName: size
+                          };
+                        })
                       : [];
                     
                     // Extract addons from subcategory
@@ -1005,29 +1204,60 @@ const MenuPage = () => {
     const controller = new AbortController();
     
     try {
-      const categoryConfig = menuConfig[data.category];
-      if (!categoryConfig) throw new Error(`Invalid category: ${data.category}`);
-  
-      // Final validation check before submission
-      const validSubs = Object.keys(categoryConfig.subCategories || {});
-      if (!validSubs.includes(data.subCategory)) {
-        throw new Error(`Invalid subcategory: ${data.subCategory}`);
+      // Use database categories instead of menuConfig for validation
+      const backendCategory = categories.find(c => (c.name || c.category) === data.category);
+      if (!backendCategory) {
+        // Fallback to menuConfig if database categories not loaded
+        const categoryConfig = menuConfig[data.category];
+        if (!categoryConfig) throw new Error(`Invalid category: ${data.category}`);
       }
   
-      const subCategory = categoryConfig.subCategories[data.subCategory];
-      if (!subCategory) throw new Error(`Invalid subcategory: ${data.subCategory}`);
+      // Get subcategory from database categories (more reliable)
+      const subcats = backendCategory 
+        ? (backendCategory.subCategories || backendCategory.subcategories || [])
+        : [];
+      
+      const subCategory = subcats.find(sub => (sub.name || sub.displayName) === data.subCategory);
+      
+      // Fallback to menuConfig for subcategory if not found in database
+      if (!subCategory && backendCategory) {
+        throw new Error(`Invalid subcategory: ${data.subCategory}`);
+      }
+      
+      const subCategoryConfig = subCategory || (menuConfig[data.category]?.subCategories?.[data.subCategory]);
+      if (!subCategoryConfig) throw new Error(`Invalid subcategory: ${data.subCategory}`);
   
       const processedPricing = {};
-      if (subCategory.sizes?.length > 0) {
-        subCategory.sizes.forEach(size => {
-          const price = parseFloat(data.pricing[size]);
-          if (isNaN(price)) throw new Error(`Invalid price for ${size}`);
-          processedPricing[size] = price;
-        });
+      
+      // Get sizes from subcategory (database takes priority)
+      const sizes = subCategory?.sizes || subCategoryConfig.sizes || [];
+      
+      // Check if user wants to ignore sizes OR subcategory has no sizes (both use single price)
+      if (data.ignoreSizes || sizes.length === 0) {
+        // Single price for items without size variations
+        const singlePrice = parseFloat(data.pricing?.single);
+        if (isNaN(singlePrice)) throw new Error('Invalid price: Please enter a valid single price');
+        processedPricing.base = singlePrice;
       } else {
-        const basePrice = parseFloat(data.pricing.base);
-        if (isNaN(basePrice)) throw new Error('Invalid base price');
-        processedPricing.base = basePrice;
+        // Subcategory has sizes configured - validate all required sizes have prices
+        const missingPrices = [];
+        sizes.forEach(size => {
+          const sizeName = size.name || size;
+          const priceValue = data.pricing?.[sizeName];
+          const price = parseFloat(priceValue);
+          
+          if (priceValue === undefined || priceValue === null || priceValue === '') {
+            missingPrices.push(size.displayName || sizeName);
+          } else if (isNaN(price)) {
+            throw new Error(`Invalid price for ${size.displayName || sizeName}: "${priceValue}" is not a valid number`);
+          } else {
+            processedPricing[sizeName] = price;
+          }
+        });
+        
+        if (missingPrices.length > 0) {
+          throw new Error(`Missing prices for: ${missingPrices.join(', ')}. Please fill in all size prices.`);
+        }
       }
   
       const formData = new FormData();
@@ -1040,6 +1270,7 @@ const MenuPage = () => {
       formData.append('modifiers', JSON.stringify(data.modifiers || []));
       formData.append('preparationTime', data.preparationTime.toString());
       formData.append('isAvailable', data.isAvailable.toString());
+      formData.append('ignoreSizes', data.ignoreSizes ? 'true' : 'false');
       formData.append('ingredients', JSON.stringify(selectedIngredients));
   
       if (imageFile) formData.append('image', imageFile);
@@ -1320,20 +1551,134 @@ const MenuPage = () => {
       return;
     }
     
+    if (!categoryId || !subCategoryId) {
+      alert('Error: Missing category ID or subcategory ID');
+      console.error('Delete failed - categoryId:', categoryId, 'subCategoryId:', subCategoryId);
+      return;
+    }
+    
     try {
+      console.log('Deleting subcategory:', { categoryId, subCategoryId });
+      
       const response = await fetch(`http://localhost:5000/api/categories/${categoryId}/subcategories/${subCategoryId}`, {
         method: 'DELETE'
       });
       
-      if (response.ok) {
+      const data = await response.json();
+      console.log('Delete response:', data);
+      
+      if (response.ok && data.success) {
         await fetchData(); // Refresh data
         alert('Subcategory deleted successfully!');
       } else {
-        throw new Error('Failed to delete subcategory');
+        throw new Error(data.message || 'Failed to delete subcategory');
       }
     } catch (error) {
       console.error('Error deleting subcategory:', error);
       alert('Error deleting subcategory: ' + error.message);
+    }
+  };
+
+  // Size Management Functions
+  const openSizeModal = (categoryId, subcategory) => {
+    setEditingCategoryId(categoryId);
+    setEditingSubcategory(subcategory);
+    setSubcategorySizes(subcategory.sizes || []);
+    
+    // Extract all unique sizes from all subcategories for the dropdown
+    const allSizes = new Map(); // Use Map to avoid duplicates
+    categories.forEach(cat => {
+      const subs = cat.subCategories || cat.subcategories || [];
+      subs.forEach(sub => {
+        if (sub.sizes && sub.sizes.length > 0) {
+          sub.sizes.forEach(size => {
+            const key = size.name || size;
+            if (!allSizes.has(key)) {
+              allSizes.set(key, {
+                name: size.name || size,
+                displayName: size.displayName || size.name || size
+              });
+            }
+          });
+        }
+      });
+    });
+    
+    setCommonSizes(Array.from(allSizes.values()));
+    setFilteredSizes(Array.from(allSizes.values()));
+    setShowSizeModal(true);
+  };
+
+  const handleSizeNameChange = (value) => {
+    setNewSizeName(value);
+    
+    // Filter suggestions based on input
+    if (value.trim()) {
+      const filtered = commonSizes.filter(size => 
+        size.name.toLowerCase().includes(value.toLowerCase()) ||
+        size.displayName.toLowerCase().includes(value.toLowerCase())
+      );
+      setFilteredSizes(filtered);
+      setShowSuggestions(filtered.length > 0);
+    } else {
+      setFilteredSizes(commonSizes);
+      setShowSuggestions(false);
+    }
+  };
+
+  const selectSuggestion = (size) => {
+    setNewSizeName(size.name);
+    setNewSizeDisplayName(size.displayName); // Always overwrite
+    setShowSuggestions(false);
+  };
+
+  const addSize = () => {
+    if (!newSizeName.trim()) {
+      alert('Please enter a size name');
+      return;
+    }
+
+    const newSize = {
+      name: newSizeName.trim(),
+      displayName: newSizeDisplayName.trim() || newSizeName.trim(),
+      sortOrder: subcategorySizes.length,
+      isDefault: subcategorySizes.length === 0 // First size is default
+    };
+
+    setSubcategorySizes([...subcategorySizes, newSize]);
+    setNewSizeName('');
+    setNewSizeDisplayName('');
+  };
+
+  const removeSize = (index) => {
+    setSubcategorySizes(subcategorySizes.filter((_, i) => i !== index));
+  };
+
+  const saveSizes = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/categories/${editingCategoryId}/subcategories/${editingSubcategory._id}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sizes: subcategorySizes
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        await fetchData(); // Refresh categories
+        setShowSizeModal(false);
+        alert('Sizes saved successfully!');
+      } else {
+        throw new Error(data.message || 'Failed to save sizes');
+      }
+    } catch (error) {
+      console.error('Error saving sizes:', error);
+      alert('Error saving sizes: ' + error.message);
     }
   };
 
@@ -1496,48 +1841,47 @@ const MenuPage = () => {
                       
                       {/* Subcategories */}
                       <div className="space-y-1">
-                        {/* Handle both subcategories (lowercase) and subCategories (camelCase) */}
-                        {((category.subcategories && category.subcategories.length > 0) || 
-                          (category.subCategories && category.subCategories.length > 0)) ? (
+                        {/* Use subCategories (camelCase) - the correct field from database */}
+                        {(category.subCategories && category.subCategories.length > 0) ? (
                           <>
-                            {/* Handle subcategories array (from database) */}
-                            {category.subcategories && category.subcategories.map((subCat, index) => (
-                              <div key={subCat._id || subCat.name || subCat || `${category._id}-sub-${index}`} className="flex justify-between items-center text-sm py-1">
-                                <span style={{ color: colors.secondary }}>
-                                  {subCat.displayName || subCat.name || subCat || `Subcategory ${index + 1}`}
-                                  {subCat.sizes && subCat.sizes.length > 0 && (
-                                    <span className="text-xs ml-2 px-1 py-0.5 rounded" style={{ backgroundColor: colors.activeBg, color: colors.accent }}>
-                                      {subCat.sizes.length} sizes
+                            {category.subCategories
+                              .filter(subCat => subCat.isActive !== false) // Only show active subcategories
+                              .map((subCat, index) => (
+                              <div key={subCat._id || `${category._id}-sub-${index}`} className="flex justify-between items-center text-sm py-2 border-b last:border-b-0" style={{ borderColor: colors.muted + '20' }}>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span style={{ color: colors.secondary }} className="font-medium">
+                                      {subCat.displayName || subCat.name || `Subcategory ${index + 1}`}
                                     </span>
-                                  )}
-                                </span>
-                                <button
-                                  onClick={() => deleteSubCategory(category._id, subCat._id || subCat)}
-                                  className="p-0.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                                  title="Delete subcategory"
-                                >
-                                  <TrashIcon className="w-3 h-3" />
-                                </button>
-                              </div>
-                            ))}
-                            {/* Handle subCategories array (legacy format) */}
-                            {category.subCategories && category.subCategories.map((subCat, index) => (
-                              <div key={subCat._id || subCat.name || subCat || `${category._id}-legacy-sub-${index}`} className="flex justify-between items-center text-sm py-1">
-                                <span style={{ color: colors.secondary }}>
-                                  {subCat.displayName || subCat.name || subCat || `Subcategory ${index + 1}`}
+                                    {subCat.sizes && subCat.sizes.length > 0 && (
+                                      <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: colors.activeBg, color: colors.accent }}>
+                                        {subCat.sizes.length} sizes
+                                      </span>
+                                    )}
+                                  </div>
                                   {subCat.sizes && subCat.sizes.length > 0 && (
-                                    <span className="text-xs ml-2 px-1 py-0.5 rounded" style={{ backgroundColor: colors.activeBg, color: colors.accent }}>
-                                      {subCat.sizes.length} sizes
-                                    </span>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      {subCat.sizes.map(s => s.displayName || s.name).join(', ')}
+                                    </div>
                                   )}
-                                </span>
-                                <button
-                                  onClick={() => deleteSubCategory(category._id, subCat._id || subCat)}
-                                  className="p-0.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                                  title="Delete subcategory"
-                                >
-                                  <TrashIcon className="w-3 h-3" />
-                                </button>
+                                </div>
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={() => openSizeModal(category._id, subCat)}
+                                    className="px-2 py-1 text-xs rounded transition-colors"
+                                    style={{ backgroundColor: colors.activeBg, color: colors.accent }}
+                                    title="Manage sizes"
+                                  >
+                                    Sizes
+                                  </button>
+                                  <button
+                                    onClick={() => deleteSubCategory(category._id, subCat._id)}
+                                    className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                    title="Delete subcategory"
+                                  >
+                                    <TrashIcon className="w-3 h-3" />
+                                  </button>
+                                </div>
                               </div>
                             ))}
                           </>
@@ -1792,7 +2136,7 @@ const MenuPage = () => {
           </table>
         </div>        {/* Add/Edit Form Modal */}
         {selectedItem && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center md:pl-20 z-50"><div 
+  <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center md:pl-20 z-50"><div 
       style={{ backgroundColor: colors.background }}
       className="p-6 rounded-lg w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl"
     >
@@ -1913,7 +2257,8 @@ const MenuPage = () => {
               className="w-full p-2 text-sm border rounded-lg"
               style={{ borderColor: colors.muted }}
             >
-              {Object.keys(menuConfig).map((cat) => (
+              {/* Prefer backend-driven categories */}
+              {(categories && categories.length > 0 ? categories.map(c => c.name || c.category) : Object.keys(menuConfig)).map((cat) => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
@@ -1926,9 +2271,26 @@ const MenuPage = () => {
               className="w-full p-2 text-sm border rounded-lg"
               style={{ borderColor: colors.muted }}
             >
-              {Object.keys(menuConfig[selectedCategory]?.subCategories || {}).map((subKey) => (
-                <option key={subKey} value={subKey}>{subKey}</option>
-              ))}
+              {(() => {
+                // derive subcategory names from backend categories first
+                const backendCategory = categories.find(c => (c.name || c.category) === selectedCategory);
+                let subs = [];
+                if (backendCategory) {
+                  subs = (backendCategory.subCategories || backendCategory.subcategories || []).map(s => s.displayName || s.name || s);
+                }
+                // fallback to menuConfig transformed dynamic mapping
+                if (!subs || subs.length === 0) {
+                  subs = Object.keys(menuConfig[selectedCategory]?.subCategories || {});
+                }
+                // final fallback to MENU_CONFIG constant if present
+                if ((!subs || subs.length === 0) && typeof MENU_CONFIG !== 'undefined') {
+                  subs = MENU_CONFIG[selectedCategory]?.subCategories || [];
+                }
+
+                return subs.map((subKey) => (
+                  <option key={subKey} value={subKey}>{subKey}</option>
+                ));
+              })()}
             </select>
           </div>
         </div>
@@ -1938,40 +2300,140 @@ const MenuPage = () => {
           <h3 className="text-lg font-medium mb-4" style={{ color: colors.primary }}>
             Pricing
           </h3>
-          {menuConfig[selectedCategory]?.subCategories[selectedSubCategory]?.sizes?.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {menuConfig[selectedCategory]?.subCategories[selectedSubCategory]?.sizes?.map((size) => (
-                <div key={size} className="flex items-center gap-2">
-                  <label className="w-20 font-medium">{size}</label>
-                  <div className="flex-1 flex items-center">
-                    <span className="mr-2">₱</span>
+          
+          {(() => {
+            // First, determine if subcategory has sizes configured
+            const backendCategory = categories.find(c => (c.name || c.category) === selectedCategory);
+            let sizes = [];
+            
+            if (backendCategory) {
+              const subcategory = (backendCategory.subCategories || backendCategory.subcategories || [])
+                .find(sub => (sub.name || sub.displayName) === selectedSubCategory);
+              
+              if (subcategory && subcategory.sizes && subcategory.sizes.length > 0) {
+                sizes = subcategory.sizes;
+              }
+            }
+            
+            // Fallback to menuConfig if no backend sizes found
+            if (sizes.length === 0 && menuConfig[selectedCategory]?.subCategories[selectedSubCategory]?.sizes) {
+              sizes = menuConfig[selectedCategory].subCategories[selectedSubCategory].sizes;
+              // Ensure sizes from menuConfig are in proper object format
+              if (sizes.length > 0 && typeof sizes[0] === 'string') {
+                sizes = sizes.map(s => ({
+                  name: s,
+                  displayName: s
+                }));
+              }
+            }
+
+            const hasSizes = sizes.length > 0;
+            
+            // Debug logging for pricing section
+            if (hasSizes) {
+              console.log('Pricing section - sizes detected:', sizes.map(s => ({
+                name: s.name || s,
+                displayName: s.displayName || s.name || s
+              })));
+            }
+            const ignoreSizes = watch('ignoreSizes');
+
+            return (
+              <>
+                {/* Only show ignore sizes checkbox if subcategory has sizes configured */}
+                {hasSizes && (
+                  <div className="mb-4 flex items-center gap-2">
                     <input
-                      type="number"
-                      {...register(`pricing.${size}`, { required: true })}
-                      className="w-full p-2 border rounded-lg"
-                      style={{ borderColor: colors.muted }}
-                      step="0.01"
+                      type="checkbox"
+                      id="ignoreSizes"
+                      {...register('ignoreSizes')}
+                      className="w-4 h-4 cursor-pointer"
                     />
+                    <label htmlFor="ignoreSizes" className="text-sm cursor-pointer">
+                      Single price only (ignore size options)
+                    </label>
+                    <span className="text-xs text-gray-500 ml-2">
+                      Use for items like "Lemon Yakult" that don't have size variations
+                    </span>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <label className="w-20 font-medium">Base Price</label>
-              <div className="flex-1 flex items-center">
-                <span className="mr-2">₱</span>
-                <input
-                  type="number"
-                  {...register('pricing.base', { required: true })}
-                  className="w-full p-2 border rounded-lg"
-                  style={{ borderColor: colors.muted }}
-                  step="0.01"
-                />
-              </div>
-            </div>
-          )}
-        </div>        {/* Add-Ons Section */}        <div className="mb-8">
+                )}
+
+                {ignoreSizes && hasSizes ? (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">
+                      Single price for this item
+                    </p>
+                    <div className="flex items-center gap-2 p-2 border rounded-lg max-w-md" style={{ borderColor: colors.muted + '40' }}>
+                      <label className="w-24 font-medium text-sm">Price</label>
+                      <div className="flex-1 flex items-center">
+                        <span className="mr-2">₱</span>
+                        <input
+                          type="number"
+                          {...register('pricing.single', { required: true, min: 0 })}
+                          className="w-full p-2 border rounded-lg text-sm"
+                          style={{ borderColor: colors.muted }}
+                          step="0.01"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : hasSizes ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-gray-600 mb-2">
+                      Set prices for each size option
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {sizes.map((size) => {
+                        const sizeName = size.name || size;
+                        const displayName = size.displayName || size.name || size;
+                        return (
+                          <div key={sizeName} className="flex items-center gap-2 p-2 border rounded-lg" style={{ borderColor: colors.muted + '40' }}>
+                            <label className="w-32 font-medium text-sm">{displayName}</label>
+                            <div className="flex-1 flex items-center">
+                              <span className="mr-2">₱</span>
+                              <input
+                                type="number"
+                                {...register(`pricing.${sizeName}`, { required: true, min: 0 })}
+                                className="w-full p-2 border rounded-lg text-sm"
+                                style={{ borderColor: colors.muted }}
+                                step="0.01"
+                                placeholder="0.00"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">
+                      No sizes configured for this subcategory
+                    </p>
+                    <div className="flex items-center gap-2 p-2 border rounded-lg max-w-md" style={{ borderColor: colors.muted + '40' }}>
+                      <label className="w-24 font-medium text-sm">Price</label>
+                      <div className="flex-1 flex items-center">
+                        <span className="mr-2">₱</span>
+                        <input
+                          type="number"
+                          {...register('pricing.single', { required: true, min: 0 })}
+                          className="w-full p-2 border rounded-lg text-sm"
+                          style={{ borderColor: colors.muted }}
+                          step="0.01"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
+
+        {/* Add-Ons Section */}
+        <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium" style={{ color: colors.primary }}>
               Add-Ons
@@ -2310,7 +2772,7 @@ const MenuPage = () => {
   </div>
 )}        {/* Add-On Creation Modal */}
         {showAddOnModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50"><div
               style={{ backgroundColor: colors.background }}
               className="p-6 rounded-lg w-96 shadow-2xl"
             >
@@ -2393,7 +2855,7 @@ const MenuPage = () => {
           </div>
         )}        {/* Delete Add-On Confirmation Modal */}
         {addOnToDelete && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div style={{ backgroundColor: colors.background }} className="p-6 rounded-lg shadow-2xl w-96">
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50"><div style={{ backgroundColor: colors.background }} className="p-6 rounded-lg shadow-2xl w-96">
               <div className="flex justify-between items-center mb-4 pb-3 border-b" style={{ borderColor: colors.muted + '40' }}>
                 <h3 className="text-lg font-bold" style={{ color: colors.primary }}>Confirm Delete Add-On</h3>
                 <button 
@@ -2443,7 +2905,7 @@ const MenuPage = () => {
           </div>
         )}        {/* Delete Menu Item Confirmation Modal */}
         {showDeleteModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"><div style={{ backgroundColor: colors.background }} className="p-6 rounded-lg shadow-2xl w-96">
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50"><div style={{ backgroundColor: colors.background }} className="p-6 rounded-lg shadow-2xl w-96">
               <div className="flex justify-between items-center mb-4 pb-3 border-b" style={{ borderColor: colors.muted + '40' }}>
                 <h3 className="text-lg font-bold" style={{ color: colors.primary }}>Confirm Delete</h3>
                 <button 
@@ -2505,7 +2967,7 @@ const MenuPage = () => {
 
         {/* Ingredient Selection Modal */}
         {showIngredientModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
             <div className="bg-white p-6 rounded-lg w-full max-w-3xl max-h-[90vh] flex flex-col">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">Select Ingredients for Menu Item</h2>
@@ -2706,6 +3168,157 @@ const MenuPage = () => {
                         ? 'Save Ingredients'
                         : 'Prepare Ingredients'
                     }
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Size Management Modal */}
+        {showSizeModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-2xl font-bold" style={{ color: colors.primary }}>
+                    Manage Sizes - {editingSubcategory?.displayName || editingSubcategory?.name}
+                  </h2>
+                  <button
+                    onClick={() => setShowSizeModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    Configure size options for this subcategory. These sizes will appear as pricing options when adding menu items.
+                  </p>
+                </div>
+
+                {/* Add New Size */}
+                <div className="mb-6 p-4 border rounded-lg" style={{ borderColor: colors.muted }}>
+                  <h3 className="font-medium mb-3" style={{ color: colors.secondary }}>Add New Size</h3>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div className="relative">
+                      <label className="block text-sm mb-1">Size Name (internal)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., M, Large, Hot"
+                        value={newSizeName}
+                        onChange={(e) => handleSizeNameChange(e.target.value)}
+                        onFocus={() => {
+                          if (filteredSizes.length > 0 && newSizeName.trim()) {
+                            setShowSuggestions(true);
+                          }
+                        }}
+                        onBlur={() => {
+                          // Delay to allow click on suggestion
+                          setTimeout(() => setShowSuggestions(false), 200);
+                        }}
+                        className="w-full px-3 py-2 border rounded-lg"
+                        style={{ borderColor: colors.muted }}
+                        onKeyPress={(e) => e.key === 'Enter' && addSize()}
+                      />
+                      
+                      {/* Custom Suggestions Dropdown */}
+                      {showSuggestions && filteredSizes.length > 0 && (
+                        <div 
+                          className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                          style={{ borderColor: colors.muted }}
+                        >
+                          {filteredSizes.map((size, idx) => (
+                            <div
+                              key={idx}
+                              onClick={() => selectSuggestion(size)}
+                              className="px-3 py-2 cursor-pointer hover:bg-gray-100 transition-colors"
+                              style={{
+                                borderBottom: idx < filteredSizes.length - 1 ? `1px solid ${colors.muted}` : 'none'
+                              }}
+                            >
+                              <div className="font-medium">{size.name}</div>
+                              <div className="text-xs text-gray-500">{size.displayName}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm mb-1">Display Name (shown to users)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., Medium, Large, Hot (S)"
+                        value={newSizeDisplayName}
+                        onChange={(e) => setNewSizeDisplayName(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-lg"
+                        style={{ borderColor: colors.muted }}
+                        onKeyPress={(e) => e.key === 'Enter' && addSize()}
+                      />
+                    </div>
+                  </div>
+                  <button
+                    onClick={addSize}
+                    className="px-4 py-2 rounded-lg text-sm"
+                    style={{ backgroundColor: colors.accent, color: colors.background }}
+                  >
+                    <PlusIcon className="w-4 h-4 inline mr-1" />
+                    Add Size
+                  </button>
+                </div>
+
+                {/* Current Sizes List */}
+                <div className="mb-6">
+                  <h3 className="font-medium mb-3" style={{ color: colors.secondary }}>
+                    Current Sizes ({subcategorySizes.length})
+                  </h3>
+                  {subcategorySizes.length > 0 ? (
+                    <div className="space-y-2">
+                      {subcategorySizes.map((size, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 border rounded-lg"
+                          style={{ borderColor: colors.muted + '40', backgroundColor: size.isDefault ? colors.activeBg : 'transparent' }}
+                        >
+                          <div className="flex-1">
+                            <div className="font-medium">{size.displayName || size.name}</div>
+                            <div className="text-xs text-gray-500">
+                              Internal: {size.name}
+                              {size.isDefault && <span className="ml-2 px-2 py-0.5 rounded bg-blue-100 text-blue-700">Default</span>}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => removeSize(index)}
+                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">
+                      No sizes configured. Add sizes above to enable multi-size pricing.
+                    </p>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-3 pt-4 border-t" style={{ borderColor: colors.muted }}>
+                  <button
+                    onClick={() => setShowSizeModal(false)}
+                    className="px-4 py-2 border rounded-lg"
+                    style={{ borderColor: colors.muted }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveSizes}
+                    className="px-4 py-2 rounded-lg"
+                    style={{ backgroundColor: colors.accent, color: colors.background }}
+                  >
+                    Save Sizes
                   </button>
                 </div>
               </div>

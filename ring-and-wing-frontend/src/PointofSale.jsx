@@ -13,6 +13,7 @@ import { CashAlert } from './components/ui/CashAlert';
 import { useCashFloat } from './hooks/useCashFloat';
 import { FiClock, FiPlus, FiSettings, FiDollarSign, FiCheckCircle, FiCoffee, FiPieChart } from 'react-icons/fi';
 import EndOfShiftModal from './components/EndOfShiftModal';
+import SizeSelectionModal from './components/SizeSelectionModal';
 import io from 'socket.io-client';
 import { API_URL } from './App';
 
@@ -86,6 +87,8 @@ const PointOfSale = () => {
   const [selectedVerificationOrder, setSelectedVerificationOrder] = useState(null); // NEW: For verification modal
   const [showVerificationModal, setShowVerificationModal] = useState(false); // NEW: Modal state
   const [expandedImage, setExpandedImage] = useState(false); // NEW: Image expand state
+  const [showSizeModal, setShowSizeModal] = useState(false); // Size selection modal
+  const [selectedItemForSize, setSelectedItemForSize] = useState(null); // Item to show in size modal
   const receiptRef = useRef();
   // Check if user is manager based on position hierarchy
   useEffect(() => {
@@ -393,21 +396,24 @@ const PointOfSale = () => {
             // Handle both subcategories and subCategories arrays
             const subcats = category.subcategories || category.subCategories || [];
             if (subcats.length > 0) {
-              subcats.forEach(subCat => {
-                const subCatName = subCat.name || subCat.displayName || subCat;
-                if (subCatName) {
-                  dynamicMenuConfig[categoryName].subCategories[subCatName] = {};
-                }
-              });
+              subcats
+                .filter(subCat => subCat.isActive !== false) // Only show active subcategories
+                .forEach(subCat => {
+                  const subCatName = subCat.name || subCat.displayName || subCat;
+                  if (subCatName) {
+                    dynamicMenuConfig[categoryName].subCategories[subCatName] = {
+                      sizes: subCat.sizes || [] // Include sizes for dynamic pricing
+                    };
+                  }
+                });
             }
           }
         });
         
-        // Update menuConfig with dynamic data, keeping fallback intact
-        setMenuConfig(prev => ({
-          ...prev,
-          ...dynamicMenuConfig
-        }));
+        // Replace menuConfig with dynamic data (don't merge with fallback)
+        setMenuConfig(dynamicMenuConfig);
+        
+        console.log('PointOfSale: menuConfig updated with dynamic categories:', dynamicMenuConfig);
         
       } catch (error) {
         console.warn('PointOfSale: Failed to load dynamic categories, using fallback:', error);
@@ -672,35 +678,54 @@ const PointOfSale = () => {
     const timestamp = Date.now().toString().slice(-6);
     const random = Math.floor(100 + Math.random() * 900);
     return `${timestamp}${random}`;
-  };  const addToOrder = item => {
+  };  
+  
+  const addToOrder = item => {
+    // Check if item has multiple sizes - if yes, show size selection modal
+    const sizes = Object.keys(item.pricing || {}).filter(key => key !== '_id');
+    const hasMultipleSizes = sizes.length > 1 || (sizes.length === 1 && sizes[0] !== 'base');
+    
+    if (hasMultipleSizes) {
+      // Show size selection modal
+      setSelectedItemForSize(item);
+      setShowSizeModal(true);
+      return;
+    }
+    
+    // If only one price (base price), add directly to cart
+    addToCartWithSize({
+      ...item,
+      selectedSize: 'base',
+      price: item.pricing.base || item.pricing[sizes[0]] || 0,
+      availableSizes: ['base'], // Include available sizes
+      quantity: 1
+    });
+  };
+  
+  // New function to handle adding item with selected size
+  const addToCartWithSize = (orderItem) => {
+    // Ensure availableSizes is set if not provided
+    if (!orderItem.availableSizes) {
+      const sizes = Object.keys(orderItem.pricing || {}).filter(key => key !== '_id');
+      orderItem.availableSizes = sizes.length > 0 ? sizes : ['base'];
+    }
+    
     // If in pending orders view, only allow adding items when editing a pending order
     if (orderViewType === 'pending') {
       if (!isPendingOrderMode) {
         alert('Please select a pending order to add items to.');
         return;
       }
-      
-      const sizes = Object.keys(item.pricing);
-      const basePrice = item.pricing.base || item.pricing[sizes[0]];
-      const selectedSize = sizes.includes('base') ? 'base' : sizes[0];
-
-      const orderItem = {
-        ...item,
-        price: basePrice,
-        selectedSize,
-        availableSizes: sizes,
-        quantity: 1
-      };
 
       // Update pending order items
       const existing = pendingOrderItems.find(
-        i => i._id === item._id && i.selectedSize === selectedSize
+        i => i._id === orderItem._id && i.selectedSize === orderItem.selectedSize
       );
 
       if (existing) {
         setPendingOrderItems(pendingOrderItems.map(i =>
-          i._id === item._id && i.selectedSize === selectedSize
-            ? { ...i, quantity: i.quantity + 1 }
+          i._id === orderItem._id && i.selectedSize === orderItem.selectedSize
+            ? { ...i, quantity: i.quantity + orderItem.quantity }
             : i
         ));
       } else {
@@ -710,31 +735,19 @@ const PointOfSale = () => {
     }
 
     // Regular order handling (only for non-pending orders)
-    const sizes = Object.keys(item.pricing);
-    const basePrice = item.pricing.base || item.pricing[sizes[0]];
-    const selectedSize = sizes.includes('base') ? 'base' : sizes[0];
-
-    const orderItem = {
-      ...item,
-      price: basePrice,
-      selectedSize,
-      availableSizes: sizes,
-      quantity: 1
-    };
-
     const [currentCart, setCart] = orderViewType === 'ready' ? 
       [readyOrderCart, setReadyOrderCart] : 
       [pendingOrderCart, setPendingOrderCart];
 
     const existing = currentCart.find(
-      i => i._id === item._id && i.selectedSize === selectedSize
+      i => i._id === orderItem._id && i.selectedSize === orderItem.selectedSize
     );
 
     if (existing) {
       setCart(
         currentCart.map(i =>
-          i._id === item._id && i.selectedSize === selectedSize
-            ? { ...i, quantity: i.quantity + 1 }
+          i._id === orderItem._id && i.selectedSize === orderItem.selectedSize
+            ? { ...i, quantity: i.quantity + orderItem.quantity }
             : i
         )
       );
@@ -2419,7 +2432,7 @@ const PointOfSale = () => {
               {/* Expanded Image Overlay (inside modal) */}
               {expandedImage && selectedVerificationOrder.proofOfPayment?.imageUrl && (
                 <div 
-                  className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[200] p-4"
+                  className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[200] p-4"
                   onClick={() => setExpandedImage(false)}
                 >
                   <div className="relative max-w-4xl max-h-[90vh]">
@@ -2509,6 +2522,22 @@ const PointOfSale = () => {
               </div>
             </div>
           </Modal>
+        )}
+
+        {/* Size Selection Modal */}
+        {showSizeModal && selectedItemForSize && (
+          <SizeSelectionModal
+            item={selectedItemForSize}
+            onClose={() => {
+              setShowSizeModal(false);
+              setSelectedItemForSize(null);
+            }}
+            onSelectSize={(orderItem) => {
+              addToCartWithSize(orderItem);
+              setShowSizeModal(false);
+              setSelectedItemForSize(null);
+            }}
+          />
         )}
       </div>
     </div>

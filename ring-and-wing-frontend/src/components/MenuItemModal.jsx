@@ -377,7 +377,7 @@ const MenuItemModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center md:pl-20 z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center md:pl-20 z-50">
       <div 
         style={{ backgroundColor: colors.background }}
         className="p-6 rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl"

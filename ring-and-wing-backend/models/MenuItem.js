@@ -13,6 +13,7 @@ const menuItemSchema = new mongoose.Schema({
   category: { type: String, required: true },
   subCategory: { type: String },
   pricing: { type: Map, of: Number, required: true },
+  ignoreSizes: { type: Boolean, default: false }, // For items that don't use size variations
   description: { type: String },
   image: { type: String },
   modifiers: [{

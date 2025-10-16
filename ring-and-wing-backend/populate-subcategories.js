@@ -8,9 +8,11 @@ const categorySchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
   sortOrder: { type: Number, default: 0 },
   isActive: { type: Boolean, default: true },
-  subcategories: [{
+  subCategories: [{
     name: { type: String, required: true },
-    sortOrder: { type: Number, default: 0 }
+    displayName: { type: String, required: true },
+    sortOrder: { type: Number, default: 0 },
+    isActive: { type: Boolean, default: true }
   }]
 });
 
@@ -56,19 +58,21 @@ async function populateSubcategories() {
     // Update categories with subcategories
     for (const catData of subcategoryData) {
       const categoryName = catData._id;
-      const subcategories = catData.subcategories
+      const subCategories = catData.subcategories
         .filter(sub => sub.name && sub.name.trim() !== '')
         .map((sub, index) => ({
           name: sub.name,
-          sortOrder: index
+          displayName: sub.name, // Use the same name as displayName initially
+          sortOrder: index,
+          isActive: true
         }));
       
-      console.log('Updating', categoryName, 'with', subcategories.length, 'subcategories');
+      console.log('Updating', categoryName, 'with', subCategories.length, 'subcategories');
       
       await Category.findOneAndUpdate(
         { name: categoryName },
         { 
-          $set: { subcategories: subcategories }
+          $set: { subCategories: subCategories }
         },
         { upsert: false, new: true }
       );
@@ -78,9 +82,13 @@ async function populateSubcategories() {
     const categories = await Category.find({}).sort({ sortOrder: 1 });
     categories.forEach(cat => {
       console.log(cat.name + ':');
-      cat.subcategories.forEach(sub => {
-        console.log('  - ' + sub.name);
-      });
+      if (cat.subCategories && cat.subCategories.length > 0) {
+        cat.subCategories.forEach(sub => {
+          console.log('  - ' + sub.name + ' (ID: ' + sub._id + ')');
+        });
+      } else {
+        console.log('  (no subcategories)');
+      }
     });
     
   } catch (error) {

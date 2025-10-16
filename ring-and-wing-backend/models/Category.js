@@ -147,8 +147,8 @@ categorySchema.statics.getCategoriesWithConfig = async function() {
     
     // Sort subcategories within each category for consistent ordering
     return categories.map(category => {
-      if (category.subcategories && category.subcategories.length > 0) {
-        category.subcategories.sort((a, b) => {
+      if (category.subCategories && category.subCategories.length > 0) {
+        category.subCategories.sort((a, b) => {
           if ((a.sortOrder || 0) !== (b.sortOrder || 0)) {
             return (a.sortOrder || 0) - (b.sortOrder || 0);
           }
@@ -166,8 +166,8 @@ categorySchema.statics.getCategoriesWithConfig = async function() {
     
     // Sort subcategories within each category for consistent ordering
     return categories.map(category => {
-      if (category.subcategories && category.subcategories.length > 0) {
-        category.subcategories.sort((a, b) => {
+      if (category.subCategories && category.subCategories.length > 0) {
+        category.subCategories.sort((a, b) => {
           if ((a.sortOrder || 0) !== (b.sortOrder || 0)) {
             return (a.sortOrder || 0) - (b.sortOrder || 0);
           }
@@ -187,8 +187,8 @@ categorySchema.statics.getSimpleCategories = async function() {
     
   // Sort subcategories within each category for consistent ordering
   return categories.map(category => {
-    if (category.subcategories && category.subcategories.length > 0) {
-      category.subcategories.sort((a, b) => {
+    if (category.subCategories && category.subCategories.length > 0) {
+      category.subCategories.sort((a, b) => {
         if ((a.sortOrder || 0) !== (b.sortOrder || 0)) {
           return (a.sortOrder || 0) - (b.sortOrder || 0);
         }

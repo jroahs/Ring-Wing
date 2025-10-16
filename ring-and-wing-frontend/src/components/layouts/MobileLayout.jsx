@@ -306,7 +306,7 @@ const MobileLayout = ({
 
       {/* Order Confirmation Modal */}
       {orderSubmitted && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-2xl text-center">
             <h2 className="text-2xl font-bold mb-4">Order Submitted!</h2>
             <p className="text-lg mb-4">Your order number is:</p>
