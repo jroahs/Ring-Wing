@@ -71,9 +71,10 @@ const SizeSelectionModal = ({ item, onClose, onSelectSize }) => {
             {/* Overlay gradient for better contrast */}
             <div className="absolute inset-0 bg-gradient-to-br from-black/10 to-black/20" />
             
+            {/* Close button - moved to left side */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 z-10 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100 transition-colors"
+              className="absolute top-4 left-4 z-10 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100 transition-colors"
               aria-label="Close"
             >
               <X size={20} className="text-gray-700" />
@@ -93,7 +94,7 @@ const SizeSelectionModal = ({ item, onClose, onSelectSize }) => {
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-100 to-red-100 rounded-xl shadow-2xl">
                     <div className="text-center">
-                      <div className="text-6xl mb-2">🍽️</div>
+                      <div className="text-6xl mb-2">📋</div>
                       <p className="text-gray-500 text-sm">No Image</p>
                     </div>
                   </div>
@@ -163,7 +164,7 @@ const SizeSelectionModal = ({ item, onClose, onSelectSize }) => {
                 <div className="flex items-center justify-center gap-4">
                   <button
                     onClick={decrementQuantity}
-                    className="w-12 h-12 rounded-full border-2 border-gray-300 text-gray-600 font-bold text-xl hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-12 h-12 rounded-full border-2 border-gray-300 text-gray-600 font-bold text-xl hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                     disabled={quantity <= 1}
                   >
                     −
@@ -173,7 +174,7 @@ const SizeSelectionModal = ({ item, onClose, onSelectSize }) => {
                   </span>
                   <button
                     onClick={incrementQuantity}
-                    className="w-12 h-12 rounded-full border-2 border-orange-500 text-orange-600 font-bold text-xl hover:bg-orange-50 transition-colors"
+                    className="w-12 h-12 rounded-full border-2 border-orange-500 text-orange-600 font-bold text-xl hover:bg-orange-50 transition-colors flex items-center justify-center"
                   >
                     +
                   </button>

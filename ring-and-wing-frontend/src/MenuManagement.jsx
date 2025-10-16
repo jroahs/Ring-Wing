@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import MenuItemImage from './components/MenuItemImage';
 import ConnectionMonitor from './components/ConnectionMonitor';
 import { LoadingSpinner } from './components/ui';
-import { io } from 'socket.io-client'; // 🔥 NEW: Real-time socket events (Sprint 22)
+import { io } from 'socket.io-client'; // NEW: Real-time socket events (Sprint 22)
 
 // Debounce utility function to prevent rapid-fire requests
 const debounce = (func, wait) => {
@@ -250,7 +250,7 @@ const MenuPage = () => {
   const [itemCostAnalysis, setItemCostAnalysis] = useState({});
   const [itemAvailability, setItemAvailability] = useState({});
   
-  // 🔥 NEW: Socket.io state for real-time updates (Sprint 22)
+  // NEW: Socket.io state for real-time updates (Sprint 22)
   const [socket, setSocket] = useState(null);
 
   const { register, handleSubmit, reset, watch, setValue, getValues, formState: { errors } } = useForm({
@@ -533,7 +533,7 @@ const MenuPage = () => {
         setInventoryItems(items);
       }
 
-      // 🔥 SPRINT 22 FIX: Batch availability check on initial load
+      // SPRINT 22 FIX: Batch availability check on initial load
       // CHECK ALL ITEMS AT ONCE using the batch API (no more 3-per-tick polling)
       const menuItemIds = validMenuItems.map(item => item._id).filter(Boolean);
       
@@ -569,7 +569,7 @@ const MenuPage = () => {
                 };
               });
               setItemAvailability(availabilityMap);
-              console.log(`[MenuManagement] ✅ Loaded availability for ${Object.keys(availabilityMap).length} items`);
+              console.log(`[MenuManagement] Loaded availability for ${Object.keys(availabilityMap).length} items`);
               
               // Fetch cost analysis for items with ingredient tracking (batched, 5 at a time)
               const trackedItems = itemAvailabilities.filter(item => item.hasIngredientTracking);
@@ -757,7 +757,7 @@ const MenuPage = () => {
     return () => controller.abort();
   }, []); // Remove dependency to prevent re-fetching
 
-  // 🔥 NEW: Socket.io connection for real-time updates (Sprint 22)
+  // NEW: Socket.io connection for real-time updates (Sprint 22)
   useEffect(() => {
     const API_URL = 'http://localhost:5000';
     const token = localStorage.getItem('token') || localStorage.getItem('authToken');
@@ -785,7 +785,7 @@ const MenuPage = () => {
     };
   }, []);
   
-  // 🔥 NEW: Socket event listeners for real-time inventory updates (Sprint 22)
+  // NEW: Socket event listeners for real-time inventory updates (Sprint 22)
   useEffect(() => {
     if (!socket) return;
     
@@ -816,7 +816,7 @@ const MenuPage = () => {
             timestamp: Date.now()
           }
         }));
-        console.log(`[MenuManagement] ✅ Availability updated from socket for ${data.menuItemId}:`, data.isAvailable);
+        console.log(`[MenuManagement] Availability updated from socket for ${data.menuItemId}:`, data.isAvailable);
       }
     };
     
@@ -1330,17 +1330,17 @@ const MenuPage = () => {
               
               const success = await updateMenuItemIngredients(responseData._id, ingredientsData);
               if (success) {
-                alert(`✅ Menu item "${responseData.name}" created successfully with ${selectedIngredients.length} ingredients mapped!`);
+                alert(`Menu item "${responseData.name}" created successfully with ${selectedIngredients.length} ingredients mapped!`);
               } else {
-                alert(`✅ Menu item "${responseData.name}" created successfully!\n⚠️ However, there was an issue saving ingredients. You can try adding them again.`);
+                alert(`Menu item "${responseData.name}" created successfully!\nHowever, there was an issue saving ingredients. You can try adding them again.`);
               }
             } catch (error) {
               console.error('Error auto-saving ingredients:', error);
-              alert(`✅ Menu item "${responseData.name}" created successfully!\n⚠️ However, there was an issue saving ingredients. You can try adding them again.`);
+              alert(`Menu item "${responseData.name}" created successfully!\nHowever, there was an issue saving ingredients. You can try adding them again.`);
             }
           }, 1000);
         } else {
-          alert(`✅ Menu item "${responseData.name}" created successfully!\n\nYou can now add ingredients to this item using the "Add Ingredients" button below.`);
+          alert(`Menu item "${responseData.name}" created successfully!\n\nYou can now add ingredients to this item using the "Add Ingredients" button below.`);
         }
       } else {
         // Existing item updated - close form
@@ -1349,7 +1349,7 @@ const MenuPage = () => {
         setImageFile(null);
         setSelectedItem(null);
         setCurrentFormItem(null);
-        alert(`✅ Menu item "${responseData.name}" updated successfully!`);
+        alert(`Menu item "${responseData.name}" updated successfully!`);
       }
     } catch (error) {
       if (error.name !== 'AbortError') {
@@ -3188,7 +3188,7 @@ const MenuPage = () => {
                     onClick={() => setShowSizeModal(false)}
                     className="text-gray-400 hover:text-gray-600"
                   >
-                    ✕
+                    X
                   </button>
                 </div>
 

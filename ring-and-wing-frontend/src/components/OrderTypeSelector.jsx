@@ -89,7 +89,7 @@ const OrderTypeSelector = ({ selectedType, onSelect }) => {
                   ...styles.checkmark,
                   backgroundColor: type.color
                 }}>
-                  ✓
+                  OK
                 </div>
               )}
             </button>
@@ -108,7 +108,7 @@ const OrderTypeSelector = ({ selectedType, onSelect }) => {
             </div>
           ) : (
             <div style={styles.infoContent}>
-              <span style={styles.infoIcon}>💳</span>
+              <span style={styles.infoIcon}>$</span>
               <p style={styles.infoText}>
                 Payment via GCash or PayMaya is required for {selectedType === 'takeout' ? 'take-out' : 'delivery'} orders
               </p>

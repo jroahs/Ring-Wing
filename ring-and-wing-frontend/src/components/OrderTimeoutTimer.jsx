@@ -164,7 +164,7 @@ const OrderTimeoutTimer = ({ expiresAt, onTimeout, orderStatus }) => {
 
         {urgencyLevel === 'red' && (
           <div style={styles.urgentWarning}>
-            <span style={styles.warningIcon}>⚠️</span>
+            <span style={styles.warningIcon}>!</span>
             <span>Less than 15 minutes remaining! Please ensure payment proof is correct.</span>
           </div>
         )}

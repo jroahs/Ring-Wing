@@ -67,25 +67,25 @@ global.fetch = jest.fn(() =>
 );
 
 async function runTests() {
-  console.log('🧪 Testing AI Order Detection Fixes...\n');
+  console.log('Testing AI Order Detection Fixes...\n');
   
   try {
     // Test 1: Basic order detection
     const result1 = await detectOrderIntentWithAI("I want 2 milk teas", mockMenuItems);
-    console.log('✅ Test 1 - Basic order detection:', result1.hasOrderIntent);
+    console.log('Test 1 - Basic order detection:', result1.hasOrderIntent);
     
     // Test 2: Menu item matching  
     const match1 = findBestMenuItemMatch("milk tea", mockMenuItems);
-    console.log('✅ Test 2 - Menu item matching:', match1?.name);
+    console.log('Test 2 - Menu item matching:', match1?.name);
     
     // Test 3: Fuzzy matching
     const match2 = findBestMenuItemMatch("milktea", mockMenuItems);
-    console.log('✅ Test 3 - Fuzzy matching:', match2?.name);
+    console.log('Test 3 - Fuzzy matching:', match2?.name);
     
-    console.log('\n🎉 All tests passed! AI order detection fixes are working properly.');
+    console.log('\nAll tests passed! AI order detection fixes are working properly.');
     
   } catch (error) {
-    console.error('❌ Test failed:', error);
+    console.error('Test failed:', error);
   }
 }
 

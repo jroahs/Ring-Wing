@@ -40,7 +40,7 @@ const PaymentMethodSelector = ({ selectedMethod, onSelect, orderTotal }) => {
     {
       id: 'gcash',
       label: 'GCash',
-      logo: '💙', // Replace with actual GCash logo
+      logo: 'G', // Replace with actual GCash logo
       color: '#007DFF',
       enabled: walletSettings.gcash.enabled,
       ...walletSettings.gcash
@@ -48,7 +48,7 @@ const PaymentMethodSelector = ({ selectedMethod, onSelect, orderTotal }) => {
     {
       id: 'paymaya',
       label: 'PayMaya',
-      logo: '💚', // Replace with actual PayMaya logo
+      logo: 'P', // Replace with actual PayMaya logo
       color: '#00D632',
       enabled: walletSettings.paymaya.enabled,
       ...walletSettings.paymaya
@@ -72,7 +72,7 @@ const PaymentMethodSelector = ({ selectedMethod, onSelect, orderTotal }) => {
     return (
       <div style={styles.container}>
         <div style={styles.errorBox}>
-          <span style={styles.errorIcon}>⚠️</span>
+          <span style={styles.errorIcon}>!</span>
           <p style={styles.errorText}>
             E-wallet payment is currently unavailable. Please contact the restaurant or choose dine-in option.
           </p>
@@ -126,7 +126,7 @@ const PaymentMethodSelector = ({ selectedMethod, onSelect, orderTotal }) => {
                   ...styles.checkmark,
                   backgroundColor: method.color
                 }}>
-                  ✓
+                  OK
                 </div>
               )}
             </button>
@@ -181,7 +181,7 @@ const PaymentMethodSelector = ({ selectedMethod, onSelect, orderTotal }) => {
 
             {/* Important Notes */}
             <div style={styles.notesSection}>
-              <h4 style={styles.sectionTitle}>⚠️ Important:</h4>
+              <h4 style={styles.sectionTitle}>Important:</h4>
               <ul style={styles.notesList}>
                 <li>Make sure to send the exact amount: <strong>₱{orderTotal.toFixed(2)}</strong></li>
                 <li>After payment, you'll need to upload proof of payment (screenshot or reference number)</li>

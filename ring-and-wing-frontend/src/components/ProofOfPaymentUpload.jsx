@@ -247,7 +247,7 @@ const ProofOfPaymentUpload = ({ onProofSubmit, paymentMethod }) => {
       {/* Error Message */}
       {error && (
         <div style={styles.errorBox}>
-          <span style={styles.errorIcon}>⚠️</span>
+          <span style={styles.errorIcon}>!</span>
           <p style={styles.errorText}>{error}</p>
         </div>
       )}
@@ -291,7 +291,7 @@ const ProofOfPaymentUpload = ({ onProofSubmit, paymentMethod }) => {
 
       {/* Important Notes */}
       <div style={styles.notesBox}>
-        <h4 style={styles.notesTitle}>📌 Important Notes:</h4>
+        <h4 style={styles.notesTitle}>Important Notes:</h4>
         <ul style={styles.notesList}>
           <li>Ensure your screenshot clearly shows the transaction details</li>
           <li>Reference number must match your actual payment transaction</li>

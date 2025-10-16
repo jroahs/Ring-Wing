@@ -18,13 +18,13 @@ export const Toast = ({
 
   const styles = {
     success: {
-      icon: '✓',
+      icon: 'OK',
       bg: theme.colors.successBg,
       border: theme.colors.success,
       text: theme.colors.success
     },
     error: {
-      icon: '✕',
+      icon: 'X',
       bg: theme.colors.errorBg,
       border: theme.colors.error,
       text: theme.colors.error

@@ -11,7 +11,7 @@ import OrderProcessingModal from './components/OrderProcessingModal';
 import PendingOrder from './components/PendingOrder';
 import { CashAlert } from './components/ui/CashAlert';
 import { useCashFloat } from './hooks/useCashFloat';
-import { FiClock, FiPlus, FiSettings, FiDollarSign, FiCheckCircle, FiCoffee, FiPieChart } from 'react-icons/fi';
+import { FiClock, FiPlus, FiSettings, FiDollarSign, FiCheckCircle, FiCoffee, FiPieChart, FiTrash2 } from 'react-icons/fi';
 import EndOfShiftModal from './components/EndOfShiftModal';
 import SizeSelectionModal from './components/SizeSelectionModal';
 import io from 'socket.io-client';
@@ -481,6 +481,45 @@ const PointOfSale = () => {
       setActiveOrders(activeOrders);
     } catch (error) {
       console.error('Error fetching orders:', error);
+    }
+  };
+
+  // Delete/Cancel a pending order
+  const deletePendingOrder = async (orderId) => {
+    if (!confirm('Are you sure you want to delete this pending order? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/orders/${orderId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to delete order');
+      }
+
+      // Remove from activeOrders state
+      setActiveOrders(prev => prev.filter(order => order._id !== orderId));
+      
+      // If this was the order being edited, clear the edit state
+      if (editingPendingOrder?._id === orderId) {
+        setEditingPendingOrder(null);
+        setIsPendingOrderMode(false);
+        setPendingOrderItems([]);
+      }
+
+      alert('Pending order deleted successfully');
+    } catch (error) {
+      console.error('Error deleting pending order:', error);
+      alert('Failed to delete pending order. Please try again.');
     }
   };
 
@@ -1059,7 +1098,7 @@ const PointOfSale = () => {
             console.warn('Inventory reservation failed:', reservationData);
           }
         } catch (invError) {
-          console.error('❌ Inventory reservation error:', invError);
+          console.error('Inventory reservation error:', invError);
           // Don't block order - ingredient tracking is optional
         }
       }
@@ -2000,34 +2039,62 @@ const PointOfSale = () => {
                                   .map(order => (
                                     <div
                                       key={order._id}
-                                      className="p-3 rounded-lg hover:bg-gray-50 cursor-pointer"
-                                      onClick={() => {
-                                        setEditingPendingOrder(order);
-                                        setIsPendingOrderMode(true);
-                                        setPendingOrderItems(order.items.map(item => ({
-                                          ...item,
-                                          _id: item._id || item.itemId,
-                                          selectedSize: item.selectedSize || 'base',
-                                          availableSizes: Object.keys(item.pricing || { base: item.price }),
-                                          pricing: item.pricing || { base: item.price }
-                                        })));                                        // Reset new order cart when an existing pending order is selected
-                                        setPendingOrderCart([]); 
-                                        // Reset payment method or other relevant states if needed
-                                        setPaymentMethod('cash'); 
-                                        setCashAmount(0);
-                                        setCustomerName(''); // Reset customer name when starting to edit pending order
-                                      }}
+                                      className="p-3 rounded-lg hover:bg-gray-50 relative group"
                                     >
-                                      <div className="flex justify-between items-center">
-                                        <span className="font-medium" style={{ color: theme.colors.primary }}>
-                                          Order #{order.receiptNumber || order._id?.substring(0, 6)}
-                                        </span>
+                                      <div className="flex items-start gap-2">
+                                        {/* Delete Button - Left side */}
                                         <button
-                                          className="text-xs px-2 py-1 rounded-lg"
-                                          style={{ backgroundColor: theme.colors.accent, color: theme.colors.background }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            deletePendingOrder(order._id);
+                                          }}
+                                          className="flex-shrink-0 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-red-100 hover:bg-red-200 text-red-600"
+                                          title="Delete Order"
                                         >
-                                          Process
+                                          <FiTrash2 size={14} />
                                         </button>
+                                        
+                                        <div 
+                                          className="flex-1 cursor-pointer"
+                                          onClick={() => {
+                                            setEditingPendingOrder(order);
+                                            setIsPendingOrderMode(true);
+                                            setPendingOrderItems(order.items.map(item => ({
+                                              ...item,
+                                              _id: item._id || item.itemId,
+                                              selectedSize: item.selectedSize || 'base',
+                                              availableSizes: Object.keys(item.pricing || { base: item.price }),
+                                              pricing: item.pricing || { base: item.price }
+                                            })));                                        // Reset new order cart when an existing pending order is selected
+                                            setPendingOrderCart([]); 
+                                            // Reset payment method or other relevant states if needed
+                                            setPaymentMethod('cash'); 
+                                            setCashAmount(0);
+                                            setCustomerName(''); // Reset customer name when starting to edit pending order
+                                          }}
+                                        >
+                                          <div className="flex justify-between items-center">
+                                            <div className="flex-1">
+                                              <span className="font-medium" style={{ color: theme.colors.primary }}>
+                                                Order #{order.receiptNumber || order._id?.substring(0, 6)}
+                                              </span>
+                                              {order.customerName && (
+                                                <span className="text-xs text-gray-500 ml-2">
+                                                  - {order.customerName}
+                                                </span>
+                                              )}
+                                              <div className="text-xs text-gray-500 mt-1">
+                                                {order.items?.length || 0} item(s) • ₱{order.totals?.total?.toFixed(2) || '0.00'}
+                                              </div>
+                                            </div>
+                                            <button
+                                              className="text-xs px-2 py-1 rounded-lg"
+                                              style={{ backgroundColor: theme.colors.accent, color: theme.colors.background }}
+                                            >
+                                              Process
+                                            </button>
+                                          </div>
+                                        </div>
                                       </div>
                                     </div>
                                 ))

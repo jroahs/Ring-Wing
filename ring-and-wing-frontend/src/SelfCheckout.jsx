@@ -320,7 +320,7 @@ const SelfCheckoutContent = () => {
             
             {fulfillmentType === 'dine_in' ? (
               <div style={styles.successMessage}>
-                <p>✓ Please proceed to the counter for payment</p>
+                <p>Please proceed to the counter for payment</p>
                 <button onClick={resetFlow} style={styles.newOrderButton}>
                   Start New Order
                 </button>
@@ -385,7 +385,7 @@ const SelfCheckoutContent = () => {
               <h2 style={styles.flowTitle}>Make Your Payment</h2>
               <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#fff3cd', borderRadius: '8px', border: '1px solid #ffc107' }}>
                 <p style={{ margin: 0, color: '#856404', fontSize: '14px' }}>
-                  ⚠️ Please complete your payment before proceeding. You will need to upload proof in the next step.
+                  Please complete your payment before proceeding. You will need to upload proof in the next step.
                 </p>
               </div>
               <PaymentMethodSelector
@@ -448,14 +448,14 @@ const SelfCheckoutContent = () => {
           <div style={styles.flowContainer}>
             <h2 style={styles.flowTitle}>Ready to Submit Order</h2>
             <div style={styles.readyMessage}>
-              <p>✓ Order Type: <strong>{fulfillmentType === 'dine_in' ? 'Dine-In' : fulfillmentType === 'takeout' ? 'Takeout' : 'Delivery'}</strong></p>
+              <p>Order Type: <strong>{fulfillmentType === 'dine_in' ? 'Dine-In' : fulfillmentType === 'takeout' ? 'Takeout' : 'Delivery'}</strong></p>
               {fulfillmentType !== 'dine_in' && (
                 <>
-                  <p>✓ Payment Method: <strong>{selectedPaymentMethod === 'gcash' ? 'GCash' : 'PayMaya'}</strong></p>
-                  <p>✓ Proof Uploaded: <strong>Yes</strong></p>
+                  <p>Payment Method: <strong>{selectedPaymentMethod === 'gcash' ? 'GCash' : 'PayMaya'}</strong></p>
+                  <p>Proof Uploaded: <strong>Yes</strong></p>
                 </>
               )}
-              <p>✓ Total: <strong>₱{calculateTotal().total}</strong></p>
+              <p>Total: <strong>₱{calculateTotal().total}</strong></p>
             </div>
             <button onClick={processOrder} style={styles.submitButton}>
               Submit Order
