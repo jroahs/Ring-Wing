@@ -12,6 +12,7 @@ import Sidebar from './Sidebar';
 import MenuManagement from './MenuManagement';
 import ExpenseTracker from './ExpenseDisbursement';
 import PointofSale from './PointofSale';
+import PointOfSaleRouter from './PointOfSaleRouter';
 import SelfCheckout from './SelfCheckout';
 import PayrollSystem from './PayrollSystem';
 import EmployeeManagement from "./EmployeeManagement";
@@ -321,7 +322,7 @@ function App() {
             {/* POS routes - accessible by cashiers and managers */}
             <Route path="/pos" element={
               <PositionProtectedRoute requiredPositions={['cashier', 'shift_manager', 'general_manager', 'admin']}>
-                <PointofSale />
+                <PointOfSaleRouter />
               </PositionProtectedRoute>
             } />
             <Route path="/orders" element={
