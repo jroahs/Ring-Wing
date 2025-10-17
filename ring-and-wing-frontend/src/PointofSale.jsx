@@ -1141,6 +1141,14 @@ const PointOfSale = () => {
     const cashValue = paymentDetails?.cashAmount ? parseFloat(paymentDetails.cashAmount) : parseFloat(cashAmount);
     const currentPaymentMethod = paymentDetails?.method || paymentMethod;
 
+    console.log('[processPendingOrderPayment] Payment details:', {
+      paymentDetails,
+      cashValue,
+      cashAmount,
+      currentPaymentMethod,
+      totalDue
+    });
+
     if (currentPaymentMethod === 'cash') {
       // Use centralized cash float validation
       const changeValidation = validateChange(cashValue, totalDue);
@@ -1209,7 +1217,11 @@ const PointOfSale = () => {
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to update order');
-      }      const orderData = await response.json();
+      }
+
+      const orderData = await response.json();
+      console.log('[DesktopPOS processPendingOrderPayment] Server response:', orderData.data);
+      console.log('[DesktopPOS processPendingOrderPayment] Totals from server:', orderData.data?.totals);
       
       // NEW: Create inventory reservation for pending order items with ingredient mappings
       if (orderData?.data?._id) {
@@ -1309,6 +1321,8 @@ const PointOfSale = () => {
           price: item.price,
           quantity: item.quantity,
           selectedSize: item.selectedSize,
+          availableSizes: item.availableSizes || ['base'],
+          pricing: item.pricing || { base: item.price },
           modifiers: item.modifiers,
           pwdSeniorDiscount: item.pwdSeniorDiscount || {
             applied: false,
@@ -2298,12 +2312,16 @@ const PointOfSale = () => {
                     ? calculatePendingOrderTotal().total
                     : calculateTotal().total,
                   customerName: customerName || '', // Add customer name to receipt
-                  cashReceived: paymentMethod === 'cash' ? parseFloat(cashAmount).toFixed(2) : "0.00",
-                  change: paymentMethod === 'cash' ? 
-                    (parseFloat(cashAmount) - (isPendingOrderMode 
-                      ? parseFloat(calculatePendingOrderTotal().total)
-                      : parseFloat(calculateTotal().total)
-                    )).toFixed(2) : "0.00",
+                  cashReceived: isPendingOrderMode && editingPendingOrder?.totals?.cashReceived 
+                    ? editingPendingOrder.totals.cashReceived.toFixed(2)
+                    : (paymentMethod === 'cash' ? parseFloat(cashAmount).toFixed(2) : "0.00"),
+                  change: isPendingOrderMode && editingPendingOrder?.totals?.change !== undefined
+                    ? editingPendingOrder.totals.change.toFixed(2)
+                    : (paymentMethod === 'cash' ? 
+                        (parseFloat(cashAmount) - (isPendingOrderMode 
+                          ? parseFloat(calculatePendingOrderTotal().total)
+                          : parseFloat(calculateTotal().total)
+                        )).toFixed(2) : "0.00"),
                   eWalletProvider: paymentMethod === 'e-wallet' ? eWalletDetails?.provider || '' : '',
                   eWalletReferenceNumber: paymentMethod === 'e-wallet' ? eWalletDetails?.referenceNumber || '' : '',
                   eWalletName: paymentMethod === 'e-wallet' ? eWalletDetails?.name || '' : ''

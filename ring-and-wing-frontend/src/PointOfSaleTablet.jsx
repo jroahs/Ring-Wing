@@ -556,8 +556,8 @@ const PointOfSaleTablet = () => {
     const currentCart = getActiveCart();
     setActiveCart(
       currentCart.map(i =>
-        i._id === item._id && i.size === item.size
-          ? { ...i, size: newSize, price: item.pricing?.[newSize] || i.price }
+        i._id === item._id && i.selectedSize === item.selectedSize
+          ? { ...i, selectedSize: newSize, price: item.pricing?.[newSize] || i.price }
           : i
       )
     );
@@ -668,12 +668,135 @@ const PointOfSaleTablet = () => {
 
   // === CHECKOUT & PAYMENT ===
   
+  const updatePendingOrderWithPayment = async (paymentDetails) => {
+    try {
+      const totals = calculateTotal();
+      const totalAmount = parseFloat(totals.total);
+      
+      const currentPaymentMethod = paymentDetails?.method || paymentMethod;
+      const cashValue = paymentDetails?.cashAmount || parseFloat(cashAmount) || 0;
+      const eWalletInfo = paymentDetails?.eWalletDetails || eWalletDetails;
+      const customer = paymentDetails?.customerName || customerName;
+      const discountCardsData = paymentDetails?.discountCards || [];
+      
+      console.log('[TabletPOS updatePendingOrderWithPayment] Payment details:', {
+        paymentDetails,
+        cashValue,
+        totalAmount,
+        editingPendingOrder: editingPendingOrder?._id
+      });
+      
+      // Build payment details object
+      let paymentDetailsObj = {};
+      if (currentPaymentMethod === 'cash') {
+        paymentDetailsObj = {
+          cashReceived: cashValue,
+          change: cashValue - totalAmount
+        };
+      } else if (currentPaymentMethod === 'e-wallet') {
+        paymentDetailsObj = {
+          eWalletProvider: eWalletInfo.provider,
+          eWalletReferenceNumber: eWalletInfo.referenceNumber,
+          eWalletName: eWalletInfo.name
+        };
+      }
+      
+      // Update the existing pending order
+      const response = await fetch(
+        `http://localhost:5000/api/orders/${editingPendingOrder._id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            status: 'received',
+            paymentMethod: currentPaymentMethod,
+            customerName: customer || '',
+            discountCards: discountCardsData,
+            fulfillmentType: 'dine_in',
+            totals: {
+              subtotal: parseFloat(totals.subtotal),
+              discount: parseFloat(totals.discount),
+              total: totalAmount,
+              ...paymentDetailsObj
+            },
+            items: pendingOrderCart.map(item => ({
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+              selectedSize: item.selectedSize || 'Regular',
+              availableSizes: item.availableSizes || ['base'],
+              pricing: item.pricing || { base: item.price },
+              modifiers: item.modifiers || [],
+              pwdSeniorDiscount: item.pwdSeniorDiscount || {
+                applied: false,
+                discountedQuantity: 0,
+                discountAmount: 0,
+                vatExempt: false,
+                cardType: null,
+                cardIdNumber: null
+              }
+            }))
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update order');
+      }
+
+      const result = await response.json();
+      console.log('[TabletPOS updatePendingOrderWithPayment] Server response:', result.data);
+      console.log('[TabletPOS updatePendingOrderWithPayment] Totals from server:', result.data?.totals);
+      setSavedOrderData(result.data);
+      
+      // Process cash float transaction if payment method is cash
+      if (currentPaymentMethod === 'cash') {
+        try {
+          await processTransaction(cashValue, totalAmount, `pending_order_${editingPendingOrder._id}`);
+          console.log('Pending order cash transaction processed successfully');
+        } catch (cashError) {
+          console.error('Cash float processing error:', cashError);
+        }
+      }
+      
+      // Show receipt and print
+      setShowReceipt(true);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await handlePrint();
+      
+      // Remove from active orders list
+      setActiveOrders(prev => prev.filter(order => order._id !== editingPendingOrder._id));
+      
+      // Clear pending order state
+      setEditingPendingOrder(null);
+      setIsPendingOrderMode(false);
+      setPendingOrderCart([]);
+      
+      // Switch back to ready orders tab
+      setOrderViewType('ready');
+      
+    } catch (error) {
+      console.error('[TabletPOS] Error updating pending order:', error);
+      alert('Failed to process payment. Please try again.');
+    }
+  };
+  
   const handleCheckout = async (paymentDetails) => {
     try {
       const currentCart = getActiveCart();
       
       if (currentCart.length === 0) {
         alert('Cart is empty');
+        return;
+      }
+
+      // Check if we're editing a pending order - if so, update it instead of creating new
+      if (isPendingOrderMode && editingPendingOrder) {
+        await updatePendingOrderWithPayment(paymentDetails);
         return;
       }
 
@@ -688,6 +811,16 @@ const PointOfSaleTablet = () => {
       const eWalletInfo = paymentDetails?.eWalletDetails || eWalletDetails;
       const customer = paymentDetails?.customerName || customerName;
       const discountCardsData = paymentDetails?.discountCards || [];
+      
+      console.log('[TabletPOS handleCheckout] Payment details:', {
+        paymentDetails,
+        cashValue,
+        cashAmount,
+        currentPaymentMethod,
+        totalAmount,
+        isPendingOrderMode,
+        editingPendingOrder: editingPendingOrder?._id
+      });
       
       // Build payment details object
       let paymentDetailsObj = {};
@@ -710,6 +843,8 @@ const PointOfSaleTablet = () => {
           price: item.price,
           quantity: item.quantity,
           selectedSize: item.selectedSize || 'Regular',
+          availableSizes: item.availableSizes || ['base'],
+          pricing: item.pricing || { base: item.price },
           modifiers: item.modifiers || [],
           pwdSeniorDiscount: item.pwdSeniorDiscount || {
             applied: false,
@@ -748,6 +883,8 @@ const PointOfSaleTablet = () => {
       const result = await response.json();
 
       if (response.ok && result.success) {
+        console.log('[TabletPOS handleCheckout] Server response:', result.data);
+        console.log('[TabletPOS handleCheckout] Totals from server:', result.data?.totals);
         // Save order data for receipt
         setSavedOrderData(result.data);
         
@@ -947,37 +1084,46 @@ const PointOfSaleTablet = () => {
         name: item.name,
         price: item.price,
         quantity: item.quantity,
-        selectedSize: item.selectedSize || item.size || 'Regular'
+        selectedSize: item.selectedSize || item.size || 'base',
+        availableSizes: Object.keys(item.pricing || { base: item.price }),
+        pricing: item.pricing || { base: item.price }
       };
     }));
     setOrderViewType('pending');
   };
 
   const deletePendingOrder = async (orderId) => {
-    if (!confirm('Are you sure you want to delete this order?')) {
+    if (!confirm('Are you sure you want to delete this pending order? This action cannot be undone.')) {
       return;
     }
 
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/orders/${orderId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        alert('Order deleted successfully');
-        fetchActiveOrders();
-        
-        // Clear if this was the editing order
-        if (editingPendingOrder?._id === orderId) {
-          setEditingPendingOrder(null);
-          setIsPendingOrderMode(false);
-          setPendingOrderCart([]);
+      const response = await fetch(
+        `http://localhost:5000/api/orders/${orderId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
         }
-      } else {
+      );
+
+      if (!response.ok) {
         throw new Error('Failed to delete order');
       }
+
+      // Remove from activeOrders state
+      setActiveOrders(prev => prev.filter(order => order._id !== orderId));
+      
+      // If this was the order being edited, clear the edit state
+      if (editingPendingOrder?._id === orderId) {
+        setEditingPendingOrder(null);
+        setIsPendingOrderMode(false);
+        setPendingOrderCart([]);
+      }
+
+      alert('Pending order deleted successfully');
     } catch (error) {
       console.error('Error deleting order:', error);
       alert('Failed to delete order');
@@ -1413,9 +1559,9 @@ const PointOfSaleTablet = () => {
                           <div key={order._id} className="bg-gray-50 p-4 rounded-lg border-2 border-gray-200 hover:border-orange-300 transition-colors">
                             <div className="flex justify-between items-start mb-2">
                               <div>
-                                <p className="font-bold text-lg">Order #{order.orderNumber}</p>
+                                <p className="font-bold text-lg">Order #{order.receiptNumber || order._id?.substring(0, 6)}</p>
                                 <p className="text-sm text-gray-600">
-                                  {order.items?.length || 0} items • ₱{order.total?.toFixed(2)}
+                                  {order.items?.length || 0} items • ₱{order.totals?.total?.toFixed(2) || '0.00'}
                                 </p>
                                 <p className="text-xs text-gray-500 mt-1">
                                   {new Date(order.createdAt).toLocaleString()}

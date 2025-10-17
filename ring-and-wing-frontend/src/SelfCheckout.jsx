@@ -162,7 +162,9 @@ const SelfCheckoutContent = () => {
         name: item.name,
         price: item.price,
         quantity: item.quantity,
-        selectedSize: item.selectedSize
+        selectedSize: item.selectedSize,
+        availableSizes: item.availableSizes || ['base'],
+        pricing: item.pricing || { base: item.price }
       })),
       totals: {
         subtotal: calculatedTotals.subtotal,

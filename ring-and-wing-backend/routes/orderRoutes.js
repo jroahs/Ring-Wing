@@ -183,7 +183,17 @@ router.get('/', standardCheck, async (req, res, next) => {
 // Update order status with validation
 router.patch('/:id', async (req, res, next) => {
   try {
-    const { status, paymentMethod } = req.body;
+    const { 
+      status, 
+      paymentMethod, 
+      totals, 
+      items, 
+      customerName, 
+      discountCards, 
+      fulfillmentType,
+      paymentDetails 
+    } = req.body;
+    
     const validStatuses = ['received', 'preparing', 'ready', 'completed'];
     
     // Validate status
@@ -192,7 +202,9 @@ router.patch('/:id', async (req, res, next) => {
         success: false, 
         message: 'Invalid status value' 
       });
-    }    // Validate payment method
+    }
+
+    // Validate payment method
     if (paymentMethod && !['cash', 'e-wallet'].includes(paymentMethod)) {
       return res.status(400).json({ 
         success: false, 
@@ -200,15 +212,25 @@ router.patch('/:id', async (req, res, next) => {
       });
     }
 
+    // Build update object with all provided fields
     const updateData = {};
     if (status) updateData.status = status;
     if (paymentMethod) updateData.paymentMethod = paymentMethod;
+    if (totals) updateData.totals = totals;
+    if (items) updateData.items = items;
+    if (customerName !== undefined) updateData.customerName = customerName;
+    if (discountCards) updateData.discountCards = discountCards;
+    if (fulfillmentType) updateData.fulfillmentType = fulfillmentType;
+    if (paymentDetails) updateData.paymentDetails = paymentDetails;
+    
+    console.log('[PATCH Order] Update data:', JSON.stringify(updateData, null, 2));
+    console.log('[PATCH Order] Totals received:', totals);
     
     if (status === 'completed') updateData.completedAt = Date.now();
 
     const order = await Order.findByIdAndUpdate(
       req.params.id,
-      updateData,
+      { $set: updateData },
       { new: true, runValidators: true }
     );
 
@@ -255,6 +277,27 @@ router.patch('/:id', async (req, res, next) => {
       success: true,
       data: order,
       message: 'Order updated successfully'
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Delete order
+router.delete('/:id', standardCheck, async (req, res, next) => {
+  try {
+    const order = await Order.findByIdAndDelete(req.params.id);
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Order deleted successfully'
     });
   } catch (err) {
     next(err);

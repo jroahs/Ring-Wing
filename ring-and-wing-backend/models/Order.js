@@ -11,6 +11,8 @@ const orderSchema = new mongoose.Schema({
     price: { type: Number, required: true },
     quantity: { type: Number, required: true },
     selectedSize: { type: String, required: true },
+    availableSizes: [{ type: String }],
+    pricing: { type: mongoose.Schema.Types.Mixed },
     modifiers: [{ type: String }],
     pwdSeniorDiscount: {
       applied: { type: Boolean, default: false },

@@ -13,10 +13,10 @@ const SizeSelectionModal = ({ item, onClose, onSelectSize }) => {
 
   // Get all available sizes and prices
   const sizes = Object.keys(item.pricing || {})
-    .filter(key => key !== '_id' && key !== 'base');
+    .filter(key => key !== '_id');
   
   // If no sizes or only one size/base price, auto-select
-  const hasSizes = sizes.length > 1 || (sizes.length === 1 && sizes[0] !== 'base');
+  const hasSizes = sizes.length > 1;
 
   const handleConfirm = () => {
     if (!selectedSize && hasSizes) {

@@ -54,6 +54,7 @@ const cartReducer = (state, action) => {
           price: item.pricing[selectedSize],
           selectedSize,
           availableSizes: Object.keys(item.pricing),
+          pricing: item.pricing,
           quantity: 1
         };
         return [...state, cartItem];
