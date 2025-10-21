@@ -719,6 +719,12 @@ const PointOfSale = () => {
     return `${timestamp}${random}`;
   };  
   
+  // Check if items are locked in current tab
+  const isItemLocked = () => {
+    return orderViewType === 'dineTakeout' || 
+           (orderViewType === 'pending' && !isPendingOrderMode);
+  };
+  
   const addToOrder = item => {
     // Check if item has multiple sizes - if yes, show size selection modal
     const sizes = Object.keys(item.pricing || {}).filter(key => key !== '_id');
@@ -1622,6 +1628,7 @@ const PointOfSale = () => {
                     item={item}
                     onClick={() => item.isAvailable !== false ? addToOrder(item) : null}
                     isUnavailable={item.isAvailable === false}
+                    isLocked={isItemLocked()}
                   />
                 </div>
               ))
@@ -1845,6 +1852,7 @@ const PointOfSale = () => {
                                   item={item}
                                   onClick={() => item.isAvailable !== false ? addToOrder(item) : null}
                                   isUnavailable={item.isAvailable === false}
+                                  isLocked={isItemLocked()}
                                 />
                               </div>
                             ))
@@ -1921,6 +1929,7 @@ const PointOfSale = () => {
                                   item={item}
                                   onClick={() => item.isAvailable !== false ? addToOrder(item) : null}
                                   isUnavailable={item.isAvailable === false}
+                                  isLocked={isItemLocked()}
                                 />
                               </div>
                             ))

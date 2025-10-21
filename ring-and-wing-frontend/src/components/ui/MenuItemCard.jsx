@@ -1,7 +1,7 @@
 import { theme } from '../../theme';
 import { motion } from 'framer-motion';
 
-export const MenuItemCard = ({ item, onClick, isUnavailable = false }) => {
+export const MenuItemCard = ({ item, onClick, isUnavailable = false, isLocked = false }) => {
   const basePrice = item.pricing.base || Object.values(item.pricing)[0];
   
   // Get a more readable display for pricing variants if available
@@ -9,7 +9,7 @@ export const MenuItemCard = ({ item, onClick, isUnavailable = false }) => {
   const priceDisplay = typeof basePrice === 'number' ? basePrice.toFixed(0) : basePrice;
   
   const handleClick = () => {
-    if (!isUnavailable && onClick) {
+    if (!isUnavailable && !isLocked && onClick) {
       onClick();
     }
   };
@@ -17,18 +17,18 @@ export const MenuItemCard = ({ item, onClick, isUnavailable = false }) => {
   return (
     <motion.div
       className={`relative rounded-xl overflow-hidden aspect-square group ${
-        isUnavailable ? 'cursor-not-allowed' : 'cursor-pointer'
+        isUnavailable || isLocked ? 'cursor-not-allowed' : 'cursor-pointer'
       }`}
       onClick={handleClick}
-      whileHover={!isUnavailable ? { 
+      whileHover={!isUnavailable && !isLocked ? { 
         scale: 1.03, 
         boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)'
       } : {}}
-      whileTap={!isUnavailable ? { scale: 0.98 } : {}}
+      whileTap={!isUnavailable && !isLocked ? { scale: 0.98 } : {}}
       transition={{ duration: 0.2 }}
       style={{ 
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        opacity: isUnavailable ? 0.6 : 1
+        opacity: isUnavailable || isLocked ? 0.6 : 1
       }}
     >
       {/* Gradient overlay */}
@@ -52,6 +52,29 @@ export const MenuItemCard = ({ item, onClick, isUnavailable = false }) => {
           >
             <span className="text-white font-bold text-sm tracking-wide">
               UNAVAILABLE
+            </span>
+          </div>
+        </>
+      )}
+      
+      {/* Locked overlay */}
+      {isLocked && !isUnavailable && (
+        <>
+          {/* Blue overlay */}
+          <div className="absolute inset-0 bg-blue-900/30 z-15"></div>
+          
+          {/* Blue line with LOCKED text */}
+          <div 
+            className="absolute inset-x-0 z-20 flex items-center justify-center"
+            style={{ 
+              top: '50%', 
+              transform: 'translateY(-50%)',
+              height: '32px',
+              backgroundColor: '#3b82f6'
+            }}
+          >
+            <span className="text-white font-bold text-sm tracking-wide">
+              LOCKED
             </span>
           </div>
         </>

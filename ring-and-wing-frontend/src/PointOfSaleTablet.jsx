@@ -184,7 +184,7 @@ const PointOfSaleTablet = () => {
       setLoading(true);
       
       // Fetch data (errors are handled in each function)
-      await Promise.all([
+      const [menuResult, categoriesResult] = await Promise.all([
         fetchMenuItems(),
         fetchCategories(),
         fetchActiveOrders(),
@@ -193,11 +193,8 @@ const PointOfSaleTablet = () => {
       // Initialize socket
       initializeSocket();
       
-      // Check if backend is reachable
-      if (menuItems.length === 0 && categories.length === 0) {
-        console.warn('⚠️ Backend may not be running. Please start the server.');
-        // Don't set error - allow POS to work offline
-      }
+      // Note: Backend connectivity check removed as it was checking stale state
+      // The individual fetch functions already handle and log errors appropriately
       
       setLoading(false);
     };

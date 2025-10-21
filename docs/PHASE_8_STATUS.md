@@ -97,20 +97,25 @@
 ### Future Phases (Phase 9+)
 
 Based on desktop POS feature parity:
-- [ ] **Phase 9: Payment Verification System**
-  - Manual payment verification modal
-  - Admin verification workflow
-  - Payment status updates
+- [x] **Phase 9: Payment Verification System** (Desktop POS has this - Tablet POS needs it)
+  - ✅ Dine/Take-outs tab showing orders awaiting verification
+  - ✅ `handleQuickVerify` function for POS verification
+  - ✅ Payment verification modal
+  - ✅ Timeout warnings for expiring payments
+  - **TO DO:** Implement in Tablet POS
 
-- [ ] **Phase 10: Advanced Order Management**
+- [ ] **Phase 10: Feature Parity Completion**
+  - Match Desktop POS three-tab system (Ready Orders / Pending Orders / Dine/Take-outs)
+  - Payment verification workflow for takeout/delivery orders
+  - E-wallet payment proof handling
+  - Order status management (received → preparing → ready → completed)
+
+- [ ] **Phase 11: Missing Features** (Not in Desktop POS)
   - Order search/filter functionality
   - Order history view
-  - Order status management
-
-- [ ] **Phase 11: Reporting & Analytics**
-  - Sales reports
+  - Detailed sales reports
   - PWD/Senior discount reports
-  - Cash float reports
+  - Cash float reports beyond End of Shift
 
 - [ ] **Phase 12: UI/UX Enhancements**
   - Touch-optimized interactions
