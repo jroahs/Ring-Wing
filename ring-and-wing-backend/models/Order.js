@@ -45,9 +45,35 @@ const orderSchema = new mongoose.Schema({
     eWalletReferenceNumber: { type: String },
     eWalletName: { type: String }
   },
+
+  // NEW: PayMongo Payment Gateway Integration
+  paymentGateway: {
+    provider: { 
+      type: String, 
+      enum: ['paymongo'], 
+      default: null 
+    },
+    sessionId: { type: String }, // PayMongo checkout session ID
+    checkoutUrl: { type: String }, // PayMongo checkout URL for customer
+    transactionId: { type: String }, // PayMongo payment intent ID
+    paymentMethod: { 
+      type: String, 
+      enum: ['gcash', 'paymaya'], 
+      default: null 
+    },
+    status: { 
+      type: String, 
+      enum: ['pending', 'paid', 'failed', 'cancelled'], 
+      default: 'pending' 
+    },
+    webhookReceived: { type: Boolean, default: false },
+    paidAt: { type: Date },
+    expiresAt: { type: Date }
+  },
+
   paymentMethod: { 
     type: String, 
-    enum: ['cash', 'e-wallet', 'pending'],
+    enum: ['cash', 'e-wallet', 'paymongo', 'paymongo_gcash', 'paymongo_paymaya', 'pending'],
     required: true 
   },
   orderType: {
@@ -88,7 +114,7 @@ const orderSchema = new mongoose.Schema({
   },
   status: { 
     type: String, 
-    enum: ['pending', 'pending_payment', 'received', 'preparing', 'ready', 'completed', 'cancelled'],
+    enum: ['pending', 'pending_payment', 'paymongo_verified', 'received', 'preparing', 'ready', 'completed', 'cancelled'],
     default: 'received'
   },
   createdAt: { type: Date, default: Date.now },
@@ -101,5 +127,8 @@ orderSchema.index({ 'proofOfPayment.verificationStatus': 1 }); // Query pending 
 orderSchema.index({ 'proofOfPayment.expiresAt': 1 }); // Timeout cleanup queries
 orderSchema.index({ orderType: 1, paymentMethod: 1 }); // Filter by order and payment type
 orderSchema.index({ fulfillmentType: 1 }); // Filter by fulfillment type (dine-in/takeout/delivery)
+orderSchema.index({ 'paymentGateway.sessionId': 1 }); // PayMongo session lookup
+orderSchema.index({ 'paymentGateway.status': 1 }); // PayMongo payment status queries
+orderSchema.index({ 'paymentGateway.expiresAt': 1 }); // PayMongo session cleanup
 
 module.exports = mongoose.model('Order', orderSchema);

@@ -212,7 +212,7 @@ export const PrintableReceipt = forwardRef(({
       </div>
 
       {/* Print Styles */}
-      <style jsx>{`
+      <style>{`
         @media print {
           @page {
             margin: 0.5cm;

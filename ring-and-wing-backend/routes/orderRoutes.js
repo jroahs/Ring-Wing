@@ -16,7 +16,7 @@ const validateOrder = (req, res, next) => {
   if (!items || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ success: false, message: 'Invalid order items' });
   }
-    if (!['cash', 'e-wallet', 'pending'].includes(paymentMethod)) {
+  if (!['cash', 'e-wallet', 'pending', 'paymongo'].includes(paymentMethod)) {
     return res.status(400).json({ success: false, message: 'Invalid payment method' });
   }
   
@@ -328,6 +328,13 @@ router.get('/:id/verification-status', standardCheck, paymentVerificationControl
  * Requires: admin or cashier role
  */
 router.get('/pending-verification', auth, standardCheck, paymentVerificationController.getPendingVerification);
+
+/**
+ * Process PayMongo verified order (generate receipt and move to kitchen)
+ * POST /api/orders/:id/process-paymongo
+ * Requires: admin or cashier role
+ */
+router.post('/:id/process-paymongo', auth, standardCheck, paymentVerificationController.processPayMongoOrder);
 
 /**
  * Verify payment and approve order

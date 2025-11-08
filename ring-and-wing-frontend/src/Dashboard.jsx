@@ -1,5 +1,6 @@
 // filepath: c:\Games\Ring-Wing\ring-and-wing-frontend\src\Dashboard.jsx
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import DashboardMinimal from './components/DashboardMinimal';
 import PaymentSettings from './components/PaymentSettings';
 import PaymentVerificationDashboard from './components/PaymentVerificationDashboard';
@@ -20,15 +21,31 @@ function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8 ml-0 md:ml-20 pt-16 md:pt-4 transition-all duration-300" style={{ backgroundColor: colors.background }}>
+    <motion.div 
+      className="min-h-screen p-4 sm:p-6 lg:p-8 pt-16 md:pt-4 transition-all duration-300" 
+      style={{ backgroundColor: colors.background }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-          <h1 className="text-2xl font-bold text-primary">
+          <motion.h1 
+            className="text-2xl font-bold text-primary"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
             {getPageTitle()}
-          </h1>
+          </motion.h1>
           
-          <div className="flex mt-4 md:mt-0">
-            <button
+          <motion.div 
+            className="flex mt-4 md:mt-0"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <motion.button
               onClick={() => setActiveTab('overview')}
               className={`px-6 py-2 rounded-tl-lg rounded-bl-lg font-medium ${
                 activeTab === 'overview' 
@@ -36,10 +53,13 @@ function Dashboard() {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
               style={activeTab === 'overview' ? { backgroundColor: theme.colors.primary } : {}}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: "spring", stiffness: 400, damping: 17 }}
             >
               Overview
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               onClick={() => setActiveTab('verification')}
               className={`px-6 py-2 font-medium flex items-center gap-2 ${
                 activeTab === 'verification' 
@@ -47,11 +67,14 @@ function Dashboard() {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
               style={activeTab === 'verification' ? { backgroundColor: theme.colors.primary } : {}}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: "spring", stiffness: 400, damping: 17 }}
             >
               <FiDollarSign />
               Verification
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               onClick={() => setActiveTab('settings')}
               className={`px-6 py-2 rounded-tr-lg rounded-br-lg font-medium flex items-center gap-2 ${
                 activeTab === 'settings' 
@@ -59,26 +82,62 @@ function Dashboard() {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
               style={activeTab === 'settings' ? { backgroundColor: theme.colors.primary } : {}}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: "spring", stiffness: 400, damping: 17 }}
             >
               <FiSettings />
               Settings
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
         </div>
         
-        <div className="bg-white rounded-lg shadow">
-          {activeTab === 'overview' ? (
-            <div className="p-4" style={{ color: colors.primary }}>
-              <DashboardMinimal />
-            </div>
-          ) : activeTab === 'verification' ? (
-            <PaymentVerificationDashboard />
-          ) : (
-            <PaymentSettings />
-          )}
-        </div>
+        <motion.div 
+          className="bg-white rounded-lg shadow"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+        >
+          <AnimatePresence mode="wait">
+            {activeTab === 'overview' && (
+              <motion.div
+                key="overview"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+                className="p-4"
+                style={{ color: colors.primary }}
+              >
+                <DashboardMinimal />
+              </motion.div>
+            )}
+            {activeTab === 'verification' && (
+              <motion.div
+                key="verification"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <PaymentVerificationDashboard />
+              </motion.div>
+            )}
+            {activeTab === 'settings' && (
+              <motion.div
+                key="settings"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <PaymentSettings />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

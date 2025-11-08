@@ -54,6 +54,23 @@ router.get('/:id/alternatives', lightCheck, async (req, res) => {
   await menuController.getItemAlternatives(req, res);
 });
 
+// GET single menu item by ID
+router.get('/:id', lightCheck, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const menuItem = await MenuItem.findById(id);
+    
+    if (!menuItem) {
+      return res.status(404).json({ message: 'Menu item not found' });
+    }
+    
+    res.json(menuItem);
+  } catch (error) {
+    console.error('Error fetching menu item:', error);
+    res.status(500).json({ message: 'Error fetching menu item', error: error.message });
+  }
+});
+
 // GET all menu items with pagination
 router.get('/', lightCheck, async (req, res) => {
   try {
@@ -329,10 +346,27 @@ const rateLimitMiddleware = (req, res, next) => {
 router.patch('/:id/availability', rateLimitMiddleware, lightCheck, async (req, res) => {
   try {
     const { id } = req.params;
-    const { isAvailable } = req.body;
+    const { isAvailable, adminOverride, reason } = req.body;
 
     if (typeof isAvailable !== 'boolean') {
       return res.status(400).json({ message: 'isAvailable must be a boolean value' });
+    }
+
+    // If admin override is NOT being used and trying to enable, check availability
+    if (!adminOverride && isAvailable) {
+      const InventoryAvailabilityService = require('../services/inventoryAvailabilityService');
+      const menuItem = await MenuItem.findById(id).populate('ingredients.ingredientId');
+      
+      if (menuItem) {
+        const availabilityStatus = await InventoryAvailabilityService.checkMenuItemAvailability(menuItem);
+        
+        if (!availabilityStatus.isAvailable) {
+          return res.status(400).json({ 
+            message: 'Cannot enable menu item with insufficient ingredients',
+            insufficientIngredients: availabilityStatus.insufficientIngredients
+          });
+        }
+      }
     }
 
     const updatedItem = await MenuItem.findByIdAndUpdate(
@@ -349,14 +383,18 @@ router.patch('/:id/availability', rateLimitMiddleware, lightCheck, async (req, r
     const SocketService = require('../services/socketService');
     const io = req.app.get('io');
     if (io) {
+      const displayReason = adminOverride 
+        ? `Admin override: ${reason || 'Manually enabled despite insufficient ingredients'}` 
+        : (isAvailable ? 'Manually enabled' : 'Manually disabled');
+        
       SocketService.emitMenuAvailabilityChanged(
         io,
         id,  // menuItemId
         isAvailable,  // isAvailable
-        isAvailable ? 'Manually enabled' : 'Manually disabled',  // reason
+        displayReason,  // reason
         []  // insufficientIngredients
       );
-      console.log(`[SOCKET] Emitted menuAvailabilityChanged for manual toggle: ${updatedItem.name} -> ${isAvailable}`);
+      console.log(`[SOCKET] Emitted menuAvailabilityChanged for ${adminOverride ? 'admin override' : 'manual'} toggle: ${updatedItem.name} -> ${isAvailable}`);
     }
 
     res.json({ 

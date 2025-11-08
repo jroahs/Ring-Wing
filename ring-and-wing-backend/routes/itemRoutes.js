@@ -170,6 +170,10 @@ router.put('/:id', async (req, res) => {
           previousQuantity,
           updatedItem.unit
         );
+        
+        // 🔥 Update affected menu items availability
+        const InventoryReservationService = require('../services/inventoryReservationService');
+        await InventoryReservationService.updateAffectedMenuItemsAvailability(updatedItem._id, io);
       }
     }
 
@@ -240,6 +244,10 @@ router.patch('/:id/restock', async (req, res) => {
         previousQuantity,
         updatedItem.unit
       );
+      
+      // 🔥 Update affected menu items availability
+      const InventoryReservationService = require('../services/inventoryReservationService');
+      await InventoryReservationService.updateAffectedMenuItemsAvailability(updatedItem._id, io);
     }
     
     res.json({
@@ -486,6 +494,25 @@ router.patch('/:id/sell', async (req, res) => {
     }
 
     const updatedItem = await item.save();
+    
+    // 🔥 Emit socket event for stock level change and update menu availability
+    const io = req.app.get('io');
+    if (io) {
+      const SocketService = require('../services/socketService');
+      SocketService.emitStockLevelChanged(
+        io,
+        updatedItem._id,
+        updatedItem.name,
+        updatedItem.totalQuantity,
+        updatedItem.totalQuantity + quantityToSell,
+        updatedItem.unit
+      );
+      
+      // 🔥 Update affected menu items availability
+      const InventoryReservationService = require('../services/inventoryReservationService');
+      await InventoryReservationService.updateAffectedMenuItemsAvailability(updatedItem._id, io);
+    }
+    
     res.json({
       ...updatedItem.toObject(),
       totalQuantity: updatedItem.totalQuantity,
@@ -514,6 +541,8 @@ router.patch('/:id/dispose-expired', async (req, res) => {
     let disposedCount = 0;
 
     // Remove the specified expired batches
+    const previousQuantity = item.inventory.reduce((sum, b) => sum + b.quantity, 0);
+    
     item.inventory = item.inventory.filter(batch => {
       const shouldDispose = batchIds.includes(batch._id.toString());
       if (shouldDispose) disposedCount++;
@@ -521,6 +550,24 @@ router.patch('/:id/dispose-expired', async (req, res) => {
     });
 
     const updatedItem = await item.save();
+
+    // 🔥 Emit socket event for stock level change and update menu availability
+    const io = req.app.get('io');
+    if (io && disposedCount > 0) {
+      const SocketService = require('../services/socketService');
+      SocketService.emitStockLevelChanged(
+        io,
+        updatedItem._id,
+        updatedItem.name,
+        updatedItem.totalQuantity,
+        previousQuantity,
+        updatedItem.unit
+      );
+      
+      // 🔥 Update affected menu items availability
+      const InventoryReservationService = require('../services/inventoryReservationService');
+      await InventoryReservationService.updateAffectedMenuItemsAvailability(updatedItem._id, io);
+    }
 
     res.json({
       message: `Successfully disposed of ${disposedCount} expired batches`,

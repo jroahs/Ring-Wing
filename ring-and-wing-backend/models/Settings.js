@@ -144,6 +144,24 @@ const settingsSchema = new mongoose.Schema({
       red: { type: Number, default: 0 } // < 15 minutes = red (urgent)
     }
   },
+
+  // NEW: Payment Gateway Configuration (PayMongo)
+  paymentGateways: {
+    paymongo: {
+      enabled: { 
+        type: Boolean, 
+        default: false 
+      },
+      gcashEnabled: { 
+        type: Boolean, 
+        default: false 
+      },
+      paymayaEnabled: { 
+        type: Boolean, 
+        default: false 
+      }
+    }
+  },
   
   // Metadata
   createdAt: { 

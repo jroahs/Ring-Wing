@@ -250,6 +250,11 @@ const MenuPage = () => {
   const [itemCostAnalysis, setItemCostAnalysis] = useState({});
   const [itemAvailability, setItemAvailability] = useState({});
   
+  // Admin override state
+  const [showAdminOverrideModal, setShowAdminOverrideModal] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [pendingAvailabilityChange, setPendingAvailabilityChange] = useState(null);
+  
   // NEW: Socket.io state for real-time updates (Sprint 22)
   const [socket, setSocket] = useState(null);
 
@@ -817,6 +822,29 @@ const MenuPage = () => {
           }
         }));
         console.log(`[MenuManagement] Availability updated from socket for ${data.menuItemId}:`, data.isAvailable);
+        
+        // Update menuItems list
+        setMenuItems(prev => prev.map(item => 
+          item._id === data.menuItemId ? { ...item, isAvailable: data.isAvailable } : item
+        ));
+        
+        // If this item is currently being edited in the form, update the form
+        if (selectedItem?._id === data.menuItemId) {
+          console.log(`[MenuManagement] Updating form for currently edited item ${selectedItem.name}`);
+          console.log(`[MenuManagement] Setting isAvailable toggle to: ${data.isAvailable}`);
+          setValue('isAvailable', data.isAvailable, { shouldDirty: true, shouldTouch: true });
+          setSelectedItem(prev => {
+            const updated = { ...prev, isAvailable: data.isAvailable };
+            console.log('[MenuManagement] Updated selectedItem:', updated);
+            return updated;
+          });
+          
+          // Force form to re-render by triggering validation
+          setTimeout(() => {
+            const currentValue = getValues('isAvailable');
+            console.log(`[MenuManagement] Current toggle value after update: ${currentValue}`);
+          }, 100);
+        }
       }
     };
     
@@ -1367,6 +1395,22 @@ const MenuPage = () => {
     debounce(async (itemId, newAvailability) => {
       try {
         console.log(`Toggling availability for item ${itemId} to ${newAvailability}`);
+        console.log('[MenuManagement] itemAvailability state:', itemAvailability);
+        console.log('[MenuManagement] itemAvailability[itemId]:', itemAvailability[itemId]);
+        
+        // If trying to enable an item that has insufficient ingredients, require admin password
+        if (newAvailability && itemAvailability[itemId] && !itemAvailability[itemId].isAvailable) {
+          console.log('[MenuManagement] Item has insufficient ingredients, requiring admin override');
+          console.log('[MenuManagement] Setting showAdminOverrideModal to true');
+          // Store the pending change and show admin modal
+          setPendingAvailabilityChange({ itemId, newAvailability });
+          setShowAdminOverrideModal(true);
+          // Revert the toggle temporarily
+          setValue('isAvailable', false);
+          return;
+        }
+        
+        console.log('[MenuManagement] Proceeding with normal availability update');
         
         const response = await fetch(`http://localhost:5000/api/menu/${itemId}/availability`, {
           method: 'PATCH',
@@ -1402,8 +1446,88 @@ const MenuPage = () => {
         }
       }
     }, 500), // 500ms debounce
-    [selectedItem, setMenuItems, reset]
+    [selectedItem, setMenuItems, reset, itemAvailability, setValue, setPendingAvailabilityChange, setShowAdminOverrideModal]
   );
+
+  // Handle admin override for availability
+  const handleAdminOverride = async () => {
+    if (!pendingAvailabilityChange || !adminPassword) {
+      alert('Please enter admin password');
+      return;
+    }
+
+    try {
+      console.log('[AdminOverride] Verifying password...');
+      
+      // Get token from localStorage
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      
+      // Verify admin password
+      const authResponse = await fetch('http://localhost:5000/api/auth/verify-admin', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify({ password: adminPassword })
+      });
+
+      console.log('[AdminOverride] Auth response status:', authResponse.status);
+      
+      if (!authResponse.ok) {
+        const errorData = await authResponse.json().catch(() => ({}));
+        console.error('[AdminOverride] Auth failed:', errorData);
+        throw new Error(errorData.message || 'Invalid password');
+      }
+      
+      const authData = await authResponse.json();
+      console.log('[AdminOverride] Password verified successfully for user:', authData.username);
+
+      // Password verified, proceed with availability change
+      const { itemId, newAvailability } = pendingAvailabilityChange;
+      
+      const response = await fetch(`http://localhost:5000/api/menu/${itemId}/availability`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          isAvailable: newAvailability,
+          adminOverride: true,
+          reason: 'Admin override despite insufficient ingredients'
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update availability');
+      }
+
+      const result = await response.json();
+      console.log('Availability updated with admin override:', result);
+      
+      // Update local state
+      setMenuItems(prev => 
+        prev.map(item => 
+          item._id === itemId ? { ...item, isAvailable: newAvailability } : item
+        )
+      );
+      
+      // Update selected item and form
+      if (selectedItem?._id === itemId) {
+        setSelectedItem(prev => ({ ...prev, isAvailable: newAvailability }));
+        setValue('isAvailable', newAvailability);
+      }
+      
+      // Close modal and reset
+      setShowAdminOverrideModal(false);
+      setAdminPassword('');
+      setPendingAvailabilityChange(null);
+      
+      alert('Availability updated successfully with admin override');
+    } catch (error) {
+      console.error('Error with admin override:', error);
+      alert(`Failed: ${error.message}`);
+    }
+  };
 
   const handleDelete = async () => {
     if (!selectedItem?._id || isDeleting) return;
@@ -3138,6 +3262,33 @@ const MenuPage = () => {
                               setTimeout(() => {
                                 fetchMenuItemIngredients(itemToSave._id);
                               }, 500);
+                              
+                              // Re-fetch the menu item to get updated availability
+                              setTimeout(async () => {
+                                try {
+                                  const response = await fetch(`http://localhost:5000/api/menu/${itemToSave._id}`);
+                                  if (response.ok) {
+                                    const updatedItem = await response.json();
+                                    console.log('[MenuManagement] Re-fetched menu item after ingredient save:', updatedItem);
+                                    
+                                    // Update the selectedItem and form with latest data
+                                    setSelectedItem(prev => ({
+                                      ...prev,
+                                      isAvailable: updatedItem.isAvailable
+                                    }));
+                                    setValue('isAvailable', updatedItem.isAvailable, { shouldDirty: true });
+                                    
+                                    // Also update the menuItems list
+                                    setMenuItems(prev => prev.map(item => 
+                                      item._id === updatedItem._id ? { ...item, isAvailable: updatedItem.isAvailable } : item
+                                    ));
+                                    
+                                    console.log(`[MenuManagement] Updated toggle to: ${updatedItem.isAvailable}`);
+                                  }
+                                } catch (error) {
+                                  console.error('[MenuManagement] Error re-fetching menu item:', error);
+                                }
+                              }, 1000);
                             } else {
                               // Error already handled in updateMenuItemIngredients
                             }
@@ -3327,6 +3478,180 @@ const MenuPage = () => {
         )}
       </div>
       {/* <ConnectionMonitor /> */}
+      
+      {/* Admin Override Modal */}
+      {showAdminOverrideModal && (
+        <div 
+          className="modal-overlay" 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999
+          }}
+          onClick={() => {
+            setShowAdminOverrideModal(false);
+            setAdminPassword('');
+            setPendingAvailabilityChange(null);
+          }}
+        >
+          <div 
+            className="modal-content admin-override-modal" 
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '2rem',
+              maxWidth: '500px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)',
+              position: 'relative'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="modal-header" style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.5rem', color: '#333' }}>⚠️ Admin Override Required</h3>
+              <button 
+                className="close-button" 
+                style={{
+                  position: 'absolute',
+                  top: '1rem',
+                  right: '1rem',
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '2rem',
+                  cursor: 'pointer',
+                  color: '#999',
+                  lineHeight: 1
+                }}
+                onClick={() => {
+                  setShowAdminOverrideModal(false);
+                  setAdminPassword('');
+                  setPendingAvailabilityChange(null);
+                }}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="warning-message" style={{
+                textAlign: 'center',
+                padding: '1rem',
+                backgroundColor: '#fff3e0',
+                borderRadius: '8px',
+                marginBottom: '1rem'
+              }}>
+                <p style={{ marginTop: '0', fontSize: '1rem', color: '#333', lineHeight: '1.5' }}>
+                  <strong>⚠️ Warning:</strong> This item has insufficient ingredients and is currently unavailable.
+                </p>
+                <p style={{ marginTop: '0.5rem', marginBottom: '0', color: '#666', fontSize: '0.9rem' }}>
+                  Enabling it will allow customers to order despite low stock.
+                </p>
+              </div>
+              
+              {itemAvailability[pendingAvailabilityChange?.itemId] && itemAvailability[pendingAvailabilityChange.itemId].insufficientIngredients?.length > 0 && (
+                <div className="insufficient-ingredients" style={{ 
+                  marginTop: '1rem', 
+                  padding: '1rem', 
+                  background: '#ffebee', 
+                  borderRadius: '8px',
+                  border: '1px solid #ef5350'
+                }}>
+                  <strong style={{ color: '#d32f2f' }}>Insufficient Ingredients:</strong>
+                  <ul style={{ marginTop: '0.5rem', marginBottom: '0', paddingLeft: '1.5rem' }}>
+                    {itemAvailability[pendingAvailabilityChange.itemId].insufficientIngredients.map((ing, idx) => (
+                      <li key={idx} style={{ color: '#d32f2f', marginTop: '0.25rem' }}>
+                        {ing.name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              <div style={{ marginTop: '1.5rem' }}>
+                <label htmlFor="admin-password" style={{ 
+                  display: 'block', 
+                  marginBottom: '0.5rem',
+                  fontWeight: 'bold',
+                  color: '#333'
+                }}>
+                  Enter Admin Password to Continue:
+                </label>
+                <input
+                  type="password"
+                  id="admin-password"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleAdminOverride();
+                    }
+                  }}
+                  placeholder="Admin password"
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    fontSize: '1rem',
+                    border: '2px solid #ddd',
+                    borderRadius: '4px',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+            </div>
+            
+            <div className="modal-footer" style={{ 
+              display: 'flex', 
+              gap: '1rem', 
+              marginTop: '1.5rem',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={() => {
+                  setShowAdminOverrideModal(false);
+                  setAdminPassword('');
+                  setPendingAvailabilityChange(null);
+                }}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  fontSize: '1rem',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  background: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAdminOverride}
+                disabled={!adminPassword}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  fontSize: '1rem',
+                  border: 'none',
+                  borderRadius: '4px',
+                  background: adminPassword ? '#ff9800' : '#ccc',
+                  color: 'white',
+                  cursor: adminPassword ? 'pointer' : 'not-allowed',
+                  fontWeight: 'bold'
+                }}
+              >
+                Confirm Override
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

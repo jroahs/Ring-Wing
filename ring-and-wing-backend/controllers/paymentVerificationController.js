@@ -128,11 +128,15 @@ exports.uploadProof = async (req, res) => {
  */
 exports.verifyPayment = async (req, res) => {
   try {
+    console.log('[DEBUG] verifyPayment called with ID:', req.params.id);
     const { id } = req.params;
     const { notes } = req.body;
     const verifiedBy = req.user._id; // From auth middleware
 
     const order = await Order.findById(id);
+    console.log('[DEBUG] Order found:', order ? order.receiptNumber : 'NOT FOUND');
+    console.log('[DEBUG] Order status:', order?.status);
+    console.log('[DEBUG] Order proofOfPayment:', order?.proofOfPayment?.verificationStatus);
 
     if (!order) {
       return res.status(404).json({
@@ -141,31 +145,12 @@ exports.verifyPayment = async (req, res) => {
       });
     }
 
-    // Validate order can be verified
-    if (order.status !== 'pending_payment') {
+    // Allow verification of orders even if expired or in different status
+    // Just ensure there's proof of payment data
+    if (!order.proofOfPayment) {
       return res.status(400).json({
         success: false,
-        message: 'Order is not awaiting payment verification'
-      });
-    }
-
-    if (!order.proofOfPayment || order.proofOfPayment.verificationStatus !== 'pending') {
-      return res.status(400).json({
-        success: false,
-        message: 'No pending proof of payment found'
-      });
-    }
-
-    // Check if order has expired
-    if (order.proofOfPayment.expiresAt < new Date()) {
-      order.status = 'cancelled';
-      order.proofOfPayment.verificationStatus = 'rejected';
-      order.proofOfPayment.rejectionReason = 'Payment verification timeout exceeded';
-      await order.save();
-
-      return res.status(400).json({
-        success: false,
-        message: 'Order has expired and cannot be verified'
+        message: 'No proof of payment found'
       });
     }
 
@@ -230,9 +215,12 @@ exports.verifyPayment = async (req, res) => {
  */
 exports.rejectPayment = async (req, res) => {
   try {
+    console.log('[DEBUG] rejectPayment called with ID:', req.params.id);
     const { id } = req.params;
     const { reason } = req.body;
     const verifiedBy = req.user._id;
+
+    console.log('[DEBUG] Rejection reason:', reason);
 
     if (!reason) {
       return res.status(400).json({
@@ -242,6 +230,8 @@ exports.rejectPayment = async (req, res) => {
     }
 
     const order = await Order.findById(id);
+    console.log('[DEBUG] Order found for rejection:', order ? order.receiptNumber : 'NOT FOUND');
+    console.log('[DEBUG] Order status for rejection:', order?.status);
 
     if (!order) {
       return res.status(404).json({
@@ -250,10 +240,12 @@ exports.rejectPayment = async (req, res) => {
       });
     }
 
-    if (order.status !== 'pending_payment') {
+    // Allow rejection of orders even if expired or in different status
+    // Just ensure there's proof of payment data
+    if (!order.proofOfPayment) {
       return res.status(400).json({
         success: false,
-        message: 'Order is not awaiting payment verification'
+        message: 'No proof of payment found'
       });
     }
 
@@ -316,27 +308,57 @@ exports.getPendingVerification = async (req, res) => {
 
     // Build query - support filtering by verification status
     const query = {
-      paymentMethod: 'e-wallet', // Only e-wallet orders
       $or: [
-        { status: 'pending_payment' },
-        { 'proofOfPayment.verificationStatus': 'verified' },
-        { status: 'cancelled', 'proofOfPayment.verificationStatus': 'rejected' }
+        // E-wallet manual payment orders
+        {
+          paymentMethod: 'e-wallet', // Only e-wallet orders
+          $or: [
+            { status: 'pending_payment' },
+            { 'proofOfPayment.verificationStatus': 'verified' },
+            { status: 'cancelled', 'proofOfPayment.verificationStatus': 'rejected' }
+          ]
+        },
+        // PayMongo orders that are verified but need receipt generation
+        {
+          paymentMethod: { $regex: /^paymongo_/ }, // PayMongo orders (paymongo_gcash, paymongo_paymaya, etc.)
+          status: 'paymongo_verified' // Custom status for PayMongo orders awaiting receipt
+        }
       ]
     };
 
     // Filter by verification status if provided
     if (verificationStatus && ['pending', 'verified', 'rejected'].includes(verificationStatus)) {
-      query['proofOfPayment.verificationStatus'] = verificationStatus;
-      delete query.$or; // Remove the OR condition when filtering by specific status
-      
-      // Set appropriate status based on verification status
       if (verificationStatus === 'pending') {
-        query.status = 'pending_payment';
+        // Only show pending manual payment orders
+        query.$or = [
+          {
+            paymentMethod: 'e-wallet',
+            status: 'pending_payment',
+            'proofOfPayment.verificationStatus': 'pending'
+          }
+        ];
+      } else if (verificationStatus === 'verified') {
+        // Show both verified manual payments and PayMongo orders
+        query.$or = [
+          {
+            paymentMethod: 'e-wallet',
+            'proofOfPayment.verificationStatus': 'verified'
+          },
+          {
+            paymentMethod: { $regex: /^paymongo_/ },
+            status: 'paymongo_verified'
+          }
+        ];
       } else if (verificationStatus === 'rejected') {
-        query.status = 'cancelled';
+        // Only show rejected manual payment orders
+        query.$or = [
+          {
+            paymentMethod: 'e-wallet',
+            status: 'cancelled',
+            'proofOfPayment.verificationStatus': 'rejected'
+          }
+        ];
       }
-      // Note: 'verified' orders can have any order status (received, preparing, ready, etc.)
-      // so we don't filter by status for verified orders
     }
 
     // Filter by payment method if provided
@@ -358,11 +380,25 @@ exports.getPendingVerification = async (req, res) => {
 
     // Calculate time remaining for each order
     const now = new Date();
-    const ordersWithTimeRemaining = orders.map(order => ({
-      ...order,
-      timeRemaining: Math.max(0, Math.floor((new Date(order.proofOfPayment.expiresAt) - now) / 60000)), // minutes
-      isUrgent: (new Date(order.proofOfPayment.expiresAt) - now) < 15 * 60 * 1000 // < 15 minutes
-    }));
+    const ordersWithTimeRemaining = orders.map(order => {
+      // PayMongo orders don't have expiration times since they're already paid
+      if (order.paymentMethod && order.paymentMethod.startsWith('paymongo_')) {
+        return {
+          ...order,
+          timeRemaining: null, // No time limit for PayMongo orders
+          isUrgent: false, // Not urgent since payment is already completed
+          isPayMongoOrder: true // Flag to identify PayMongo orders in frontend
+        };
+      }
+      
+      // Manual payment orders with expiration times
+      return {
+        ...order,
+        timeRemaining: Math.max(0, Math.floor((new Date(order.proofOfPayment.expiresAt) - now) / 60000)), // minutes
+        isUrgent: (new Date(order.proofOfPayment.expiresAt) - now) < 15 * 60 * 1000, // < 15 minutes
+        isPayMongoOrder: false
+      };
+    });
 
     res.json({
       success: true,
@@ -423,6 +459,72 @@ exports.getVerificationStatus = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch order status',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * Process PayMongo verified order (generate receipt and move to kitchen)
+ * POST /api/orders/:id/process-paymongo
+ * Requires: admin or cashier role
+ */
+exports.processPayMongoOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    // Verify this is a PayMongo order in the correct status
+    if (!order.paymentMethod.startsWith('paymongo_') || order.status !== 'paymongo_verified') {
+      return res.status(400).json({
+        success: false,
+        message: 'Order is not a verified PayMongo order'
+      });
+    }
+
+    // Move order to kitchen workflow
+    order.status = 'received';
+    order.processedAt = new Date();
+    order.processedBy = req.user.id;
+    
+    await order.save();
+
+    // Emit Socket.IO event for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      const eventData = {
+        orderId: order._id,
+        receiptNumber: order.receiptNumber,
+        status: order.status,
+        paymentMethod: order.paymentMethod,
+        processedAt: order.processedAt
+      };
+      
+      io.emit('orderProcessed', eventData);
+    }
+
+    res.json({
+      success: true,
+      message: 'PayMongo order processed successfully',
+      data: {
+        orderId: order._id,
+        receiptNumber: order.receiptNumber,
+        status: order.status,
+        processedAt: order.processedAt
+      }
+    });
+  } catch (error) {
+    console.error('Process PayMongo order error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process PayMongo order',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

@@ -1061,6 +1061,22 @@ class InventoryBusinessLogicService {
             const InventoryAvailabilityService = require('./inventoryAvailabilityService');
             const availability = await InventoryAvailabilityService.checkMenuItemAvailability(menuItemId, 1);
             
+            // Update the menu item's isAvailable field in database
+            const MenuItem = require('../models/MenuItem');
+            const menuItem = await MenuItem.findById(menuItemId);
+            if (menuItem && menuItem.isAvailable !== availability.isAvailable) {
+              menuItem.isAvailable = availability.isAvailable;
+              await menuItem.save();
+              logger.info('[INGREDIENT_MAPPING] Updated menu item availability in database', {
+                menuItemId,
+                menuItemName: menuItem.name,
+                wasAvailable: !availability.isAvailable,
+                isNowAvailable: availability.isAvailable,
+                reason: availability.isAvailable ? 'All ingredients available' : 'Insufficient ingredients'
+              });
+            }
+            
+            // Emit socket event for real-time updates
             SocketService.emitMenuAvailabilityChanged(
               io,
               menuItemId,

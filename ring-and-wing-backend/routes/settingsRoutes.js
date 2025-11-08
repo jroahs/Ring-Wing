@@ -8,7 +8,9 @@ const {
   processCashTransaction,
   configureDailyReset,
   performDailyReset,
-  getAuditTrail
+  getAuditTrail,
+  getPaymentGateways,
+  updatePaymentGateways
 } = require('../controllers/settingsController');
 const {
   getMerchantWallets,
@@ -77,5 +79,22 @@ router.get('/payment-verification', auth, getPaymentVerificationSettings);
  * Requires: admin role
  */
 router.put('/payment-verification', auth, isManager, updatePaymentVerificationSettings);
+
+// ========================================
+// PAYMENT GATEWAY ROUTES (PayMongo Integration)
+// ========================================
+
+/**
+ * Get payment gateway settings (public - for payment option display)
+ * GET /api/settings/payment-gateways
+ */
+router.get('/payment-gateways', getPaymentGateways);
+
+/**
+ * Update payment gateway settings
+ * PUT /api/settings/payment-gateways
+ * Requires: admin role
+ */
+router.put('/payment-gateways', auth, isManager, updatePaymentGateways);
 
 module.exports = router;

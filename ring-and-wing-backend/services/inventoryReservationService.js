@@ -409,6 +409,9 @@ class InventoryReservationService {
                 item.quantityBefore,
                 item.unit
               );
+              
+              // 🔥 NEW: Update affected menu items availability
+              await this.updateAffectedMenuItemsAvailability(item.itemId, io);
             }
           } catch (stockEmitError) {
             console.warn('Failed to emit stock level change:', stockEmitError.message);
@@ -530,6 +533,15 @@ class InventoryReservationService {
       if (io) {
         const SocketService = require('./socketService');
         SocketService.emitReservationReleased(io, reservationId, reservation.orderId, reason);
+        
+        // 🔥 Update affected menu items availability when stock is released (becomes available again)
+        for (const item of adjustmentItems) {
+          try {
+            await this.updateAffectedMenuItemsAvailability(item.itemId, io);
+          } catch (updateError) {
+            console.warn('Failed to update menu availability after release:', updateError.message);
+          }
+        }
       }
       
       return {
@@ -825,6 +837,68 @@ class InventoryReservationService {
         data: [],
         error: error.message
       };
+    }
+  }
+  
+  /**
+   * Check and update menu item availability based on ingredient stock changes
+   * @param {string} ingredientId - The ingredient ID that had stock changes
+   * @param {object} io - Socket.io instance for real-time events
+   * @returns {Promise<void>}
+   */
+  static async updateAffectedMenuItemsAvailability(ingredientId, io = null) {
+    try {
+      const MenuItem = require('../models/MenuItem');
+      const SocketService = require('./socketService');
+      
+      // Find all menu items that use this ingredient
+      const menuItemsWithIngredient = await MenuItemIngredient.find({ 
+        ingredientId 
+      }).distinct('menuItemId');
+      
+      if (menuItemsWithIngredient.length === 0) {
+        console.log(`No menu items use ingredient ${ingredientId}`);
+        return;
+      }
+      
+      console.log(`Checking availability for ${menuItemsWithIngredient.length} menu items affected by ingredient ${ingredientId}`);
+      
+      // Check availability for each affected menu item
+      for (const menuItemId of menuItemsWithIngredient) {
+        try {
+          const availabilityCheck = await InventoryAvailabilityService.checkMenuItemAvailability(menuItemId, 1);
+          
+          // Update the menu item's isAvailable field
+          const menuItem = await MenuItem.findById(menuItemId);
+          if (menuItem) {
+            const wasAvailable = menuItem.isAvailable;
+            const isNowAvailable = availabilityCheck.isAvailable;
+            
+            // Only update if availability changed
+            if (wasAvailable !== isNowAvailable) {
+              menuItem.isAvailable = isNowAvailable;
+              await menuItem.save();
+              
+              console.log(`Updated menu item availability: ${menuItem.name} - ${wasAvailable ? 'available' : 'unavailable'} → ${isNowAvailable ? 'available' : 'unavailable'}`);
+              
+              // Emit socket event for real-time update
+              if (io && SocketService) {
+                SocketService.emitMenuAvailabilityChanged(
+                  io,
+                  menuItemId,
+                  isNowAvailable,
+                  isNowAvailable ? 'All ingredients available' : 'Insufficient ingredients',
+                  availabilityCheck.insufficientIngredients || []
+                );
+              }
+            }
+          }
+        } catch (itemError) {
+          console.warn(`Failed to check availability for menu item ${menuItemId}:`, itemError.message);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating affected menu items availability:', error);
     }
   }
 }

@@ -309,3 +309,113 @@ exports.updatePaymentVerificationSettings = async (req, res) => {
     });
   }
 };
+
+// ========================================
+// PAYMENT GATEWAY CONTROLLERS (PayMongo Integration)
+// ========================================
+
+/**
+ * Get payment gateway settings
+ * GET /api/settings/payment-gateways
+ * Public endpoint - customers need to see available payment options
+ */
+exports.getPaymentGateways = async (req, res) => {
+  try {
+    const settings = await Settings.getSettings();
+
+    // Return only necessary public information
+    const gateways = {
+      paymongo: {
+        enabled: settings.paymentGateways?.paymongo?.enabled || false,
+        gcashEnabled: settings.paymentGateways?.paymongo?.gcashEnabled || false,
+        paymayaEnabled: settings.paymentGateways?.paymongo?.paymayaEnabled || false,
+        mode: settings.paymentGateways?.paymongo?.mode || 'test'
+      }
+    };
+
+    res.json({
+      success: true,
+      data: gateways
+    });
+  } catch (error) {
+    console.error('Get payment gateways error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch payment gateway settings',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * Update payment gateway settings
+ * PUT /api/settings/payment-gateways
+ * Requires: admin role
+ */
+exports.updatePaymentGateways = async (req, res) => {
+  try {
+    const { paymongo } = req.body;
+
+    // Validate PayMongo settings if provided
+    if (paymongo) {
+      const allowedFields = ['enabled', 'mode', 'gcashEnabled', 'paymayaEnabled'];
+      const invalidFields = Object.keys(paymongo).filter(field => !allowedFields.includes(field));
+      
+      if (invalidFields.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid fields: ${invalidFields.join(', ')}`
+        });
+      }
+
+      // Validate mode
+      if (paymongo.mode && !['test', 'live'].includes(paymongo.mode)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid mode. Must be "test" or "live"'
+        });
+      }
+
+      // Validate boolean fields
+      const booleanFields = ['enabled', 'gcashEnabled', 'paymayaEnabled'];
+      for (const field of booleanFields) {
+        if (paymongo[field] !== undefined && typeof paymongo[field] !== 'boolean') {
+          return res.status(400).json({
+            success: false,
+            message: `${field} must be a boolean value`
+          });
+        }
+      }
+    }
+
+    const settings = await Settings.getSettings();
+    
+    // Update PayMongo settings
+    if (paymongo) {
+      if (!settings.paymentGateways) {
+        settings.paymentGateways = {};
+      }
+      if (!settings.paymentGateways.paymongo) {
+        settings.paymentGateways.paymongo = {};
+      }
+
+      // Update only provided fields
+      Object.assign(settings.paymentGateways.paymongo, paymongo);
+    }
+
+    await settings.save();
+
+    res.json({
+      success: true,
+      message: 'Payment gateway settings updated successfully',
+      data: settings.paymentGateways
+    });
+  } catch (error) {
+    console.error('Update payment gateways error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update payment gateway settings',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};

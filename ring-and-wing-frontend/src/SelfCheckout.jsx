@@ -81,7 +81,19 @@ Receipt.propTypes = {
   totals: PropTypes.object.isRequired
 };
 
-const SelfCheckout = () => {
+const SelfCheckoutInternal = () => {
+  // Add spinner CSS animation
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
   return (
     <MenuProvider>
       <CartProvider>
@@ -268,8 +280,116 @@ const SelfCheckoutContent = () => {
     setFulfillmentType(type);
   };
 
-  const handlePaymentMethodSelect = (method) => {
+  const handlePaymentMethodSelect = async (method) => {
     setSelectedPaymentMethod(method);
+    
+    // If it's a PayMongo gateway method, initiate checkout immediately
+    if (method && method.startsWith('paymongo-')) {
+      await handlePayMongoCheckout(method);
+    }
+  };
+
+  const handlePayMongoCheckout = async (paymentMethod) => {
+    try {
+      console.log('Initiating PayMongo checkout for:', paymentMethod);
+      
+      // Determine the provider (gcash or paymaya)
+      const provider = paymentMethod.includes('gcash') ? 'gcash' : 'paymaya';
+      
+      // First create the order
+      const totals = calculateTotal();
+      const orderData = {
+        items: cartItems.map(item => ({
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          selectedSize: item.selectedSize,
+          availableSizes: item.availableSizes || ['base'],
+          pricing: item.pricing || { base: item.price },
+          modifiers: item.modifiers || [],
+          pwdSeniorDiscount: item.pwdSeniorDiscount || {
+            applied: false,
+            discountedQuantity: 0,
+            discountAmount: 0,
+            vatExempt: false
+          }
+        })),
+        totals: {
+          subtotal: totals.subtotal,
+          discount: totals.discount || 0,
+          vatExemption: 0,
+          total: totals.total,
+          cashReceived: 0,
+          change: 0
+        },
+        customerName: '', // Optional for self-checkout
+        orderType: 'self_checkout',
+        fulfillmentType,
+        paymentMethod: 'paymongo',
+        status: 'pending_payment',
+        paymentGateway: {
+          provider: 'paymongo',
+          paymentMethod: provider,
+          status: 'pending'
+        }
+      };
+
+      // Create order first
+      const orderResponse = await fetch(`${API_URL}/api/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData)
+      });
+
+      if (!orderResponse.ok) {
+        throw new Error('Failed to create order');
+      }
+
+      const orderResult = await orderResponse.json();
+      const orderId = orderResult.data._id;
+      const receiptNumber = orderResult.data.receiptNumber;
+      
+      console.log('Order created successfully:', { orderId, receiptNumber });
+      
+      // Create PayMongo checkout session
+      const checkoutResponse = await fetch(`${API_URL}/api/paymongo/create-checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId,
+          paymentMethod: provider,
+          amount: Math.round(calculateTotal().total * 100), // Convert to centavos
+          description: `Ring & Wings Order #${receiptNumber}`
+        })
+      });
+
+      console.log('PayMongo checkout response status:', checkoutResponse.status);
+
+      if (!checkoutResponse.ok) {
+        const errorData = await checkoutResponse.text();
+        console.error('PayMongo checkout error details:', errorData);
+        throw new Error(`Failed to create checkout session: ${errorData}`);
+      }
+
+      const checkoutResult = await checkoutResponse.json();
+      
+      console.log('PayMongo checkout result:', checkoutResult);
+      
+      if (checkoutResult.success && checkoutResult.data?.checkout_url) {
+        // Store order info for tracking
+        setCurrentOrder(orderResult);
+        
+        // Redirect to PayMongo checkout page
+        window.location.href = checkoutResult.data.checkout_url;
+      } else {
+        throw new Error(checkoutResult.message || 'Failed to create checkout session');
+      }
+      
+    } catch (error) {
+      console.error('PayMongo checkout error:', error);
+      alert(`Payment setup failed: ${error.message}. Please try again or contact support.`);
+      setSelectedPaymentMethod(null);
+    }
   };
 
   const handleProofSubmit = async (proofData) => {
@@ -299,6 +419,12 @@ const SelfCheckoutContent = () => {
     if (!fulfillmentType) return 'selectType';
     if (fulfillmentType === 'dine_in') return 'readyToSubmit';
     if (!selectedPaymentMethod) return 'selectPayment';
+    
+    // For PayMongo gateway payments, skip manual payment steps
+    if (selectedPaymentMethod && selectedPaymentMethod.startsWith('paymongo-')) {
+      return 'paymongoCheckout'; // Special step for PayMongo processing
+    }
+    
     if (!readyToUploadProof) return 'viewPaymentDetails'; // NEW: Show QR code and details
     if (!uploadedProof) return 'uploadProof';
     return 'readyToSubmit';
@@ -374,6 +500,35 @@ const SelfCheckoutContent = () => {
               <button onClick={() => setFulfillmentType(null)} style={styles.backButton}>
                 ← Back to Order Type
               </button>
+            </div>
+          </div>
+        );
+      }
+
+      // PayMongo checkout processing step
+      if (currentStep === 'paymongoCheckout') {
+        return (
+          <div style={styles.overlay}>
+            <div style={styles.flowContainer}>
+              <h2 style={styles.flowTitle}>Processing Payment</h2>
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <div style={styles.spinner}></div>
+                <p style={{ marginTop: '20px', color: '#666' }}>
+                  Redirecting to secure payment page...
+                </p>
+                <p style={{ fontSize: '14px', color: '#999', marginTop: '10px' }}>
+                  If you are not redirected automatically, please try again.
+                </p>
+                <button 
+                  onClick={() => {
+                    setSelectedPaymentMethod(null);
+                    setCurrentStep('selectPayment');
+                  }} 
+                  style={styles.backButton}
+                >
+                  ← Back to Payment Methods
+                </button>
+              </div>
             </div>
           </div>
         );
@@ -588,7 +743,16 @@ const styles = {
     cursor: 'pointer',
     marginTop: '16px',
     transition: 'all 0.3s ease'
+  },
+  spinner: {
+    width: '40px',
+    height: '40px',
+    margin: '0 auto',
+    border: '4px solid #f3f3f3',
+    borderTop: '4px solid #2e0304',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite'
   }
 };
 
-export default SelfCheckout;
+export default SelfCheckoutInternal;

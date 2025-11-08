@@ -136,4 +136,29 @@ router.get('/reports', async (req, res) => {
   }
 });
 
+// 🔥 TEST ENDPOINT: Manually trigger menu availability update for an ingredient
+router.post('/test-availability-update/:ingredientId', async (req, res) => {
+  try {
+    const { ingredientId } = req.params;
+    const io = req.app.get('io');
+    
+    console.log(`[TEST] Manually triggering availability update for ingredient ${ingredientId}`);
+    
+    await InventoryReservationService.updateAffectedMenuItemsAvailability(ingredientId, io);
+    
+    res.json({
+      success: true,
+      message: 'Menu availability update triggered successfully',
+      ingredientId
+    });
+  } catch (error) {
+    console.error('Error testing availability update:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to test availability update',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

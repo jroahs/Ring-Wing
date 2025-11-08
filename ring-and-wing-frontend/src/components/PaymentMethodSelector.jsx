@@ -5,7 +5,7 @@ import theme from '../theme';
  * PaymentMethodSelector Component
  * 
  * Shown ONLY for takeout/delivery orders
- * Displays available e-wallet payment options (GCash/PayMaya)
+ * Displays available e-wallet payment options (GCash/PayMaya/PayMongo)
  * Shows wallet details, QR code, and payment instructions
  */
 const PaymentMethodSelector = ({ selectedMethod, onSelect, orderTotal }) => {
@@ -13,24 +13,37 @@ const PaymentMethodSelector = ({ selectedMethod, onSelect, orderTotal }) => {
     gcash: { enabled: false, accountNumber: '', accountName: '', qrCodeUrl: '' },
     paymaya: { enabled: false, accountNumber: '', accountName: '', qrCodeUrl: '' }
   });
+  const [paymentGateways, setPaymentGateways] = useState({
+    paymongo: { enabled: false, gcashEnabled: false, paymayaEnabled: false, mode: 'test' }
+  });
   const [loading, setLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(null);
 
-  // Fetch merchant wallet settings from backend
+  // Fetch merchant wallet settings and payment gateways from backend
   useEffect(() => {
-    fetchWalletSettings();
+    fetchPaymentSettings();
   }, []);
 
-  const fetchWalletSettings = async () => {
+  const fetchPaymentSettings = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/settings/merchant-wallets`);
-      const data = await response.json();
+      // Fetch both wallet settings and payment gateways
+      const [walletResponse, gatewayResponse] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_URL}/api/settings/merchant-wallets`),
+        fetch(`${import.meta.env.VITE_API_URL}/api/settings/payment-gateways`)
+      ]);
       
-      if (data.success) {
-        setWalletSettings(data.data);
+      const walletData = await walletResponse.json();
+      const gatewayData = await gatewayResponse.json();
+      
+      if (walletData.success) {
+        setWalletSettings(walletData.data);
+      }
+      
+      if (gatewayData.success) {
+        setPaymentGateways(gatewayData.data);
       }
     } catch (error) {
-      console.error('Failed to fetch wallet settings:', error);
+      console.error('Failed to fetch payment settings:', error);
     } finally {
       setLoading(false);
     }
@@ -43,6 +56,7 @@ const PaymentMethodSelector = ({ selectedMethod, onSelect, orderTotal }) => {
       logo: 'G', // Replace with actual GCash logo
       color: '#007DFF',
       enabled: walletSettings.gcash.enabled,
+      type: 'traditional',
       ...walletSettings.gcash
     },
     {
@@ -51,7 +65,29 @@ const PaymentMethodSelector = ({ selectedMethod, onSelect, orderTotal }) => {
       logo: 'P', // Replace with actual PayMaya logo
       color: '#00D632',
       enabled: walletSettings.paymaya.enabled,
+      type: 'traditional',
       ...walletSettings.paymaya
+    },
+    // PayMongo Gateway Options
+    {
+      id: 'paymongo-gcash',
+      label: 'GCash via PayMongo',
+      logo: 'PG',
+      color: '#007DFF',
+      enabled: paymentGateways.paymongo.enabled && paymentGateways.paymongo.gcashEnabled,
+      type: 'gateway',
+      description: 'Secure online payment via PayMongo',
+      mode: paymentGateways.paymongo.mode
+    },
+    {
+      id: 'paymongo-paymaya',
+      label: 'PayMaya via PayMongo',
+      logo: 'PP',
+      color: '#00D632',
+      enabled: paymentGateways.paymongo.enabled && paymentGateways.paymongo.paymayaEnabled,
+      type: 'gateway',
+      description: 'Secure online payment via PayMongo',
+      mode: paymentGateways.paymongo.mode
     }
   ];
 
@@ -74,7 +110,7 @@ const PaymentMethodSelector = ({ selectedMethod, onSelect, orderTotal }) => {
         <div style={styles.errorBox}>
           <span style={styles.errorIcon}>!</span>
           <p style={styles.errorText}>
-            E-wallet payment is currently unavailable. Please contact the restaurant or choose dine-in option.
+            Digital payment is currently unavailable. Please contact the restaurant or choose dine-in option.
           </p>
         </div>
       </div>
@@ -141,53 +177,95 @@ const PaymentMethodSelector = ({ selectedMethod, onSelect, orderTotal }) => {
           </div>
 
           <div style={styles.detailsContent}>
-            {/* QR Code Section */}
-            {selectedMethodData.qrCodeUrl && (
-              <div style={styles.qrSection}>
-                <h4 style={styles.sectionTitle}>Scan QR Code</h4>
-                <div style={styles.qrCodeContainer}>
-                  <img
-                    src={`${import.meta.env.VITE_API_URL}${selectedMethodData.qrCodeUrl}`}
-                    alt={`${selectedMethodData.label} QR Code`}
-                    style={styles.qrCode}
-                  />
+            {selectedMethodData.type === 'gateway' ? (
+              // PayMongo Gateway Payment Instructions
+              <div style={styles.gatewaySection}>
+                <div style={styles.gatewayInfo}>
+                  <h4 style={styles.sectionTitle}>Secure Online Payment</h4>
+                  <p style={styles.gatewayDescription}>
+                    You will be redirected to PayMongo's secure payment page to complete your {selectedMethodData.label.includes('GCash') ? 'GCash' : 'PayMaya'} payment.
+                  </p>
+                  
+                  <div style={styles.gatewayFeatures}>
+                    <div style={styles.featureItem}>
+                      <span style={styles.featureIcon}>🔒</span>
+                      <span>Bank-level security</span>
+                    </div>
+                    <div style={styles.featureItem}>
+                      <span style={styles.featureIcon}>⚡</span>
+                      <span>Instant payment confirmation</span>
+                    </div>
+                    <div style={styles.featureItem}>
+                      <span style={styles.featureIcon}>📱</span>
+                      <span>Pay with your {selectedMethodData.label.includes('GCash') ? 'GCash' : 'PayMaya'} app</span>
+                    </div>
+                  </div>
+
+                  <div style={styles.paymentAmount}>
+                    <span style={styles.amountLabel}>Amount to Pay:</span>
+                    <span style={styles.amountValue}>₱{orderTotal.toFixed(2)}</span>
+                  </div>
+
+                  {selectedMethodData.mode === 'test' && (
+                    <div style={styles.testModeWarning}>
+                      <span style={styles.warningIcon}>⚠️</span>
+                      <span>Test Mode: No real payment will be processed</span>
+                    </div>
+                  )}
                 </div>
-                <p style={styles.qrInstruction}>
-                  Open your {selectedMethodData.label} app and scan this code
-                </p>
               </div>
+            ) : (
+              // Traditional Manual Payment Instructions
+              <>
+                {/* QR Code Section */}
+                {selectedMethodData.qrCodeUrl && (
+                  <div style={styles.qrSection}>
+                    <h4 style={styles.sectionTitle}>Scan QR Code</h4>
+                    <div style={styles.qrCodeContainer}>
+                      <img
+                        src={`${import.meta.env.VITE_API_URL}${selectedMethodData.qrCodeUrl}`}
+                        alt={`${selectedMethodData.label} QR Code`}
+                        style={styles.qrCode}
+                      />
+                    </div>
+                    <p style={styles.qrInstruction}>
+                      Open your {selectedMethodData.label} app and scan this code
+                    </p>
+                  </div>
+                )}
+
+                {/* Account Details Section */}
+                <div style={styles.accountSection}>
+                  <h4 style={styles.sectionTitle}>Or send to this account:</h4>
+                  <div style={styles.accountDetails}>
+                    <div style={styles.detailRow}>
+                      <span style={styles.detailLabel}>Account Name:</span>
+                      <span style={styles.detailValue}>{selectedMethodData.accountName}</span>
+                    </div>
+                    <div style={styles.detailRow}>
+                      <span style={styles.detailLabel}>Account Number:</span>
+                      <span style={styles.detailValue}>{selectedMethodData.accountNumber}</span>
+                    </div>
+                    <div style={styles.detailRow}>
+                      <span style={styles.detailLabel}>Amount to Send:</span>
+                      <span style={{...styles.detailValue, ...styles.amountHighlight}}>
+                        ₱{orderTotal.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Important Notes */}
+                <div style={styles.notesSection}>
+                  <h4 style={styles.sectionTitle}>Important:</h4>
+                  <ul style={styles.notesList}>
+                    <li>Make sure to send the exact amount: <strong>₱{orderTotal.toFixed(2)}</strong></li>
+                    <li>After payment, you'll need to upload proof of payment (screenshot or reference number)</li>
+                    <li>Your order will be processed once payment is verified (usually within 2 hours)</li>
+                  </ul>
+                </div>
+              </>
             )}
-
-            {/* Account Details Section */}
-            <div style={styles.accountSection}>
-              <h4 style={styles.sectionTitle}>Or send to this account:</h4>
-              <div style={styles.accountDetails}>
-                <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>Account Name:</span>
-                  <span style={styles.detailValue}>{selectedMethodData.accountName}</span>
-                </div>
-                <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>Account Number:</span>
-                  <span style={styles.detailValue}>{selectedMethodData.accountNumber}</span>
-                </div>
-                <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>Amount to Send:</span>
-                  <span style={{...styles.detailValue, ...styles.amountHighlight}}>
-                    ₱{orderTotal.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Important Notes */}
-            <div style={styles.notesSection}>
-              <h4 style={styles.sectionTitle}>Important:</h4>
-              <ul style={styles.notesList}>
-                <li>Make sure to send the exact amount: <strong>₱{orderTotal.toFixed(2)}</strong></li>
-                <li>After payment, you'll need to upload proof of payment (screenshot or reference number)</li>
-                <li>Your order will be processed once payment is verified (usually within 2 hours)</li>
-              </ul>
-            </div>
           </div>
         </div>
       )}
@@ -390,6 +468,72 @@ const styles = {
     margin: '0',
     paddingLeft: '20px',
     color: '#856404'
+  },
+  // PayMongo Gateway Styles
+  gatewaySection: {
+    backgroundColor: '#fff',
+    borderRadius: '12px',
+    padding: '24px'
+  },
+  gatewayInfo: {
+    textAlign: 'center'
+  },
+  gatewayDescription: {
+    fontSize: '16px',
+    color: '#666',
+    marginBottom: '24px',
+    lineHeight: '1.5'
+  },
+  gatewayFeatures: {
+    display: 'flex',
+    justifyContent: 'space-around',
+    marginBottom: '24px',
+    flexWrap: 'wrap',
+    gap: '16px'
+  },
+  featureItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '14px',
+    color: '#333'
+  },
+  featureIcon: {
+    fontSize: '24px'
+  },
+  paymentAmount: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: '8px',
+    padding: '16px',
+    marginBottom: '16px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  amountLabel: {
+    fontSize: '16px',
+    fontWeight: '500',
+    color: '#666'
+  },
+  amountValue: {
+    fontSize: '24px',
+    fontWeight: '700',
+    color: theme.colors.primary
+  },
+  testModeWarning: {
+    backgroundColor: '#FFF3CD',
+    borderRadius: '8px',
+    padding: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '14px',
+    color: '#856404',
+    border: '1px solid #FFE69C'
+  },
+  warningIcon: {
+    fontSize: '16px'
   }
 };
 

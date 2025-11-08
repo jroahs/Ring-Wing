@@ -236,6 +236,18 @@ const PointOfSaleTablet = () => {
       fetchMenuItems();
     });
 
+    globalSocket.on('menuAvailabilityChanged', (data) => {
+      console.log('[Socket] Menu availability changed:', data);
+      // Update the specific menu item's availability in state
+      setMenuItems(prevItems => 
+        prevItems.map(item => 
+          item._id === data.menuItemId 
+            ? { ...item, isAvailable: data.isAvailable }
+            : item
+        )
+      );
+    });
+
     globalSocket.on('orderCreated', (data) => {
       console.log('[Socket] Order created:', data);
       fetchActiveOrders();
@@ -388,7 +400,7 @@ const PointOfSaleTablet = () => {
       console.log('[TabletPOS] Fetching takeout orders...');
       
       const response = await fetch(
-        `${API_URL}/api/orders/pending-verification?verificationStatus=pending`,
+        `${API_URL}/api/orders/pending-verification`, // Get all orders (both pending and verified)
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -434,6 +446,12 @@ const PointOfSaleTablet = () => {
   // === CART MANAGEMENT ===
   
   const addToCart = (item) => {
+    // Check if item is available
+    if (item.isAvailable === false) {
+      alert(`${item.name} is currently unavailable due to insufficient ingredients.`);
+      return;
+    }
+    
     // Check if items are locked
     if (isItemLocked()) {
       alert('Cannot add items in this tab. Please switch to Ready Orders or select a pending order to edit.');
@@ -1032,6 +1050,40 @@ const PointOfSaleTablet = () => {
     }
   };
 
+  // Process PayMongo order (generate receipt and move to kitchen)
+  const handleProcessPayMongoOrder = async (orderId) => {
+    try {
+      console.log('[TabletPOS] Processing PayMongo order:', orderId);
+      
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      
+      const response = await fetch(`${API_URL}/api/orders/${orderId}/process-paymongo`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to process PayMongo order');
+      }
+
+      const result = await response.json();
+      console.log('[TabletPOS] PayMongo order processed successfully:', result);
+
+      // Refresh orders
+      fetchActiveOrders();
+      fetchTakeoutOrders();
+      
+      alert('PayMongo order processed! Receipt can be generated and order moved to kitchen.');
+    } catch (error) {
+      console.error('[TabletPOS] Error processing PayMongo order:', error);
+      alert(`Failed to process PayMongo order: ${error.message}`);
+    }
+  };
+
   const handleQuickReject = async (orderId, reason = '') => {
     if (!reason) {
       reason = prompt('Enter reason for rejection (optional):') || 'Invalid payment proof';
@@ -1052,7 +1104,10 @@ const PointOfSaleTablet = () => {
         }
       );
 
-      if (!response.ok) throw new Error('Failed to reject payment');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to reject payment');
+      }
 
       // Refresh orders list
       fetchActiveOrders();
@@ -1060,7 +1115,7 @@ const PointOfSaleTablet = () => {
       alert('Payment rejected. Customer will be notified.');
     } catch (error) {
       console.error('Error rejecting payment:', error);
-      alert('Failed to reject payment. Please try again.');
+      alert(`Failed to reject payment: ${error.message}`);
     }
   };
 
@@ -1595,7 +1650,7 @@ const PointOfSaleTablet = () => {
                   {takeoutOrders.length === 0 ? (
                     <div className="text-center text-gray-400 mt-8">
                       <p className="text-lg font-semibold mb-2">No orders awaiting payment</p>
-                      <p className="text-sm">Takeout and delivery orders will appear here for verification</p>
+                      <p className="text-sm">Takeout and delivery orders will appear here for verification (manual payments) or receipt generation (PayMongo payments)</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -1621,48 +1676,80 @@ const PointOfSaleTablet = () => {
                                 </p>
                                 <p className="text-sm text-gray-600 mt-1">
                                   {order.fulfillmentType === 'delivery' ? 'Delivery' : 'Takeout'} • 
-                                  {order.paymentMethod === 'gcash' ? ' GCash' : order.paymentMethod === 'paymaya' ? ' PayMaya' : ' E-Wallet'} • 
+                                  {order.isPayMongoOrder ? 
+                                    ` PayMongo ${order.paymentMethod?.includes('gcash') ? 'GCash' : 'PayMaya'}` :
+                                    (order.paymentMethod === 'gcash' ? ' GCash' : order.paymentMethod === 'paymaya' ? ' PayMaya' : ' E-Wallet')
+                                  } • 
                                   ₱{order.totals?.total?.toFixed(2) || '0.00'}
                                 </p>
-                                {order.proofOfPayment?.transactionReference && (
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    Ref: {order.proofOfPayment.transactionReference}
+                                {order.isPayMongoOrder ? (
+                                  <p className="text-xs text-green-600 mt-1 font-semibold">
+                                    ✓ Payment Verified by PayMongo
                                   </p>
-                                )}
-                                {order.proofOfPayment?.accountName && (
-                                  <p className="text-xs text-gray-500">
-                                    {order.proofOfPayment.accountName}
-                                  </p>
+                                ) : (
+                                  <>
+                                    {order.proofOfPayment?.transactionReference && (
+                                      <p className="text-xs text-gray-500 mt-1">
+                                        Ref: {order.proofOfPayment.transactionReference}
+                                      </p>
+                                    )}
+                                    {order.proofOfPayment?.accountName && (
+                                      <p className="text-xs text-gray-500">
+                                        {order.proofOfPayment.accountName}
+                                      </p>
+                                    )}
+                                  </>
                                 )}
                               </div>
                               <div className="text-right">
-                                <span className={`text-xs px-3 py-1 rounded-full font-semibold ${
-                                  isExpired ? 'bg-red-100 text-red-700' :
-                                  isExpiringSoon ? 'bg-yellow-100 text-yellow-700' :
-                                  'bg-blue-100 text-blue-700'
-                                }`}>
-                                  {isExpired ? 'EXPIRED' : 'Pending'}
-                                </span>
-                                {order.proofOfPayment?.expiresAt && !isExpired && (
-                                  <p className="text-xs mt-1 text-gray-500">
-                                    Expires: {new Date(order.proofOfPayment.expiresAt).toLocaleTimeString()}
-                                  </p>
+                                {order.isPayMongoOrder ? (
+                                  <span className="text-xs px-3 py-1 rounded-full font-semibold bg-green-100 text-green-700">
+                                    PAID
+                                  </span>
+                                ) : (
+                                  <>
+                                    <span className={`text-xs px-3 py-1 rounded-full font-semibold ${
+                                      isExpired ? 'bg-red-100 text-red-700' :
+                                      isExpiringSoon ? 'bg-yellow-100 text-yellow-700' :
+                                      'bg-blue-100 text-blue-700'
+                                    }`}>
+                                      {isExpired ? 'EXPIRED' : 'Pending'}
+                                    </span>
+                                    {order.proofOfPayment?.expiresAt && !isExpired && (
+                                      <p className="text-xs mt-1 text-gray-500">
+                                        Expires: {new Date(order.proofOfPayment.expiresAt).toLocaleTimeString()}
+                                      </p>
+                                    )}
+                                  </>
                                 )}
                               </div>
                             </div>
-                            <button
-                              onClick={() => {
-                                setSelectedVerificationOrder(order);
-                                setShowVerificationModal(true);
-                              }}
-                              className="w-full py-2.5 rounded-lg font-semibold transition-colors shadow-md"
-                              style={{
-                                backgroundColor: theme.colors.primary,
-                                color: 'white'
-                              }}
-                            >
-                              Verify Payment
-                            </button>
+                            {order.isPayMongoOrder ? (
+                              <button
+                                onClick={() => handleProcessPayMongoOrder(order._id)}
+                                className="w-full py-2.5 rounded-lg font-semibold transition-colors shadow-md"
+                                style={{
+                                  backgroundColor: theme.colors.success || '#10b981',
+                                  color: 'white'
+                                }}
+                              >
+                                Generate Receipt & Process
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setSelectedVerificationOrder(order);
+                                  setShowVerificationModal(true);
+                                }}
+                                className="w-full py-2.5 rounded-lg font-semibold transition-colors shadow-md"
+                                style={{
+                                  backgroundColor: theme.colors.primary,
+                                  color: 'white'
+                                }}
+                              >
+                                Verify Payment
+                              </button>
+                            )}
                           </div>
                         );
                       })}

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { FiClock, FiCoffee, FiCalendar, FiFilter, FiSearch, FiX, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { LoadingSpinner } from './components/ui';
 import { useMultiTabLogout } from './hooks/useMultiTabLogout';
+import io from 'socket.io-client';
 
 const OrderSystem = () => {
   const [orders, setOrders] = useState([]);
@@ -26,6 +27,10 @@ const OrderSystem = () => {
   const [ordersPerPage] = useState(12); // 12 orders per page (3x4 grid)
   const [totalOrders, setTotalOrders] = useState(0);
 
+  // Socket state
+  const [socket, setSocket] = useState(null);
+  const socketRef = useRef(null);
+
   // Debounced search effect - faster response
   useEffect(() => {
     if (searchTerm !== debouncedSearchTerm) {
@@ -44,6 +49,79 @@ const OrderSystem = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [activeTab, sourceFilter, dateFilter, debouncedSearchTerm, customStartDate, customEndDate]);
+
+  // Socket initialization
+  useEffect(() => {
+    const initializeSocket = () => {
+      const newSocket = io('http://localhost:5000', {
+        transports: ['websocket', 'polling'],
+        auth: {
+          token: localStorage.getItem('token') || localStorage.getItem('authToken')
+        }
+      });
+
+      newSocket.on('connect', () => {
+        console.log('[OrderSystem Socket] Connected to server');
+      });
+
+      newSocket.on('disconnect', () => {
+        console.log('[OrderSystem Socket] Disconnected from server');
+      });
+
+      // Listen for new payment orders (PayMongo notifications)
+      newSocket.on('newPaymentOrder', (data) => {
+        console.log('[OrderSystem Socket] New payment order:', data);
+        // Refetch orders to show the new PayMongo order
+        setOrders(prev => [...prev, {
+          ...data,
+          id: data._id,
+          createdAt: new Date(data.createdAt),
+          updatedAt: data.updatedAt ? new Date(data.updatedAt) : null,
+          completedAt: data.completedAt ? new Date(data.completedAt) : null
+        }]);
+      });
+
+      // Listen for order updates
+      newSocket.on('orderUpdated', (data) => {
+        console.log('[OrderSystem Socket] Order updated:', data);
+        setOrders(prev => prev.map(order => 
+          order.id === data._id ? {
+            ...order,
+            ...data,
+            id: data._id,
+            createdAt: new Date(data.createdAt),
+            updatedAt: data.updatedAt ? new Date(data.updatedAt) : null,
+            completedAt: data.completedAt ? new Date(data.completedAt) : null
+          } : order
+        ));
+      });
+
+      // Listen for payment verification
+      newSocket.on('paymentVerified', (data) => {
+        console.log('[OrderSystem Socket] Payment verified:', data);
+        // Update the order status
+        setOrders(prev => prev.map(order => 
+          order.id === data.orderId ? {
+            ...order,
+            status: data.status,
+            updatedAt: new Date()
+          } : order
+        ));
+      });
+
+      setSocket(newSocket);
+      socketRef.current = newSocket;
+    };
+
+    initializeSocket();
+
+    // Cleanup
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, []);
 
   // Main fetch effect
   useEffect(() => {
@@ -72,7 +150,7 @@ const OrderSystem = () => {
         if (debouncedSearchTerm && debouncedSearchTerm.trim()) {
           params.append('search', debouncedSearchTerm.trim());
         }
-        
+
         const url = `http://localhost:5000/api/orders?${params.toString()}`;
         console.log('Fetching orders with URL:', url);
         console.log('Date filter:', dateFilter);

@@ -317,6 +317,7 @@ app.use('/api/vendors', require('./routes/vendorRoutes'));
 app.use('/api/revenue', revenueRoutes);
 app.use('/api/settings', require('./routes/settingsRoutes'));
 app.use('/api/inventory', require('./routes/inventoryRoutes'));
+app.use('/api/paymongo', require('./routes/paymongoRoutes'));
 
 // Health routes for server monitoring
 app.use('/api/health', healthRoutes);

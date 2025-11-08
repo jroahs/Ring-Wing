@@ -533,7 +533,7 @@ const PointOfSale = () => {
       console.log('API_URL:', API_URL);
       
       const response = await fetch(
-        `${API_URL}/api/orders/pending-verification?verificationStatus=pending`,
+        `${API_URL}/api/orders/pending-verification`, // Removed verificationStatus=pending to include PayMongo orders
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -569,12 +569,23 @@ const PointOfSale = () => {
         console.log(`Order ${order.receiptNumber}: fulfillmentType="${order.fulfillmentType}", status="${order.status}", paymentMethod="${order.paymentMethod}"`);
       });
       
-      // Filter for takeout/delivery orders only
+      // Filter for takeout/delivery orders only and exclude expired orders
       const takeoutDeliveryOrders = ordersArray.filter(order => {
-        return order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery';
+        const isTakeoutOrDelivery = order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery';
+        
+        // For manual payments, check if not expired
+        if (order.paymentMethod === 'e-wallet' && order.proofOfPayment?.expiresAt) {
+          const isExpired = new Date(order.proofOfPayment.expiresAt) < new Date();
+          if (isExpired) {
+            console.log(`Filtering out expired order: ${order.receiptNumber}`);
+            return false;
+          }
+        }
+        
+        return isTakeoutOrDelivery;
       });
       
-      console.log('Filtered takeout/delivery orders:', takeoutDeliveryOrders.length);
+      console.log('Filtered takeout/delivery orders (excluding expired):', takeoutDeliveryOrders.length);
       
       setTakeoutOrders(takeoutDeliveryOrders);
     } catch (error) {
@@ -588,6 +599,11 @@ const PointOfSale = () => {
       fetchTakeoutOrders();
     }
   }, [orderViewType]);
+
+  // Initial fetch of takeout orders when component mounts
+  useEffect(() => {
+    fetchTakeoutOrders();
+  }, []);
 
   const processExistingOrderPayment = async (orderId, newStatus) => {    try {
       // Case 1: Payment processing flow from legacy payment component or ready orders
@@ -726,6 +742,12 @@ const PointOfSale = () => {
   };
   
   const addToOrder = item => {
+    // Check if item is available
+    if (item.isAvailable === false) {
+      alert(`${item.name} is currently unavailable due to insufficient ingredients.`);
+      return;
+    }
+    
     // Check if item has multiple sizes - if yes, show size selection modal
     const sizes = Object.keys(item.pricing || {}).filter(key => key !== '_id');
     const hasMultipleSizes = sizes.length > 1 || (sizes.length === 1 && sizes[0] !== 'base');
@@ -950,7 +972,10 @@ const PointOfSale = () => {
         }
       );
 
-      if (!verifyResponse.ok) throw new Error('Failed to verify payment');
+      if (!verifyResponse.ok) {
+        const errorData = await verifyResponse.json();
+        throw new Error(errorData.message || 'Failed to verify payment');
+      }
 
       const verifiedOrder = await verifyResponse.json();
 
@@ -1000,7 +1025,7 @@ const PointOfSale = () => {
       alert('Payment verified! Order is now preparing. Receipt printed.');
     } catch (error) {
       console.error('Error verifying payment:', error);
-      alert('Failed to verify payment. Please try again.');
+      alert(`Failed to verify payment: ${error.message}`);
     }
   };
 
@@ -1025,7 +1050,10 @@ const PointOfSale = () => {
         }
       );
 
-      if (!response.ok) throw new Error('Failed to reject payment');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to reject payment');
+      }
 
       // Remove from takeout orders list
       setTakeoutOrders(prev => prev.filter(order => order._id !== orderId));
@@ -1033,7 +1061,41 @@ const PointOfSale = () => {
       alert('Payment rejected. Customer will be notified.');
     } catch (error) {
       console.error('Error rejecting payment:', error);
-      alert('Failed to reject payment. Please try again.');
+      alert(`Failed to reject payment: ${error.message}`);
+    }
+  };
+
+  // Process PayMongo order (generate receipt and move to kitchen)
+  const handleProcessPayMongoOrder = async (orderId) => {
+    try {
+      console.log('[MainPOS] Processing PayMongo order:', orderId);
+      
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      
+      const response = await fetch(`${API_URL}/api/orders/${orderId}/process-paymongo`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to process PayMongo order');
+      }
+
+      const result = await response.json();
+      console.log('[MainPOS] PayMongo order processed successfully:', result);
+
+      // Refresh orders
+      fetchActiveOrders();
+      fetchTakeoutOrders();
+      
+      alert('PayMongo order processed! Receipt can be generated and order moved to kitchen.');
+    } catch (error) {
+      console.error('[MainPOS] Error processing PayMongo order:', error);
+      alert(`Failed to process PayMongo order: ${error.message}`);
     }
   };
 
@@ -2174,20 +2236,20 @@ const PointOfSale = () => {
                           const isExpired = order.proofOfPayment?.expiresAt && 
                             new Date(order.proofOfPayment.expiresAt) < new Date();
                           
+                          // Detect PayMongo orders
+                          const isPayMongoOrder = order.paymentMethod?.includes('paymongo') || order.status === 'paymongo_verified';
+                          
                           return (
                             <div 
                               key={order._id}
-                              onClick={() => {
-                                setSelectedVerificationOrder(order);
-                                setShowVerificationModal(true);
-                              }}
-                              className={`p-3 rounded-lg border cursor-pointer hover:shadow-lg transition-shadow ${
+                              className={`p-3 rounded-lg border transition-shadow ${
+                                isPayMongoOrder ? 'bg-green-50 border-green-200' :
                                 isExpired ? 'bg-red-50 border-red-300' : 
                                 isExpiringSoon ? 'bg-yellow-50 border-yellow-300' : 
                                 'bg-white border-gray-200'
                               }`}
                             >
-                              {/* Compact Order Header */}
+                              {/* Order Header */}
                               <div className="flex justify-between items-center mb-2">
                                 <div className="flex-1">
                                   <div className="font-bold text-base" style={{ color: theme.colors.primary }}>
@@ -2195,30 +2257,46 @@ const PointOfSale = () => {
                                   </div>
                                   <div className="text-xs text-gray-600">
                                     {order.fulfillmentType === 'delivery' ? 'Delivery' : 'Takeout'} • 
-                                    {order.paymentMethod === 'gcash' ? ' GCash' : order.paymentMethod === 'paymaya' ? ' PayMaya' : ' E-Wallet'} • 
+                                    {isPayMongoOrder ? 
+                                      ` PayMongo ${order.paymentMethod?.includes('gcash') ? 'GCash' : 'PayMaya'}` :
+                                      (order.paymentMethod === 'gcash' ? ' GCash' : order.paymentMethod === 'paymaya' ? ' PayMaya' : ' E-Wallet')
+                                    } • 
                                     ₱{order.totals?.total}
                                   </div>
-                                  {/* Show transaction reference if available */}
-                                  {order.proofOfPayment?.transactionReference && (
-                                    <div className="text-xs text-gray-500 mt-1">
-                                      Ref: {order.proofOfPayment.transactionReference}
+                                  {isPayMongoOrder ? (
+                                    <div className="text-xs text-green-600 mt-1 font-semibold">
+                                      ✓ Payment Verified by PayMongo
                                     </div>
-                                  )}
-                                  {order.proofOfPayment?.accountName && (
-                                    <div className="text-xs text-gray-500">
-                                      {order.proofOfPayment.accountName}
-                                    </div>
+                                  ) : (
+                                    <>
+                                      {order.proofOfPayment?.transactionReference && (
+                                        <div className="text-xs text-gray-500 mt-1">
+                                          Ref: {order.proofOfPayment.transactionReference}
+                                        </div>
+                                      )}
+                                      {order.proofOfPayment?.accountName && (
+                                        <div className="text-xs text-gray-500">
+                                          {order.proofOfPayment.accountName}
+                                        </div>
+                                      )}
+                                    </>
                                   )}
                                 </div>
                                 <div className="text-right">
-                                  <span className={`text-xs px-2 py-1 rounded-full ${
-                                    isExpired ? 'bg-red-100 text-red-700' :
-                                    isExpiringSoon ? 'bg-yellow-100 text-yellow-700' :
-                                    'bg-blue-100 text-blue-700'
-                                  }`}>
-                                    {isExpired ? 'EXPIRED' : 'Pending'}
-                                  </span>
-                                  {order.proofOfPayment?.expiresAt && !isExpired && (
+                                  {isPayMongoOrder ? (
+                                    <span className="text-xs px-3 py-1 rounded-full font-semibold bg-green-100 text-green-700">
+                                      PAID
+                                    </span>
+                                  ) : (
+                                    <span className={`text-xs px-2 py-1 rounded-full ${
+                                      isExpired ? 'bg-red-100 text-red-700' :
+                                      isExpiringSoon ? 'bg-yellow-100 text-yellow-700' :
+                                      'bg-blue-100 text-blue-700'
+                                    }`}>
+                                      {isExpired ? 'EXPIRED' : 'Pending'}
+                                    </span>
+                                  )}
+                                  {!isPayMongoOrder && order.proofOfPayment?.expiresAt && !isExpired && (
                                     <div className="text-xs mt-1 text-gray-500">
                                       {new Date(order.proofOfPayment.expiresAt).toLocaleTimeString()}
                                     </div>
@@ -2226,8 +2304,8 @@ const PointOfSale = () => {
                                 </div>
                               </div>
 
-                              {/* Payment Proof Thumbnail */}
-                              {order.proofOfPayment?.imageUrl && (
+                              {/* Payment Proof Thumbnail - only for manual payments */}
+                              {!isPayMongoOrder && order.proofOfPayment?.imageUrl && (
                                 <div className="mb-2">
                                   <img 
                                     src={`${API_URL}${order.proofOfPayment.imageUrl}`}
@@ -2238,10 +2316,29 @@ const PointOfSale = () => {
                                 </div>
                               )}
 
-                              {/* Click to view details hint */}
-                              <div className="text-xs text-center text-gray-400 mt-2">
-                                Click to view details and verify
-                              </div>
+                              {/* Action Button */}
+                              {isPayMongoOrder ? (
+                                <button
+                                  onClick={() => handleProcessPayMongoOrder(order._id)}
+                                  className="w-full py-2.5 rounded-lg font-semibold transition-colors shadow-md mt-2"
+                                  style={{
+                                    backgroundColor: theme.colors.success || '#10b981',
+                                    color: 'white'
+                                  }}
+                                >
+                                  Generate Receipt & Process
+                                </button>
+                              ) : (
+                                <div 
+                                  onClick={() => {
+                                    setSelectedVerificationOrder(order);
+                                    setShowVerificationModal(true);
+                                  }}
+                                  className="text-xs text-center text-gray-400 mt-2 cursor-pointer hover:text-gray-600"
+                                >
+                                  Click to view details and verify
+                                </div>
+                              )}
                             </div>
                           );
                         })

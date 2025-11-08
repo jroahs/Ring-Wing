@@ -368,6 +368,83 @@ const getAuditTrail = async (req, res) => {
   }
 };
 
+// ========================================
+// PAYMENT GATEWAY CONTROLLERS (PayMongo Integration)
+// ========================================
+
+// Get payment gateway settings (public endpoint for payment option display)
+const getPaymentGateways = async (req, res) => {
+  try {
+    const settings = await Settings.getSettings();
+    
+    // Only return gateway availability (not sensitive config details)
+    const publicGatewayData = {
+      paymongo: {
+        enabled: settings.paymentGateways?.paymongo?.enabled || false,
+        gcashEnabled: settings.paymentGateways?.paymongo?.gcashEnabled || false,
+        paymayaEnabled: settings.paymentGateways?.paymongo?.paymayaEnabled || false
+      }
+    };
+    
+    res.json({
+      success: true,
+      data: publicGatewayData
+    });
+  } catch (error) {
+    console.error('Error fetching payment gateway settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch payment gateway settings',
+      error: error.message
+    });
+  }
+};
+
+// Update payment gateway settings (admin only)
+const updatePaymentGateways = async (req, res) => {
+  try {
+    const { paymongo } = req.body;
+    
+    // Validate PayMongo settings if provided
+    if (paymongo) {
+      if (typeof paymongo.enabled !== 'boolean') {
+        return res.status(400).json({
+          success: false,
+          message: 'PayMongo enabled status must be a boolean'
+        });
+      }
+    }
+    
+    const settings = await Settings.getSettings();
+    
+    // Update PayMongo gateway settings
+    if (paymongo) {
+      console.log('Updating PayMongo settings with:', paymongo);
+      settings.paymentGateways = settings.paymentGateways || {};
+      settings.paymentGateways.paymongo = {
+        ...settings.paymentGateways.paymongo,
+        ...paymongo
+      };
+      console.log('Updated PayMongo settings:', settings.paymentGateways.paymongo);
+    }
+    
+    await settings.save();
+    
+    res.json({
+      success: true,
+      message: 'Payment gateway settings updated successfully',
+      data: settings.paymentGateways
+    });
+  } catch (error) {
+    console.error('Error updating payment gateway settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update payment gateway settings',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getSettings,
   getCashFloatSettings,
@@ -376,5 +453,7 @@ module.exports = {
   processCashTransaction,
   configureDailyReset,
   performDailyReset,
-  getAuditTrail
+  getAuditTrail,
+  getPaymentGateways,
+  updatePaymentGateways
 };
