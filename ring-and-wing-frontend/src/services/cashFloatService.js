@@ -57,7 +57,8 @@ class CashFloatService {
    * Load cash float data from backend
    */
   async loadFromBackend() {
-    const response = await fetch('http://localhost:5000/api/settings/cash-float');
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const response = await fetch(`${apiUrl}/api/settings/cash-float`);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }

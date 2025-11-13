@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
     "start": "node --max-old-space-size=512 --expose-gc server.js",
     "dev": "nodemon --max-old-space-size=512 --expose-gc server.js",

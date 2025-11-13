@@ -53,7 +53,8 @@ const OrderSystem = () => {
   // Socket initialization
   useEffect(() => {
     const initializeSocket = () => {
-      const newSocket = io('http://localhost:5000', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const newSocket = io(apiUrl, {
         transports: ['websocket', 'polling'],
         auth: {
           token: localStorage.getItem('token') || localStorage.getItem('authToken')
