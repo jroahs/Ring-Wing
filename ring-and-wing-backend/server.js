@@ -179,17 +179,30 @@ app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
     const ext = path.extname(filePath).toLowerCase();
     const mimeTypes = {
+      '.js': 'application/javascript',
+      '.css': 'text/css',
+      '.json': 'application/json',
+      '.html': 'text/html',
       '.png': 'image/png',
       '.jpg': 'image/jpeg',
       '.jpeg': 'image/jpeg',
       '.gif': 'image/gif',
       '.webp': 'image/webp',
-      '.svg': 'image/svg+xml'
+      '.svg': 'image/svg+xml',
+      '.woff': 'font/woff',
+      '.woff2': 'font/woff2',
+      '.ttf': 'font/ttf',
+      '.eot': 'application/vnd.ms-fontobject'
     };
 
     if (mimeTypes[ext]) {
       res.set('Content-Type', mimeTypes[ext]);
-      res.set('Cache-Control', 'public, max-age=31536000, must-revalidate');
+      // Cache static assets for 1 year (except HTML)
+      if (ext !== '.html') {
+        res.set('Cache-Control', 'public, max-age=31536000, immutable');
+      } else {
+        res.set('Cache-Control', 'public, max-age=3600, must-revalidate');
+      }
     }
 
     res.setHeader('Access-Control-Allow-Origin', 
