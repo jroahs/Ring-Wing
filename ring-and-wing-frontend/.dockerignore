@@ -8,7 +8,6 @@ yarn-error.log
 .env.*.local
 .DS_Store
 *.pem
-dist
 build
 coverage
 .vscode
