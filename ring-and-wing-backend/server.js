@@ -111,18 +111,30 @@ const uploadsDir = path.join(publicDir, 'uploads');
 // CORS configuration
 app.use(cors({
   origin: function(origin, callback) {
+    // Allow requests without origin (same-domain, mobile apps, curl)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:5173',
-      'http://localhost:5174',
-      process.env.FRONTEND_URL,
-      undefined // Allow requests with no origin (like mobile apps or curl requests)
-    ].filter(Boolean); // Remove undefined entries
+      'http://localhost:5174'
+    ];
     
-    // Log all CORS requests
+    // In production, allow the current origin (Railway domain)
+    if (process.env.NODE_ENV === 'production') {
+      const requestOrigin = new URL(origin).origin;
+      const appOrigin = new URL(process.env.FRONTEND_URL || `http://localhost:${process.env.PORT || 5000}`).origin;
+      if (requestOrigin === appOrigin) {
+        return callback(null, true);
+      }
+    }
+    
+    // Log all CORS requests for debugging
     logger.debug(`CORS request from origin: ${origin || 'no origin'}`);
     
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       logger.warn(`CORS blocked request from origin: ${origin}`);
