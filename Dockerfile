@@ -39,10 +39,7 @@ COPY ring-and-wing-backend/ ./
 # Create required directories for file uploads
 RUN mkdir -p public/uploads/menu public/uploads/payment-proofs public/uploads/qr-codes public/dist
 
-# Copy pre-built frontend dist from the repository (if it exists)
-COPY ring-and-wing-backend/public/dist/ ./public/dist/ 2>/dev/null || true
-
-# Also copy from the builder stage as fallback
+# Copy built frontend dist from builder stage
 COPY --from=frontend-builder /frontend-build/dist ./public/dist
 
 # Verify dist was copied
