@@ -89,7 +89,7 @@ router.post('/create-checkout', async (req, res) => {
     if (process.env.PAYMONGO_SECRET_KEY && process.env.PAYMONGO_SECRET_KEY.includes('test')) {
       console.log('[TEST MODE] Automatically verifying PayMongo order for testing');
       order.status = 'paymongo_verified';
-      order.paymentMethod = 'paymongo_gcash';
+      order.paymentMethod = 'paymongo';
       order.paymentGateway.paymentStatus = 'paid';
       order.paymentGateway.verificationStatus = 'auto_verified';
       order.paymentGateway.paidAt = new Date();
@@ -182,7 +182,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       // Update order status and payment information
       // Set status to 'paymongo_verified' so it appears in POS for receipt generation
       order.status = 'paymongo_verified'; // Custom status for PayMongo orders awaiting receipt
-      order.paymentMethod = 'paymongo_gcash';
+      order.paymentMethod = 'paymongo';
       
       if (!order.paymentGateway) {
         order.paymentGateway = {};
@@ -209,7 +209,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         const eventData = {
           orderId: order._id,
           receiptNumber: order.receiptNumber,
-          paymentMethod: 'paymongo_gcash',
+          paymentMethod: 'paymongo',
           status: order.status,
           transactionId: sessionData.id,
           verifiedAt: new Date()

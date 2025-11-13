@@ -73,7 +73,7 @@ const orderSchema = new mongoose.Schema({
 
   paymentMethod: { 
     type: String, 
-    enum: ['cash', 'e-wallet', 'paymongo', 'paymongo_gcash', 'paymongo_paymaya', 'pending'],
+    enum: ['cash', 'e-wallet', 'paymongo', 'pending'],
     required: true 
   },
   orderType: {

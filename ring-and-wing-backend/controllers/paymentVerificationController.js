@@ -320,7 +320,7 @@ exports.getPendingVerification = async (req, res) => {
         },
         // PayMongo orders that are verified but need receipt generation
         {
-          paymentMethod: { $regex: /^paymongo_/ }, // PayMongo orders (paymongo_gcash, paymongo_paymaya, etc.)
+          paymentMethod: 'paymongo', // PayMongo orders
           status: 'paymongo_verified' // Custom status for PayMongo orders awaiting receipt
         }
       ]
@@ -329,12 +329,16 @@ exports.getPendingVerification = async (req, res) => {
     // Filter by verification status if provided
     if (verificationStatus && ['pending', 'verified', 'rejected'].includes(verificationStatus)) {
       if (verificationStatus === 'pending') {
-        // Only show pending manual payment orders
+        // Show pending manual payment orders AND PayMongo orders awaiting receipt
         query.$or = [
           {
             paymentMethod: 'e-wallet',
             status: 'pending_payment',
             'proofOfPayment.verificationStatus': 'pending'
+          },
+          {
+            paymentMethod: 'paymongo',
+            status: 'paymongo_verified'
           }
         ];
       } else if (verificationStatus === 'verified') {
@@ -345,7 +349,7 @@ exports.getPendingVerification = async (req, res) => {
             'proofOfPayment.verificationStatus': 'verified'
           },
           {
-            paymentMethod: { $regex: /^paymongo_/ },
+            paymentMethod: 'paymongo',
             status: 'paymongo_verified'
           }
         ];
@@ -382,7 +386,7 @@ exports.getPendingVerification = async (req, res) => {
     const now = new Date();
     const ordersWithTimeRemaining = orders.map(order => {
       // PayMongo orders don't have expiration times since they're already paid
-      if (order.paymentMethod && order.paymentMethod.startsWith('paymongo_')) {
+      if (order.paymentMethod === 'paymongo') {
         return {
           ...order,
           timeRemaining: null, // No time limit for PayMongo orders
@@ -482,7 +486,7 @@ exports.processPayMongoOrder = async (req, res) => {
     }
 
     // Verify this is a PayMongo order in the correct status
-    if (!order.paymentMethod.startsWith('paymongo_') || order.status !== 'paymongo_verified') {
+    if (order.paymentMethod !== 'paymongo' || order.status !== 'paymongo_verified') {
       return res.status(400).json({
         success: false,
         message: 'Order is not a verified PayMongo order'

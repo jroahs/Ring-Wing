@@ -533,7 +533,7 @@ const PointOfSale = () => {
       console.log('API_URL:', API_URL);
       
       const response = await fetch(
-        `${API_URL}/api/orders/pending-verification`, // Removed verificationStatus=pending to include PayMongo orders
+        `${API_URL}/api/orders/pending-verification?verificationStatus=pending`, // Only get pending orders
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -2237,7 +2237,7 @@ const PointOfSale = () => {
                             new Date(order.proofOfPayment.expiresAt) < new Date();
                           
                           // Detect PayMongo orders
-                          const isPayMongoOrder = order.paymentMethod?.includes('paymongo') || order.status === 'paymongo_verified';
+                          const isPayMongoOrder = order.paymentMethod === 'paymongo' || order.status === 'paymongo_verified';
                           
                           return (
                             <div 

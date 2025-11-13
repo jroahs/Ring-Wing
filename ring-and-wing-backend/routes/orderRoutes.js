@@ -350,4 +350,35 @@ router.put('/:id/verify-payment', auth, criticalCheck, paymentVerificationContro
  */
 router.put('/:id/reject-payment', auth, criticalCheck, paymentVerificationController.rejectPayment);
 
+/**
+ * Get single order by ID
+ * GET /api/orders/:id
+ * Note: This route MUST be at the end to avoid intercepting specific routes like /pending-verification
+ */
+router.get('/:id', standardCheck, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const order = await Order.findById(id);
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: order
+    });
+  } catch (error) {
+    console.error('Error fetching order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 module.exports = router;

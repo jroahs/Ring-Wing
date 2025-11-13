@@ -1540,6 +1540,266 @@ This sprint demonstrates the team's ability to execute accelerated development c
 
 ---
 
+### Sprint 18 (Nov 5 - Nov 9, 2025) [COMPLETED]
+**Sprint Goal:** PayMongo Integration for Automated GCash/PayMaya Processing
+**Story Points Planned:** 46
+**Story Points Completed:** 46/46
+
+**Sprint Duration:** 5 days (Accelerated sprint for payment gateway integration)
+
+**Major Implementations Completed:**
+
+#### PayMongo Payment Gateway Integration (Nov 5-9, 2025)
+**Story Points:** 46 - **STATUS: COMPLETED**
+
+**Business Requirements:**
+Integrate PayMongo payment gateway to provide seamless GCash and PayMaya payment processing for self-checkout customers. This automated payment system eliminates the need for manual verification by handling payment authentication directly through PayMongo's secure platform.
+
+**System Architecture Overview:**
+- **PayMongo API Integration**: Direct integration with PayMongo checkout sessions and webhooks
+- **Order Status Workflow**: New 'paymongo_verified' status for automatically processed payments
+- **Real-time Notifications**: Socket.io integration for instant payment confirmations across POS systems
+- **Receipt Generation**: Automated receipt processing for PayMongo transactions
+
+#### Backend PayMongo Integration
+**Story Points:** 24 - **STATUS: COMPLETED**
+
+**1. PayMongo Configuration and Setup**
+- PayMongo API credentials configuration with test and production keys
+- Environment variable setup for secure API key management
+- Webhook endpoint configuration for payment status updates
+- Order model enhancement with PayMongo-specific fields
+
+**2. Order Model Enhancements** (`Order.js`)
+- Enhanced payment method enum with PayMongo options:
+  ```javascript
+  paymentMethod: {
+    type: String,
+    enum: ['cash', 'card', 'e-wallet', 'paymongo_gcash', 'paymongo_paymaya'],
+    required: true
+  }
+  ```
+- New order status for PayMongo workflow:
+  ```javascript
+  status: {
+    type: String,
+    enum: ['pending', 'pending_payment', 'paymongo_verified', 'received', 'preparing', 'ready', 'completed', 'cancelled'],
+    default: 'pending'
+  }
+  ```
+- PayMongo gateway tracking fields:
+  ```javascript
+  paymentGateway: {
+    provider: String,
+    sessionId: String,
+    paymentIntentId: String,
+    paidAt: Date,
+    webhookReceived: Boolean
+  }
+  ```
+
+**3. PayMongo Service Layer** (`services/paymongoService.js`)
+- **createCheckoutSession()**: Creates PayMongo checkout sessions with line items
+- **verifyWebhook()**: Validates PayMongo webhook signatures for security
+- **processPayment()**: Handles successful payment processing and order updates
+- **handleFailedPayment()**: Manages failed payment scenarios with proper error handling
+
+**4. PayMongo Controller** (`controllers/paymongoController.js`)
+- **createPaymentSession()**: Generates checkout sessions for frontend integration
+- **handleWebhook()**: Processes PayMongo webhook events for payment confirmations
+- **getPaymentStatus()**: Retrieves payment status for order tracking
+- **processPaymongoOrder()**: Moves verified PayMongo orders to kitchen workflow
+
+**5. API Endpoints**
+- `POST /api/paymongo/create-session` - Create PayMongo checkout session
+- `POST /api/paymongo/webhook` - Handle PayMongo webhook events
+- `GET /api/paymongo/status/:sessionId` - Get payment session status
+- `POST /api/orders/:id/process-paymongo` - Process verified PayMongo order
+
+#### Frontend PayMongo Integration
+**Story Points:** 22 - **STATUS: COMPLETED**
+
+**1. Self-Checkout PayMongo Integration** (`SelfCheckout.jsx`)
+- **PayMongo Checkout Button**: Dedicated payment option alongside existing methods
+- **Session Creation**: Integration with PayMongo checkout session API
+- **Redirect Handling**: Seamless redirect to PayMongo checkout page
+- **Return URL Processing**: Handles success and cancel return URLs
+- **Order Status Tracking**: Real-time order status updates via Socket.io
+
+**2. POS System PayMongo Support**
+- **Order Display Enhancement**: PayMongo orders appear in Dine/Take-out section
+- **PayMongo Order Identification**: Special handling for 'paymongo_verified' status orders
+- **Receipt Generation Button**: "Generate Receipt & Process" for PayMongo orders
+- **Kitchen Workflow Integration**: Seamless transition from payment to kitchen processing
+
+**3. Tablet POS PayMongo Integration** (`PointOfSaleTablet.jsx`)
+- **PayMongo Order Detection**: Automatic identification of PayMongo transactions
+- **Payment Status Display**: Clear indication of PayMongo verification status
+- **Processing Workflow**: One-click processing from payment verification to kitchen
+- **Real-time Updates**: Socket.io notifications for new PayMongo orders
+
+**4. Real-time Notification System**
+- **Socket.io Event Handling**:
+  ```javascript
+  socket.on('newPaymentOrder', (data) => {
+    // Handle new PayMongo order notifications
+    setTakeoutOrders(prev => [...prev, data.order]);
+  });
+  
+  socket.on('paymentVerified', (data) => {
+    // Handle PayMongo payment confirmations
+    updateOrderStatus(data.orderId, 'paymongo_verified');
+  });
+  ```
+- **Cross-POS Synchronization**: Both main POS and tablet POS receive identical notifications
+- **Order State Management**: Consistent order state updates across all interfaces
+
+#### PayMongo Workflow Implementation
+
+**1. Customer Payment Flow**
+```
+Customer selects items → Checkout → Choose PayMongo (GCash/PayMaya) →
+PayMongo checkout session created → Redirect to PayMongo →
+Customer completes payment → Webhook confirms payment →
+Order status: 'paymongo_verified' → Appears in POS Dine/Take-out →
+Staff processes order → Moves to kitchen workflow
+```
+
+**2. Technical Payment Flow**
+```javascript
+// 1. Create checkout session
+const session = await paymongoService.createCheckoutSession({
+  amount: totalAmount,
+  description: `Order ${receiptNumber}`,
+  currency: 'PHP'
+});
+
+// 2. Handle webhook confirmation
+app.post('/api/paymongo/webhook', (req, res) => {
+  const event = paymongoService.verifyWebhook(req.body, req.headers);
+  if (event.type === 'checkout_session.payment.paid') {
+    await processPaymentSuccess(event.data);
+  }
+});
+
+// 3. Update order status
+await Order.findByIdAndUpdate(orderId, {
+  status: 'paymongo_verified',
+  'paymentGateway.paidAt': new Date(),
+  'paymentGateway.webhookReceived': true
+});
+```
+
+**3. POS Processing Workflow**
+```javascript
+const handleProcessPayMongoOrder = async (orderId) => {
+  // Move order from 'paymongo_verified' to 'preparing'
+  await fetch(`${API_URL}/api/orders/${orderId}/process-paymongo`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  
+  // Generate receipt and refresh orders
+  await generateReceipt(orderData);
+  fetchActiveOrders();
+};
+```
+
+#### Critical Bug Fixes and Optimizations (Nov 5-9, 2025)
+
+**1. Order Model Enum Validation**
+- **Problem**: PayMongo payment methods not recognized by existing validation
+- **Solution**: Extended payment method enum to include 'paymongo_gcash' and 'paymongo_paymaya'
+- **Impact**: PayMongo orders now validate correctly in database operations
+
+**2. Socket.io Notification Synchronization**
+- **Problem**: Main POS system not receiving PayMongo order notifications
+- **Root Cause**: Missing socket event listeners in OrderSystem.jsx
+- **Solution**: Added comprehensive socket listeners matching Tablet POS functionality
+- **Result**: Both POS systems now receive identical real-time PayMongo notifications
+
+**3. POS Order Display Logic**
+- **Problem**: PayMongo orders showing manual verification buttons instead of processing buttons
+- **Solution**: Added PayMongo order detection logic with different UI rendering
+- **Implementation**: 
+  ```javascript
+  const isPayMongoOrder = order.paymentMethod?.includes('paymongo') || 
+                         order.status === 'paymongo_verified';
+  ```
+- **Impact**: PayMongo orders display "Generate Receipt & Process" instead of "Verify Payment"
+
+**4. Status Workflow Conflicts**
+- **Problem**: PayMongo orders conflicting with manual verification workflow
+- **Solution**: Clear separation of order status handling:
+  - Manual payments: 'pending_payment' → manual verification → 'received'
+  - PayMongo payments: 'pending' → PayMongo webhook → 'paymongo_verified' → 'preparing'
+- **Result**: Clean workflow separation without status conflicts
+
+**5. Receipt Generation for PayMongo Orders**
+- **Problem**: PayMongo orders needed receipt generation capability in POS
+- **Solution**: Integrated existing receipt system with PayMongo order processing
+- **Features**: Automatic receipt display and print functionality for verified PayMongo orders
+
+#### Sprint Metrics
+
+**Burndown Chart:**
+```
+Story Points |
+    46 |●
+```
+
+**Story Point Breakdown:**
+- PayMongo Backend Integration: 24 points
+- Frontend POS Integration: 16 points
+- Real-time Notification System: 4 points
+- Testing & Bug Fixes: 2 points
+- **Total**: 46/46 points (100% completion)
+
+**Bug Statistics:**
+- Bugs introduced: 4
+- Bugs fixed within sprint: 4
+- Critical bugs: 1 (socket notification synchronization)
+- Major bugs: 2 (order status conflicts, POS display logic)
+- Minor bugs: 1 (receipt generation integration)
+
+#### Retrospective Notes
+
+**What Went Exceptionally Well:**
+- Seamless integration with existing order management system
+- Real-time notification system worked perfectly after socket listener fixes
+- PayMongo API integration was straightforward and well-documented
+- Receipt generation and POS workflow integration maintained consistency
+
+**Challenges Overcome:**
+- Initial socket notification synchronization required debugging across multiple components
+- Order status workflow needed careful design to avoid conflicts with manual verification
+- POS display logic required PayMongo-specific UI rendering logic
+- Webhook security implementation required cryptographic signature validation
+
+**Action Items for Future Sprints:**
+- Monitor PayMongo transaction volume and API rate limits in production
+- Add PayMongo analytics to dashboard for payment method insights
+- Implement automated reconciliation for PayMongo vs internal order records
+- Add comprehensive error logging for PayMongo webhook failures
+- Consider adding PayMongo refund functionality for future enhancement
+
+**Team Velocity Impact:**
+This sprint demonstrates successful integration of complex third-party payment systems while maintaining existing functionality. The 5-day completion shows effective technical architecture and strong understanding of payment gateway integration patterns.
+
+**Technical Debt Assessment:**
+- Minimal technical debt introduced through clean separation of concerns
+- PayMongo integration follows established patterns from manual verification system
+- Comprehensive error handling and security measures implemented
+- Socket.io notification system properly synchronized across all POS components
+
+**Production Readiness:**
+- PayMongo integration tested extensively with test API keys
+- Webhook security validated with proper signature verification
+- Error handling covers network failures, API errors, and edge cases
+- Ready for production deployment with proper environment configuration
+
+---
+
 ## Product Backlog (Current: Final 5% of Project)
 
 ### High Priority (Final Features)

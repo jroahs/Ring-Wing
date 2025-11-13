@@ -68,23 +68,13 @@ const PaymentMethodSelector = ({ selectedMethod, onSelect, orderTotal }) => {
       type: 'traditional',
       ...walletSettings.paymaya
     },
-    // PayMongo Gateway Options
+    // PayMongo Gateway Option
     {
-      id: 'paymongo-gcash',
-      label: 'GCash via PayMongo',
-      logo: 'PG',
-      color: '#007DFF',
-      enabled: paymentGateways.paymongo.enabled && paymentGateways.paymongo.gcashEnabled,
-      type: 'gateway',
-      description: 'Secure online payment via PayMongo',
-      mode: paymentGateways.paymongo.mode
-    },
-    {
-      id: 'paymongo-paymaya',
-      label: 'PayMaya via PayMongo',
-      logo: 'PP',
-      color: '#00D632',
-      enabled: paymentGateways.paymongo.enabled && paymentGateways.paymongo.paymayaEnabled,
+      id: 'paymongo',
+      label: 'PayMongo (GCash/PayMaya)',
+      logo: 'PM',
+      color: '#4A90E2',
+      enabled: paymentGateways.paymongo.enabled,
       type: 'gateway',
       description: 'Secure online payment via PayMongo',
       mode: paymentGateways.paymongo.mode
@@ -183,7 +173,7 @@ const PaymentMethodSelector = ({ selectedMethod, onSelect, orderTotal }) => {
                 <div style={styles.gatewayInfo}>
                   <h4 style={styles.sectionTitle}>Secure Online Payment</h4>
                   <p style={styles.gatewayDescription}>
-                    You will be redirected to PayMongo's secure payment page to complete your {selectedMethodData.label.includes('GCash') ? 'GCash' : 'PayMaya'} payment.
+                    You will be redirected to PayMongo's secure payment page where you can choose to pay with GCash or PayMaya.
                   </p>
                   
                   <div style={styles.gatewayFeatures}>
@@ -197,7 +187,7 @@ const PaymentMethodSelector = ({ selectedMethod, onSelect, orderTotal }) => {
                     </div>
                     <div style={styles.featureItem}>
                       <span style={styles.featureIcon}>📱</span>
-                      <span>Pay with your {selectedMethodData.label.includes('GCash') ? 'GCash' : 'PayMaya'} app</span>
+                      <span>Pay with GCash or PayMaya</span>
                     </div>
                   </div>
 

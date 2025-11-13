@@ -38,7 +38,7 @@ class PayMongoService {
               quantity: 1, // PayMongo handles quantity in amount calculation
               description: `${item.quantity}x ${item.name}${item.selectedSize ? ` (${item.selectedSize})` : ''}`
             })),
-            payment_method_types: ['gcash'], // GCash only as requested
+            payment_method_types: ['gcash', 'paymaya'], // Support both GCash and PayMaya
             success_url: `${process.env.FRONTEND_URL}/self-checkout/success?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${process.env.FRONTEND_URL}/self-checkout/cancel`,
             description: `Ring & Wing Order - ${orderData.orderType}`,
@@ -174,12 +174,8 @@ class PayMongoService {
    * @returns {string} Payment method type
    */
   getPaymentMethodType(sessionData) {
-    // For GCash payments, return standardized type
-    if (sessionData.payment_method_used && 
-        sessionData.payment_method_used.type === 'gcash') {
-      return 'paymongo_gcash';
-    }
-    return 'paymongo_unknown';
+    // For any PayMongo payment, return unified type
+    return 'paymongo';
   }
 }
 

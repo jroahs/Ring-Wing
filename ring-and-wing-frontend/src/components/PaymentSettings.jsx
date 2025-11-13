@@ -32,9 +32,7 @@ const PaymentSettings = () => {
     },
     paymentGateways: {
       paymongo: {
-        enabled: false,
-        gcashEnabled: false,
-        paymayaEnabled: false
+        enabled: false
       }
     }
   });
@@ -132,20 +130,7 @@ const PaymentSettings = () => {
     }));
   };
 
-  // PayMongo Gateway Settings Handlers
-  const handlePayMongoSettingChange = (field, value) => {
-    setSettings(prev => ({
-      ...prev,
-      paymentGateways: {
-        ...prev.paymentGateways,
-        paymongo: {
-          ...prev.paymentGateways.paymongo,
-          [field]: value
-        }
-      }
-    }));
-  };
-
+  // PayMongo Gateway Toggle Handler
   const handlePayMongoToggle = () => {
     setSettings(prev => {
       const newSettings = {
@@ -817,43 +802,6 @@ const PaymentSettings = () => {
           {/* PayMongo Configuration Options */}
           {settings.paymentGateways.paymongo.enabled && (
             <div className="space-y-4 pl-4 border-l-4 border-blue-200">
-              {/* Payment Method Options */}
-              <div>
-                <h4 className="text-sm font-medium mb-3" style={{ color: theme.colors.primary }}>
-                  Supported Payment Methods
-                </h4>
-                
-                <div className="space-y-3">
-                  {/* GCash Option */}
-                  <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={settings.paymentGateways.paymongo.gcashEnabled}
-                      onChange={(e) => handlePayMongoSettingChange('gcashEnabled', e.target.checked)}
-                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                    />
-                    <div className="flex items-center gap-2">
-                      <span className="text-blue-600 font-bold text-lg">G</span>
-                      <span className="font-medium">GCash via PayMongo</span>
-                    </div>
-                  </label>
-
-                  {/* PayMaya Option */}
-                  <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={settings.paymentGateways.paymongo.paymayaEnabled}
-                      onChange={(e) => handlePayMongoSettingChange('paymayaEnabled', e.target.checked)}
-                      className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
-                    />
-                    <div className="flex items-center gap-2">
-                      <span className="text-green-600 font-bold text-lg">P</span>
-                      <span className="font-medium">PayMaya via PayMongo</span>
-                    </div>
-                  </label>
-                </div>
-              </div>
-
               {/* Integration Notes */}
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <h5 className="text-yellow-800 font-semibold mb-2">⚠️ Important Notes</h5>
@@ -862,6 +810,7 @@ const PaymentSettings = () => {
                   <li>Customers can choose between manual transfer or PayMongo gateway</li>
                   <li>PayMongo payments are automatically verified (no manual verification needed)</li>
                   <li>All payments are processed in live mode with real transactions</li>
+                  <li>Supports both GCash and PayMaya payments through unified checkout</li>
                 </ul>
               </div>
             </div>

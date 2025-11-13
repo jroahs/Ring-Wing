@@ -283,18 +283,15 @@ const SelfCheckoutContent = () => {
   const handlePaymentMethodSelect = async (method) => {
     setSelectedPaymentMethod(method);
     
-    // If it's a PayMongo gateway method, initiate checkout immediately
-    if (method && method.startsWith('paymongo-')) {
-      await handlePayMongoCheckout(method);
+    // If it's PayMongo gateway method, initiate checkout immediately
+    if (method === 'paymongo') {
+      await handlePayMongoCheckout();
     }
   };
 
-  const handlePayMongoCheckout = async (paymentMethod) => {
+  const handlePayMongoCheckout = async () => {
     try {
-      console.log('Initiating PayMongo checkout for:', paymentMethod);
-      
-      // Determine the provider (gcash or paymaya)
-      const provider = paymentMethod.includes('gcash') ? 'gcash' : 'paymaya';
+      console.log('Initiating PayMongo checkout');
       
       // First create the order
       const totals = calculateTotal();
@@ -329,7 +326,6 @@ const SelfCheckoutContent = () => {
         status: 'pending_payment',
         paymentGateway: {
           provider: 'paymongo',
-          paymentMethod: provider,
           status: 'pending'
         }
       };
@@ -357,7 +353,6 @@ const SelfCheckoutContent = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderId,
-          paymentMethod: provider,
           amount: Math.round(calculateTotal().total * 100), // Convert to centavos
           description: `Ring & Wings Order #${receiptNumber}`
         })

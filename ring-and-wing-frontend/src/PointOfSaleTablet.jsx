@@ -267,6 +267,10 @@ const PointOfSaleTablet = () => {
     globalSocket.on('paymentVerified', (data) => {
       console.log('[Socket] Payment verified:', data);
       fetchActiveOrders();
+      // Also refresh takeout orders to remove verified orders from pending list
+      if (orderViewType === 'dineTakeout') {
+        fetchTakeoutOrders();
+      }
     });
 
     socketRef.current = globalSocket;
@@ -400,7 +404,7 @@ const PointOfSaleTablet = () => {
       console.log('[TabletPOS] Fetching takeout orders...');
       
       const response = await fetch(
-        `${API_URL}/api/orders/pending-verification`, // Get all orders (both pending and verified)
+        `${API_URL}/api/orders/pending-verification?verificationStatus=pending`, // Only get pending orders
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -1677,7 +1681,7 @@ const PointOfSaleTablet = () => {
                                 <p className="text-sm text-gray-600 mt-1">
                                   {order.fulfillmentType === 'delivery' ? 'Delivery' : 'Takeout'} • 
                                   {order.isPayMongoOrder ? 
-                                    ` PayMongo ${order.paymentMethod?.includes('gcash') ? 'GCash' : 'PayMaya'}` :
+                                    ' PayMongo' :
                                     (order.paymentMethod === 'gcash' ? ' GCash' : order.paymentMethod === 'paymaya' ? ' PayMaya' : ' E-Wallet')
                                   } • 
                                   ₱{order.totals?.total?.toFixed(2) || '0.00'}
