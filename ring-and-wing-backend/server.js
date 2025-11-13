@@ -31,12 +31,21 @@ if (global.gc) {
 dotenv.config();
 
 // Validate environment variables
-const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY'];
+const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET'];
 requiredEnvVars.forEach(varName => {
   if (!process.env[varName]) {
     throw new Error(`${varName} environment variable is required`);
   }
 });
+
+// Optional AI service keys - only validate if being used
+if (process.env.USE_AI === 'true') {
+  ['OPENROUTER_API_KEY', 'GEMINI_API_KEY'].forEach(varName => {
+    if (!process.env[varName]) {
+      console.warn(`${varName} not set - AI features will be disabled`);
+    }
+  });
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
