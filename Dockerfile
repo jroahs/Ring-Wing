@@ -15,6 +15,9 @@ COPY ring-and-wing-frontend/ ./
 # Build frontend for production
 RUN npm run build
 
+# Verify dist was created
+RUN ls -la dist/
+
 
 # Main backend stage with frontend
 FROM node:18-alpine
@@ -34,10 +37,16 @@ RUN npm ci --only=production
 COPY ring-and-wing-backend/ ./
 
 # Create required directories for file uploads
-RUN mkdir -p public/uploads/menu public/uploads/payment-proofs public/uploads/qr-codes
+RUN mkdir -p public/uploads/menu public/uploads/payment-proofs public/uploads/qr-codes public/dist
 
-# Copy built frontend dist from builder stage
+# Copy pre-built frontend dist from the repository (if it exists)
+COPY ring-and-wing-backend/public/dist/ ./public/dist/ 2>/dev/null || true
+
+# Also copy from the builder stage as fallback
 COPY --from=frontend-builder /frontend-build/dist ./public/dist
+
+# Verify dist was copied
+RUN ls -la public/dist/ && echo "=== DIST COPIED ===" && ls -la public/
 
 # Health check using curl instead of wget
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
