@@ -611,18 +611,8 @@ app.get('*', (req, res) => {
     });
   }
   
-  // Don't serve index.html for static assets
-  if (req.originalUrl.startsWith('/assets/') || 
-      req.originalUrl.startsWith('/public/') ||
-      req.originalUrl.startsWith('/uploads/') ||
-      /\.[a-zA-Z0-9]+$/.test(req.path)) {
-    return res.status(404).json({
-      success: false,
-      message: 'Resource not found'
-    });
-  }
-  
-  // Serve React app for all other routes (SPA routing)
+  // Serve React app for SPA routes (index.html)
+  // Static assets should have been caught by express.static middleware above
   const indexPath = path.join(__dirname, 'public', 'dist', 'index.html');
   
   if (fs.existsSync(indexPath)) {
