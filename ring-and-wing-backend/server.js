@@ -77,7 +77,11 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-        'img-src': ["'self'", 'data:', 'blob:', 'http://localhost:5000']
+        'script-src': ["'self'", "'unsafe-inline'"],
+        'style-src': ["'self'", "'unsafe-inline'"],
+        'img-src': ["'self'", 'data:', 'blob:', 'https:'],
+        'font-src': ["'self'", 'data:'],
+        'connect-src': ["'self'", 'https:']
       }
     },
     crossOriginResourcePolicy: { policy: "cross-origin" }
