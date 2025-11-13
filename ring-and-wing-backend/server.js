@@ -115,12 +115,14 @@ app.use(cors({
       'http://localhost:3000',
       'http://localhost:5173',
       'http://localhost:5174',
+      process.env.FRONTEND_URL,
       undefined // Allow requests with no origin (like mobile apps or curl requests)
-    ];
+    ].filter(Boolean); // Remove undefined entries
+    
     // Log all CORS requests
     logger.debug(`CORS request from origin: ${origin || 'no origin'}`);
     
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       logger.warn(`CORS blocked request from origin: ${origin}`);
@@ -597,10 +599,22 @@ app.get('*', (req, res) => {
     });
   }
   
+  // Don't serve index.html for static assets
+  if (req.originalUrl.startsWith('/assets/') || 
+      req.originalUrl.startsWith('/public/') ||
+      req.originalUrl.startsWith('/uploads/') ||
+      /\.[a-zA-Z0-9]+$/.test(req.path)) {
+    return res.status(404).json({
+      success: false,
+      message: 'Resource not found'
+    });
+  }
+  
   // Serve React app for all other routes (SPA routing)
   const indexPath = path.join(__dirname, 'public', 'dist', 'index.html');
   
   if (fs.existsSync(indexPath)) {
+    res.setHeader('Content-Type', 'text/html');
     res.sendFile(indexPath);
   } else {
     res.status(404).json({
