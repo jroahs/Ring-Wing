@@ -570,12 +570,27 @@ app.use((err, req, res, next) => {
   res.status(statusCode).json(response);
 });
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: `Route not found: ${req.originalUrl}`
-  });
+// SPA fallback - serve React index.html for all non-API routes
+app.get('*', (req, res) => {
+  // Check if this is an API request that wasn't matched
+  if (req.originalUrl.startsWith('/api/')) {
+    return res.status(404).json({
+      success: false,
+      message: `Route not found: ${req.originalUrl}`
+    });
+  }
+  
+  // Serve React app for all other routes (SPA routing)
+  const indexPath = path.join(__dirname, 'public', 'dist', 'index.html');
+  
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).json({
+      success: false,
+      message: 'Frontend build not found. Please ensure frontend is built and deployed.'
+    });
+  }
 });
 
 // Scheduled tasks
