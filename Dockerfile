@@ -6,7 +6,7 @@ WORKDIR /frontend-build
 # Copy frontend package files
 COPY ring-and-wing-frontend/package*.json ./
 
-# Install dependencies
+# Install dependencies (including dev for build)
 RUN npm ci
 
 # Copy frontend source
