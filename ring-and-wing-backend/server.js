@@ -221,7 +221,9 @@ app.use(express.static(distPath, {
     };
 
     if (mimeTypes[ext]) {
-      res.set('Content-Type', mimeTypes[ext]);
+      const mimeType = mimeTypes[ext];
+      res.set('Content-Type', mimeType);
+      logger.debug(`[STATIC] Serving ${filePath} as ${mimeType}`);
       // Cache static assets for 1 year (except HTML)
       if (ext !== '.html') {
         res.set('Cache-Control', 'public, max-age=31536000, immutable');
@@ -232,9 +234,13 @@ app.use(express.static(distPath, {
 
     res.setHeader('Access-Control-Allow-Origin', 
       process.env.NODE_ENV === 'production' 
-        ? process.env.FRONTEND_URL 
+        ? (process.env.FRONTEND_URL || '*')
         : 'http://localhost:5173'
     );
+  },
+  onError: (err, req, res) => {
+    logger.error(`[STATIC ERROR] ${req.path}: ${err.message}`);
+    res.status(500).json({ error: err.message });
   }
 }));
 
