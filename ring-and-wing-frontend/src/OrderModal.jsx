@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiPlus, FiMinus, FiX, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import MenuItemImage from './components/MenuItemImage';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
 
 const OrderModal = ({ isOpen, onClose, item, onAddToOrder }) => {
   const [quantity, setQuantity] = useState(1);

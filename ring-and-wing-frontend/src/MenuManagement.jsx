@@ -458,7 +458,8 @@ const MenuPage = () => {
 
   const createAddOn = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/add-ons', {
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+      const response = await fetch(`${apiUrl}/api/add-ons`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newAddOn)
@@ -481,7 +482,8 @@ const MenuPage = () => {
 
   const deleteAddOn = async (addOnId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/add-ons/${addOnId}`, {
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+      const response = await fetch(`${apiUrl}/api/add-ons/${addOnId}`, {
         method: 'DELETE'
       });
 
@@ -498,22 +500,23 @@ const MenuPage = () => {
   const fetchData = async (signal = null) => {
     try {
       // Stagger API calls with 200ms delays to prevent connection pool exhaustion
-      const menuRes = await fetch('http://localhost:5000/api/menu?limit=1000', {  // High limit to get all items
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+      const menuRes = await fetch(`${apiUrl}/api/menu?limit=1000`, {  // High limit to get all items
         signal: signal
       });
       
       await new Promise(resolve => setTimeout(resolve, 200));
-      const addOnsRes = await fetch('http://localhost:5000/api/add-ons', {
+      const addOnsRes = await fetch(`${apiUrl}/api/add-ons`, {
         signal: signal
       });
       
       await new Promise(resolve => setTimeout(resolve, 200));
-      const categoriesRes = await fetch('http://localhost:5000/api/categories', {
+      const categoriesRes = await fetch(`${apiUrl}/api/categories`, {
         signal: signal
       });
       
       await new Promise(resolve => setTimeout(resolve, 200));
-      const inventoryRes = await fetch('http://localhost:5000/api/items', {  // Use the existing items endpoint
+      const inventoryRes = await fetch(`${apiUrl}/api/items`, {  // Use the existing items endpoint
         signal: signal
       });
 
@@ -547,7 +550,7 @@ const MenuPage = () => {
         
         try {
           // Call batch API ONCE for all items
-          const response = await fetch('http://localhost:5000/api/menu/check-availability', {
+          const response = await fetch(`${apiUrl}/api/menu/check-availability`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -764,11 +767,11 @@ const MenuPage = () => {
 
   // NEW: Socket.io connection for real-time updates (Sprint 22)
   useEffect(() => {
-    const API_URL = 'http://localhost:5000';
+    const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
     const token = localStorage.getItem('token') || localStorage.getItem('authToken');
     
     // Initialize socket connection with JWT authentication
-    const socketConnection = io(API_URL, {
+    const socketConnection = io(apiUrl, {
       auth: { token: token },
       transports: ['websocket', 'polling']
     });
@@ -908,7 +911,8 @@ const MenuPage = () => {
   const fetchMenuItemIngredients = async (menuItemId) => {
     try {
       console.log('Fetching ingredients for menu item:', menuItemId);
-      const response = await fetch(`http://localhost:5000/api/menu/ingredients/${menuItemId}`);
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+      const response = await fetch(`${apiUrl}/api/menu/ingredients/${menuItemId}`);
       if (response.ok) {
         const data = await response.json();
         console.log('Fetched ingredients data:', data);
@@ -973,7 +977,8 @@ const MenuPage = () => {
   // Inventory integration functions
   const fetchCostAnalysis = async (menuItemId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/menu/cost-analysis/${menuItemId}`);
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+      const response = await fetch(`${apiUrl}/api/menu/cost-analysis/${menuItemId}`);
       if (response.ok) {
         const data = await response.json();
         setItemCostAnalysis(prev => ({
@@ -1034,7 +1039,8 @@ const MenuPage = () => {
 
   const checkMenuItemAvailability = async (menuItemId) => {
     try {
-      const response = await fetch('http://localhost:5000/api/menu/check-availability', {
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+      const response = await fetch(`${apiUrl}/api/menu/check-availability`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1155,7 +1161,7 @@ const MenuPage = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
       
-      const response = await fetch(`http://localhost:5000/api/menu/ingredients/${menuItemId}`, {
+      const response = await fetch(`${apiUrl}/api/menu/ingredients/${menuItemId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ingredients }),
@@ -1305,8 +1311,8 @@ const MenuPage = () => {
   
       const method = selectedItem?._id ? 'PUT' : 'POST';
       const url = selectedItem?._id
-        ? `http://localhost:5000/api/menu/${selectedItem._id}`
-        : 'http://localhost:5000/api/menu';
+        ? `${apiUrl}/api/menu/${selectedItem._id}`
+        : `${apiUrl}/api/menu`;
   
       const response = await fetch(url, { 
         method, 
@@ -1339,7 +1345,7 @@ const MenuPage = () => {
           pricing: responseData.pricing || {},
           modifiers: responseData.modifiers || []
         });
-        setImagePreview(responseData.image ? `http://localhost:5000${responseData.image}` : null);
+        setImagePreview(responseData.image ? `${apiUrl}${responseData.image}` : null);
         setImageFile(null);
         
         // Auto-save ingredients if they were added during creation
@@ -1412,7 +1418,8 @@ const MenuPage = () => {
         
         console.log('[MenuManagement] Proceeding with normal availability update');
         
-        const response = await fetch(`http://localhost:5000/api/menu/${itemId}/availability`, {
+        const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+        const response = await fetch(`${apiUrl}/api/menu/${itemId}/availability`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ isAvailable: newAvailability })
@@ -1463,7 +1470,7 @@ const MenuPage = () => {
       const token = localStorage.getItem('token') || localStorage.getItem('authToken');
       
       // Verify admin password
-      const authResponse = await fetch('http://localhost:5000/api/auth/verify-admin', {
+      const authResponse = await fetch(`${apiUrl}/api/auth/verify-admin`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -1486,7 +1493,7 @@ const MenuPage = () => {
       // Password verified, proceed with availability change
       const { itemId, newAvailability } = pendingAvailabilityChange;
       
-      const response = await fetch(`http://localhost:5000/api/menu/${itemId}/availability`, {
+      const response = await fetch(`${apiUrl}/api/menu/${itemId}/availability`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -1536,7 +1543,7 @@ const MenuPage = () => {
     const controller = new AbortController();
     
     try {
-      const response = await fetch(`http://localhost:5000/api/menu/${selectedItem._id}`, {
+      const response = await fetch(`${apiUrl}/api/menu/${selectedItem._id}`, {
         method: 'DELETE',
         signal: controller.signal
       });
@@ -1572,7 +1579,7 @@ const MenuPage = () => {
         setImagePreview(
           selectedItem.image.startsWith('http') 
             ? selectedItem.image
-            : `http://localhost:5000${selectedItem.image}`
+            : ((window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '') + selectedItem.image)
         );
       } else {
         // Set imagePreview to null so the placeholder will be used
@@ -1586,7 +1593,8 @@ const MenuPage = () => {
     if (!newCategoryName.trim()) return;
     
     try {
-      const response = await fetch('http://localhost:5000/api/categories', {
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+      const response = await fetch(`${apiUrl}/api/categories`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1623,7 +1631,8 @@ const MenuPage = () => {
         throw new Error('Category not found');
       }
 
-      const response = await fetch(`http://localhost:5000/api/categories/${category._id}/subcategories`, {
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+      const response = await fetch(`${apiUrl}/api/categories/${category._id}/subcategories`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1654,7 +1663,8 @@ const MenuPage = () => {
     }
     
     try {
-      const response = await fetch(`http://localhost:5000/api/categories/${categoryId}`, {
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+      const response = await fetch(`${apiUrl}/api/categories/${categoryId}`, {
         method: 'DELETE'
       });
       
@@ -1684,7 +1694,8 @@ const MenuPage = () => {
     try {
       console.log('Deleting subcategory:', { categoryId, subCategoryId });
       
-      const response = await fetch(`http://localhost:5000/api/categories/${categoryId}/subcategories/${subCategoryId}`, {
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+      const response = await fetch(`${apiUrl}/api/categories/${categoryId}/subcategories/${subCategoryId}`, {
         method: 'DELETE'
       });
       
@@ -1780,8 +1791,9 @@ const MenuPage = () => {
 
   const saveSizes = async () => {
     try {
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
       const response = await fetch(
-        `http://localhost:5000/api/categories/${editingCategoryId}/subcategories/${editingSubcategory._id}`,
+        `${apiUrl}/api/categories/${editingCategoryId}/subcategories/${editingSubcategory._id}`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -2125,7 +2137,7 @@ const MenuPage = () => {
                             backgroundImage: `url(${item.image ? 
                               (item.image.startsWith('http') ? item.image : 
                                (item.image.startsWith('data:') ? item.image : 
-                                `http://localhost:5000${item.image}`)) : 
+                                ((window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '') + item.image))) : 
                               (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png')})`,
                             borderColor: colors.muted
                           }}
@@ -3266,7 +3278,8 @@ const MenuPage = () => {
                               // Re-fetch the menu item to get updated availability
                               setTimeout(async () => {
                                 try {
-                                  const response = await fetch(`http://localhost:5000/api/menu/${itemToSave._id}`);
+                                  const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+                                  const response = await fetch(`${apiUrl}/api/menu/${itemToSave._id}`);
                                   if (response.ok) {
                                     const updatedItem = await response.json();
                                     console.log('[MenuManagement] Re-fetched menu item after ingredient save:', updatedItem);

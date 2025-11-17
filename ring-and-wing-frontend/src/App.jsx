@@ -28,7 +28,7 @@ import BrandedLoadingScreen from './components/ui/BrandedLoadingScreen';
 import axios from 'axios';
 
 // API URL configuration
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+export const API_URL = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
 
 // Connection states
 const ConnectionStatus = {

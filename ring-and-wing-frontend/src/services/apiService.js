@@ -2,7 +2,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 
 // Configuration
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
 const HEALTH_CHECK_INTERVAL = 120000; // 2 minutes (reduced from 30s to prevent connection pool exhaustion)
 const MAX_RETRY_ATTEMPTS = 3; // Maximum number of retry attempts
 

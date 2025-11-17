@@ -25,7 +25,8 @@ const ReceiptHistory = () => {
       try {
         setLoading(true);
         // Fetch orders from the server
-        const response = await fetch('http://localhost:5000/api/orders');
+        const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+        const response = await fetch(`${apiUrl}/api/orders`);
         
         if (!response.ok) {
           throw new Error('Failed to fetch orders');

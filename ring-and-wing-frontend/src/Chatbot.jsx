@@ -145,7 +145,8 @@ function ChatbotPage() {
     
     const fetchMenuData = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/menu?limit=1000", {
+        const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+        const response = await fetch(`${apiUrl}/api/menu?limit=1000`, {
           signal: controller.signal
         });
         const data = await response.json();
@@ -169,7 +170,8 @@ function ChatbotPage() {
     
     const fetchRevenueData = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/revenue/weekly", {
+        const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+        const response = await fetch(`${apiUrl}/api/revenue/weekly`, {
           signal: controller.signal
         });
         const data = await response.json();
@@ -914,7 +916,8 @@ ${popularItemsInfo}`
     };
   
     try {
-      const response = await fetch('http://localhost:5000/api/orders', {
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+      const response = await fetch(`${apiUrl}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderData),

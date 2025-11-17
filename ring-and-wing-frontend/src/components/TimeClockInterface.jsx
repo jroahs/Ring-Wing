@@ -16,7 +16,7 @@ const TimeClockInterface = () => {
     muted: '#ac9c9b'
   };
 
-  const API_BASE_URL = 'http://localhost:5000';
+  const API_BASE_URL = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
 
   useEffect(() => {
     const storedUserData = localStorage.getItem('userData');

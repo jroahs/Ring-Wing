@@ -22,7 +22,7 @@ const StaffAvatar = ({ imagePath, alt = 'Staff photo', size = 40, className = ''
     }
     
     // Handle different path formats
-    const baseUrl = 'http://localhost:5000';
+    const baseUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
     
     // Direct path to image in /uploads/staff
     if (imagePath.includes('/uploads/staff/')) {

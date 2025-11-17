@@ -5,7 +5,7 @@
 
 class InventoryAvailabilityService {
   constructor() {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
     this.baseURL = `${apiUrl}/api`;
     this.token = localStorage.getItem('token');
   }

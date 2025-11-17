@@ -57,7 +57,7 @@ class CashFloatService {
    * Load cash float data from backend
    */
   async loadFromBackend() {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
     const response = await fetch(`${apiUrl}/api/settings/cash-float`);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
@@ -102,7 +102,8 @@ class CashFloatService {
         payload.auditEntry = auditEntry;
       }
       
-      const response = await fetch('http://localhost:5000/api/settings/cash-float', {
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+      const response = await fetch(`${apiUrl}/api/settings/cash-float`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -321,7 +322,8 @@ class CashFloatService {
     try {
       if (this.backendAvailable) {
         // Use backend API for transaction processing
-        const response = await fetch('http://localhost:5000/api/settings/cash-float/transaction', {
+        const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+        const response = await fetch(`${apiUrl}/api/settings/cash-float/transaction`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -389,7 +391,8 @@ class CashFloatService {
     // Try to persist to backend
     try {
       if (this.backendAvailable) {
-        const response = await fetch('http://localhost:5000/api/settings/cash-float/daily-reset', {
+        const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+        const response = await fetch(`${apiUrl}/api/settings/cash-float/daily-reset`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json'
@@ -465,7 +468,8 @@ class CashFloatService {
     // Try to persist to backend
     try {
       if (this.backendAvailable) {
-        const response = await fetch('http://localhost:5000/api/settings/cash-float/daily-reset/perform', {
+        const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+        const response = await fetch(`${apiUrl}/api/settings/cash-float/daily-reset/perform`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

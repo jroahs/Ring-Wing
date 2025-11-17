@@ -13,7 +13,7 @@ export const getApiUrl = () => {
   }
   
   // Final fallback
-  return 'http://localhost:5000';
+  return (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
 };
 
 /**

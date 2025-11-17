@@ -53,7 +53,7 @@ const OrderSystem = () => {
   // Socket initialization
   useEffect(() => {
     const initializeSocket = () => {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
       const newSocket = io(apiUrl, {
         transports: ['websocket', 'polling'],
         auth: {
@@ -152,7 +152,8 @@ const OrderSystem = () => {
           params.append('search', debouncedSearchTerm.trim());
         }
 
-        const url = `http://localhost:5000/api/orders?${params.toString()}`;
+        const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+        const url = `${apiUrl}/api/orders?${params.toString()}`;
         console.log('Fetching orders with URL:', url);
         console.log('Date filter:', dateFilter);
         console.log('Search term:', debouncedSearchTerm);
@@ -222,7 +223,8 @@ const OrderSystem = () => {
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/orders/${orderId}`, {
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+      const response = await fetch(`${apiUrl}/api/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),

@@ -290,7 +290,8 @@ const RevenueReports = () => {
     const fetchRevenueData = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:5000/api/revenue/${selectedPeriod}`);
+        const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+        const response = await fetch(`${apiUrl}/api/revenue/${selectedPeriod}`);
         const data = await response.json();
         if (data.success) {
           setRevenueData(data.data);
@@ -310,7 +311,8 @@ const RevenueReports = () => {
   useEffect(() => {
     const fetchMonthlyHistoricalData = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/revenue/historical/monthly');
+        const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+        const response = await fetch(`${apiUrl}/api/revenue/historical/monthly`);
         const data = await response.json();
         if (data.success) {
           setMonthlyHistoricalData(data.data);
@@ -324,7 +326,8 @@ const RevenueReports = () => {
 
     const fetchAllTimeTopItems = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/revenue/top-items/all-time');
+        const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+        const response = await fetch(`${apiUrl}/api/revenue/top-items/all-time`);
         const data = await response.json();
         if (data.success) {
           setAllTimeTopItems(data.data.topItems);

@@ -30,7 +30,8 @@ const EndOfShiftModal = ({ isOpen, onClose, theme, cashFloat }) => {
     setError(null);
     
     try {
-      const response = await fetch('http://localhost:5000/api/revenue/daily', {
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+      const response = await fetch(`${apiUrl}/api/revenue/daily`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }

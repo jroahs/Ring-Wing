@@ -279,7 +279,8 @@ const PointOfSaleTablet = () => {
 
   const fetchMenuItems = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/menu?limit=1000');
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+      const response = await fetch(`${apiUrl}/api/menu?limit=1000`);
       if (!response.ok) throw new Error('Failed to fetch menu');
       const responseData = await response.json();
 
@@ -299,7 +300,7 @@ const PointOfSaleTablet = () => {
         subCategory: item.subCategory || '',
         pricing: item.pricing,
         description: item.description,
-        image: item.image ? `http://localhost:5000${item.image}` : 
+        image: item.image ? `${apiUrl}${item.image}` : 
                (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png'),
         modifiers: item.modifiers || [],
         isAvailable: item.isAvailable
@@ -318,7 +319,8 @@ const PointOfSaleTablet = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/categories');
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+      const response = await fetch(`${apiUrl}/api/categories`);
       if (!response.ok) {
         throw new Error('Failed to fetch categories');
       }
@@ -721,8 +723,9 @@ const PointOfSaleTablet = () => {
       }
       
       // Update the existing pending order
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
       const response = await fetch(
-        `http://localhost:5000/api/orders/${editingPendingOrder._id}`,
+        `${apiUrl}/api/orders/${editingPendingOrder._id}`,
         {
           method: 'PATCH',
           headers: {
@@ -929,7 +932,8 @@ const PointOfSaleTablet = () => {
             const userData = localStorage.getItem('userData');
             const user = userData ? JSON.parse(userData) : null;
             
-            const reservationResponse = await fetch('http://localhost:5000/api/inventory/reserve', {
+            const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+            const reservationResponse = await fetch(`${apiUrl}/api/inventory/reserve`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -1154,8 +1158,9 @@ const PointOfSaleTablet = () => {
     }
 
     try {
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
       const response = await fetch(
-        `http://localhost:5000/api/orders/${orderId}`,
+        `${apiUrl}/api/orders/${orderId}`,
         {
           method: 'DELETE',
           headers: {

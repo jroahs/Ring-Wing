@@ -6,7 +6,7 @@ import { FiUser, FiLock, FiAlertCircle, FiArrowRight } from 'react-icons/fi';
 import { Button, Input, PasswordInput } from './components/ui';
 import logo from './assets/rw.jpg';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
 
 function Login() {
   const [username, setUsername] = useState('');

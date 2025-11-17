@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Configuration
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
 const REQUEST_TIMEOUT = 30000; // 30 seconds

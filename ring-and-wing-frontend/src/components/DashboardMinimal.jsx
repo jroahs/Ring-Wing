@@ -52,7 +52,8 @@ const DashboardMinimal = () => {
         // Fetch orders from today only
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const ordersResponse = await fetch('http://localhost:5000/api/orders', {
+        const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+        const ordersResponse = await fetch(`${apiUrl}/api/orders`, {
           signal: controller.signal
         });
         const ordersData = await ordersResponse.json();
@@ -70,7 +71,7 @@ const DashboardMinimal = () => {
         await new Promise(resolve => setTimeout(resolve, 250));
         
         // Fetch sales stats - using daily period to show today's data only
-        const statsResponse = await fetch('http://localhost:5000/api/revenue/daily', {
+        const statsResponse = await fetch(`${apiUrl}/api/revenue/daily`, {
           signal: controller.signal
         });
         const statsData = await statsResponse.json();
@@ -80,7 +81,7 @@ const DashboardMinimal = () => {
         await new Promise(resolve => setTimeout(resolve, 250));
 
         // Fetch monthly revenue data for Revenue Overview section
-        const monthlyStatsResponse = await fetch('http://localhost:5000/api/revenue/monthly', {
+        const monthlyStatsResponse = await fetch(`${apiUrl}/api/revenue/monthly`, {
           signal: controller.signal
         });
         const monthlyStatsData = await monthlyStatsResponse.json();
@@ -90,7 +91,7 @@ const DashboardMinimal = () => {
         await new Promise(resolve => setTimeout(resolve, 250));
         
         // Fetch historical monthly revenue data for the chart
-        const monthlyHistoricalResponse = await fetch('http://localhost:5000/api/revenue/historical/monthly', {
+        const monthlyHistoricalResponse = await fetch(`${apiUrl}/api/revenue/historical/monthly`, {
           signal: controller.signal
         });
         const monthlyHistoricalData = await monthlyHistoricalResponse.json();
@@ -116,7 +117,7 @@ const DashboardMinimal = () => {
         await new Promise(resolve => setTimeout(resolve, 250));
         
         // Fetch expenses
-        const expensesResponse = await fetch('http://localhost:5000/api/expenses', {
+        const expensesResponse = await fetch(`${apiUrl}/api/expenses`, {
           signal: controller.signal
         });
         const expensesData = await expensesResponse.json();
@@ -171,7 +172,7 @@ const DashboardMinimal = () => {
         
         // Fetch staff data
         const token = localStorage.getItem('authToken');
-        const staffResponse = await fetch('http://localhost:5000/api/staff', {
+        const staffResponse = await fetch(`${apiUrl}/api/staff`, {
           headers: { 'Authorization': `Bearer ${token}` },
           signal: controller.signal
         });
@@ -262,7 +263,8 @@ const DashboardMinimal = () => {
     setRefreshController(newController);
     
     try {
-      const response = await fetch('http://localhost:5000/api/orders', {
+      const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+      const response = await fetch(`${apiUrl}/api/orders`, {
         signal: newController.signal
       });
       const data = await response.json();
