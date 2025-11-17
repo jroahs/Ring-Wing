@@ -56,4 +56,5 @@ EXPOSE 5000
 ENTRYPOINT ["dumb-init", "--"]
 
 # Start backend server
+# Force rebuild - CSP and localhost URL fixes applied
 CMD ["node", "--max-old-space-size=512", "--expose-gc", "server.js"]
