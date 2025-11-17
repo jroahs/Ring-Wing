@@ -1,25 +1,30 @@
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
-// Configuration
-const API_URL = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+// Configuration - Use getter to ensure window.API_CONFIG is available when needed
+const getApiUrl = () => {
+  const apiUrl = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+  console.log('API URL configured as:', apiUrl); // Debug log to see the API URL being used
+  return apiUrl;
+};
+
 const HEALTH_CHECK_INTERVAL = 120000; // 2 minutes (reduced from 30s to prevent connection pool exhaustion)
 const MAX_RETRY_ATTEMPTS = 3; // Maximum number of retry attempts
 
-console.log('API URL configured as:', API_URL); // Debug log to see the API URL being used
-
-// Create axios instance with configuration
+// Create axios instance with configuration - use getter to get API URL dynamically
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: getApiUrl(),
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   }
 });
 
-// Add auth token to requests if available
+// Ensure baseURL is updated if API URL changes
 api.interceptors.request.use(
   config => {
+    // Update baseURL dynamically in case API_CONFIG changed
+    config.baseURL = getApiUrl();
     const token = localStorage.getItem('authToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

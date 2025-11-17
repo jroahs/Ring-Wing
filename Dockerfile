@@ -3,6 +3,8 @@ FROM node:18-alpine AS frontend-builder
 
 WORKDIR /frontend-build
 
+# Build cache buster - CSP and API URL fixes
+# Date: 2025-11-18
 # Copy frontend package files
 COPY ring-and-wing-frontend/package*.json ./
 

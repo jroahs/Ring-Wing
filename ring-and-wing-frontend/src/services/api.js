@@ -1,7 +1,10 @@
 import axios from 'axios';
 
-// Configuration
-const API_URL = (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+// Configuration - Use getter to ensure window.API_CONFIG is available when needed
+const getApiUrl = () => {
+  return (window.API_CONFIG?.apiUrl || window.location.origin).replace(/\/$/, '');
+};
+
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
 const REQUEST_TIMEOUT = 30000; // 30 seconds
@@ -17,7 +20,7 @@ let pendingRequests = [];
 
 // Create axios instance with configuration
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: getApiUrl(),
   timeout: REQUEST_TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
@@ -210,7 +213,7 @@ const setOnlineStatus = (status) => {
 const checkHealth = async () => {
   try {
     await axios({
-      url: `${API_URL}/api/health`,
+      url: `${getApiUrl()}/api/health`,
       method: 'GET',
       timeout: 5000,
       bypassOfflineCheck: true // Prevent interceptor from queuing this
@@ -231,7 +234,7 @@ dbCheckInterval = setInterval(checkDatabaseConnection, DB_CHECK_INTERVAL);
 async function checkDatabaseConnection() {
   try {
     const response = await axios({
-      url: `${API_URL}/api/database-status`,
+      url: `${getApiUrl()}/api/database-status`,
       method: 'GET',
       timeout: 5000,
       bypassOfflineCheck: true
@@ -337,7 +340,7 @@ const apiService = {
   // Check server health
   async checkHealth() {
     try {
-      const response = await axios.get(`${API_URL}/api/health`, { timeout: 5000 });
+      const response = await axios.get(`${getApiUrl()}/api/health`, { timeout: 5000 });
       return response.data?.status === 'ok';
     } catch (error) {
       console.error('Health check failed:', error.message);
@@ -348,7 +351,7 @@ const apiService = {
   // Check database connection status
   async checkDatabaseStatus() {
     try {
-      const response = await axios.get(`${API_URL}/api/database-status`, { timeout: 5000 });
+      const response = await axios.get(`${getApiUrl()}/api/database-status`, { timeout: 5000 });
       return {
         isConnected: response.data.success === true,
         status: response.data.status,
