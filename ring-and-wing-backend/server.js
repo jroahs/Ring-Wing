@@ -204,16 +204,6 @@ if (distExists) {
 app.use((req, res, next) => {
   if (req.path.startsWith('/assets/') || req.path.endsWith('.css') || req.path.endsWith('.js')) {
     logger.info(`[STATIC REQUEST] ${req.method} ${req.path}`);
-    
-    // Intercept response to log what's actually being sent
-    const originalSend = res.send;
-    res.send = function(data) {
-      logger.info(`[STATIC RESPONSE] ${req.path}: status=${res.statusCode}, type=${res.get('content-type')}, size=${typeof data === 'string' ? data.length : 'unknown'}`);
-      if (res.statusCode >= 400) {
-        logger.error(`[STATIC ERROR RESPONSE] ${req.path}: ${typeof data === 'string' ? data.substring(0, 200) : data}`);
-      }
-      return originalSend.call(this, data);
-    };
   }
   next();
 });
@@ -649,6 +639,11 @@ app.use(dbErrorHandler);
 
 // General error handling middleware
 app.use((err, req, res, next) => {
+  // Don't handle errors for static files that were already sent successfully
+  if (res.headersSent) {
+    return next(err);
+  }
+
   logger.error(`[${new Date().toISOString()}] Error:`, {
     message: err.message,
     path: req.path,
