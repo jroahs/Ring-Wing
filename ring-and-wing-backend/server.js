@@ -200,47 +200,56 @@ if (distExists) {
   logger.info(`[STATIC FILES] Files in dist: ${files.join(', ')}`);
 }
 
+// Middleware to log all static file requests
+app.use((req, res, next) => {
+  if (req.path.startsWith('/assets/') || req.path.endsWith('.css') || req.path.endsWith('.js')) {
+    logger.info(`[STATIC REQUEST] ${req.method} ${req.path}`);
+  }
+  next();
+});
+
 app.use(express.static(distPath, {
   setHeaders: (res, filePath) => {
-    const ext = path.extname(filePath).toLowerCase();
-    const mimeTypes = {
-      '.js': 'application/javascript',
-      '.css': 'text/css',
-      '.json': 'application/json',
-      '.html': 'text/html',
-      '.png': 'image/png',
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.gif': 'image/gif',
-      '.webp': 'image/webp',
-      '.svg': 'image/svg+xml',
-      '.woff': 'font/woff',
-      '.woff2': 'font/woff2',
-      '.ttf': 'font/ttf',
-      '.eot': 'application/vnd.ms-fontobject'
-    };
+    try {
+      const ext = path.extname(filePath).toLowerCase();
+      const mimeTypes = {
+        '.js': 'application/javascript',
+        '.css': 'text/css',
+        '.json': 'application/json',
+        '.html': 'text/html',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+        '.svg': 'image/svg+xml',
+        '.woff': 'font/woff',
+        '.woff2': 'font/woff2',
+        '.ttf': 'font/ttf',
+        '.eot': 'application/vnd.ms-fontobject'
+      };
 
-    if (mimeTypes[ext]) {
-      const mimeType = mimeTypes[ext];
-      res.set('Content-Type', mimeType);
-      logger.debug(`[STATIC] Serving ${filePath} as ${mimeType}`);
-      // Cache static assets for 1 year (except HTML)
-      if (ext !== '.html') {
-        res.set('Cache-Control', 'public, max-age=31536000, immutable');
-      } else {
-        res.set('Cache-Control', 'public, max-age=3600, must-revalidate');
+      if (mimeTypes[ext]) {
+        const mimeType = mimeTypes[ext];
+        res.setHeader('Content-Type', mimeType);
+        // Cache static assets for 1 year (except HTML)
+        if (ext !== '.html') {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else {
+          res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
+        }
       }
-    }
 
-    res.setHeader('Access-Control-Allow-Origin', 
-      process.env.NODE_ENV === 'production' 
+      const corsOrigin = process.env.NODE_ENV === 'production' 
         ? (process.env.FRONTEND_URL || '*')
-        : 'http://localhost:5173'
-    );
-  },
-  onError: (err, req, res) => {
-    logger.error(`[STATIC ERROR] ${req.path}: ${err.message}`);
-    res.status(500).json({ error: err.message });
+        : 'http://localhost:5173';
+      
+      if (corsOrigin) {
+        res.setHeader('Access-Control-Allow-Origin', corsOrigin);
+      }
+    } catch (err) {
+      logger.error(`[STATIC HEADER ERROR] ${filePath}: ${err.message}`);
+    }
   }
 }));
 
