@@ -190,6 +190,16 @@ app.use(morgan('combined'));
 
 // Static files - Serve dist folder at root for frontend assets
 const distPath = path.join(__dirname, 'public', 'dist');
+
+// Debug: Check if dist folder exists
+const distExists = fs.existsSync(distPath);
+logger.info(`[STATIC FILES] Dist folder path: ${distPath}`);
+logger.info(`[STATIC FILES] Dist folder exists: ${distExists}`);
+if (distExists) {
+  const files = fs.readdirSync(distPath);
+  logger.info(`[STATIC FILES] Files in dist: ${files.join(', ')}`);
+}
+
 app.use(express.static(distPath, {
   setHeaders: (res, filePath) => {
     const ext = path.extname(filePath).toLowerCase();
