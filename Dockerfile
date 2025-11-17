@@ -2,7 +2,7 @@
 FROM node:18-alpine AS frontend-builder
 
 # Cache buster - change this to force rebuild
-ARG CACHEBUST=20251118-force-rebuild-v3
+ARG CACHEBUST=force-full-rebuild-20251118-004
 
 WORKDIR /frontend-build
 
