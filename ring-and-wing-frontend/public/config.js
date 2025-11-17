@@ -1,6 +1,4 @@
 // Runtime configuration - loaded before app starts
 window.API_CONFIG = {
-  apiUrl: window.location.protocol === 'https:' 
-    ? window.location.origin  // Use same domain in production
-    : 'http://localhost:5000'  // Use localhost in development
+  apiUrl: window.location.origin  // Always use same domain (backend serves both API and frontend)
 };

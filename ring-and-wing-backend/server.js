@@ -81,7 +81,7 @@ app.use(
         'style-src': ["'self'", "'unsafe-inline'"],
         'img-src': ["'self'", 'data:', 'blob:', 'https:'],
         'font-src': ["'self'", 'data:'],
-        'connect-src': ["'self'", 'https:', 'http://localhost:*', 'ws://localhost:*', 'wss://localhost:*']
+        'connect-src': ["'self'", 'https:']  // Only same-domain and HTTPS (production-safe)
       }
     },
     crossOriginResourcePolicy: { policy: "cross-origin" }
