@@ -1,9 +1,12 @@
 # Multi-stage build: Frontend build stage
 FROM node:18-alpine AS frontend-builder
 
+# Cache buster - change this to force rebuild
+ARG CACHEBUST=20251118-002
+
 WORKDIR /frontend-build
 
-# Build cache buster - CSP and API URL fixes
+# Build cache buster - CSP and API URL fixes - Race condition fixed
 # Date: 2025-11-18
 # Copy frontend package files
 COPY ring-and-wing-frontend/package*.json ./
