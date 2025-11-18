@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiClock, FiX, FiCheckCircle, FiAlertCircle, FiActivity } from 'react-icons/fi';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import axios from 'axios';
+import api from './services/apiService';
 
 const TimeClockInterface = ({ staffId, onClose }) => {
   const [staff, setStaff] = useState(null);
@@ -53,7 +53,7 @@ const TimeClockInterface = ({ staffId, onClose }) => {
           }
         };
 
-        const response = await axios.get(endpoint, config);
+        const response = await api.get(endpoint, config);
         const staffData = response.data.data || response.data;
         setStaff(staffData);
         await fetchLastTimeLog(staffData._id);
@@ -89,7 +89,7 @@ const TimeClockInterface = ({ staffId, onClose }) => {
         }
       };
 
-      const { data } = await axios.get(`/api/time-logs/staff/${staffId}?${params}`, config);
+      const { data } = await api.get(`/api/time-logs/staff/${staffId}?${params}`, config);
       
       if (data?.data?.length > 0) {
         const formattedTimestamp = formatDateTime(data.data[0].timestamp || data.data[0].createdAt);
@@ -121,7 +121,7 @@ const TimeClockInterface = ({ staffId, onClose }) => {
         }
       };
       
-      const { data } = await axios.post(`/api/time-logs/${type === 'in' ? 'clock-in' : 'clock-out'}`, {
+      const { data } = await api.post(`/api/time-logs/${type === 'in' ? 'clock-in' : 'clock-out'}`, {
         userId: staff.userId
       }, config);
       

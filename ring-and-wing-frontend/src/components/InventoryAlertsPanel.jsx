@@ -76,13 +76,13 @@ const InventoryAlertsPanel = ({ className = "", isExpanded = false, onToggle }) 
         reservationsResponse,
         availabilityResponse
       ] = await Promise.all([
-        fetch('/api/items?lowStock=true&active=true', {
+        fetch(`${API_URL}/api/items?lowStock=true&active=true`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('/api/ingredients/reservations?expiringSoon=true', {
+        fetch(`${API_URL}/api/ingredients/reservations?expiringSoon=true`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('/api/ingredients/availability/status', {
+        fetch(`${API_URL}/api/ingredients/availability/status`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);

@@ -5,6 +5,8 @@ import { useReactToPrint } from 'react-to-print';
 import { Receipt } from './Receipt';
 import { useRef } from 'react';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const ReceiptHistory = () => {
   const [orders, setOrders] = useState([]);  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -25,7 +27,7 @@ const ReceiptHistory = () => {
       try {
         setLoading(true);
         // Fetch orders from the server
-        const response = await fetch('http://localhost:5000/api/orders');
+        const response = await fetch(`${API_URL}/api/orders`);
         
         if (!response.ok) {
           throw new Error('Failed to fetch orders');

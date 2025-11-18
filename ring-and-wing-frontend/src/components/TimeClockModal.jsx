@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FiClock, FiX, FiCheckCircle, FiAlertCircle, FiActivity, FiCamera, FiRefreshCw } from 'react-icons/fi';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import axios from 'axios';
+import api from '../services/apiService';
 
 const TimeClockModal = ({ onClose }) => {
   const [staff, setStaff] = useState(null);
@@ -59,7 +59,7 @@ const TimeClockModal = ({ onClose }) => {
     setLoading(true);
     try {
       // Authenticate staff with pin code
-      const response = await axios.post('/api/staff/authenticate-pin', { pin: pinCode });
+      const response = await api.post('/api/staff/authenticate-pin', { pin: pinCode });
       if (response.data && response.data.success) {
         setStaff(response.data.staff);
         setShowPinPad(false);
@@ -88,7 +88,7 @@ const TimeClockModal = ({ onClose }) => {
         endDate: new Date().toISOString()
       }).toString();
 
-      const { data } = await axios.get(`/api/time-logs/staff/${staffId}?${params}`);
+      const { data } = await api.get(`/api/time-logs/staff/${staffId}?${params}`);
       
       if (data?.data?.length > 0) {
         const formattedTimestamp = formatDateTime(data.data[0].timestamp || data.data[0].createdAt);
@@ -175,7 +175,7 @@ const TimeClockModal = ({ onClose }) => {
     
     setLoading(true);
     try {
-      const { data } = await axios.post(`/api/time-logs/${type === 'in' ? 'clock-in' : 'clock-out'}`, {
+      const { data } = await api.post(`/api/time-logs/${type === 'in' ? 'clock-in' : 'clock-out'}`, {
         userId: staff.userId,
         photoBase64: imageSrc // Changed from 'photo' to 'photoBase64' to match backend
       });

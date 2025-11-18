@@ -4,6 +4,7 @@ import MenuItemImage from './components/MenuItemImage';
 import ConnectionMonitor from './components/ConnectionMonitor';
 import { LoadingSpinner } from './components/ui';
 import { io } from 'socket.io-client'; // NEW: Real-time socket events (Sprint 22)
+import { API_URL } from './App';
 
 // Debounce utility function to prevent rapid-fire requests
 const debounce = (func, wait) => {
@@ -44,7 +45,7 @@ const generateMenuItemDescription = async (itemName, basicDescription) => {
   };
   
   try {
-    const res = await fetch('/api/chat', {
+    const res = await fetch(`${API_URL}/api/chat`, {
       method: 'POST',
       headers: {
         "Content-Type": "application/json"
@@ -458,7 +459,7 @@ const MenuPage = () => {
 
   const createAddOn = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/add-ons', {
+      const response = await fetch(`${API_URL}/api/add-ons`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newAddOn)
@@ -481,7 +482,7 @@ const MenuPage = () => {
 
   const deleteAddOn = async (addOnId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/add-ons/${addOnId}`, {
+      const response = await fetch(`${API_URL}/api/add-ons/${addOnId}`, {
         method: 'DELETE'
       });
 
@@ -498,22 +499,22 @@ const MenuPage = () => {
   const fetchData = async (signal = null) => {
     try {
       // Stagger API calls with 200ms delays to prevent connection pool exhaustion
-      const menuRes = await fetch('http://localhost:5000/api/menu?limit=1000', {  // High limit to get all items
+      const menuRes = await fetch(`${API_URL}/api/menu?limit=1000`, {  // High limit to get all items
         signal: signal
       });
       
       await new Promise(resolve => setTimeout(resolve, 200));
-      const addOnsRes = await fetch('http://localhost:5000/api/add-ons', {
+      const addOnsRes = await fetch(`${API_URL}/api/add-ons`, {
         signal: signal
       });
       
       await new Promise(resolve => setTimeout(resolve, 200));
-      const categoriesRes = await fetch('http://localhost:5000/api/categories', {
+      const categoriesRes = await fetch(`${API_URL}/api/categories`, {
         signal: signal
       });
       
       await new Promise(resolve => setTimeout(resolve, 200));
-      const inventoryRes = await fetch('http://localhost:5000/api/items', {  // Use the existing items endpoint
+      const inventoryRes = await fetch(`${API_URL}/api/items`, {  // Use the existing items endpoint
         signal: signal
       });
 
@@ -764,7 +765,6 @@ const MenuPage = () => {
 
   // NEW: Socket.io connection for real-time updates (Sprint 22)
   useEffect(() => {
-    const API_URL = 'http://localhost:5000';
     const token = localStorage.getItem('token') || localStorage.getItem('authToken');
     
     // Initialize socket connection with JWT authentication

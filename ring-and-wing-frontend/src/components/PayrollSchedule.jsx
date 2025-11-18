@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/apiService';
 import { toast } from 'react-toastify';
 import { FiCalendar, FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
 
@@ -26,7 +26,7 @@ const PayrollSchedule = ({ colors, onScheduleSelect }) => {
   const fetchSchedules = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await axios.get('/api/payroll-schedules', {
+      const response = await api.get('/api/payroll-schedules', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -49,13 +49,13 @@ const PayrollSchedule = ({ colors, onScheduleSelect }) => {
 
       let response;
       if (editingSchedule) {
-        response = await axios.put(
+        response = await api.put(
           `/api/payroll-schedules/${editingSchedule._id}`,
           formData,
           config
         );
       } else {
-        response = await axios.post('/api/payroll-schedules', formData, config);
+        response = await api.post('/api/payroll-schedules', formData, config);
       }
 
       if (response.data?.success) {
@@ -78,7 +78,7 @@ const PayrollSchedule = ({ colors, onScheduleSelect }) => {
 
     try {
       const token = localStorage.getItem('authToken');
-      const response = await axios.delete(`/api/payroll-schedules/${scheduleId}`, {
+      const response = await api.delete(`/api/payroll-schedules/${scheduleId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 

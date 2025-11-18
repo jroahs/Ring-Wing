@@ -12,6 +12,7 @@ import {
   Download,
   Filter
 } from 'lucide-react';
+import { API_URL } from '../App';
 
 /**
  * Cost Analysis Dashboard
@@ -34,7 +35,7 @@ const CostAnalysisPanel = ({ className = "" }) => {
       const token = localStorage.getItem('token');
       
       // Fetch menu items with ingredient mappings
-      const menuResponse = await fetch('/api/menu/items?includeIngredients=true', {
+      const menuResponse = await fetch(`${API_URL}/api/menu/items?includeIngredients=true`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -44,7 +45,7 @@ const CostAnalysisPanel = ({ className = "" }) => {
       }
 
       // Fetch current ingredient costs
-      const ingredientsResponse = await fetch('/api/items?category=ingredients&active=true', {
+      const ingredientsResponse = await fetch(`${API_URL}/api/items?category=ingredients&active=true`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       

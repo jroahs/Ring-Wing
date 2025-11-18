@@ -110,7 +110,7 @@ const PointOfSale = () => {
         const token = localStorage.getItem('token');
         if (!token) return;
         
-        const response = await fetch('http://localhost:5000/api/auth/me', {
+        const response = await fetch(`${API_URL}/api/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -248,7 +248,7 @@ const PointOfSale = () => {
 
     const fetchMenuItems = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/menu?limit=1000', {
+        const response = await fetch(`${API_URL}/api/menu?limit=1000`, {
           signal: abortController.signal
         });
         if (!response.ok) throw new Error('Failed to fetch menu');
@@ -268,7 +268,7 @@ const PointOfSale = () => {
           subCategory: item.subCategory || '',  // Ensure subCategory is included
           pricing: item.pricing,
           description: item.description,
-          image: item.image ? `http://localhost:5000${item.image}` : 
+          image: item.image ? `${API_URL}${item.image}` : 
                  (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png'),
           modifiers: item.modifiers || [],
           isAvailable: item.isAvailable // Include availability status
@@ -298,7 +298,7 @@ const PointOfSale = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/categories');
+        const response = await fetch(`${API_URL}/api/categories`);
         if (!response.ok) {
           throw new Error('Failed to fetch categories');
         }
@@ -465,7 +465,7 @@ const PointOfSale = () => {
     try {
       // Fetch all active orders (not just ready or pending)
       const response = await fetch(
-        'http://localhost:5000/api/orders',
+        `${API_URL}/api/orders`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -492,7 +492,7 @@ const PointOfSale = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/orders/${orderId}`,
+        `${API_URL}/api/orders/${orderId}`,
         {
           method: 'DELETE',
           headers: {
@@ -637,7 +637,7 @@ const PointOfSale = () => {
           };
         }
 
-        const response = await fetch(`http://localhost:5000/api/orders/${order._id}`, {
+        const response = await fetch(`${API_URL}/api/orders/${order._id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -695,7 +695,7 @@ const PointOfSale = () => {
       }
       // Case 2: Order status update from OrderProcessingModal
       else {
-        const response = await fetch(`http://localhost:5000/api/orders/${orderId}`, {
+        const response = await fetch(`${API_URL}/api/orders/${orderId}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -1140,7 +1140,7 @@ const PointOfSale = () => {
           const userData = localStorage.getItem('userData');
           const user = userData ? JSON.parse(userData) : null;
           
-          const reservationResponse = await fetch('http://localhost:5000/api/inventory/reserve', {
+          const reservationResponse = await fetch(`${API_URL}/api/inventory/reserve`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1249,7 +1249,7 @@ const PointOfSale = () => {
       }
 
       // Update the order with payment details
-      const response = await fetch(`http://localhost:5000/api/orders/${editingPendingOrder._id}`, {
+      const response = await fetch(`${API_URL}/api/orders/${editingPendingOrder._id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1297,7 +1297,7 @@ const PointOfSale = () => {
           const userData = localStorage.getItem('userData');
           const user = userData ? JSON.parse(userData) : null;
           
-          const reservationResponse = await fetch('http://localhost:5000/api/inventory/reserve', {
+          const reservationResponse = await fetch(`${API_URL}/api/inventory/reserve`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1428,7 +1428,7 @@ const PointOfSale = () => {
         })()
       };
 
-      const response = await fetch('http://localhost:5000/api/orders', {
+      const response = await fetch(`${API_URL}/api/orders`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

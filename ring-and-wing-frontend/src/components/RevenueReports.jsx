@@ -20,6 +20,8 @@ const colors = {
   activeBg: '#f1670f20'
 };
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const RevenueReports = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('daily');
   const [revenueData, setRevenueData] = useState(null);
@@ -290,7 +292,7 @@ const RevenueReports = () => {
     const fetchRevenueData = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:5000/api/revenue/${selectedPeriod}`);
+        const response = await fetch(`${API_URL}/api/revenue/${selectedPeriod}`);
         const data = await response.json();
         if (data.success) {
           setRevenueData(data.data);
@@ -310,7 +312,7 @@ const RevenueReports = () => {
   useEffect(() => {
     const fetchMonthlyHistoricalData = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/revenue/historical/monthly');
+        const response = await fetch(`${API_URL}/api/revenue/historical/monthly`);
         const data = await response.json();
         if (data.success) {
           setMonthlyHistoricalData(data.data);
@@ -324,7 +326,7 @@ const RevenueReports = () => {
 
     const fetchAllTimeTopItems = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/revenue/top-items/all-time');
+        const response = await fetch(`${API_URL}/api/revenue/top-items/all-time`);
         const data = await response.json();
         if (data.success) {
           setAllTimeTopItems(data.data.topItems);

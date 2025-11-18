@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { FiUser, FiClock, FiSearch, FiCamera, FiCheck, FiX, FiArrowLeft } from 'react-icons/fi';
-import axios from 'axios';
+import api from './services/apiService';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Webcam from 'react-webcam';
@@ -74,7 +74,7 @@ const TimeClock = () => {
   useEffect(() => {
     const fetchStaff = async () => {
       try {
-        const response = await axios.get('/api/staff/time-clock');
+        const response = await api.get('/api/staff/time-clock');
         const staffData = Array.isArray(response.data) ? response.data : 
                         (response.data.data ? response.data.data : []);
         setStaff(staffData);
@@ -116,7 +116,7 @@ const TimeClock = () => {
         }
       };
 
-      const { data } = await axios.get(`/api/time-logs/staff/${staffId}?${params}`, config);
+      const { data } = await api.get(`/api/time-logs/staff/${staffId}?${params}`, config);
       
       if (data?.data?.length > 0) {
         const formattedTimestamp = formatDateTime(data.data[0].timestamp || data.data[0].createdAt);
@@ -214,7 +214,7 @@ const TimeClock = () => {
       };
       
       // Send API request with photo
-      const { data } = await axios.post(
+      const { data } = await api.post(
         `/api/time-logs/${clockAction === 'in' ? 'clock-in' : 'clock-out'}`, 
         formData,
         config

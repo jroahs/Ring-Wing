@@ -3,6 +3,7 @@
  * Uses the Gemini model to analyze user messages for order intent
  */
 import { findBestMenuItemMatch } from './orderParser'; // Assuming findBestMenuItemMatch is in orderParser.js
+import { API_URL } from '../App';
 
 export const detectOrderIntentWithAI = async (message, menuItems, chatHistory = [], detectedLanguage = 'english') => {  // Early rejection of obvious non-order messages
   const quickCheck = message.toLowerCase();
@@ -101,7 +102,7 @@ export const detectOrderIntentWithAI = async (message, menuItems, chatHistory = 
       max_tokens: 350
     };
     
-    const response = await fetch('/api/chat', {
+    const response = await fetch(`${API_URL}/api/chat`, {
       method: 'POST',
       headers: {
         "Content-Type": "application/json"

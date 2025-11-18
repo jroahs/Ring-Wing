@@ -30,7 +30,7 @@ const EndOfShiftModal = ({ isOpen, onClose, theme, cashFloat }) => {
     setError(null);
     
     try {
-      const response = await fetch('http://localhost:5000/api/revenue/daily', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/revenue/daily`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }

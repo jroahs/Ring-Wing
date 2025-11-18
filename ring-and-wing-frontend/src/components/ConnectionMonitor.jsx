@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_URL } from '../App';
 
 const ConnectionMonitor = () => {
   const [connectionStatus, setConnectionStatus] = useState('checking');
@@ -8,7 +9,7 @@ const ConnectionMonitor = () => {
   const checkConnection = async () => {
     try {
       setConnectionStatus('checking');
-      const response = await fetch('/api/menu', {
+      const response = await fetch(`${API_URL}/api/menu`, {
         method: 'HEAD', // Use HEAD for lightweight check
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`

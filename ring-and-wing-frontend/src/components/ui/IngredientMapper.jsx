@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, Trash2, AlertCircle, Package, Calculator, Save, X } from 'lucide-react';
+import { API_URL } from '../../App';
 
 /**
  * IngredientMapper Component
@@ -53,7 +54,7 @@ const IngredientMapper = ({
 
   const loadAvailableIngredients = async () => {
     try {
-      const response = await fetch('/api/items?category=ingredients&active=true', {
+      const response = await fetch(`${API_URL}/api/items?category=ingredients&active=true`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
@@ -225,7 +226,7 @@ const IngredientMapper = ({
           notes: mapping.notes
         }));
 
-        const response = await fetch('/api/ingredients/mappings/bulk', {
+        const response = await fetch(`${API_URL}/api/ingredients/mappings/bulk`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,

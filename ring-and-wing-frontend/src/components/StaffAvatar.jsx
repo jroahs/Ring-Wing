@@ -22,7 +22,7 @@ const StaffAvatar = ({ imagePath, alt = 'Staff photo', size = 40, className = ''
     }
     
     // Handle different path formats
-    const baseUrl = 'http://localhost:5000';
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     
     // Direct path to image in /uploads/staff
     if (imagePath.includes('/uploads/staff/')) {

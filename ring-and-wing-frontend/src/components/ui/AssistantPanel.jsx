@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
+import { API_URL } from '../../App';
 
 // Add scrolling animation styles
 const scrollStyle = `
@@ -338,7 +339,7 @@ const AssistantPanel = ({
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch('/api/categories');
+        const response = await fetch(`${API_URL}/api/categories`);
         if (response.ok) {
           const categoriesData = await response.json();
           setCategories(categoriesData);
@@ -551,7 +552,7 @@ Example responses:
     };
 
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

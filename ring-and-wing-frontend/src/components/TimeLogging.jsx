@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
+import { API_URL } from '../App';
 
 const TimeLogging = ({ staffId, onTimeLogUpdate, colors }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -9,7 +10,7 @@ const TimeLogging = ({ staffId, onTimeLogUpdate, colors }) => {
     
     setIsLoading(true);
     try {
-      const response = await fetch('/api/time-logs', {
+      const response = await fetch(`${API_URL}/api/time-logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

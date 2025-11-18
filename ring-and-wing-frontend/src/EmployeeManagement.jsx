@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FiUser, FiPlus, FiEdit, FiTrash, FiSave, FiCamera, FiChevronDown, FiUserX, FiUserCheck } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
+import api from './services/apiService';
 import WorkIDModal from './WorkIDModal';
 import TerminationModal from './components/TerminationModal';
 import { toast } from 'react-toastify';
@@ -82,7 +82,7 @@ const StaffManagement = () => {
           withCredentials: true
         };
         
-        const fetchPromise = axios.get('/api/staff', config);
+        const fetchPromise = api.get('/api/staff', config);
         
         // Race between fetch and timeout
         const response = await Promise.race([fetchPromise, timeoutPromise]);
@@ -199,7 +199,7 @@ const StaffManagement = () => {
     }
     
     // Handle different path formats
-    const baseUrl = 'http://localhost:5000';
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     
     // Direct path to image in /uploads/staff
     if (imagePath.includes('/uploads/staff/')) {
@@ -354,7 +354,7 @@ const StaffManagement = () => {
       };
 
       console.log('Sending staff creation request');
-      const response = await axios.post('/api/staff', payload, config);
+      const response = await api.post('/api/staff', payload, config);
       setStaff([...staff, response.data]);
       resetForm();
       toast.success('Staff member added successfully');
@@ -491,7 +491,7 @@ const StaffManagement = () => {
         }
       };
       
-      const response = await axios.put(`/api/staff/${selectedStaff._id}`, payload, config);
+      const response = await api.put(`/api/staff/${selectedStaff._id}`, payload, config);
 
       console.log('Server response after staff update:', response.data);
       
@@ -535,7 +535,7 @@ const StaffManagement = () => {
         }
       };
       
-      const response = await axios.put(`/api/staff/${selectedStaff._id}`, payload, config);
+      const response = await api.put(`/api/staff/${selectedStaff._id}`, payload, config);
 
       console.log('Server response after account update:', response.data);
       
@@ -566,7 +566,7 @@ const StaffManagement = () => {
         }
       };
       
-      const response = await axios.put(`/api/staff/${staffId}/terminate`, terminationData, config);
+      const response = await api.put(`/api/staff/${staffId}/terminate`, terminationData, config);
         if (response.data?.success) {
         // Update the staff in the list with the complete updated data from server
         const updatedStaffData = response.data.data;
@@ -605,7 +605,7 @@ const StaffManagement = () => {
       
       const reactivationNotes = prompt('Enter reactivation notes (optional):') || 'Staff member rehired';
       
-      const response = await axios.put(`/api/staff/${staffId}/reactivate`, 
+      const response = await api.put(`/api/staff/${staffId}/reactivate`, 
         { reactivationNotes }, 
         config
       );

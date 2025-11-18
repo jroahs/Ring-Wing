@@ -8,6 +8,8 @@ import ExpenseSummary from './components/ui/ExpenseSummary.jsx';
 import ExpenseFilterPanel from './components/ui/ExpenseFilterPanel.jsx';
 import { useMultiTabLogout } from './hooks/useMultiTabLogout';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const colors = {
   primary: '#2e0304',
   background: '#fefdfd',
@@ -80,7 +82,7 @@ const ExpenseTracker = ({ colors }) => {
           params.append('disbursed', 'false');
         }
 
-        const response = await fetch(`/api/expenses?${params}`);
+        const response = await fetch(`${API_URL}/api/expenses?${params}`);
         const data = await response.json();
         setExpenses(Array.isArray(data) ? data : []);
       } catch (error) {
@@ -98,7 +100,7 @@ const ExpenseTracker = ({ colors }) => {
     // If last check was before today, get updated stats
     if (!lastResetCheck || lastCheck < startOfToday) {
       try {
-        const response = await fetch('/api/expenses/reset-disbursement', {
+        const response = await fetch(`${API_URL}/api/expenses/reset-disbursement`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
@@ -143,7 +145,7 @@ const ExpenseTracker = ({ colors }) => {
         throw new Error('Please fill all required fields');
       }
 
-      const response = await fetch('/api/expenses', {
+      const response = await fetch(`${API_URL}/api/expenses`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { ArrowUpIcon } from '@heroicons/react/24/solid';
 import { FiShoppingCart, FiClock, FiCheckCircle, FiInfo, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import logo from './assets/rw.jpg';
@@ -9,6 +9,8 @@ import { detectOrderIntentWithAI } from './utils/aiOrderDetection';
 import { getLocalizedText } from './services/localizationService';
 import { addToCurrentOrder as addToCurrentOrderService } from './services/orderService'; // Added import
 import { colors } from './theme'; // Import centralized colors
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 function ChatbotPage() {
   
@@ -145,7 +147,7 @@ function ChatbotPage() {
     
     const fetchMenuData = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/menu?limit=1000", {
+        const response = await fetch(`${API_URL}/api/menu?limit=1000`, {
           signal: controller.signal
         });
         const data = await response.json();
@@ -169,7 +171,7 @@ function ChatbotPage() {
     
     const fetchRevenueData = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/revenue/weekly", {
+        const response = await fetch(`${API_URL}/api/revenue/weekly`, {
           signal: controller.signal
         });
         const data = await response.json();
@@ -555,7 +557,7 @@ function ChatbotPage() {
     };
     
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: {
           "Content-Type": "application/json"
@@ -673,7 +675,7 @@ ${popularItemsInfo}`
         max_tokens: payload.max_tokens
       });
       
-      const res = await fetch('/api/chat', {
+      const res = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: {
           "Content-Type": "application/json"
@@ -914,7 +916,7 @@ ${popularItemsInfo}`
     };
   
     try {
-      const response = await fetch('http://localhost:5000/api/orders', {
+      const response = await fetch(`${API_URL}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderData),

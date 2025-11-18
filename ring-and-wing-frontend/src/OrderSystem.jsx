@@ -3,6 +3,7 @@ import { FiClock, FiCoffee, FiCalendar, FiFilter, FiSearch, FiX, FiChevronLeft, 
 import { LoadingSpinner } from './components/ui';
 import { useMultiTabLogout } from './hooks/useMultiTabLogout';
 import io from 'socket.io-client';
+import { API_URL } from './App';
 
 const OrderSystem = () => {
   const [orders, setOrders] = useState([]);
@@ -53,7 +54,7 @@ const OrderSystem = () => {
   // Socket initialization
   useEffect(() => {
     const initializeSocket = () => {
-      const newSocket = io('http://localhost:5000', {
+      const newSocket = io(API_URL, {
         transports: ['websocket', 'polling'],
         auth: {
           token: localStorage.getItem('token') || localStorage.getItem('authToken')
@@ -151,7 +152,7 @@ const OrderSystem = () => {
           params.append('search', debouncedSearchTerm.trim());
         }
 
-        const url = `http://localhost:5000/api/orders?${params.toString()}`;
+        const url = `${API_URL}/api/orders?${params.toString()}`;
         console.log('Fetching orders with URL:', url);
         console.log('Date filter:', dateFilter);
         console.log('Search term:', debouncedSearchTerm);
@@ -221,7 +222,7 @@ const OrderSystem = () => {
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/orders/${orderId}`, {
+      const response = await fetch(`${API_URL}/api/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),

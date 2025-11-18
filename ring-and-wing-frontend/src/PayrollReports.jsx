@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from './services/apiService';
 import { toast } from 'react-toastify';
 import { 
   FiFileText, 
@@ -32,7 +32,7 @@ const PayrollReports = ({ onBack, colors }) => {
   const fetchStaffList = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await axios.get('/api/staff', {
+      const response = await api.get('/api/staff', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStaffList(response.data.data || []);
@@ -50,7 +50,7 @@ const PayrollReports = ({ onBack, colors }) => {
         endDate: dateRange.endDate
       });
 
-      const response = await axios.get(`/api/payroll?${params}`, {
+      const response = await api.get(`/api/payroll?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       

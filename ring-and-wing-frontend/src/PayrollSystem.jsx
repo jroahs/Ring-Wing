@@ -6,7 +6,7 @@ import TimeLogHistory from './components/TimeLogHistory';
 import StaffAvatar from './components/StaffAvatar';
 import PayrollSchedule from './components/PayrollSchedule';
 import PayrollReports from './PayrollReports';
-import axios from 'axios';
+import api from './services/apiService';
 import { toast } from 'react-toastify';
 import { useMultiTabLogout } from './hooks/useMultiTabLogout';
 
@@ -87,7 +87,7 @@ const PayrollSystem = () => {
         }
       };
         // Get staff with their payroll schedule information
-      const { data } = await axios.get('/api/staff?populate=payrollScheduleId', config);
+      const { data } = await api.get('/api/staff?populate=payrollScheduleId', config);
       // Ensure data is an array before mapping
       if (!Array.isArray(data)) {
         throw new Error('Invalid staff data format');
@@ -143,7 +143,7 @@ const PayrollSystem = () => {
             }
           };
 
-          const { data } = await axios.get(`/api/payroll/staff/${selectedEmployee._id}`, config);
+          const { data } = await api.get(`/api/payroll/staff/${selectedEmployee._id}`, config);
           setPaymentHistory(Array.isArray(data.data) ? data.data : []);
         } catch (error) {
           console.error('Error fetching payment history:', error);
@@ -169,7 +169,7 @@ const PayrollSystem = () => {
       };
       
       // Fetch time logs for history display
-      const logsResponse = await axios.get(`/api/time-logs/staff/${staffId}?${params}`, config);
+      const logsResponse = await api.get(`/api/time-logs/staff/${staffId}?${params}`, config);
       
       if (!logsResponse.data?.success) {
         throw new Error('Failed to fetch time logs');
@@ -179,7 +179,7 @@ const PayrollSystem = () => {
       setTimeLogs(logs);
       
       // Fetch calculated hours data from the new endpoint
-      const hoursResponse = await axios.get(`/api/time-logs/staff/${staffId}/hours?${params}`, config);
+      const hoursResponse = await api.get(`/api/time-logs/staff/${staffId}/hours?${params}`, config);
       
       if (!hoursResponse.data?.success) {
         throw new Error('Failed to calculate working hours');
@@ -297,7 +297,7 @@ const PayrollSystem = () => {
       };
 
       // Use the new create-with-bonuses endpoint
-      const { data } = await axios.post('/api/payroll/create-with-bonuses', {
+      const { data } = await api.post('/api/payroll/create-with-bonuses', {
         staffId: selectedEmployee._id,
         payrollPeriod: new Date(payrollPeriod),
         basicPay: regularPay,
@@ -372,7 +372,7 @@ const PayrollSystem = () => {
       };
       
       // Call the backend endpoint to generate test data
-      const response = await axios.post('/api/time-logs/generate-test-data', {
+      const response = await api.post('/api/time-logs/generate-test-data', {
         staffId: selectedEmployee._id,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
@@ -439,7 +439,7 @@ const PayrollSystem = () => {
         }
       };
 
-      await axios.put(`/api/staff/${employeeId}`, {
+      await api.put(`/api/staff/${employeeId}`, {
         payrollScheduleId: scheduleId
       }, config);
       
@@ -461,7 +461,7 @@ const PayrollSystem = () => {
         }
       };
 
-      const response = await axios.post('/api/payroll/calculate-holiday-pay', {
+      const response = await api.post('/api/payroll/calculate-holiday-pay', {
         staffId,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString()
@@ -486,7 +486,7 @@ const PayrollSystem = () => {
         }
       };
 
-      const response = await axios.post('/api/payroll/calculate-13th-month', {
+      const response = await api.post('/api/payroll/calculate-13th-month', {
         staffId,
         year
       }, config);

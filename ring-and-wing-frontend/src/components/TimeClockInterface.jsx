@@ -16,7 +16,7 @@ const TimeClockInterface = () => {
     muted: '#ac9c9b'
   };
 
-  const API_BASE_URL = 'http://localhost:5000';
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     const storedUserData = localStorage.getItem('userData');
