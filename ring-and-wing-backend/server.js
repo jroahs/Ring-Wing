@@ -31,10 +31,18 @@ if (global.gc) {
 dotenv.config();
 
 // Validate environment variables
-const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY'];
+const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET'];
 requiredEnvVars.forEach(varName => {
   if (!process.env[varName]) {
     throw new Error(`${varName} environment variable is required`);
+  }
+});
+
+// Optional environment variables - log warnings if missing
+const optionalEnvVars = ['OPENROUTER_API_KEY', 'GEMINI_API_KEY'];
+optionalEnvVars.forEach(varName => {
+  if (!process.env[varName]) {
+    logger.warn(`${varName} environment variable is not set - related features may be disabled`);
   }
 });
 
