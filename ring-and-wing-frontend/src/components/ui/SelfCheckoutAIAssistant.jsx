@@ -334,7 +334,7 @@ const SelfCheckoutAIAssistant = ({
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch('/api/categories');
+        const response = await fetch(`${API_URL}/api/categories`);
         if (response.ok) {
           const categoriesData = await response.json();
           setCategories(categoriesData);
@@ -418,7 +418,7 @@ Example responses:
     };
 
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -426,10 +426,17 @@ Example responses:
       });
 
       if (!res.ok) {
-        throw new Error(`API error: ${res.status}`);
+        const errorText = await res.text();
+        console.error('AI Assistant API error:', res.status, errorText);
+        throw new Error(`API error: ${res.status} - ${errorText.substring(0, 100)}`);
       }
 
-      const data = await res.json();
+      const text = await res.text();
+      if (!text || text.trim() === '') {
+        throw new Error('Empty response from API');
+      }
+
+      const data = JSON.parse(text);
       
       if (data.error || !data.choices || !data.choices[0] || !data.choices[0].message) {
         throw new Error('Invalid response format');
@@ -540,7 +547,7 @@ Example responses:
         
         if (unavailableItem) {
           try {
-            const response = await fetch(`/api/menu/${unavailableItem._id}/alternatives`);
+            const response = await fetch(`${API_URL}/api/menu/${unavailableItem._id}/alternatives`);
             if (response.ok) {
               const data = await response.json();
               suggestionContext.systemAlternatives = data.alternatives || [];
@@ -639,7 +646,7 @@ Example responses:
       // If we found the item, get its predefined alternatives
       if (unavailableItem) {
         try {
-          const response = await fetch(`/api/menu/${unavailableItem._id}/alternatives`);
+          const response = await fetch(`${API_URL}/api/menu/${unavailableItem._id}/alternatives`);
           if (response.ok) {
             const data = await response.json();
             systemAlternatives = data.alternatives || [];
@@ -708,7 +715,7 @@ Would any of these work for you?"`
         max_tokens: 400
       };
 
-      const res = await fetch('/api/chat', {
+      const res = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -716,10 +723,17 @@ Would any of these work for you?"`
       });
 
       if (!res.ok) {
-        throw new Error(`API error: ${res.status}`);
+        const errorText = await res.text();
+        console.error('AI Assistant API error (suggestions):', res.status, errorText);
+        throw new Error(`API error: ${res.status} - ${errorText.substring(0, 100)}`);
       }
 
-      const data = await res.json();
+      const text = await res.text();
+      if (!text || text.trim() === '') {
+        throw new Error('Empty response from API');
+      }
+
+      const data = JSON.parse(text);
       
       if (data.error || !data.choices || !data.choices[0] || !data.choices[0].message) {
         throw new Error('Invalid response format');
