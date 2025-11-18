@@ -1,0 +1,141 @@
+# Render Blueprint Configuration
+# This file defines the infrastructure for deploying Ring-Wing to Render
+# 
+# Architecture:
+# - Backend: Web Service (Node.js/Express) - Serves API and handles Socket.IO
+# - Frontend: Static Site (React/Vite) - Self-checkout only deployment
+#
+# Documentation: https://render.com/docs/blueprint-spec
+
+services:
+  # ========================================
+  # BACKEND WEB SERVICE
+  # ========================================
+  - type: web
+    name: ring-wing-backend
+    env: node
+    region: oregon # Change to your preferred region (oregon, frankfurt, singapore)
+    plan: free # Options: free, starter ($7/mo), standard, pro
+    buildCommand: cd ring-and-wing-backend && npm ci
+    startCommand: cd ring-and-wing-backend && node --max-old-space-size=512 --expose-gc server.js
+    healthCheckPath: /api/health
+    
+    # Environment Variables (Set these in Render Dashboard)
+    envVars:
+      - key: NODE_ENV
+        value: production
+      
+      - key: PORT
+        value: 10000
+      
+      - key: MONGO_URI
+        sync: false # Sensitive - set manually in dashboard
+      
+      - key: JWT_SECRET
+        sync: false # Sensitive - set manually in dashboard
+      
+      - key: PAYMONGO_SECRET_KEY
+        sync: false # Sensitive - set manually in dashboard
+      
+      - key: PAYMONGO_PUBLIC_KEY
+        sync: false # Sensitive - set manually in dashboard
+      
+      - key: PAYMONGO_WEBHOOK_SECRET
+        sync: false # Sensitive - set manually in dashboard
+      
+      - key: OPENROUTER_API_KEY
+        sync: false # Optional - for AI features
+      
+      - key: GEMINI_API_KEY
+        sync: false # Optional - for AI features
+      
+      - key: RENDER_FRONTEND_URL
+        sync: false # Set to your frontend static site URL after deployment
+      
+      - key: RENDER_BACKEND_URL
+        sync: false # Will be auto-generated, add manually for CORS
+      
+      - key: FRONTEND_URL
+        sync: false # Same as RENDER_FRONTEND_URL for backward compatibility
+
+  # ========================================
+  # FRONTEND STATIC SITE (Self-Checkout Only)
+  # ========================================
+  - type: web
+    name: ring-wing-self-checkout
+    env: static
+    region: oregon # Change to match backend region for lower latency
+    buildCommand: cd ring-and-wing-frontend && npm ci && npm run build
+    staticPublishPath: ring-and-wing-frontend/dist
+    
+    # SPA Routing - Redirect all routes to index.html
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    
+    # Headers for security and caching
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    
+    # Environment Variables
+    envVars:
+      - key: VITE_API_URL
+        sync: false # Set to backend URL: https://ring-wing-backend.onrender.com
+      
+      - key: VITE_DEPLOYMENT_MODE
+        value: self_checkout_only
+
+# ========================================
+# DATABASES (External)
+# ========================================
+# MongoDB Atlas (Free Tier M0 - 512MB)
+# - Create at: https://www.mongodb.com/cloud/atlas
+# - Whitelist Render IPs: 0.0.0.0/0 (all IPs)
+# - Get connection string for MONGO_URI
+#
+# Connection string format:
+# mongodb+srv://username:password@cluster.mongodb.net/ring-and-wing?retryWrites=true&w=majority
+
+# ========================================
+# DEPLOYMENT NOTES
+# ========================================
+# 
+# 1. Cost Estimate:
+#    - Backend (Free tier): $0/mo for 750 hours
+#    - Backend (Paid): $7/mo for always-on service
+#    - Frontend (Static): $0/mo unlimited bandwidth
+#    - MongoDB Atlas: $0/mo (M0 free tier)
+#    - Total: $0-7/mo
+#
+# 2. Free Tier Limitations:
+#    - Services sleep after 15 minutes of inactivity
+#    - 50 second cold start time
+#    - May affect PayMongo webhooks (consider paid tier)
+#
+# 3. Setup Steps:
+#    - Push 'production' branch to GitHub
+#    - Connect Render to GitHub repository
+#    - Select 'production' branch
+#    - Render auto-detects this render.yaml
+#    - Set sensitive environment variables in dashboard
+#    - Deploy!
+#
+# 4. Post-Deployment:
+#    - Copy backend URL to VITE_API_URL in frontend service
+#    - Copy frontend URL to RENDER_FRONTEND_URL in backend service
+#    - Configure PayMongo webhook: https://your-backend.onrender.com/api/paymongo/webhook
+#    - Test self-checkout flow end-to-end
+#
+# 5. Local Development (POS/Admin):
+#    - Update local frontend/.env: VITE_API_URL=https://ring-wing-backend.onrender.com
+#    - Keep VITE_DEPLOYMENT_MODE unset locally
+#    - Local app will have full access while connecting to production backend

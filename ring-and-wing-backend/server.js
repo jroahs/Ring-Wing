@@ -68,7 +68,14 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-        'img-src': ["'self'", 'data:', 'blob:', 'http://localhost:5000']
+        'img-src': [
+          "'self'", 
+          'data:', 
+          'blob:', 
+          'http://localhost:5000',
+          process.env.RENDER_BACKEND_URL,
+          process.env.RENDER_FRONTEND_URL
+        ].filter(Boolean)
       }
     },
     crossOriginResourcePolicy: { policy: "cross-origin" }
@@ -102,8 +109,11 @@ app.use(cors({
       'http://localhost:3000',
       'http://localhost:5173',
       'http://localhost:5174',
+      process.env.RENDER_FRONTEND_URL,
+      process.env.RENDER_BACKEND_URL,
+      process.env.FRONTEND_URL,
       undefined // Allow requests with no origin (like mobile apps or curl requests)
-    ];
+    ].filter(Boolean); // Remove undefined values
     // Log all CORS requests
     logger.debug(`CORS request from origin: ${origin || 'no origin'}`);
     
@@ -710,7 +720,9 @@ const io = socketIo(server, {
         'http://localhost:5173',
         'http://localhost:5174',
         'http://localhost:3000',
-        process.env.FRONTEND_URL
+        process.env.FRONTEND_URL,
+        process.env.RENDER_FRONTEND_URL,
+        process.env.RENDER_BACKEND_URL
       ].filter(Boolean);
       
       if (!origin || allowedOrigins.includes(origin)) {
