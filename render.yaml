@@ -63,7 +63,7 @@ services:
   # ========================================
   - type: web
     name: ring-wing-self-checkout
-    env: static
+    runtime: static
     region: oregon # Change to match backend region for lower latency
     buildCommand: cd ring-and-wing-frontend && npm ci && npm run build
     staticPublishPath: ring-and-wing-frontend/dist
