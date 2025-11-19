@@ -1306,7 +1306,7 @@ const MenuPage = () => {
       const method = selectedItem?._id ? 'PUT' : 'POST';
       const url = selectedItem?._id
         ? `${API_URL}/api/menu/${selectedItem._id}`
-        : '${API_URL}/api/menu';
+        : `${API_URL}/api/menu`;
   
       const response = await fetch(url, { 
         method, 
