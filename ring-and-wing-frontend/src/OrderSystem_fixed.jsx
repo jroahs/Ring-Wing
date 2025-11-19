@@ -64,7 +64,7 @@ const OrderSystem = () => {
           params.append('search', debouncedSearchTerm.trim());
         }
         
-        const url = `http://localhost:5000/api/orders?${params.toString()}`;
+        const url = `${import.meta.env.VITE_API_URL || "https://ring-wing-backend.onrender.com"}/api/orders?${params.toString()}`;
         console.log('Fetching orders with URL:', url);
         
         const response = await fetch(url);
@@ -94,7 +94,7 @@ const OrderSystem = () => {
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/orders/${orderId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "https://ring-wing-backend.onrender.com"}/api/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
