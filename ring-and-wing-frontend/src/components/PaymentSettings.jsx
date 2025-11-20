@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
 import { theme } from '../theme';
 import { FiUpload, FiTrash2, FiSave, FiCheck, FiX, FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import { API_URL } from '../App';
-import Toast from './Toast';
 
 const PaymentSettings = () => {
   const [settings, setSettings] = useState({
@@ -42,26 +42,6 @@ const PaymentSettings = () => {
   const [error, setError] = useState(null);
   const [uploadingQR, setUploadingQR] = useState({ gcash: false, paymaya: false });
   const [expandedSections, setExpandedSections] = useState({ gcash: false, paymaya: false });
-  
-  // Toast notification state
-  const [toast, setToast] = useState({
-    isVisible: false,
-    message: '',
-    type: 'success'
-  });
-
-  // Toast helper functions
-  const showToast = (message, type = 'success') => {
-    setToast({
-      isVisible: true,
-      message,
-      type
-    });
-  };
-
-  const hideToast = () => {
-    setToast(prev => ({ ...prev, isVisible: false }));
-  };
 
   // Fetch current settings
   useEffect(() => {
@@ -354,14 +334,14 @@ const PaymentSettings = () => {
       const verificationData = await verificationResponse.json();
       
       if (verificationData.success) {
-        showToast('✅ All payment settings saved successfully!', 'success');
+        toast.success('All payment settings saved successfully!');
         
         // Reload settings to ensure UI reflects saved data
         await loadSettings();
       }
     } catch (err) {
       console.error('Save settings error:', err);
-      showToast(`Failed to save settings: ${err.message}`, 'error');
+      toast.error(`Failed to save settings: ${err.message}`);
     } finally {
       setSaving(false);
     }
@@ -424,7 +404,7 @@ const PaymentSettings = () => {
       }
     } catch (err) {
       console.error('Load settings error:', err);
-      showToast(`Failed to load settings: ${err.message}`, 'error');
+      toast.error(`Failed to load settings: ${err.message}`);
     }
   };
 
@@ -438,14 +418,6 @@ const PaymentSettings = () => {
 
   return (
     <>
-      {/* Toast Notification */}
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        isVisible={toast.isVisible}
-        onClose={hideToast}
-        duration={5000}
-      />
       
       <div className="p-6 space-y-6">
         {/* Error Messages (keep only for critical errors) */}
@@ -719,19 +691,7 @@ const PaymentSettings = () => {
           PayMongo Payment Gateway
         </h2>
         
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <div className="flex items-start gap-3">
-            <div className="text-blue-600 mt-0.5">ℹ️</div>
-            <div>
-              <h4 className="text-blue-800 font-semibold mb-1">About PayMongo Gateway</h4>
-              <p className="text-blue-700 text-sm leading-relaxed">
-                PayMongo provides secure online payment processing for GCash and PayMaya. 
-                When enabled, customers can pay directly through PayMongo's secure checkout page instead of manual transfers.
-                This eliminates the need for manual payment verification and provides instant payment confirmation.
-              </p>
-            </div>
-          </div>
-        </div>
+
 
         {/* Mutual Exclusion Warning */}
         {(settings.merchantWallets.gcash.enabled || settings.merchantWallets.paymaya.enabled) && (
@@ -749,20 +709,7 @@ const PaymentSettings = () => {
           </div>
         )}
 
-        {settings.paymentGateways.paymongo.enabled && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-            <div className="flex items-start gap-3">
-              <div className="text-green-600 mt-0.5">✅</div>
-              <div>
-                <h4 className="text-green-800 font-semibold mb-1">PayMongo Active</h4>
-                <p className="text-green-700 text-sm leading-relaxed">
-                  PayMongo gateway is enabled. Customers can now pay securely online through PayMongo's checkout.
-                  Manual payment methods are automatically disabled.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         <div className="space-y-6">
           {/* Main PayMongo Toggle */}
@@ -803,16 +750,7 @@ const PaymentSettings = () => {
           {settings.paymentGateways.paymongo.enabled && (
             <div className="space-y-4 pl-4 border-l-4 border-blue-200">
               {/* Integration Notes */}
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <h5 className="text-yellow-800 font-semibold mb-2">⚠️ Important Notes</h5>
-                <ul className="text-yellow-700 text-sm space-y-1 list-disc list-inside">
-                  <li>PayMongo gateway works independently from manual wallet transfers</li>
-                  <li>Customers can choose between manual transfer or PayMongo gateway</li>
-                  <li>PayMongo payments are automatically verified (no manual verification needed)</li>
-                  <li>All payments are processed in live mode with real transactions</li>
-                  <li>Supports both GCash and PayMaya payments through unified checkout</li>
-                </ul>
-              </div>
+
             </div>
           )}
         </div>
