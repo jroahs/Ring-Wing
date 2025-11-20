@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCartContext } from '../../contexts/CartContext';
 import { useMenuContext } from '../../contexts/MenuContext';
 import { useAlternatives } from '../../hooks/useAlternatives';
@@ -25,13 +25,24 @@ const MobileLayout = ({
 }) => {
   // Mobile-specific state
   const [activeTab, setActiveTab] = useState('menu');
+  const [activeCategory, setActiveCategory] = useState('');
+  const [activeSubCategory, setActiveSubCategory] = useState('All');
+  const [expandedCategory, setExpandedCategory] = useState(null);
   
   // Get contexts
-  const { cartItems, addItem, updateQuantity: updateCartQuantity, updateSize: updateCartSize, getTotals, itemCount } = useCartContext();
+  const { cartItems, addItem, updateQuantity: updateCartQuantity, updateSize: updateCartSize, removeItem, getTotals, itemCount } = useCartContext();
   const { menuItems, categories, loading, error } = useMenuContext();
 
   // Alternatives modal functionality
   const { modalState, showAlternatives, hideAlternatives } = useAlternatives();
+
+  // Initialize active category
+  useEffect(() => {
+    if (categories.length > 0 && !activeCategory) {
+      setActiveCategory(categories[0].category);
+      setExpandedCategory(categories[0].category);
+    }
+  }, [categories, activeCategory]);
 
   // Cart management functions (preserve exact SelfCheckout behavior)
   const addToOrder = (item) => {
@@ -61,11 +72,19 @@ const MobileLayout = ({
     return getTotals();
   };
 
+  // Get unique subcategories for the active category
+  const getSubCategories = (categoryName) => {
+    const items = menuItems.filter(item => item.category === categoryName);
+    const subCats = [...new Set(items.map(item => item.subCategory).filter(Boolean))];
+    return ['All', ...subCats];
+  };
+
   // Helper function to render a category section
   const renderCategorySection = (categoryData, isLast = false) => {
     const categoryName = categoryData.category;
     const categoryItems = menuItems
       .filter(item => item.category === categoryName)
+      .filter(item => activeSubCategory === 'All' || item.subCategory === activeSubCategory)
       .filter(item => 
         searchTerm === '' || 
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -202,9 +221,62 @@ const MobileLayout = ({
 
       {/* Mobile Menu Grid */}
       {activeTab === 'menu' && (
-        <div className="pt-4">
-          {categories.map((categoryData, index) => 
-            renderCategorySection(categoryData, index === categories.length - 1)
+        <div className="pt-2">
+          {/* Unified Category and Subcategory Container */}
+          <div className="px-4 mb-3">
+            <div className="bg-white rounded-lg p-3 shadow-sm">
+              {/* Main Category Chips */}
+              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                {categories.map((categoryData) => {
+                  const isActive = activeCategory === categoryData.category;
+                  
+                  return (
+                    <button
+                      key={categoryData.category}
+                      onClick={() => {
+                        setActiveCategory(categoryData.category);
+                        setActiveSubCategory('All');
+                      }}
+                      className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-all duration-200 flex-shrink-0 ${
+                        isActive
+                          ? 'bg-orange-500 text-white shadow-md'
+                          : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {categoryData.category}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              {/* Subcategory Filter Chips - Only show if subcategories exist */}
+              {activeCategory && getSubCategories(activeCategory).length > 1 && (
+                <>
+                  <div className="border-t border-gray-100 my-2"></div>
+                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                    {getSubCategories(activeCategory).map((subCat) => (
+                      <button
+                        key={subCat}
+                        onClick={() => setActiveSubCategory(subCat)}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-all duration-200 flex-shrink-0 ${
+                          activeSubCategory === subCat
+                            ? 'bg-orange-500 text-white shadow-sm'
+                            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        {subCat}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          
+          {/* Menu Items */}
+          {activeCategory && renderCategorySection(
+            categories.find(c => c.category === activeCategory), 
+            true
           )}
           
           {categories.length === 0 && (
@@ -236,13 +308,24 @@ const MobileLayout = ({
                   />
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-bold text-gray-800">
-                    {item.name}
-                  </h4>
+                  <div className="flex items-start justify-between mb-1">
+                    <h4 className="font-bold text-gray-800 flex-1">
+                      {item.name}
+                    </h4>
+                    <button
+                      onClick={() => removeItem(item._id, item.selectedSize)}
+                      className="text-red-500 hover:text-red-700 transition-colors p-1"
+                      title="Remove item"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
                   <select
                     value={item.selectedSize}
                     onChange={(e) => updateSize(item, e.target.value)}
-                    className="mt-1 p-2 rounded-lg bg-orange-50 text-orange-600 border-orange-200 focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
+                    className="mt-1 p-2 rounded-lg bg-orange-50 text-orange-600 border-orange-200 focus:ring-2 focus:ring-orange-200 focus:border-orange-400 w-full"
                   >
                     {item.availableSizes.map(size => (
                       <option key={size} value={size}>

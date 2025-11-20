@@ -24,15 +24,18 @@ const DesktopLayout = ({
   onProcessOrder 
 }) => {
   // Get contexts
-  const { cartItems, addItem, updateQuantity: updateCartQuantity, updateSize: updateCartSize, getTotals, itemCount } = useCartContext();
+  const { cartItems, addItem, updateQuantity: updateCartQuantity, updateSize: updateCartSize, removeItem, getTotals, itemCount } = useCartContext();
   const { menuItems, categories, loading, error } = useMenuContext();
 
   // Desktop-specific state
   const [activeCategory, setActiveCategory] = useState('');
+  const [activeSubCategory, setActiveSubCategory] = useState('All');
+  const [expandedCategory, setExpandedCategory] = useState(null);
   const [hoveredItem, setHoveredItem] = useState(null);
   const [selectedItemIndex, setSelectedItemIndex] = useState(0);
   const [keyboardMode, setKeyboardMode] = useState(false);
   const [cartCollapsed, setCartCollapsed] = useState(false);
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   
   // Refs for keyboard navigation
   const searchInputRef = useRef(null);
@@ -51,8 +54,8 @@ const DesktopLayout = ({
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Ignore if user is typing in an input
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') {
+      // Ignore if user is typing in an input OR if assistant is open
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || isAssistantOpen) {
         return;
       }
 
@@ -121,7 +124,7 @@ const DesktopLayout = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('mousemove', handleMouseMove);
     };
-  }, [activeCategory, menuItems, searchTerm, selectedItemIndex, cartCollapsed, categories]);
+  }, [activeCategory, menuItems, searchTerm, selectedItemIndex, cartCollapsed, categories, isAssistantOpen]);
 
   // Cart management functions
   const addToOrder = (item) => {
@@ -154,11 +157,19 @@ const DesktopLayout = ({
   const getCurrentCategoryItems = () => {
     return menuItems
       .filter(item => item.category === activeCategory)
+      .filter(item => activeSubCategory === 'All' || item.subCategory === activeSubCategory)
       .filter(item => 
         searchTerm === '' || 
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.code && item.code.toLowerCase().includes(searchTerm.toLowerCase()))
       );
+  };
+
+  // Get unique subcategories for the active category
+  const getSubCategories = (categoryName) => {
+    const items = menuItems.filter(item => item.category === categoryName);
+    const subCats = [...new Set(items.map(item => item.subCategory).filter(Boolean))];
+    return ['All', ...subCats];
   };
 
   // Helper function to render a single menu item
@@ -307,37 +318,76 @@ const DesktopLayout = ({
         </div>
 
         <div className="flex-1 flex">
-          {/* Category Sidebar */}
+          {/* Category Sidebar with Dropdown */}
           <div className="w-64 bg-white shadow-sm border-r border-gray-100">
             <div className="p-4">
               <h3 className="font-bold text-lg text-gray-800 mb-4">Categories</h3>
               <nav className="space-y-1">
-                {categories.map((categoryData, index) => (
-                  <button
-                    key={categoryData.category}
-                    onClick={() => {
-                      setActiveCategory(categoryData.category);
-                      setSelectedItemIndex(0);
-                    }}
-                    className={`w-full text-left p-3 rounded-lg transition-all duration-200 flex items-center justify-between group ${
-                      activeCategory === categoryData.category
-                        ? 'bg-orange-100 text-orange-700 font-medium'
-                        : 'hover:bg-gray-50 text-gray-600'
-                    }`}
-                  >
-                    <span>{categoryData.category}</span>
-                    <div className="flex items-center gap-2">
-                      <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs opacity-50 group-hover:opacity-100">
-                        {index + 1}
-                      </kbd>
-                      {activeCategory === categoryData.category && (
-                        <svg className="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                        </svg>
+                {categories.map((categoryData, index) => {
+                  const isActive = activeCategory === categoryData.category;
+                  const isExpanded = expandedCategory === categoryData.category;
+                  const subCategories = getSubCategories(categoryData.category);
+                  
+                  return (
+                    <div key={categoryData.category}>
+                      <button
+                        onClick={() => {
+                          if (isActive && isExpanded) {
+                            setExpandedCategory(null);
+                          } else {
+                            setActiveCategory(categoryData.category);
+                            setActiveSubCategory('All');
+                            setExpandedCategory(categoryData.category);
+                            setSelectedItemIndex(0);
+                          }
+                        }}
+                        className={`w-full text-left p-3 rounded-lg transition-all duration-200 flex items-center justify-between group ${
+                          isActive
+                            ? 'bg-orange-100 text-orange-700 font-medium'
+                            : 'hover:bg-gray-50 text-gray-600'
+                        }`}
+                      >
+                        <span>{categoryData.category}</span>
+                        <div className="flex items-center gap-2">
+                          <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs opacity-50 group-hover:opacity-100">
+                            {index + 1}
+                          </kbd>
+                          <svg 
+                            className={`w-4 h-4 transition-transform duration-200 ${
+                              isExpanded ? 'rotate-180' : ''
+                            }`} 
+                            fill="currentColor" 
+                            viewBox="0 0 20 20"
+                          >
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                      </button>
+                      
+                      {/* Subcategories Dropdown */}
+                      {isExpanded && subCategories.length > 1 && (
+                        <div className="ml-4 mt-1 space-y-1 animate-fadeIn">
+                          {subCategories.map((subCat) => (
+                            <button
+                              key={subCat}
+                              onClick={() => {
+                                setActiveSubCategory(subCat);
+                                setSelectedItemIndex(0);
+                              }}
+                              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
+                                activeSubCategory === subCat
+                                  ? 'bg-orange-50 text-orange-600 font-medium'
+                                  : 'text-gray-600 hover:bg-gray-50'
+                              }`}
+                            >
+                              {subCat}
+                            </button>
+                          ))}
+                        </div>
                       )}
                     </div>
-                  </button>
-                ))}
+                  );
+                })}
               </nav>
             </div>
           </div>
@@ -429,9 +479,20 @@ const DesktopLayout = ({
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-gray-800 text-sm truncate">
-                            {item.name}
-                          </h4>
+                          <div className="flex items-start justify-between mb-1">
+                            <h4 className="font-medium text-gray-800 text-sm truncate">
+                              {item.name}
+                            </h4>
+                            <button
+                              onClick={() => removeItem(item._id, item.selectedSize)}
+                              className="text-red-500 hover:text-red-700 transition-colors p-1 ml-2"
+                              title="Remove item"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
                           <select
                             value={item.selectedSize}
                             onChange={(e) => updateSize(item, e.target.value)}
@@ -528,6 +589,7 @@ const DesktopLayout = ({
         onOrderSuggestion={(suggestion) => {
           console.log('AI Suggestion:', suggestion);
         }}
+        onOpenChange={setIsAssistantOpen}
       />
     </div>
   );

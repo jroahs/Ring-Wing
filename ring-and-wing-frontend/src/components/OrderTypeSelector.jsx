@@ -42,8 +42,6 @@ const OrderTypeSelector = ({ selectedType, onSelect }) => {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h2 style={styles.title}>How would you like to receive your order?</h2>
-        <p style={styles.subtitle}>Select your preferred option below</p>
       </div>
 
       <div style={styles.optionsGrid}>
@@ -143,10 +141,11 @@ const styles = {
     marginTop: '0'
   },
   optionsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    display: 'flex',
     gap: '20px',
-    marginBottom: '24px'
+    marginBottom: '24px',
+    justifyContent: 'center',
+    alignItems: 'stretch'
   },
   optionCard: {
     position: 'relative',
@@ -160,7 +159,9 @@ const styles = {
     cursor: 'pointer',
     transition: 'all 0.3s ease',
     textAlign: 'center',
-    minHeight: '220px'
+    minHeight: '220px',
+    flex: '1',
+    maxWidth: '250px'
   },
   optionCardSelected: {
     transform: 'translateY(-4px)',

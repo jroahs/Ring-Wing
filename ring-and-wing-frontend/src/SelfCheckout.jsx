@@ -115,6 +115,20 @@ const SelfCheckoutContent = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [orderSubmitted, setOrderSubmitted] = useState(false);
   
+  // Clear cart when returning from PayMongo redirect
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymongoSuccess = urlParams.get('paymongo_success');
+    const paymongoStatus = urlParams.get('payment_status');
+    
+    if (paymongoSuccess === 'true' || paymongoStatus === 'paid') {
+      console.log('[PayMongo] Returning from payment redirect - clearing cart');
+      clearCart();
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [clearCart]);
+  
   // Payment verification states
   const [showPaymentFlow, setShowPaymentFlow] = useState(false); // Controls when to show overlay
   const [fulfillmentType, setFulfillmentType] = useState(null); // null, 'dine_in', 'takeout', 'delivery'
@@ -545,29 +559,53 @@ const SelfCheckoutContent = () => {
                 onSelect={handlePaymentMethodSelect}
                 orderTotal={calculateTotal().total}
               />
-              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
                 <button onClick={() => {
                   setSelectedPaymentMethod(null);
                   setReadyToUploadProof(false);
-                }} style={styles.backButton}>
-                  ← Change Payment Method
+                }} style={{
+                  ...styles.backButton,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  flex: 1,
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  backgroundColor: '#999',
+                  color: 'white'
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                  </svg>
+                  Change Method
                 </button>
                 <button 
                   onClick={() => setReadyToUploadProof(true)}
                   style={{
-                    ...styles.submitButton,
                     flex: 1,
                     backgroundColor: theme.colors.primary,
                     color: 'white',
-                    padding: '15px 30px',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
+                    padding: '12px 24px',
+                    fontSize: '14px',
+                    fontWeight: '500',
                     border: 'none',
                     borderRadius: '8px',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
                   }}
                 >
-                  I've Made Payment - Continue to Upload Proof →
+                  Proceed
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
                 </button>
               </div>
             </div>

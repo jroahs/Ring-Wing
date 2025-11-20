@@ -300,12 +300,19 @@ const AssistantPanel = ({
   menuItems = [], 
   currentOrder = [], 
   onAddToCart = () => {},
-  onOrderSuggestion = () => {}
+  onOrderSuggestion = () => {},
+  onOpenChange = () => {}
 }) => {
   const { isMobile, isTablet, isDesktop } = useBreakpoint();
   
   // State management
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Notify parent when assistant opens/closes
+  useEffect(() => {
+    onOpenChange(isOpen);
+  }, [isOpen, onOpenChange]);
+  
   const [categories, setCategories] = useState([]);
   const [messages, setMessages] = useState([
     {
@@ -787,7 +794,7 @@ Example responses:
         {/* Floating Action Button */}
         {!isOpen && (
           <motion.div 
-            className="fixed bottom-6 right-6 z-40"
+            className="fixed bottom-40 right-6 z-40"
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             whileHover={{ scale: 1.1 }}
@@ -1065,7 +1072,8 @@ AssistantPanel.propTypes = {
   menuItems: PropTypes.array,
   currentOrder: PropTypes.array,
   onAddToCart: PropTypes.func,
-  onOrderSuggestion: PropTypes.func
+  onOrderSuggestion: PropTypes.func,
+  onOpenChange: PropTypes.func
 };
 
 export default AssistantPanel;

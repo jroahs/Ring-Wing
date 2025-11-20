@@ -431,15 +431,8 @@ const StaffManagement = () => {
       
       console.log('Sending payload with PIN code:', payload.pinCode);
       
-      // Add auth token to request headers
-      const token = localStorage.getItem('authToken');
-      const config = {
-        headers: { 
-          'Authorization': `Bearer ${token}`
-        }
-      };
-      
-      const response = await axios.put(`/api/staff/${selectedStaff._id}`, payload, config);
+      // Use api service instead of axios directly
+      const response = await api.put(`/api/staff/${selectedStaff._id}`, payload);
 
       console.log('Server response after update:', response.data);
       

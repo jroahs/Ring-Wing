@@ -15,6 +15,7 @@ const preloadCache = {
   paymentSettings: null,
   merchantWallets: null,
   verificationSettings: null,
+  paymentGateways: null,
   menuItems: null,
   categories: null,
   userProfile: null,
@@ -75,10 +76,11 @@ export const preloadPaymentSettingsData = async () => {
     if (!token) return null;
 
     // Return cached data if valid
-    if (isCacheValid() && preloadCache.merchantWallets && preloadCache.verificationSettings) {
+    if (isCacheValid() && preloadCache.merchantWallets && preloadCache.verificationSettings && preloadCache.paymentGateways) {
       return {
         merchantWallets: preloadCache.merchantWallets,
-        verificationSettings: preloadCache.verificationSettings
+        verificationSettings: preloadCache.verificationSettings,
+        paymentGateways: preloadCache.paymentGateways
       };
     }
 
@@ -113,11 +115,28 @@ export const preloadPaymentSettingsData = async () => {
 
     const verificationData = await verificationResponse.json();
     preloadCache.verificationSettings = verificationData;
+
+    // Fetch payment gateway settings
+    const gatewaysResponse = await fetch(`${API_URL}/api/settings/payment-gateways`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!gatewaysResponse.ok) {
+      console.warn('Failed to preload payment gateway settings');
+      return null;
+    }
+
+    const gatewaysData = await gatewaysResponse.json();
+    preloadCache.paymentGateways = gatewaysData;
     preloadCache.lastPreloadTime = Date.now();
 
     return {
       merchantWallets: walletsData,
-      verificationSettings: verificationData
+      verificationSettings: verificationData,
+      paymentGateways: gatewaysData
     };
   } catch (error) {
     console.warn('[preloadService] Payment settings preload error:', error);
@@ -256,7 +275,8 @@ export const getCachedPaymentVerificationData = () => {
 export const getCachedPaymentSettingsData = () => {
   return {
     merchantWallets: preloadCache.merchantWallets,
-    verificationSettings: preloadCache.verificationSettings
+    verificationSettings: preloadCache.verificationSettings,
+    paymentGateways: preloadCache.paymentGateways
   };
 };
 
@@ -289,6 +309,7 @@ export const clearPreloadCache = () => {
   preloadCache.paymentSettings = null;
   preloadCache.merchantWallets = null;
   preloadCache.verificationSettings = null;
+  preloadCache.paymentGateways = null;
   preloadCache.menuItems = null;
   preloadCache.categories = null;
   preloadCache.userProfile = null;

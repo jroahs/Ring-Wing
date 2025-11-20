@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import { theme } from '../theme';
 import { FiUpload, FiTrash2, FiSave, FiCheck, FiX, FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import { API_URL } from '../App';
-import { getCachedPaymentSettingsData } from '../services/preloadService';
+import { getCachedPaymentSettingsData, clearPreloadCache } from '../services/preloadService';
 
 const PaymentSettings = () => {
   const [settings, setSettings] = useState({
@@ -43,6 +43,12 @@ const PaymentSettings = () => {
   const [error, setError] = useState(null);
   const [uploadingQR, setUploadingQR] = useState({ gcash: false, paymaya: false });
   const [expandedSections, setExpandedSections] = useState({ gcash: false, paymaya: false });
+  const [updateTrigger, setUpdateTrigger] = useState(0);
+
+  // Debug effect to log when settings change
+  useEffect(() => {
+    console.log('[PaymentSettings] Settings state updated:', JSON.stringify(settings, null, 2));
+  }, [settings]);
 
   // Fetch current settings
   useEffect(() => {
@@ -52,7 +58,8 @@ const PaymentSettings = () => {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      await loadSettings();
+      // Always fetch fresh data on mount to avoid stale cache issues
+      await loadSettings(false);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -334,11 +341,19 @@ const PaymentSettings = () => {
 
       const verificationData = await verificationResponse.json();
       
-      if (verificationData.success) {
+      if (verificationData.success || gcashResponse.ok && paymayaResponse.ok && paymongoResponse.ok) {
         toast.success('All payment settings saved successfully!');
         
-        // Reload settings to ensure UI reflects saved data
-        await loadSettings();
+        // Clear cache to force fresh fetch on next load
+        console.log('[PaymentSettings] Clearing cache after save...');
+        clearPreloadCache();
+        
+        // Reload settings to ensure UI reflects saved data (bypass cache and refetch from backend)
+        console.log('[PaymentSettings] All saves successful, reloading settings...');
+        await loadSettings(false);
+        
+        // Force UI update
+        setUpdateTrigger(prev => prev + 1);
       }
     } catch (err) {
       console.error('Save settings error:', err);
@@ -356,17 +371,27 @@ const PaymentSettings = () => {
       // Try to use cached data on first load for faster rendering
       if (useCache) {
         const cachedData = getCachedPaymentSettingsData();
+        console.log('[PaymentSettings] Cached data available:', !!cachedData);
+        console.log('[PaymentSettings] Full cached data:', JSON.stringify(cachedData, null, 2));
         if (cachedData?.merchantWallets && cachedData?.verificationSettings) {
           console.log('[PaymentSettings] Using cached data');
           const walletsData = cachedData.merchantWallets;
           const verificationData = cachedData.verificationSettings;
+          const gatewaysData = cachedData.paymentGateways;
           
-          if (walletsData.success && verificationData.success) {
-            setSettings(prevSettings => ({
-              ...prevSettings,
-              merchantWallets: walletsData.data?.merchantWallets || prevSettings.merchantWallets,
-              paymentVerification: verificationData.data?.paymentVerification || prevSettings.paymentVerification
-            }));
+          if (walletsData?.success && verificationData?.success) {
+            // Extract using same logic as fresh fetch
+            let merchantWalletsData = walletsData.data?.merchantWallets || walletsData.data;
+            let verificationSettingsData = verificationData.data?.paymentVerification || verificationData.data;
+            let gatewaysSettingsData = gatewaysData?.data?.paymentGateways || gatewaysData?.data;
+            
+            const cachedState = {
+              merchantWallets: merchantWalletsData || settings.merchantWallets,
+              paymentVerification: verificationSettingsData || settings.paymentVerification,
+              paymentGateways: gatewaysSettingsData || settings.paymentGateways
+            };
+            console.log('[PaymentSettings] Setting state from cache:', JSON.stringify(cachedState, null, 2));
+            setSettings({ ...cachedState });
             return;
           }
         }
@@ -384,6 +409,7 @@ const PaymentSettings = () => {
       }
       
       const walletsData = await walletsResponse.json();
+      console.log('[PaymentSettings] Wallets data from backend:', JSON.stringify(walletsData, null, 2));
       
       // Fetch payment verification settings
       const verificationResponse = await fetch(`${API_URL}/api/settings/payment-verification`, {
@@ -397,6 +423,7 @@ const PaymentSettings = () => {
       }
       
       const verificationData = await verificationResponse.json();
+      console.log('[PaymentSettings] Verification data from backend:', JSON.stringify(verificationData, null, 2));
 
       // Fetch payment gateway settings (PayMongo)
       const gatewaysResponse = await fetch(`${API_URL}/api/settings/payment-gateways`, {
@@ -410,17 +437,61 @@ const PaymentSettings = () => {
       }
       
       const gatewaysData = await gatewaysResponse.json();
-      
-      console.log('Loaded gateway settings from backend:', gatewaysData);
-      console.log('Full gatewaysData structure:', JSON.stringify(gatewaysData, null, 2));
+      console.log('[PaymentSettings] Gateway data from backend:', JSON.stringify(gatewaysData, null, 2));
       
       // Merge all responses into state
       if (walletsData.success && verificationData.success && gatewaysData.success) {
-        setSettings(prevSettings => ({
-          merchantWallets: walletsData.data || prevSettings.merchantWallets,
-          paymentVerification: verificationData.data || prevSettings.paymentVerification,
-          paymentGateways: gatewaysData.data || prevSettings.paymentGateways
-        }));
+        // Extract the actual data, handling different response structures
+        let merchantWalletsData;
+        if (walletsData.data?.merchantWallets) {
+          merchantWalletsData = walletsData.data.merchantWallets;
+        } else if (walletsData.data?.gcash || walletsData.data?.paymaya) {
+          // Direct data structure without nested merchantWallets key
+          merchantWalletsData = walletsData.data;
+        } else {
+          console.error('[PaymentSettings] Unexpected wallets data structure:', walletsData);
+          merchantWalletsData = settings.merchantWallets;
+        }
+        
+        let verificationSettingsData;
+        if (verificationData.data?.paymentVerification) {
+          verificationSettingsData = verificationData.data.paymentVerification;
+        } else if (verificationData.data?.timeoutMinutes !== undefined) {
+          // Direct data structure without nested paymentVerification key
+          verificationSettingsData = verificationData.data;
+        } else {
+          console.error('[PaymentSettings] Unexpected verification data structure:', verificationData);
+          verificationSettingsData = settings.paymentVerification;
+        }
+        
+        let gatewaysSettingsData;
+        if (gatewaysData.data?.paymentGateways) {
+          gatewaysSettingsData = gatewaysData.data.paymentGateways;
+        } else if (gatewaysData.data?.paymongo) {
+          // Direct data structure without nested paymentGateways key
+          gatewaysSettingsData = gatewaysData.data;
+        } else {
+          console.error('[PaymentSettings] Unexpected gateways data structure:', gatewaysData);
+          gatewaysSettingsData = settings.paymentGateways;
+        }
+        
+        const newState = {
+          merchantWallets: merchantWalletsData,
+          paymentVerification: verificationSettingsData,
+          paymentGateways: gatewaysSettingsData
+        };
+        console.log('[PaymentSettings] Extracted data:', {
+          merchantWalletsData,
+          verificationSettingsData,
+          gatewaysSettingsData
+        });
+        console.log('[PaymentSettings] Final merged state:', JSON.stringify(newState, null, 2));
+        
+        // Force state update with a fresh object reference
+        setSettings({ ...newState });
+        console.log('[PaymentSettings] State updated with fresh data from backend');
+      } else {
+        console.error('[PaymentSettings] Backend response missing success flag', { walletsData, verificationData, gatewaysData });
       }
     } catch (err) {
       console.error('Load settings error:', err);

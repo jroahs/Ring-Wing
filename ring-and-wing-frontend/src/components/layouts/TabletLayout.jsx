@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCartContext } from '../../contexts/CartContext';
 import { useMenuContext } from '../../contexts/MenuContext';
 import { useAlternatives } from '../../hooks/useAlternatives';
@@ -24,11 +24,24 @@ const TabletLayout = ({
   onProcessOrder 
 }) => {
   // Get contexts
-  const { cartItems, addItem, updateQuantity: updateCartQuantity, updateSize: updateCartSize, getTotals, itemCount } = useCartContext();
+  const { cartItems, addItem, updateQuantity: updateCartQuantity, updateSize: updateCartSize, removeItem, getTotals, itemCount } = useCartContext();
   const { menuItems, categories, loading, error } = useMenuContext();
+
+  // Tablet-specific state
+  const [activeCategory, setActiveCategory] = useState('');
+  const [activeSubCategory, setActiveSubCategory] = useState('All');
+  const [expandedCategory, setExpandedCategory] = useState(null);
 
   // Alternatives modal functionality
   const { modalState, showAlternatives, hideAlternatives } = useAlternatives();
+
+  // Initialize active category
+  useEffect(() => {
+    if (categories.length > 0 && !activeCategory) {
+      setActiveCategory(categories[0].category);
+      setExpandedCategory(categories[0].category);
+    }
+  }, [categories, activeCategory]);
 
   // Cart management functions
   const addToOrder = (item) => {
@@ -57,11 +70,19 @@ const TabletLayout = ({
     return getTotals();
   };
 
+  // Get unique subcategories for the active category
+  const getSubCategories = (categoryName) => {
+    const items = menuItems.filter(item => item.category === categoryName);
+    const subCats = [...new Set(items.map(item => item.subCategory).filter(Boolean))];
+    return ['All', ...subCats];
+  };
+
   // Helper function to render a category section for tablet
   const renderCategorySection = (categoryData, isLast = false) => {
     const categoryName = categoryData.category;
     const categoryItems = menuItems
       .filter(item => item.category === categoryName)
+      .filter(item => activeSubCategory === 'All' || item.subCategory === activeSubCategory)
       .filter(item => 
         searchTerm === '' || 
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -180,8 +201,70 @@ const TabletLayout = ({
         {/* Menu Section - Left Side */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-2">
-            {categories.map((categoryData, index) => 
-              renderCategorySection(categoryData, index === categories.length - 1)
+            {/* Category Dropdown Navigation */}
+            <div className="px-4 mb-4 space-y-2">
+              {categories.map((categoryData) => {
+                const isActive = activeCategory === categoryData.category;
+                const isExpanded = expandedCategory === categoryData.category;
+                const subCategories = getSubCategories(categoryData.category);
+                
+                return (
+                  <div key={categoryData.category} className="bg-white rounded-xl shadow-sm">
+                    <button
+                      onClick={() => {
+                        if (isActive && isExpanded) {
+                          setExpandedCategory(null);
+                        } else {
+                          setActiveCategory(categoryData.category);
+                          setActiveSubCategory('All');
+                          setExpandedCategory(categoryData.category);
+                        }
+                      }}
+                      className={`w-full text-left p-3 rounded-xl transition-all duration-200 flex items-center justify-between ${
+                        isActive
+                          ? 'bg-orange-100 text-orange-700 font-medium'
+                          : 'hover:bg-gray-50 text-gray-600'
+                      }`}
+                    >
+                      <span className="font-medium text-base">{categoryData.category}</span>
+                      <svg 
+                        className={`w-5 h-5 transition-transform duration-200 ${
+                          isExpanded ? 'rotate-180' : ''
+                        }`} 
+                        fill="currentColor" 
+                        viewBox="0 0 20 20"
+                      >
+                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                    
+                    {/* Subcategories Dropdown */}
+                    {isExpanded && subCategories.length > 1 && (
+                      <div className="px-3 pb-3 space-y-1 animate-fadeIn">
+                        {subCategories.map((subCat) => (
+                          <button
+                            key={subCat}
+                            onClick={() => setActiveSubCategory(subCat)}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
+                              activeSubCategory === subCat
+                                ? 'bg-orange-50 text-orange-600 font-medium'
+                                : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                          >
+                            {subCat}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Menu Items */}
+            {activeCategory && renderCategorySection(
+              categories.find(c => c.category === activeCategory), 
+              true
             )}
             
             {categories.length === 0 && (
@@ -234,9 +317,20 @@ const TabletLayout = ({
                         />
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-semibold text-gray-800 text-sm">
-                          {item.name}
-                        </h4>
+                        <div className="flex items-start justify-between mb-1">
+                          <h4 className="font-semibold text-gray-800 text-sm">
+                            {item.name}
+                          </h4>
+                          <button
+                            onClick={() => removeItem(item._id, item.selectedSize)}
+                            className="text-red-500 hover:text-red-700 transition-colors p-1"
+                            title="Remove item"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
                         <select
                           value={item.selectedSize}
                           onChange={(e) => updateSize(item, e.target.value)}
