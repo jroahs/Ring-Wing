@@ -16,8 +16,12 @@ import EndOfShiftModal from './components/EndOfShiftModal';
 import SizeSelectionModal from './components/SizeSelectionModal';
 import io from 'socket.io-client';
 import { API_URL } from './App';
+import { useDataCoordinator } from './contexts/DataCoordinatorContext';
 
-const PointOfSale = () => {  
+const PointOfSale = () => {
+  // Get preloaded data from coordinator
+  const { menuItems: coordinatorMenuItems, categories: coordinatorCategories, ready: dataReady } = useDataCoordinator();
+  
   const [menuItems, setMenuItems] = useState([]);
   const [currentOrder, setCurrentOrder] = useState([]); // Keep this for compatibility
   const [readyOrderCart, setReadyOrderCart] = useState([]);
@@ -243,192 +247,42 @@ const PointOfSale = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Load menu items from DataCoordinator
   useEffect(() => {
-    const abortController = new AbortController();
+    if (dataReady && coordinatorMenuItems && coordinatorMenuItems.length > 0) {
+      console.log('[POS] Using preloaded menu items from DataCoordinator:', coordinatorMenuItems.length);
+      setMenuItems(coordinatorMenuItems);
+      setLoading(false);
+      setError(null);
+    } else if (dataReady) {
+      // Data is ready but empty, show error
+      setError('No menu items available');
+      setLoading(false);
+    }
+  }, [dataReady, coordinatorMenuItems]);
 
-    const fetchMenuItems = async () => {
-      try {
-        const response = await fetch(`${API_URL}/api/menu?limit=1000`, {
-          signal: abortController.signal
-        });
-        if (!response.ok) throw new Error('Failed to fetch menu');
-        const responseData = await response.json();
-
-        const rawData = Array.isArray(responseData)
-          ? responseData
-          : responseData.items || [];
-
-        const validatedItems = rawData.filter(item =>
-          item && typeof item === 'object' && 'pricing' in item && 'name' in item
-        );        const transformedItems = validatedItems.map(item => ({
-          _id: item._id,
-          code: item.code || 'N/A',
-          name: item.name,
-          category: item.category,
-          subCategory: item.subCategory || '',  // Ensure subCategory is included
-          pricing: item.pricing,
-          description: item.description,
-          image: item.image ? `${API_URL}${item.image}` : 
-                 (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png'),
-          modifiers: item.modifiers || [],
-          isAvailable: item.isAvailable // Include availability status
-        }));
-
-        if (validatedItems.length === 0) {
-          throw new Error('No valid menu items found in response');
-        }
-
-        setMenuItems(transformedItems);
-        setError(null);
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          setError(err.message || 'Failed to load menu data');
-          setMenuItems([]);
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMenuItems();
-    return () => abortController.abort();
-  }, []);
-
-  // Fetch categories from database - with caching to prevent jumbling
+  // Load categories from DataCoordinator
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await fetch(`${API_URL}/api/categories`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch categories');
+    if (dataReady && coordinatorCategories && coordinatorCategories.length > 0) {
+      console.log('[POS] Using preloaded categories from DataCoordinator:', coordinatorCategories.length);
+      
+      // Sort categories for consistency
+      const sortedCategories = coordinatorCategories.sort((a, b) => {
+        const aSortOrder = typeof a.sortOrder === 'number' ? a.sortOrder : 999;
+        const bSortOrder = typeof b.sortOrder === 'number' ? b.sortOrder : 999;
+        
+        if (aSortOrder !== bSortOrder) {
+          return aSortOrder - bSortOrder;
         }
-        const data = await response.json();
         
-        console.log('PointOfSale: Loaded dynamic categories', data);
-        
-        // DEBUG: Check the exact structure of the raw API response
-        console.log('RAW API DATA:', JSON.stringify(data, null, 2));
-        
-        // Transform the API data to expected format with stable sorting
-        const transformedCategories = data.map(cat => ({
-          ...cat,
-          name: cat.name || cat.category, // Ensure we have a 'name' field
-          _id: cat._id || cat.category // Ensure we have an ID for keys
-        }));
-        
-        // Apply stable sorting to categories and subcategories
-        const sortedCategories = transformedCategories.sort((a, b) => {
-          console.log(`Sorting: ${a.name} (sortOrder: ${a.sortOrder}) vs ${b.name} (sortOrder: ${b.sortOrder})`);
-          
-          // First sort by sortOrder - handle undefined/null values
-          const aSortOrder = typeof a.sortOrder === 'number' ? a.sortOrder : 999;
-          const bSortOrder = typeof b.sortOrder === 'number' ? b.sortOrder : 999;
-          
-          if (aSortOrder !== bSortOrder) {
-            console.log(`Sorting by sortOrder: ${aSortOrder} vs ${bSortOrder}`);
-            return aSortOrder - bSortOrder;
-          }
-          
-          // Then by name
-          const aName = a.name || '';
-          const bName = b.name || '';
-          if (aName !== bName) {
-            console.log(`Sorting by name: ${aName} vs ${bName}`);
-            return aName.localeCompare(bName);
-          }
-          
-          // Finally by _id for ultimate consistency
-          const aId = (a._id || '').toString();
-          const bId = (b._id || '').toString();
-          console.log(`Sorting by id: ${aId} vs ${bId}`);
-          return aId.localeCompare(bId);
-        }).map(category => {
-          // Also sort subcategories within each category for consistency
-          if (category.subcategories && Array.isArray(category.subcategories)) {
-            category.subcategories = category.subcategories.sort((a, b) => {
-              // Sort subcategories by sortOrder first, then by name
-              if ((a.sortOrder || 0) !== (b.sortOrder || 0)) {
-                return (a.sortOrder || 0) - (b.sortOrder || 0);
-              }
-              const aName = a.displayName || a.name || a.toString();
-              const bName = b.displayName || b.name || b.toString();
-              return aName.localeCompare(bName);
-            });
-          }
-          if (category.subCategories && Array.isArray(category.subCategories)) {
-            category.subCategories = category.subCategories.sort((a, b) => {
-              // Sort subcategories by sortOrder first, then by name
-              if ((a.sortOrder || 0) !== (b.sortOrder || 0)) {
-                return (a.sortOrder || 0) - (b.sortOrder || 0);
-              }
-              const aName = a.displayName || a.name || a.toString();
-              const bName = b.displayName || b.name || b.toString();
-              return aName.localeCompare(bName);
-            });
-          }
-          return category;
-        });
-        
-        // Temporarily disable caching to force fresh data fetch
-        setCategories(sortedCategories);
-        console.log('PointOfSale: Categories FORCE updated with stable order');
-        console.log('Actual sort order:', sortedCategories.map(c => ({ name: c.name, sortOrder: c.sortOrder })));
-        
-        // Debug: Check the structure of sorted categories
-        console.log('PointOfSale: Categories sorted for consistency');
-        console.log('Sorted category structure:', sortedCategories.map(cat => ({ 
-          id: cat._id, 
-          name: cat.name, 
-          sortOrder: cat.sortOrder,
-          subCategories: cat.subCategories?.length || 0,
-          subcategories: cat.subcategories?.length || 0
-        })));
-        
-        // Transform categories into menuConfig format for compatibility
-        const dynamicMenuConfig = {};
-        sortedCategories.forEach(category => {
-          const categoryName = category.name || category.category;
-          if (categoryName) {
-            dynamicMenuConfig[categoryName] = {
-              subCategories: {}
-            };
-            
-            // Handle both subcategories and subCategories arrays
-            const subcats = category.subcategories || category.subCategories || [];
-            if (subcats.length > 0) {
-              subcats
-                .filter(subCat => subCat.isActive !== false) // Only show active subcategories
-                .forEach(subCat => {
-                  const subCatName = subCat.name || subCat.displayName || subCat;
-                  if (subCatName) {
-                    dynamicMenuConfig[categoryName].subCategories[subCatName] = {
-                      sizes: subCat.sizes || [] // Include sizes for dynamic pricing
-                    };
-                  }
-                });
-            }
-          }
-        });
-        
-        // Replace menuConfig with dynamic data (don't merge with fallback)
-        setMenuConfig(dynamicMenuConfig);
-        
-        console.log('PointOfSale: menuConfig updated with dynamic categories:', dynamicMenuConfig);
-        
-      } catch (error) {
-        console.warn('PointOfSale: Failed to load dynamic categories, using fallback:', error);
-        // Keep existing hard-coded menuConfig as fallback
-      }
-    };
-
-    fetchCategories();
-  }, []);
-
-  // REMOVED: Aggressive 30-second polling + window focus refresh for menu updates
-  // With 3+ POS terminals, this was causing 360+ requests/hour (120 per terminal)
-  // Menu data is already loaded in initial useEffect (line 149)
-  // Manual refresh button can be added if real-time updates are critical
-  // This change reduces POS requests from 360/hour to just initial loads
+        const aName = a.name || '';
+        const bName = b.name || '';
+        return aName.localeCompare(bName);
+      });
+      
+      setCategories(sortedCategories);
+    }
+  }, [dataReady, coordinatorCategories]);
 
   // Debug function to check subcategories
   useEffect(() => {

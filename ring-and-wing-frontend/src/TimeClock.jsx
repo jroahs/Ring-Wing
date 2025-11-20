@@ -8,6 +8,7 @@ import { API_URL } from './App';
 import { motion, AnimatePresence } from 'framer-motion';
 import StaffAvatar from './components/StaffAvatar';
 import { useMultiTabLogout } from './hooks/useMultiTabLogout';
+import BrandedLoadingScreen from './components/ui/BrandedLoadingScreen';
 
 const TimeClock = () => {  
   // Enable multi-tab logout synchronization
@@ -504,10 +505,9 @@ const TimeClock = () => {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="text-center py-6" 
-                            style={{ color: colors.background }}
+                            className="py-6"
                           >
-                            Loading staff...
+                            <BrandedLoadingScreen message="Loading staff..." />
                           </motion.div>
                         ) : filteredStaff.length === 0 ? (
                           <motion.div 

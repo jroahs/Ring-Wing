@@ -8,6 +8,7 @@ import { useReactToPrint } from 'react-to-print';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { theme } from '../theme';
+import BrandedLoadingScreen from './ui/BrandedLoadingScreen';
 import { PrintableRevenueReport } from './ui/PrintableRevenueReport';
 import { generateRevenuePDF } from '../utils/pdfGenerator';
 
@@ -341,7 +342,7 @@ const RevenueReports = () => {
   }, []);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading...</div>;
+    return <BrandedLoadingScreen message="Loading revenue reports..." />;
   }
 
   if (error) {

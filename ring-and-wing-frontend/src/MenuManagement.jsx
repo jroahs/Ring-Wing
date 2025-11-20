@@ -6,6 +6,7 @@ import { LoadingSpinner } from './components/ui';
 import BrandedLoadingScreen from './components/ui/BrandedLoadingScreen';
 import { io } from 'socket.io-client'; // NEW: Real-time socket events (Sprint 22)
 import { API_URL } from './App';
+import { useDataCoordinator } from './contexts/DataCoordinatorContext';
 
 // Debounce utility function to prevent rapid-fire requests
 const debounce = (func, wait) => {
@@ -200,6 +201,14 @@ const ChevronIcon = ({ className, isExpanded }) => (
 
 
 const MenuPage = () => {
+  // Get preloaded data from coordinator
+  const { 
+    menuItems: coordinatorMenuItems, 
+    categories: coordinatorCategories, 
+    ready: dataReady,
+    refreshMenuData 
+  } = useDataCoordinator();
+  
   const [expandedItemId, setExpandedItemId] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
   const [addOns, setAddOns] = useState([]);
@@ -756,13 +765,137 @@ const MenuPage = () => {
 
   useEffect(() => {
     const controller = new AbortController();
-    // Only fetch if we don't have data yet
-    if (!menuItems.length && !categories.length) {
-      fetchData(controller.signal);
+    
+    // Load menu items from DataCoordinator first
+    if (dataReady && coordinatorMenuItems && coordinatorMenuItems.length > 0) {
+      console.log('[MenuManagement] Using preloaded menu items from DataCoordinator:', coordinatorMenuItems.length);
+      setMenuItems(coordinatorMenuItems);
+      setLoading(false);
+    }
+    
+    // Load categories from DataCoordinator
+    if (dataReady && coordinatorCategories && coordinatorCategories.length > 0) {
+      console.log('[MenuManagement] Using preloaded categories from DataCoordinator:', coordinatorCategories.length);
+      setCategories(coordinatorCategories);
+      
+      // Transform categories into menuConfig format
+      const dynamicMenuConfig = {};
+      coordinatorCategories.forEach(category => {
+        const categoryName = category.name || category.category;
+        if (categoryName) {
+          dynamicMenuConfig[categoryName] = {
+            subCategories: {}
+          };
+          
+          const subcats = category.subcategories || category.subCategories || [];
+          if (subcats.length > 0) {
+            subcats
+              .filter(subCat => subCat.isActive !== false)
+              .forEach(subCat => {
+                const subCatName = subCat.name || subCat.displayName || subCat;
+                if (subCatName) {
+                  dynamicMenuConfig[categoryName].subCategories[subCatName] = {
+                    sizes: subCat.sizes || []
+                  };
+                }
+              });
+          }
+        }
+      });
+      setMenuConfig(dynamicMenuConfig);
+    }
+    
+    // Still need to fetch add-ons and inventory items (not in coordinator)
+    const fetchSupplementalData = async () => {
+      try {
+        const addOnsRes = await fetch(`${API_URL}/api/add-ons`, {
+          signal: controller.signal
+        });
+        
+        await new Promise(resolve => setTimeout(resolve, 200));
+        const inventoryRes = await fetch(`${API_URL}/api/items`, {
+          signal: controller.signal
+        });
+
+        if (addOnsRes.ok) {
+          const addOnsData = await addOnsRes.json();
+          setAddOns(addOnsData);
+        }
+
+        if (inventoryRes.ok) {
+          const inventoryData = await inventoryRes.json();
+          const items = Array.isArray(inventoryData) ? inventoryData : [];
+          setInventoryItems(items);
+        }
+
+        // Batch availability check for menu items
+        if (coordinatorMenuItems && coordinatorMenuItems.length > 0) {
+          const menuItemIds = coordinatorMenuItems.map(item => item._id).filter(Boolean);
+          
+          if (menuItemIds.length > 0) {
+            console.log(`[MenuManagement] Batch checking availability for ${menuItemIds.length} items...`);
+            
+            try {
+              const response = await fetch(`${API_URL}/api/menu/check-availability`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  menuItems: menuItemIds.map(id => ({ menuItemId: id, quantity: 1 }))
+                })
+              });
+              
+              if (response.ok) {
+                const result = await response.json();
+                const itemAvailabilities = result.data?.itemAvailabilities || result.itemAvailabilities || [];
+                
+                if (itemAvailabilities.length > 0) {
+                  const availabilityMap = {};
+                  itemAvailabilities.forEach(item => {
+                    availabilityMap[item.menuItemId] = {
+                      isAvailable: item.isAvailable,
+                      hasIngredientTracking: item.hasIngredientTracking || false,
+                      insufficientIngredients: item.insufficientIngredients || [],
+                      timestamp: Date.now()
+                    };
+                  });
+                  setItemAvailability(availabilityMap);
+                  console.log(`[MenuManagement] Loaded availability for ${Object.keys(availabilityMap).length} items`);
+                  
+                  // Fetch cost analysis for tracked items
+                  const trackedItems = itemAvailabilities.filter(item => item.hasIngredientTracking);
+                  console.log(`[MenuManagement] Fetching cost analysis for ${trackedItems.length} tracked items...`);
+                  
+                  const batchSize = 5;
+                  for (let i = 0; i < trackedItems.length; i += batchSize) {
+                    const batch = trackedItems.slice(i, i + batchSize);
+                    setTimeout(() => {
+                      batch.forEach(item => {
+                        fetchCostAnalysis(item.menuItemId);
+                      });
+                    }, i * 100);
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn('[MenuManagement] Batch availability check failed:', err);
+            }
+          }
+        }
+
+        setError(null);
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error('Error fetching supplemental data:', error);
+        }
+      }
+    };
+
+    if (dataReady) {
+      fetchSupplementalData();
     }
     
     return () => controller.abort();
-  }, []); // Remove dependency to prevent re-fetching
+  }, [dataReady, coordinatorMenuItems, coordinatorCategories]);
 
   // NEW: Socket.io connection for real-time updates (Sprint 22)
   useEffect(() => {

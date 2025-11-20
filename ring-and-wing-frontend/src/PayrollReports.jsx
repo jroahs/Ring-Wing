@@ -12,6 +12,7 @@ import {
   FiBarChart2,
   FiArrowLeft
 } from 'react-icons/fi';
+import BrandedLoadingScreen from './components/ui/BrandedLoadingScreen';
 
 const PayrollReports = ({ onBack, colors }) => {
   const [reportType, setReportType] = useState('summary');
@@ -449,10 +450,7 @@ const PayrollReports = ({ onBack, colors }) => {
 
         {/* Report Content */}
         {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto" style={{ borderColor: colors.accent }}></div>
-            <p className="mt-4" style={{ color: colors.muted }}>Loading payroll data...</p>
-          </div>
+          <BrandedLoadingScreen message="Loading payroll data..." />
         ) : (
           <div>
             {reportType === 'summary' ? generatePayrollSummaryReport() : generateDetailedReport()}

@@ -5,7 +5,7 @@ import api from './services/apiService';
 import WorkIDModal from './WorkIDModal';
 import TerminationModal from './components/TerminationModal';
 import { toast } from 'react-toastify';
-import { StaffForm, Button } from './components/ui';
+import { StaffForm, Button, BrandedLoadingScreen } from './components/ui';
 import { PasswordInput } from './components/ui/PasswordInput';
 import StaffAvatar from './components/StaffAvatar'; // Import StaffAvatar component
 import { colors } from './theme'; // Import centralized colors
@@ -834,15 +834,7 @@ const StaffManagement = () => {
           </h1>
 
           {isLoading ? (
-            <div 
-              className="text-center" 
-              style={{ color: colors.primary }}
-            >
-              <div className="mb-2">
-                <FiUser size={24} />
-              </div>
-              <p>Loading staff members...</p>
-            </div>
+            <BrandedLoadingScreen message="Loading staff members..." />
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">              {/* Staff List */}
               <div className="lg:col-span-1">

@@ -4,6 +4,7 @@ import { FiFilter, FiChevronDown, FiSearch, FiCheck, FiX, FiClock, FiImage, FiFi
 import { API_URL } from '../App';
 import io from 'socket.io-client';
 import { getCachedPaymentVerificationData } from '../services/preloadService';
+import BrandedLoadingScreen from './ui/BrandedLoadingScreen';
 
 const PaymentVerificationDashboard = () => {
   const [orders, setOrders] = useState([]);
@@ -332,11 +333,7 @@ const PaymentVerificationDashboard = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg" style={{ color: theme.colors.muted }}>Loading orders...</div>
-      </div>
-    );
+    return <BrandedLoadingScreen message="Loading payment orders..." />;
   }
 
   if (error) {

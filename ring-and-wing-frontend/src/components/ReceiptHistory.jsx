@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import BrandedLoadingScreen from './ui/BrandedLoadingScreen';
 import { theme } from '../theme';
 import { FiFilter, FiChevronDown, FiSearch, FiDownload, FiPrinter } from 'react-icons/fi';
 import { useReactToPrint } from 'react-to-print';
@@ -137,7 +138,7 @@ const ReceiptHistory = () => {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading...</div>;
+    return <BrandedLoadingScreen message="Loading receipt history..." />;
   }
 
   if (error) {

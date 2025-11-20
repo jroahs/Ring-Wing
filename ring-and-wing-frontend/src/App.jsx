@@ -24,6 +24,7 @@ import PaymentVerification from './PaymentVerification';
 import api, { checkApiHealth, startHealthMonitoring } from './services/apiService';
 import { useBreakpoint } from './hooks/useBreakpoint';
 import { LoadingProvider } from './contexts/LoadingContext';
+import { DataCoordinatorProvider, useDataCoordinator } from './contexts/DataCoordinatorContext';
 import BrandedLoadingScreen from './components/ui/BrandedLoadingScreen';
 import { preloadAllCriticalData } from './services/preloadService';
 import axios from 'axios';
@@ -75,6 +76,9 @@ const ProtectedRoute = ({ children }) => {
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [isValidatingToken, setIsValidatingToken] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  // Access DataCoordinator for critical data readiness
+  const { ready: dataReady, loading: dataLoading } = useDataCoordinator();
 
   // Validate the token on component mount
   useEffect(() => {
@@ -95,7 +99,8 @@ const ProtectedRoute = ({ children }) => {
         if (response.data && response.data.success) {
           setIsAuthenticated(true);
           
-          // Preload critical data in background after successful authentication
+          // Background preload of secondary data (payment verification, etc.)
+          // Primary critical data is already handled by DataCoordinator
           preloadAllCriticalData().catch(err => {
             console.warn('Background preload failed (non-critical):', err);
           });
@@ -166,6 +171,15 @@ const ProtectedRoute = ({ children }) => {
     return (
       <BrandedLoadingScreen 
         message="Verifying authentication..." 
+      />
+    );
+  }
+
+  // Show loading while critical data is being fetched
+  if (dataLoading || !dataReady) {
+    return (
+      <BrandedLoadingScreen 
+        message="Loading essential data..." 
       />
     );
   }
@@ -307,99 +321,101 @@ const colors = {
 function App() {
   return (
     <LoadingProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={IS_SELF_CHECKOUT_ONLY ? <Navigate to="/self-checkout" replace /> : <Login />} />
-          <Route path="/login" element={IS_SELF_CHECKOUT_ONLY ? <Navigate to="/self-checkout" replace /> : <Login />} />
-          
-          {/* Customer-facing routes - always accessible */}
-          <Route path="/mobile" element={<MobileLanding />} />
-          <Route path="/self-checkout" element={<SelfCheckout />} />
-          
-          {/* Protected routes - only available when NOT in self-checkout-only mode */}
-          {!IS_SELF_CHECKOUT_ONLY && (
-            <>
-              {/* Chatbot is semi-protected - only authenticated users */}
-              <Route path="/chatbot" element={<ProtectedRoute><Chatbot /></ProtectedRoute>} />
-              
-              {/* All admin/dashboard routes are protected by MainLayout */}
-              <Route element={<MainLayout />}>
-                {/* Routes accessible by managers and admin */}
-                <Route path="/dashboard" element={
-                  <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
-                    <Dashboard colors={colors} />
-                  </PositionProtectedRoute>
-                } />
+      <DataCoordinatorProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={IS_SELF_CHECKOUT_ONLY ? <Navigate to="/self-checkout" replace /> : <Login />} />
+            <Route path="/login" element={IS_SELF_CHECKOUT_ONLY ? <Navigate to="/self-checkout" replace /> : <Login />} />
+            
+            {/* Customer-facing routes - always accessible */}
+            <Route path="/mobile" element={<MobileLanding />} />
+            <Route path="/self-checkout" element={<SelfCheckout />} />
+            
+            {/* Protected routes - only available when NOT in self-checkout-only mode */}
+            {!IS_SELF_CHECKOUT_ONLY && (
+              <>
+                {/* Chatbot is semi-protected - only authenticated users */}
+                <Route path="/chatbot" element={<ProtectedRoute><Chatbot /></ProtectedRoute>} />
                 
-                {/* POS routes - accessible by cashiers and managers */}
-                <Route path="/pos" element={
-                  <PositionProtectedRoute requiredPositions={['cashier', 'shift_manager', 'general_manager', 'admin']}>
-                    <PointOfSaleRouter />
-                  </PositionProtectedRoute>
-                } />
-                <Route path="/orders" element={
-                  <PositionProtectedRoute requiredPositions={['cashier', 'shift_manager', 'general_manager', 'admin']}>
-                    <OrderSystem />
-                  </PositionProtectedRoute>
-                } />
-                
-                {/* Payment Verification - accessible by cashiers and managers */}
-                <Route path="/payment-verification" element={
-                  <PositionProtectedRoute requiredPositions={['cashier', 'shift_manager', 'general_manager', 'admin']}>
-                    <PaymentVerification />
-                  </PositionProtectedRoute>
-                } />
-                
-                {/* Time clock accessible to all */}
-                <Route path="/timeclock" element={<TimeClock />} />
-                
-                {/* Inventory routes - only for inventory staff and managers */}
-                <Route path="/inventory" element={
-                  <PositionProtectedRoute requiredPositions={['inventory', 'shift_manager', 'general_manager', 'admin']}>
-                    <InventorySystem />
-                  </PositionProtectedRoute>
-                } />
-                
-                {/* Menu management - managers only */}
-                <Route path="/menu" element={
-                  <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
-                    <MenuManagement colors={colors} />
-                  </PositionProtectedRoute>
-                } />
-                
-                {/* Manager-only routes */}
-                <Route path="/employees" element={
-                  <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
-                    <EmployeeManagement colors={colors} />
-                  </PositionProtectedRoute>
-                } />
-                <Route path="/payroll" element={
-                  <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
-                    <PayrollSystem />
-                  </PositionProtectedRoute>
-                } />
-                <Route path="/expenses" element={
-                  <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
-                    <ExpenseTracker colors={colors} />
-                  </PositionProtectedRoute>
-                } />
-                <Route path="/revenue-reports" element={
-                  <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
-                    <RevenueReportsPage />
-                  </PositionProtectedRoute>
-                } />
-                <Route path="/reports" element={
-                  <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
-                    <RevenueReportsPage />
-                  </PositionProtectedRoute>
-                } />
-              </Route>
-            </>
-          )}
-          
-          <Route path="*" element={<Navigate to={IS_SELF_CHECKOUT_ONLY ? "/self-checkout" : "/login"} />} />
-        </Routes>
-      </Router>
+                {/* All admin/dashboard routes are protected by MainLayout */}
+                <Route element={<MainLayout />}>
+                  {/* Routes accessible by managers and admin */}
+                  <Route path="/dashboard" element={
+                    <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
+                      <Dashboard colors={colors} />
+                    </PositionProtectedRoute>
+                  } />
+                  
+                  {/* POS routes - accessible by cashiers and managers */}
+                  <Route path="/pos" element={
+                    <PositionProtectedRoute requiredPositions={['cashier', 'shift_manager', 'general_manager', 'admin']}>
+                      <PointOfSaleRouter />
+                    </PositionProtectedRoute>
+                  } />
+                  <Route path="/orders" element={
+                    <PositionProtectedRoute requiredPositions={['cashier', 'shift_manager', 'general_manager', 'admin']}>
+                      <OrderSystem />
+                    </PositionProtectedRoute>
+                  } />
+                  
+                  {/* Payment Verification - accessible by cashiers and managers */}
+                  <Route path="/payment-verification" element={
+                    <PositionProtectedRoute requiredPositions={['cashier', 'shift_manager', 'general_manager', 'admin']}>
+                      <PaymentVerification />
+                    </PositionProtectedRoute>
+                  } />
+                  
+                  {/* Time clock accessible to all */}
+                  <Route path="/timeclock" element={<TimeClock />} />
+                  
+                  {/* Inventory routes - only for inventory staff and managers */}
+                  <Route path="/inventory" element={
+                    <PositionProtectedRoute requiredPositions={['inventory', 'shift_manager', 'general_manager', 'admin']}>
+                      <InventorySystem />
+                    </PositionProtectedRoute>
+                  } />
+                  
+                  {/* Menu management - managers only */}
+                  <Route path="/menu" element={
+                    <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
+                      <MenuManagement colors={colors} />
+                    </PositionProtectedRoute>
+                  } />
+                  
+                  {/* Manager-only routes */}
+                  <Route path="/employees" element={
+                    <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
+                      <EmployeeManagement colors={colors} />
+                    </PositionProtectedRoute>
+                  } />
+                  <Route path="/payroll" element={
+                    <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
+                      <PayrollSystem />
+                    </PositionProtectedRoute>
+                  } />
+                  <Route path="/expenses" element={
+                    <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
+                      <ExpenseTracker colors={colors} />
+                    </PositionProtectedRoute>
+                  } />
+                  <Route path="/revenue-reports" element={
+                    <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
+                      <RevenueReportsPage />
+                    </PositionProtectedRoute>
+                  } />
+                  <Route path="/reports" element={
+                    <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
+                      <RevenueReportsPage />
+                    </PositionProtectedRoute>
+                  } />
+                </Route>
+              </>
+            )}
+            
+            <Route path="*" element={<Navigate to={IS_SELF_CHECKOUT_ONLY ? "/self-checkout" : "/login"} />} />
+          </Routes>
+        </Router>
+      </DataCoordinatorProvider>
     </LoadingProvider>
   );
 }
