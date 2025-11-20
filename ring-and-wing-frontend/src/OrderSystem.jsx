@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { FiClock, FiCoffee, FiCalendar, FiFilter, FiSearch, FiX, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { LoadingSpinner } from './components/ui';
+import BrandedLoadingScreen from './components/ui/BrandedLoadingScreen';
 import { useMultiTabLogout } from './hooks/useMultiTabLogout';
 import io from 'socket.io-client';
 import { API_URL } from './App';
@@ -257,11 +258,7 @@ const OrderSystem = () => {
 
   if (isLoading) {
     return (
-      <LoadingSpinner 
-        fullScreen 
-        variant="pulse" 
-        message="Loading orders..." 
-      />
+      <BrandedLoadingScreen message="Loading orders..." />
     );
   }
 

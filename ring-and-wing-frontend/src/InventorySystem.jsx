@@ -8,6 +8,7 @@ import jsPDF from 'jspdf';
 import { API_URL } from './App';  // Import API_URL from App.jsx
 import { Button } from './components/ui/Button'; // Import Button component
 import { LoadingSpinner } from './components/ui';
+import BrandedLoadingScreen from './components/ui/BrandedLoadingScreen';
 import { PrintableInventoryReport } from './components/ui/PrintableInventoryReport';
 import { toast } from 'react-toastify';
 import { getCurrentUser, hasInventoryAccess, hasPermission } from './utils/permissions';
@@ -1225,11 +1226,7 @@ const InventorySystem = () => {
   // Loading and error states
   if (loading) {
     return (
-      <LoadingSpinner 
-        fullScreen 
-        variant="ring" 
-        message="Loading inventory data..." 
-      />
+      <BrandedLoadingScreen message="Loading inventory data..." />
     );
   }
   

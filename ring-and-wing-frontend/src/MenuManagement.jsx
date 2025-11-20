@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import MenuItemImage from './components/MenuItemImage';
 import ConnectionMonitor from './components/ConnectionMonitor';
 import { LoadingSpinner } from './components/ui';
+import BrandedLoadingScreen from './components/ui/BrandedLoadingScreen';
 import { io } from 'socket.io-client'; // NEW: Real-time socket events (Sprint 22)
 import { API_URL } from './App';
 
@@ -1815,9 +1816,7 @@ const MenuPage = () => {
 
   if (loading) {
     return (
-      <LoadingSpinner 
-        fullScreen 
-        variant="ring" 
+      <BrandedLoadingScreen 
         message="Loading menu items..." 
       />
     );
