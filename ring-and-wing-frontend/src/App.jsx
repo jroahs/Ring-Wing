@@ -25,6 +25,7 @@ import api, { checkApiHealth, startHealthMonitoring } from './services/apiServic
 import { useBreakpoint } from './hooks/useBreakpoint';
 import { LoadingProvider } from './contexts/LoadingContext';
 import BrandedLoadingScreen from './components/ui/BrandedLoadingScreen';
+import { preloadAllCriticalData } from './services/preloadService';
 import axios from 'axios';
 
 // API URL configuration
@@ -93,6 +94,11 @@ const ProtectedRoute = ({ children }) => {
         
         if (response.data && response.data.success) {
           setIsAuthenticated(true);
+          
+          // Preload critical data in background after successful authentication
+          preloadAllCriticalData().catch(err => {
+            console.warn('Background preload failed (non-critical):', err);
+          });
         } else {
           // Invalid token, clear it
           localStorage.removeItem('authToken');

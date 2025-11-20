@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { theme } from '../theme';
 import { FiUpload, FiTrash2, FiSave, FiCheck, FiX, FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import { API_URL } from '../App';
+import { getCachedPaymentSettingsData } from '../services/preloadService';
 
 const PaymentSettings = () => {
   const [settings, setSettings] = useState({
@@ -348,9 +349,28 @@ const PaymentSettings = () => {
   };
 
   // Extract settings loading to a separate function
-  const loadSettings = async () => {
+  const loadSettings = async (useCache = true) => {
     try {
       const token = localStorage.getItem('authToken');
+      
+      // Try to use cached data on first load for faster rendering
+      if (useCache) {
+        const cachedData = getCachedPaymentSettingsData();
+        if (cachedData?.merchantWallets && cachedData?.verificationSettings) {
+          console.log('[PaymentSettings] Using cached data');
+          const walletsData = cachedData.merchantWallets;
+          const verificationData = cachedData.verificationSettings;
+          
+          if (walletsData.success && verificationData.success) {
+            setSettings(prevSettings => ({
+              ...prevSettings,
+              merchantWallets: walletsData.data?.merchantWallets || prevSettings.merchantWallets,
+              paymentVerification: verificationData.data?.paymentVerification || prevSettings.paymentVerification
+            }));
+            return;
+          }
+        }
+      }
       
       // Fetch merchant wallets
       const walletsResponse = await fetch(`${API_URL}/api/settings/merchant-wallets`, {

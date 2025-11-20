@@ -3,6 +3,7 @@ import { theme } from '../theme';
 import { FiFilter, FiChevronDown, FiSearch, FiCheck, FiX, FiClock, FiImage, FiFileText } from 'react-icons/fi';
 import { API_URL } from '../App';
 import io from 'socket.io-client';
+import { getCachedPaymentVerificationData } from '../services/preloadService';
 
 const PaymentVerificationDashboard = () => {
   const [orders, setOrders] = useState([]);
@@ -73,10 +74,30 @@ const PaymentVerificationDashboard = () => {
     fetchOrders();
   }, [statusFilter]); // Re-fetch when status filter changes
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (useCache = true) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken');
+      
+      // Try to use cached data on first load for faster rendering
+      if (useCache && statusFilter === 'pending') {
+        const cachedData = getCachedPaymentVerificationData();
+        if (cachedData?.data) {
+          console.log('[PaymentVerificationDashboard] Using cached data');
+          setOrders(cachedData.data.map(order => ({
+            ...order,
+            createdAt: new Date(order.createdAt),
+            'proofOfPayment.uploadedAt': order.proofOfPayment?.uploadedAt 
+              ? new Date(order.proofOfPayment.uploadedAt) 
+              : null,
+            'proofOfPayment.expiresAt': order.proofOfPayment?.expiresAt 
+              ? new Date(order.proofOfPayment.expiresAt) 
+              : null
+          })));
+          setLoading(false);
+          return;
+        }
+      }
       
       // Build query parameters
       const params = new URLSearchParams();
