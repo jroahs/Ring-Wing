@@ -160,8 +160,6 @@ const ProtectedRoute = ({ children }) => {
     return (
       <BrandedLoadingScreen 
         message="Verifying authentication..." 
-        showLogo={false}
-        variant="minimal"
       />
     );
   }
