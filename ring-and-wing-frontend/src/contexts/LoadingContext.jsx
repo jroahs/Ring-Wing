@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
+import BrandedLoadingScreen from '../components/ui/BrandedLoadingScreen';
 import PropTypes from 'prop-types';
 
 const LoadingContext = createContext();
@@ -77,12 +77,8 @@ export const LoadingProvider = ({ children }) => {
       {children}
       <AnimatePresence>
         {loading && (
-          <LoadingSpinner
-            fullScreen
-            overlay
-            message={loadingMessage}
-            variant={loadingVariant}
-            size={loadingSize}
+          <BrandedLoadingScreen
+            message={loadingMessage || 'Loading...'}
           />
         )}
       </AnimatePresence>

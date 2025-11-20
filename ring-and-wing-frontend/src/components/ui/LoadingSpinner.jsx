@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import PropTypes from 'prop-types';
 
@@ -21,6 +21,17 @@ export const LoadingSpinner = ({
   overlay = false,
   color = colors.accent
 }) => {
+  // Prevent scrolling when fullScreen loading is shown
+  useEffect(() => {
+    if (fullScreen) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = 'unset';
+        document.documentElement.style.overflow = 'unset';
+      };
+    }
+  }, [fullScreen]);
   const sizeClasses = {
     sm: 'w-6 h-6',
     md: 'w-12 h-12',
@@ -197,8 +208,17 @@ export const LoadingSpinner = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center"
-        style={{ backgroundColor: overlay ? 'rgba(0, 0, 0, 0.5)' : '#fefdfd' }}
+        className="fixed inset-0 z-[9999] flex items-center justify-center"
+        style={{ 
+          backgroundColor: overlay ? 'rgba(0, 0, 0, 0.5)' : '#fefdfd',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100vw',
+          height: '100vh'
+        }}
       >
         {content}
       </motion.div>
@@ -212,7 +232,14 @@ export const LoadingSpinner = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="absolute inset-0 z-40 flex items-center justify-center bg-white/80 backdrop-blur-sm"
+        className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/80 backdrop-blur-sm"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0
+        }}
       >
         {content}
       </motion.div>
