@@ -20,6 +20,7 @@ const OrderSystem = () => {
   const searchInputRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null); // Track which order action is loading
   
   // Enable multi-tab logout synchronization
   useMultiTabLogout();
@@ -223,6 +224,7 @@ const OrderSystem = () => {
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
+      setActionLoading(orderId); // Show loading spinner for this order
       const response = await fetch(`${API_URL}/api/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -246,6 +248,8 @@ const OrderSystem = () => {
     } catch (error) {
       console.error('Update error:', error);
       alert(`Status update failed: ${error.message}`);
+    } finally {
+      setActionLoading(null); // Hide loading spinner
     }
   };
 
@@ -530,27 +534,37 @@ const OrderSystem = () => {
                     </div>
 
                     {order.status !== 'completed' && (
-                      <div className="flex gap-2 md:gap-3 flex-wrap">
-                        {(() => {
-                          switch(order.status) {
-                            case 'received': return ['preparing', 'completed'];
-                            case 'preparing': return ['ready', 'completed'];
-                            case 'ready': return ['completed'];
-                            default: return [];
-                          }
-                        })().map(status => (
-                          <button
-                            key={status}
-                            className={`text-sm md:text-base px-4 md:px-6 py-1 md:py-2 rounded-full transition-colors ${
-                              order.status === status 
-                                ? 'bg-[#f1670f] text-white' 
-                                : 'bg-[#85361910] text-[#853619] hover:bg-[#f1670f20]'
-                            }`}
-                            onClick={() => updateOrderStatus(order.id, status)}
-                          >
-                            {status.charAt(0).toUpperCase() + status.slice(1)}
-                          </button>
-                        ))}
+                      <div className="relative">
+                        {/* Loading overlay */}
+                        {actionLoading === order.id && (
+                          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-lg flex items-center justify-center z-20">
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-300 border-t-[#f1670f]"></div>
+                              <p className="text-sm text-[#853619] font-medium">Processing...</p>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Action buttons */}
+                        <div className={`flex gap-2 md:gap-3 flex-wrap transition-opacity duration-200 ${actionLoading === order.id ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+                          {(() => {
+                            switch(order.status) {
+                              case 'received': return ['preparing', 'completed'];
+                              case 'preparing': return ['ready', 'completed'];
+                              case 'ready': return ['completed'];
+                              default: return [];
+                            }
+                          })().map(status => (
+                            <button
+                              key={status}
+                              disabled={actionLoading === order.id}
+                              className="text-sm md:text-base px-4 md:px-6 py-1 md:py-2 rounded-full transition-colors bg-[#85361910] text-[#853619] hover:bg-[#f1670f20] disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed"
+                              onClick={() => updateOrderStatus(order.id, status)}
+                            >
+                              {status.charAt(0).toUpperCase() + status.slice(1)}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
 

@@ -3,7 +3,7 @@ import { theme } from '../theme';
 import { FiFilter, FiChevronDown, FiSearch, FiCheck, FiX, FiClock, FiImage, FiFileText } from 'react-icons/fi';
 import { API_URL } from '../App';
 import io from 'socket.io-client';
-import { getCachedPaymentVerificationData } from '../services/preloadService';
+import { getCachedPaymentVerificationData, clearPreloadCache } from '../services/preloadService';
 import BrandedLoadingScreen from './ui/BrandedLoadingScreen';
 
 const PaymentVerificationDashboard = () => {
@@ -42,18 +42,18 @@ const PaymentVerificationDashboard = () => {
     // Listen for new payment orders
     newSocket.on('newPaymentOrder', (data) => {
       console.log('New payment order received:', data);
-      fetchOrders(); // Refresh list
+      fetchOrders(false); // Bypass cache for real-time updates
     });
 
     // Listen for payment verification events
     newSocket.on('paymentVerified', (data) => {
       console.log('Payment verified:', data);
-      fetchOrders(); // Refresh list
+      fetchOrders(false); // Bypass cache for real-time updates
     });
 
     newSocket.on('paymentRejected', (data) => {
       console.log('Payment rejected:', data);
-      fetchOrders(); // Refresh list
+      fetchOrders(false); // Bypass cache for real-time updates
     });
 
     // Listen for user logout events (multi-tab logout synchronization)
@@ -100,37 +100,73 @@ const PaymentVerificationDashboard = () => {
         }
       }
       
-      // Build query parameters
+      // Fetch both manual payment verification orders AND PayMongo orders
+      // Build query parameters for manual verification orders
       const params = new URLSearchParams();
       if (statusFilter !== 'all') {
         params.append('verificationStatus', statusFilter);
       }
       
-      const url = `${API_URL}/api/orders/pending-verification${params.toString() ? '?' + params.toString() : ''}`;
-      const response = await fetch(url, {
+      const manualVerificationUrl = `${API_URL}/api/orders/pending-verification${params.toString() ? '?' + params.toString() : ''}`;
+      
+      // Fetch manual verification orders
+      const manualResponse = await fetch(manualVerificationUrl, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch orders');
+      if (!manualResponse.ok) {
+        throw new Error('Failed to fetch manual verification orders');
       }
       
-      const data = await response.json();
+      const manualData = await manualResponse.json();
       
-      if (data.success) {
-        setOrders(data.data.map(order => ({
-          ...order,
-          createdAt: new Date(order.createdAt),
-          'proofOfPayment.uploadedAt': order.proofOfPayment?.uploadedAt 
-            ? new Date(order.proofOfPayment.uploadedAt) 
-            : null,
-          'proofOfPayment.expiresAt': order.proofOfPayment?.expiresAt 
-            ? new Date(order.proofOfPayment.expiresAt) 
-            : null
-        })));
+      // Fetch PayMongo orders (status: paymongo_verified or paymentMethod: paymongo)
+      const paymongoResponse = await fetch(`${API_URL}/api/orders?status=paymongo_verified&limit=100`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      let allOrders = [];
+      
+      if (manualData.success) {
+        allOrders = [...manualData.data];
       }
+      
+      if (paymongoResponse.ok) {
+        const paymongoData = await paymongoResponse.json();
+        if (paymongoData.success || Array.isArray(paymongoData)) {
+          const paymongoOrders = Array.isArray(paymongoData) ? paymongoData : paymongoData.data || [];
+          // Mark PayMongo orders as auto-verified
+          const markedPaymongoOrders = paymongoOrders.map(order => ({
+            ...order,
+            isPayMongoOrder: true,
+            proofOfPayment: {
+              ...order.proofOfPayment,
+              verificationStatus: 'verified',
+              verifiedAt: order.createdAt,
+              verificationMethod: 'paymongo'
+            }
+          }));
+          allOrders = [...allOrders, ...markedPaymongoOrders];
+        }
+      }
+      
+      // Remove duplicates (in case an order appears in both lists)
+      const uniqueOrders = Array.from(new Map(allOrders.map(order => [order._id, order])).values());
+      
+      setOrders(uniqueOrders.map(order => ({
+        ...order,
+        createdAt: new Date(order.createdAt),
+        'proofOfPayment.uploadedAt': order.proofOfPayment?.uploadedAt 
+          ? new Date(order.proofOfPayment.uploadedAt) 
+          : null,
+        'proofOfPayment.expiresAt': order.proofOfPayment?.expiresAt 
+          ? new Date(order.proofOfPayment.expiresAt) 
+          : null
+      })));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -263,6 +299,7 @@ const PaymentVerificationDashboard = () => {
       
       if (data.success) {
         alert('Payment verified successfully!');
+        clearPreloadCache(); // Clear cache to force fresh data
         setSelectedOrder(null);
         fetchOrders();
       }
@@ -301,6 +338,7 @@ const PaymentVerificationDashboard = () => {
       
       if (data.success) {
         alert('Payment rejected successfully');
+        clearPreloadCache(); // Clear cache to force fresh data
         setSelectedOrder(null);
         setRejectionReason('');
         setVerificationAction(null);
@@ -447,11 +485,12 @@ const PaymentVerificationDashboard = () => {
               ) : (
                 filteredOrders.map((order) => {
                   const timeRemaining = getTimeRemaining(order.proofOfPayment?.expiresAt);
+                  const isPayMongoOrder = order.isPayMongoOrder || order.paymentMethod === 'paymongo' || order.status === 'paymongo_verified';
                   
                   return (
                     <tr 
                       key={order._id} 
-                      className="border-b hover:bg-gray-50 cursor-pointer"
+                      className={`border-b hover:bg-gray-50 cursor-pointer ${isPayMongoOrder ? 'bg-green-50' : ''}`}
                       style={{ borderColor: theme.colors.muted + '20' }}
                       onClick={() => setSelectedOrder(order)}
                     >
@@ -468,10 +507,20 @@ const PaymentVerificationDashboard = () => {
                         {formatCurrency(order.totals.total)}
                       </td>
                       <td className="p-4 capitalize" style={{ color: theme.colors.secondary }}>
-                        {order.paymentDetails?.eWalletProvider}
+                        {isPayMongoOrder ? (
+                          <span className="text-green-700 font-semibold">
+                            PayMongo {order.paymentMethod?.includes('gcash') ? 'GCash' : order.paymentMethod?.includes('paymaya') ? 'PayMaya' : ''}
+                          </span>
+                        ) : (
+                          order.paymentDetails?.eWalletProvider
+                        )}
                       </td>
                       <td className="p-4 text-center">
-                        {timeRemaining && (
+                        {isPayMongoOrder ? (
+                          <span className="text-green-600 text-sm font-semibold">
+                            ✓ Auto-verified
+                          </span>
+                        ) : timeRemaining && (
                           <span 
                             className={`px-2 py-1 rounded text-sm font-medium ${
                               timeRemaining.expired ? 'bg-red-100 text-red-800' :
@@ -484,10 +533,16 @@ const PaymentVerificationDashboard = () => {
                         )}
                       </td>
                       <td className="p-4 text-center">
-                        {getStatusBadge(order.proofOfPayment?.verificationStatus || 'pending')}
+                        {isPayMongoOrder ? (
+                          <span className="px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-700">
+                            ✓ VERIFIED
+                          </span>
+                        ) : (
+                          getStatusBadge(order.proofOfPayment?.verificationStatus || 'pending')
+                        )}
                       </td>
                       <td className="p-4">
-                        {order.proofOfPayment?.verificationStatus === 'pending' && (
+                        {!isPayMongoOrder && order.proofOfPayment?.verificationStatus === 'pending' && (
                           <div className="flex justify-center gap-2">
                             <button
                               onClick={(e) => {

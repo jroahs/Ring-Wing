@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Modal } from './ui';
 import { FiClock, FiCheckCircle, FiArrowRight, FiCoffee } from 'react-icons/fi';
 import TipsSection from './TipsSection';
 
 const OrderProcessingModal = ({ isOpen, onClose, orders, updateOrderStatus, theme }) => {
+  const [actionLoading, setActionLoading] = useState(null);
+  
   // Tips for order processing
   const orderProcessingTips = [
     "Orders in any status can be marked as 'Completed' once they are served",
@@ -124,17 +126,33 @@ const OrderProcessingModal = ({ isOpen, onClose, orders, updateOrderStatus, them
                         <span>{formatPHP(order.totals?.total || 0)}</span>
                       </div>
                     </div>
-                      <div className="mt-4 flex gap-2 flex-wrap">                      <button
-                        className="w-full text-base px-4 py-2 rounded-full transition-colors bg-orange-500 text-white hover:bg-orange-600"
-                        onClick={() => {
-                          // Call the updateOrderStatus function to mark the order as completed
-                          // This will update the UI and database status
-                          updateOrderStatus(order._id || order.id, 'completed');
-                        }}
-                      >
-                        Mark as Completed
-                      </button>
-                    </div>
+                      <div className="mt-4 flex gap-2 flex-wrap relative">
+                        {/* Loading overlay */}
+                        {actionLoading === (order._id || order.id) && (
+                          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center z-20">
+                            <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-300 border-t-[#f1670f]"></div>
+                          </div>
+                        )}
+                        
+                        <button
+                          disabled={actionLoading !== null}
+                          className={`w-full text-base px-4 py-2 rounded-full transition-all ${
+                            actionLoading === (order._id || order.id)
+                              ? 'bg-gray-300 text-gray-600 cursor-not-allowed opacity-50'
+                              : 'bg-orange-500 text-white hover:bg-orange-600'
+                          }`}
+                          onClick={async () => {
+                            setActionLoading(order._id || order.id);
+                            try {
+                              await updateOrderStatus(order._id || order.id, 'completed');
+                            } finally {
+                              setActionLoading(null);
+                            }
+                          }}
+                        >
+                          Mark as Completed
+                        </button>
+                      </div>
                   </div>
                 </div>
               ))

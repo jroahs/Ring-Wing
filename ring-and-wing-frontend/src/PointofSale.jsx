@@ -87,6 +87,7 @@ const PointOfSale = () => {
   const [isPendingOrderMode, setIsPendingOrderMode] = useState(false);
   const [pendingOrderItems, setPendingOrderItems] = useState([]);
   const [takeoutOrders, setTakeoutOrders] = useState([]); // NEW: For payment verification orders
+  const [processingPayMongoId, setProcessingPayMongoId] = useState(null); // Track which PayMongo order is processing
   const [socket, setSocket] = useState(null); // NEW: Socket.io connection
   const [selectedVerificationOrder, setSelectedVerificationOrder] = useState(null); // NEW: For verification modal
   const [showVerificationModal, setShowVerificationModal] = useState(false); // NEW: Modal state
@@ -2172,16 +2173,36 @@ const PointOfSale = () => {
 
                               {/* Action Button */}
                               {isPayMongoOrder ? (
-                                <button
-                                  onClick={() => handleProcessPayMongoOrder(order._id)}
-                                  className="w-full py-2.5 rounded-lg font-semibold transition-colors shadow-md mt-2"
-                                  style={{
-                                    backgroundColor: theme.colors.success || '#10b981',
-                                    color: 'white'
-                                  }}
-                                >
-                                  Generate Receipt & Process
-                                </button>
+                                <div className="relative mt-2">
+                                  {/* Loading overlay */}
+                                  {processingPayMongoId === order._id && (
+                                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-lg flex items-center justify-center z-20">
+                                      <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-300 border-t-[#f1670f]"></div>
+                                    </div>
+                                  )}
+                                  
+                                  <button
+                                    disabled={processingPayMongoId === order._id}
+                                    onClick={async () => {
+                                      setProcessingPayMongoId(order._id);
+                                      try {
+                                        await handleProcessPayMongoOrder(order._id);
+                                      } finally {
+                                        setProcessingPayMongoId(null);
+                                      }
+                                    }}
+                                    className={`w-full py-2.5 rounded-lg font-semibold transition-all shadow-md ${
+                                      processingPayMongoId === order._id
+                                        ? 'bg-gray-300 text-gray-600 cursor-not-allowed opacity-50'
+                                        : 'text-white hover:shadow-lg'
+                                    }`}
+                                    style={{
+                                      backgroundColor: processingPayMongoId === order._id ? undefined : (theme.colors.success || '#10b981')
+                                    }}
+                                  >
+                                    Generate Receipt & Process
+                                  </button>
+                                </div>
                               ) : (
                                 <div 
                                   onClick={() => {
