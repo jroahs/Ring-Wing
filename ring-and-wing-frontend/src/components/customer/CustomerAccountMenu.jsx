@@ -70,7 +70,10 @@ const CustomerAccountMenu = ({ onOpenOrders, onOpenAddresses }) => {
 
           <button
             className="dropdown-item"
-            onClick={() => handleMenuItemClick(onOpenOrders)}
+            onClick={() => {
+              setIsOpen(false);
+              navigate('/customer/orders');
+            }}
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
               <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
