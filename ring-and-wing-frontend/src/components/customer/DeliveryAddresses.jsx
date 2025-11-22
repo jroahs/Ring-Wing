@@ -154,7 +154,7 @@ const DeliveryAddresses = () => {
                 </div>
 
                 <div className="address-details">
-                  <p>{address.streetAddress}</p>
+                  <p>{address.street}</p>
                   <p>{address.barangay}, {address.city}</p>
                   <p>{address.province} {address.postalCode}</p>
                   {address.landmark && <p className="landmark">📍 {address.landmark}</p>}

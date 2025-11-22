@@ -10,7 +10,7 @@ const AddressFormModal = ({ isOpen, onClose, onSuccess, editingAddress = null })
     label: 'home',
     recipientName: '',
     recipientPhone: '',
-    streetAddress: '',
+    street: '',
     barangay: '',
     city: 'Manila',
     province: 'Metro Manila',
@@ -27,7 +27,7 @@ const AddressFormModal = ({ isOpen, onClose, onSuccess, editingAddress = null })
         label: editingAddress.label || 'home',
         recipientName: editingAddress.recipientName || '',
         recipientPhone: editingAddress.recipientPhone || '',
-        streetAddress: editingAddress.streetAddress || '',
+        street: editingAddress.street || '',
         barangay: editingAddress.barangay || '',
         city: editingAddress.city || 'Manila',
         province: editingAddress.province || 'Metro Manila',
@@ -60,7 +60,7 @@ const AddressFormModal = ({ isOpen, onClose, onSuccess, editingAddress = null })
       setError('Invalid phone format. Use 09XXXXXXXXX or +639XXXXXXXXX');
       return false;
     }
-    if (!formData.streetAddress.trim()) {
+    if (!formData.street.trim()) {
       setError('Street address is required');
       return false;
     }
@@ -182,7 +182,7 @@ const AddressFormModal = ({ isOpen, onClose, onSuccess, editingAddress = null })
                 value={formData.recipientName}
                 onChange={handleChange}
                 placeholder="Juan Dela Cruz"
-                disabled={loading}
+                disabled={isLoading}
                 required
               />
             </div>
@@ -196,7 +196,7 @@ const AddressFormModal = ({ isOpen, onClose, onSuccess, editingAddress = null })
                 value={formData.recipientPhone}
                 onChange={handleChange}
                 placeholder="09171234567"
-                disabled={loading}
+                disabled={isLoading}
                 required
               />
             </div>
@@ -204,15 +204,15 @@ const AddressFormModal = ({ isOpen, onClose, onSuccess, editingAddress = null })
 
           {/* Address Fields */}
           <div className="form-group">
-            <label htmlFor="streetAddress">Street Address *</label>
+            <label htmlFor="street">Street Address *</label>
             <input
               type="text"
-              id="streetAddress"
-              name="streetAddress"
-              value={formData.streetAddress}
+              id="street"
+              name="street"
+              value={formData.street}
               onChange={handleChange}
               placeholder="123 Main St, Bldg 5, Unit 10"
-              disabled={loading}
+              disabled={isLoading}
               required
             />
           </div>
@@ -226,7 +226,7 @@ const AddressFormModal = ({ isOpen, onClose, onSuccess, editingAddress = null })
               value={formData.barangay}
               onChange={handleChange}
               placeholder="e.g., Poblacion, Malate"
-              disabled={loading}
+              disabled={isLoading}
               required
             />
           </div>
@@ -241,7 +241,7 @@ const AddressFormModal = ({ isOpen, onClose, onSuccess, editingAddress = null })
                 value={formData.city}
                 onChange={handleChange}
                 placeholder="Manila"
-                disabled={loading}
+                disabled={isLoading}
                 required
               />
             </div>
@@ -255,7 +255,7 @@ const AddressFormModal = ({ isOpen, onClose, onSuccess, editingAddress = null })
                 value={formData.province}
                 onChange={handleChange}
                 placeholder="Metro Manila"
-                disabled={loading}
+                disabled={isLoading}
                 required
               />
             </div>
@@ -270,7 +270,7 @@ const AddressFormModal = ({ isOpen, onClose, onSuccess, editingAddress = null })
                 onChange={handleChange}
                 placeholder="1000"
                 maxLength="4"
-                disabled={loading}
+                disabled={isLoading}
                 required
               />
             </div>
@@ -286,7 +286,7 @@ const AddressFormModal = ({ isOpen, onClose, onSuccess, editingAddress = null })
               value={formData.landmark}
               onChange={handleChange}
               placeholder="Near 7-Eleven, beside blue gate"
-              disabled={loading}
+              disabled={isLoading}
             />
           </div>
 
@@ -299,7 +299,7 @@ const AddressFormModal = ({ isOpen, onClose, onSuccess, editingAddress = null })
               onChange={handleChange}
               placeholder="Additional instructions for delivery..."
               rows="3"
-              disabled={loading}
+              disabled={isLoading}
             />
           </div>
 
@@ -311,7 +311,7 @@ const AddressFormModal = ({ isOpen, onClose, onSuccess, editingAddress = null })
                 name="isDefault"
                 checked={formData.isDefault}
                 onChange={handleChange}
-                disabled={loading}
+                disabled={isLoading}
               />
               <span>Set as default delivery address</span>
             </label>
@@ -319,11 +319,11 @@ const AddressFormModal = ({ isOpen, onClose, onSuccess, editingAddress = null })
 
           {/* Actions */}
           <div className="form-actions">
-            <button type="button" className="cancel-btn" onClick={onClose} disabled={loading}>
+            <button type="button" className="cancel-btn" onClick={onClose} disabled={isLoading}>
               Cancel
             </button>
-            <button type="submit" className="submit-btn" disabled={loading}>
-              {loading ? 'Saving...' : editingAddress ? 'Update Address' : 'Save Address'}
+            <button type="submit" className="submit-btn" disabled={isLoading}>
+              {isLoading ? 'Saving...' : editingAddress ? 'Update Address' : 'Save Address'}
             </button>
           </div>
         </form>
