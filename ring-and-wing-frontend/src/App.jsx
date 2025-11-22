@@ -16,6 +16,7 @@ import PointOfSaleRouter from './PointOfSaleRouter';
 import SelfCheckout from './SelfCheckout';
 import CustomerLogin from './components/customer/CustomerLogin';
 import CustomerSignup from './components/customer/CustomerSignup';
+import DeliveryAddresses from './components/customer/DeliveryAddresses';
 import { CustomerAuthProvider } from './contexts/CustomerAuthContext';
 import PayrollSystem from './PayrollSystem';
 import EmployeeManagement from "./EmployeeManagement";
@@ -336,6 +337,7 @@ function App() {
             <Route path="/self-checkout" element={<SelfCheckout />} />
             <Route path="/customer/login" element={<CustomerLogin />} />
             <Route path="/customer/signup" element={<CustomerSignup />} />
+            <Route path="/customer/addresses" element={<DeliveryAddresses />} />
             
             {/* Protected routes - only available when NOT in self-checkout-only mode */}
             {!IS_SELF_CHECKOUT_ONLY && (
