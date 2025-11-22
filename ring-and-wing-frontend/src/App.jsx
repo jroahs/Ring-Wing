@@ -19,7 +19,10 @@ import CustomerSignup from './components/customer/CustomerSignup';
 import DeliveryAddresses from './components/customer/DeliveryAddresses';
 import MyOrders from './components/customer/MyOrders';
 import OrderDetails from './components/customer/OrderDetails';
+import ProfileSettings from './components/customer/ProfileSettings';
 import { CustomerAuthProvider } from './contexts/CustomerAuthContext';
+import OrderNotificationContainer from './components/OrderNotificationContainer';
+import { useOrderNotifications } from './hooks/useOrderNotifications';
 import PayrollSystem from './PayrollSystem';
 import EmployeeManagement from "./EmployeeManagement";
 import TimeClock from './TimeClock';
@@ -324,12 +327,29 @@ const colors = {
   hoverBg: '#f1670f10'
 };
 
+// Notification wrapper to handle customer order notifications
+const NotificationWrapper = ({ children }) => {
+  const { notifications, markAsRead, removeNotification } = useOrderNotifications();
+  
+  return (
+    <>
+      {children}
+      <OrderNotificationContainer
+        notifications={notifications}
+        onClose={removeNotification}
+        onRead={markAsRead}
+      />
+    </>
+  );
+};
+
 function App() {
   return (
     <LoadingProvider>
       <DataCoordinatorProvider>
         <CustomerAuthProvider>
-          <Router>
+          <NotificationWrapper>
+            <Router>
             <Routes>
             <Route path="/" element={IS_SELF_CHECKOUT_ONLY ? <Navigate to="/self-checkout" replace /> : <Login />} />
             <Route path="/login" element={IS_SELF_CHECKOUT_ONLY ? <Navigate to="/self-checkout" replace /> : <Login />} />
@@ -342,6 +362,7 @@ function App() {
             <Route path="/customer/addresses" element={<DeliveryAddresses />} />
             <Route path="/customer/orders" element={<MyOrders />} />
             <Route path="/customer/orders/:orderId" element={<OrderDetails />} />
+            <Route path="/customer/settings" element={<ProfileSettings />} />
             
             {/* Protected routes - only available when NOT in self-checkout-only mode */}
             {!IS_SELF_CHECKOUT_ONLY && (
@@ -427,6 +448,7 @@ function App() {
             <Route path="*" element={<Navigate to={IS_SELF_CHECKOUT_ONLY ? "/self-checkout" : "/login"} />} />
             </Routes>
           </Router>
+          </NotificationWrapper>
         </CustomerAuthProvider>
       </DataCoordinatorProvider>
     </LoadingProvider>

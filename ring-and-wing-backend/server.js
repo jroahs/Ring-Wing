@@ -761,10 +761,22 @@ io.use((socket, next) => {
   
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    socket.userId = decoded._id;
-    socket.userRole = decoded.role;
-    socket.userPosition = decoded.position; // Add position for more granular control
-    socket.isAuthenticated = true;
+    
+    // 🔥 NEW: Check if this is a customer token (Phase 8: Customer Notifications)
+    if (decoded.type === 'customer') {
+      socket.customerId = decoded._id;
+      socket.isAuthenticated = true;
+      socket.isCustomer = true;
+      logger.info(`Customer socket authenticated: ${decoded._id} (${decoded.username})`);
+    } else {
+      // Staff token
+      socket.userId = decoded._id;
+      socket.userRole = decoded.role;
+      socket.userPosition = decoded.position; // Add position for more granular control
+      socket.isAuthenticated = true;
+      socket.isCustomer = false;
+    }
+    
     next();
   } catch (error) {
     logger.warn('Socket.io authentication failed:', error.message);
@@ -775,7 +787,7 @@ io.use((socket, next) => {
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  logger.info(`Socket connected: ${socket.id} (Auth: ${socket.isAuthenticated}, Role: ${socket.userRole}, Position: ${socket.userPosition})`);
+  logger.info(`Socket connected: ${socket.id} (Auth: ${socket.isAuthenticated}, Role: ${socket.userRole}, Position: ${socket.userPosition}, CustomerID: ${socket.customerId || 'N/A'})`);
   
   // Join room for authenticated users (for role-based updates)
   if (socket.isAuthenticated) {
@@ -787,14 +799,20 @@ io.on('connection', (socket) => {
     }
   }
   
+  // 🔥 NEW: Join room for authenticated customers (Phase 8: Customer Notifications)
+  if (socket.customerId) {
+    socket.join(`customer:${socket.customerId}`);
+    logger.info(`Socket ${socket.id} joined 'customer:${socket.customerId}' room for order notifications`);
+  }
+  
   // Handle order status subscription (for customers tracking their orders)
   socket.on('subscribeToOrder', (orderId) => {
-    socket.join(`order-${orderId}`);
+    socket.join(`order:${orderId}`); // Changed format to match notification format
     logger.info(`Socket ${socket.id} subscribed to order ${orderId}`);
   });
   
   socket.on('unsubscribeFromOrder', (orderId) => {
-    socket.leave(`order-${orderId}`);
+    socket.leave(`order:${orderId}`); // Changed format to match notification format
     logger.info(`Socket ${socket.id} unsubscribed from order ${orderId}`);
   });
   

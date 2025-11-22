@@ -241,6 +241,32 @@ router.patch('/:id', async (req, res, next) => {
       });
     }
 
+    // 🔥 NEW: Emit Socket.io event for order status change (Phase 8: Customer Notifications)
+    if (status && order.customerId) {
+      const io = req.app.get('io');
+      if (io) {
+        console.log(`[Socket] Emitting orderStatusChanged for order ${order._id} to customer ${order.customerId}`);
+        
+        // Emit to customer-specific room
+        io.to(`customer:${order.customerId}`).emit('orderStatusChanged', {
+          orderId: order._id,
+          orderNumber: order.receiptNumber,
+          status: order.status,
+          fulfillmentType: order.fulfillmentType,
+          timestamp: new Date()
+        });
+        
+        // Also emit to order-specific room for order details page
+        io.to(`order:${order._id}`).emit('orderStatusChanged', {
+          orderId: order._id,
+          orderNumber: order.receiptNumber,
+          status: order.status,
+          fulfillmentType: order.fulfillmentType,
+          timestamp: new Date()
+        });
+      }
+    }
+
     // NEW: Consume inventory reservations when order is completed
     if (status === 'completed') {
       try {

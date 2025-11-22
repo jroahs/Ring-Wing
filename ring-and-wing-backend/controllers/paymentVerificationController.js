@@ -180,6 +180,17 @@ exports.verifyPayment = async (req, res) => {
         verifiedAt: order.proofOfPayment.verifiedAt
       });
       
+      // 🔥 NEW: Notify customer's account (Phase 8: Customer Notifications)
+      if (order.customerId) {
+        io.to(`customer:${order.customerId}`).emit('orderStatusChanged', {
+          orderId: order._id,
+          orderNumber: order.receiptNumber,
+          status: order.status,
+          fulfillmentType: order.fulfillmentType,
+          timestamp: new Date()
+        });
+      }
+      
       // Notify all staff/cashiers
       io.to('staff').emit('orderVerified', {
         orderId: order._id,

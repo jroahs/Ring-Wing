@@ -103,6 +103,26 @@
   color: #666;
 }
 
+.dropdown-item-text {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.notification-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: #f1670f;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 10px;
+}
+
 .logout-item {
   color: #d32f2f;
 }

@@ -1,0 +1,23 @@
+.order-notification-container {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  pointer-events: none;
+}
+
+.order-notification-container > * {
+  pointer-events: all;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .order-notification-container {
+    bottom: 1rem;
+    right: 1rem;
+    left: 1rem;
+  }
+}
