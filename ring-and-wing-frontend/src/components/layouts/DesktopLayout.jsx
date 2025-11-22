@@ -300,9 +300,6 @@ const DesktopLayout = ({
               </svg>
             </div>
 
-            {/* Customer Auth Section */}
-            <SelfCheckoutHeader />
-
             {/* Keyboard Shortcuts */}
             <div className="text-sm text-gray-500 flex items-center gap-4">
               <span className="hidden lg:flex items-center gap-1">
@@ -323,8 +320,8 @@ const DesktopLayout = ({
 
         <div className="flex-1 flex">
           {/* Category Sidebar with Dropdown */}
-          <div className="w-64 bg-white shadow-sm border-r border-gray-100">
-            <div className="p-4">
+          <div className="w-64 bg-white shadow-sm border-r border-gray-100 flex flex-col">
+            <div className="p-4 flex-1 overflow-y-auto">
               <h3 className="font-bold text-lg text-gray-800 mb-4">Categories</h3>
               <nav className="space-y-1">
                 {categories.map((categoryData, index) => {
@@ -393,6 +390,11 @@ const DesktopLayout = ({
                   );
                 })}
               </nav>
+            </div>
+            
+            {/* Customer Auth Section at bottom */}
+            <div className="p-4 border-t border-gray-100">
+              <SelfCheckoutHeader />
             </div>
           </div>
 

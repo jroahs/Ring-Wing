@@ -6,6 +6,7 @@ const generateToken = (customer) => {
   return jwt.sign(
     {
       _id: customer._id,
+      username: customer.username,
       phone: customer.phone,
       type: 'customer' // Important: distinguish from staff tokens
     },
@@ -19,22 +20,40 @@ const generateToken = (customer) => {
 // @access  Public
 exports.signup = async (req, res) => {
   try {
-    const { phone, email, password, firstName, lastName } = req.body;
+    const { username, phone, email, password, firstName, lastName } = req.body;
 
     // Validate required fields
-    if (!phone || !password || !firstName || !lastName) {
+    if (!username || !phone || !password || !firstName || !lastName) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide all required fields: phone, password, firstName, lastName'
+        message: 'Please provide all required fields: username, phone, password, firstName, lastName'
+      });
+    }
+
+    // Username validation
+    if (username.length < 3 || username.length > 20) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username must be between 3 and 20 characters'
+      });
+    }
+
+    if (!/^[a-z0-9_]+$/.test(username.toLowerCase())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username can only contain lowercase letters, numbers, and underscores'
       });
     }
 
     // Check if customer already exists
-    const existingCustomer = await Customer.findOne({ phone });
+    const existingCustomer = await Customer.findOne({ 
+      $or: [{ phone }, { username: username.toLowerCase() }] 
+    });
     if (existingCustomer) {
+      const field = existingCustomer.username === username ? 'Username' : 'Phone number';
       return res.status(400).json({
         success: false,
-        message: 'Phone number already registered'
+        message: `${field} already registered`
       });
     }
 
@@ -51,6 +70,7 @@ exports.signup = async (req, res) => {
 
     // Create customer
     const customer = new Customer({
+      username: username.toLowerCase(),
       phone,
       email,
       password,
@@ -69,6 +89,7 @@ exports.signup = async (req, res) => {
       message: 'Customer registered successfully',
       customer: {
         _id: customer._id,
+        username: customer.username,
         phone: customer.phone,
         email: customer.email,
         firstName: customer.firstName,
@@ -93,22 +114,24 @@ exports.signup = async (req, res) => {
 // @access  Public
 exports.login = async (req, res) => {
   try {
-    const { phone, password } = req.body;
+    const { identifier, password } = req.body; // identifier can be username or phone
 
     // Validate required fields
-    if (!phone || !password) {
+    if (!identifier || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide phone and password'
+        message: 'Please provide username/phone and password'
       });
     }
 
-    // Find customer and include password for comparison
-    const customer = await Customer.findOne({ phone }).select('+password');
+    // Find customer by username or phone and include password for comparison
+    const customer = await Customer.findOne({
+      $or: [{ username: identifier.toLowerCase() }, { phone: identifier }]
+    }).select('+password');
     if (!customer) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid phone number or password'
+        message: 'Invalid username/phone or password'
       });
     }
 
@@ -125,7 +148,7 @@ exports.login = async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid phone number or password'
+        message: 'Invalid username/phone or password'
       });
     }
 
@@ -142,6 +165,7 @@ exports.login = async (req, res) => {
       message: 'Login successful',
       customer: {
         _id: customer._id,
+        username: customer.username,
         phone: customer.phone,
         email: customer.email,
         firstName: customer.firstName,

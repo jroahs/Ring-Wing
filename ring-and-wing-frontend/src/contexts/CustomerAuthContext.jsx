@@ -84,11 +84,11 @@ export const CustomerAuthProvider = ({ children }) => {
   };
 
   // Login function
-  const login = async (phone, password) => {
+  const login = async (identifier, password) => {
     try {
       const response = await axios.post(
         `${API_URL}/api/customer/auth/login`,
-        { phone, password }
+        { identifier, password }
       );
 
       if (response.data.success) {

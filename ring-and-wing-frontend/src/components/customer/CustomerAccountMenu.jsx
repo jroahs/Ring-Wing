@@ -61,7 +61,7 @@ const CustomerAccountMenu = ({ onOpenOrders, onOpenAddresses }) => {
         <div className="account-dropdown">
           <div className="dropdown-header">
             <div className="customer-name">{customer.fullName}</div>
-            <div className="customer-phone">{customer.phone}</div>
+            <div className="customer-phone">@{customer.username}</div>
           </div>
 
           <div className="dropdown-divider"></div>

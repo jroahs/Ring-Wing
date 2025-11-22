@@ -4,10 +4,22 @@
   justify-content: flex-end;
 }
 
+/* When inside sidebar (vertical layout) */
+.w-64 .self-checkout-auth-section {
+  justify-content: stretch;
+}
+
 .auth-buttons {
   display: flex;
   gap: 0.75rem;
   align-items: center;
+}
+
+/* Full width buttons in sidebar */
+.w-64 .auth-buttons {
+  flex-direction: column;
+  width: 100%;
+  gap: 0.5rem;
 }
 
 .auth-btn {
@@ -18,6 +30,13 @@
   cursor: pointer;
   transition: all 0.2s;
   border: none;
+}
+
+/* Full width in sidebar */
+.w-64 .auth-btn {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
 }
 
 .login-btn {

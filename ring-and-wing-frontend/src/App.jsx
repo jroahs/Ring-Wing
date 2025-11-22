@@ -14,6 +14,9 @@ import ExpenseTracker from './ExpenseDisbursement';
 import PointofSale from './PointofSale';
 import PointOfSaleRouter from './PointOfSaleRouter';
 import SelfCheckout from './SelfCheckout';
+import CustomerLogin from './components/customer/CustomerLogin';
+import CustomerSignup from './components/customer/CustomerSignup';
+import { CustomerAuthProvider } from './contexts/CustomerAuthContext';
 import PayrollSystem from './PayrollSystem';
 import EmployeeManagement from "./EmployeeManagement";
 import TimeClock from './TimeClock';
@@ -322,14 +325,17 @@ function App() {
   return (
     <LoadingProvider>
       <DataCoordinatorProvider>
-        <Router>
-          <Routes>
+        <CustomerAuthProvider>
+          <Router>
+            <Routes>
             <Route path="/" element={IS_SELF_CHECKOUT_ONLY ? <Navigate to="/self-checkout" replace /> : <Login />} />
             <Route path="/login" element={IS_SELF_CHECKOUT_ONLY ? <Navigate to="/self-checkout" replace /> : <Login />} />
             
             {/* Customer-facing routes - always accessible */}
             <Route path="/mobile" element={<MobileLanding />} />
             <Route path="/self-checkout" element={<SelfCheckout />} />
+            <Route path="/customer/login" element={<CustomerLogin />} />
+            <Route path="/customer/signup" element={<CustomerSignup />} />
             
             {/* Protected routes - only available when NOT in self-checkout-only mode */}
             {!IS_SELF_CHECKOUT_ONLY && (
@@ -413,8 +419,9 @@ function App() {
             )}
             
             <Route path="*" element={<Navigate to={IS_SELF_CHECKOUT_ONLY ? "/self-checkout" : "/login"} />} />
-          </Routes>
-        </Router>
+            </Routes>
+          </Router>
+        </CustomerAuthProvider>
       </DataCoordinatorProvider>
     </LoadingProvider>
   );

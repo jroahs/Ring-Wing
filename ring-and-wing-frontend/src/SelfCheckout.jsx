@@ -7,7 +7,6 @@ import { useAlternatives } from './hooks/useAlternatives';
 import SelfCheckoutAIAssistant from './components/ui/SelfCheckoutAIAssistant';
 import { CartProvider, useCartContext } from './contexts/CartContext';
 import { MenuProvider, useMenuContext } from './contexts/MenuContext';
-import { CustomerAuthProvider } from './contexts/CustomerAuthContext';
 import LayoutSelector from './components/layouts/LayoutSelector';
 import OrderTypeSelector from './components/OrderTypeSelector';
 import PaymentMethodSelector from './components/PaymentMethodSelector';
@@ -96,13 +95,11 @@ const SelfCheckoutInternal = () => {
     return () => document.head.removeChild(style);
   }, []);
   return (
-    <CustomerAuthProvider>
-      <MenuProvider>
-        <CartProvider>
-          <SelfCheckoutContent />
-        </CartProvider>
-      </MenuProvider>
-    </CustomerAuthProvider>
+    <MenuProvider>
+      <CartProvider>
+        <SelfCheckoutContent />
+      </CartProvider>
+    </MenuProvider>
   );
 };
 
