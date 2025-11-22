@@ -3,7 +3,8 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   LineChart, Line, PieChart, Pie, Cell, AreaChart, Area 
 } from 'recharts';
-import { FiTrendingUp, FiTrendingDown, FiDollarSign, FiShoppingBag, FiClock, FiUsers, FiDownload, FiFileText, FiPrinter } from 'react-icons/fi';
+import { FiTrendingUp, FiTrendingDown, FiShoppingBag, FiClock, FiUsers, FiDownload, FiFileText, FiPrinter } from 'react-icons/fi';
+import { PesoIconSimple } from './ui/PesoIconSimple';
 import { useReactToPrint } from 'react-to-print';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -471,7 +472,7 @@ const RevenueReports = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">            <MetricCard
               title="Total Revenue"
               value={formatCurrency(revenueData.summary.totalRevenue)}
-              icon={FiDollarSign}
+              icon={PesoIconSimple}
               trend="up"
               trendValue="12.5"
             />

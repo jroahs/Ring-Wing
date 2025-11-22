@@ -9,7 +9,8 @@ import CashFloatModal from './components/CashFloatModal';
 import EndOfShiftModal from './components/EndOfShiftModal';
 import SizeSelectionModal from './components/SizeSelectionModal';
 import { useCashFloat } from './hooks/useCashFloat';
-import { FiClock, FiDollarSign, FiCoffee, FiPieChart, FiSearch } from 'react-icons/fi';
+import { FiClock, FiCoffee, FiPieChart, FiSearch } from 'react-icons/fi';
+import { PesoIconSimple } from './components/ui/PesoIconSimple';
 import io from 'socket.io-client';
 import { API_URL } from './App';
 
@@ -1312,7 +1313,7 @@ const PointOfSaleTablet = () => {
                 {/* Cash Float Display */}
                 {isManager && (
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ backgroundColor: `${theme.colors.accent}20`, border: `1px solid ${theme.colors.accent}` }}>
-                    <FiDollarSign size={18} style={{ color: theme.colors.accent }} />
+                    <PesoIconSimple width={18} height={18} style={{ color: theme.colors.accent }} />
                     <div className="flex flex-col">
                       <span className="text-xs font-medium" style={{ color: theme.colors.muted }}>Cash Float</span>
                       <span className="text-base font-bold" style={{ color: theme.colors.accent }}>
@@ -1331,7 +1332,7 @@ const PointOfSaleTablet = () => {
                       style={{ color: theme.colors.primary, border: `1px solid ${theme.colors.muted}` }}
                       title="Manage Cash Float"
                     >
-                      <FiDollarSign size={20} />
+                      <PesoIconSimple width={20} height={20} />
                       <span className="text-sm font-medium hidden md:inline">Cash Float</span>
                     </button>
                     <button

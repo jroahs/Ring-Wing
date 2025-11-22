@@ -6,7 +6,8 @@ import { Modal } from './ui/Modal';
 import { PrintableRevenueReport } from './ui/PrintableRevenueReport';
 import { generateRevenuePDF } from '../utils/pdfGenerator';
 import { useCashFloat } from '../hooks/useCashFloat';
-import { FiPrinter, FiDownload, FiFileText, FiDollarSign, FiAlertCircle } from 'react-icons/fi';
+import { FiPrinter, FiDownload, FiFileText, FiAlertCircle } from 'react-icons/fi';
+import { PesoIconSimple } from './ui/PesoIconSimple';
 
 const EndOfShiftModal = ({ isOpen, onClose, theme, cashFloat }) => {
   const [revenueData, setRevenueData] = useState(null);
@@ -307,7 +308,7 @@ const EndOfShiftModal = ({ isOpen, onClose, theme, cashFloat }) => {
             <div className="bg-gradient-to-br from-slate-50 via-gray-50 to-zinc-50 border-2 rounded-xl p-6 shadow-sm" style={{ borderColor: theme.colors.muted }}>
               <div className="flex items-center mb-6">
                 <div className="p-2 rounded-lg bg-white shadow-sm border mr-3">
-                  <FiDollarSign size={20} style={{ color: theme.colors.accent }} />
+                  <PesoIconSimple width={20} height={20} style={{ color: theme.colors.accent }} />
                 </div>
                 <h3 className="text-xl font-bold" style={{ color: theme.colors.primary }}>
                   Cash Reconciliation

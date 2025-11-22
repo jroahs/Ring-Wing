@@ -18,8 +18,8 @@ export const PesoIconSimple = ({ width = 16, height = 16, color = "currentColor"
       >
         {/* Simplified Peso Symbol - ₱ */}
         <path d="M8 4v16" />
-        <line x1="5" y1="7" x2="18" y2="7" />
-        <line x1="5" y1="10" x2="18" y2="10" />
+        <line x1="5" y1="6" x2="18" y2="6" />
+        <line x1="5" y1="9" x2="18" y2="9" />
         <path d="M8 4h5c2 0 4 1 4 4s-2 4-4 4h-5" />
       </g>
     </svg>

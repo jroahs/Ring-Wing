@@ -5,7 +5,8 @@ import DashboardMinimal from './components/DashboardMinimal';
 import PaymentSettings from './components/PaymentSettings';
 import PaymentVerificationDashboard from './components/PaymentVerificationDashboard';
 import { colors, theme } from './theme'; // Import centralized colors
-import { FiSettings, FiDollarSign } from 'react-icons/fi';
+import { FiSettings } from 'react-icons/fi';
+import { PesoIconSimple } from './components/ui/PesoIconSimple';
 import { useMultiTabLogout } from './hooks/useMultiTabLogout';
 
 function Dashboard() {
@@ -71,7 +72,7 @@ function Dashboard() {
               whileTap={{ scale: 0.95 }}
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
             >
-              <FiDollarSign />
+              <PesoIconSimple width={16} height={16} />
               Verification
             </motion.button>
             <motion.button

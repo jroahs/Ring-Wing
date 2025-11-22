@@ -56,7 +56,8 @@ export const Modal = ({
 
   // New height styles for different size options
   const heightStyles = {
-    wide: 'max-h-[80vh] h-auto' // For the wide rectangular layout
+    wide: 'max-h-[80vh] h-auto', // For the wide rectangular layout
+    '2xl': 'max-h-[98vh] h-auto' // Taller modal for cash float
   };
 
   if (!isOpen) return null;
@@ -109,7 +110,7 @@ export const Modal = ({
           <div 
             className={`overflow-y-auto ${size === 'wide' ? 'p-6' : 'p-4'}`} 
             style={{ 
-              maxHeight: size === 'wide' ? 'calc(80vh - 120px)' : 'calc(90vh - 120px)'
+              maxHeight: size === '2xl' ? 'calc(98vh - 120px)' : size === 'wide' ? 'calc(80vh - 120px)' : 'calc(90vh - 120px)'
             }}
           >
             {children}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { FiUser, FiDollarSign, FiCalendar, FiClock, FiFileText, FiPrinter, FiEdit, FiGift, FiStar } from 'react-icons/fi';
+import { FiUser, FiCalendar, FiClock, FiFileText, FiPrinter, FiEdit, FiGift, FiStar } from 'react-icons/fi';
+import { PesoIconSimple } from './components/ui/PesoIconSimple';
 import { FaWrench } from 'react-icons/fa';
 import { default as WorkIDModal } from './WorkIDModal';
 import TimeLogHistory from './components/TimeLogHistory';
@@ -539,7 +540,7 @@ const PayrollSystem = () => {
           ) : (
             <>
               <h1 className="text-3xl font-bold mb-6" style={{ color: colors.primary }}>
-                <FiDollarSign className="inline mr-2" />
+                <PesoIconSimple width={16} height={16} className="inline mr-2" />
                 Payroll Management
               </h1>
 

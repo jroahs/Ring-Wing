@@ -8,6 +8,14 @@ export const Button = ({
     className = '',
     ...props 
   }) => {
+    // Import theme for consistent colors
+    const theme = {
+      colors: {
+        primary: '#2e0304',
+        accent: '#f1670f',
+      }
+    };
+
     const baseStyles = `
       inline-flex items-center justify-center
       font-medium transition-all
@@ -20,39 +28,42 @@ export const Button = ({
       md: 'px-4 py-2 text-base rounded-lg',
       lg: 'px-6 py-3 text-lg rounded-xl'
     };
-  
-    const variantStyles = {
-      primary: `
-        bg-gradient-to-r from-red-900 to-red-800
-        hover:from-red-800 hover:to-red-700
-        text-white shadow-md hover:shadow-lg
-        focus:ring-red-900/50
-      `,
-      secondary: `
-        bg-white text-red-900 border-2 border-red-900
-        hover:bg-red-900 hover:text-white
-        focus:ring-red-900/50
-      `,
-      accent: `
-        bg-gradient-to-r from-orange-600 to-orange-500
-        hover:from-orange-500 hover:to-orange-400
-        text-white shadow-md hover:shadow-lg
-        focus:ring-orange-500/50
-      `,
-      ghost: `
-        bg-transparent hover:bg-red-900/10
-        text-red-900 border-2 border-transparent
-        hover:border-red-900
-        focus:ring-red-900/30
-      `
+
+    const getVariantStyles = () => {
+      switch(variant) {
+        case 'accent':
+          return {
+            backgroundColor: theme.colors.accent,
+            color: 'white',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          };
+        case 'secondary':
+          return {
+            backgroundColor: 'white',
+            color: theme.colors.primary,
+            border: `2px solid ${theme.colors.primary}`,
+          };
+        case 'ghost':
+          return {
+            backgroundColor: 'transparent',
+            color: theme.colors.primary,
+            border: `2px solid transparent`,
+          };
+        default: // primary
+          return {
+            backgroundColor: theme.colors.primary,
+            color: 'white',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          };
+      }
     };
   
     return (
       <button
+        style={getVariantStyles()}
         className={`
           ${baseStyles}
           ${sizeStyles[size]}
-          ${variantStyles[variant]}
           ${fullWidth ? 'w-full' : ''}
           ${className}
         `.trim()}

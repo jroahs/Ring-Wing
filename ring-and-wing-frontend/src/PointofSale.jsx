@@ -11,7 +11,8 @@ import OrderProcessingModal from './components/OrderProcessingModal';
 import PendingOrder from './components/PendingOrder';
 import { CashAlert } from './components/ui/CashAlert';
 import { useCashFloat } from './hooks/useCashFloat';
-import { FiClock, FiPlus, FiSettings, FiDollarSign, FiCheckCircle, FiCoffee, FiPieChart, FiTrash2 } from 'react-icons/fi';
+import { FiClock, FiPlus, FiSettings, FiCheckCircle, FiCoffee, FiPieChart, FiTrash2 } from 'react-icons/fi';
+import { PesoIconSimple } from './components/ui/PesoIconSimple';
 import EndOfShiftModal from './components/EndOfShiftModal';
 import SizeSelectionModal from './components/SizeSelectionModal';
 import io from 'socket.io-client';
@@ -1660,7 +1661,7 @@ const PointOfSale = () => {
                       style={{ backgroundColor: theme.colors.primary, color: theme.colors.background }}
                       title="Cash Float Settings"
                     >
-                      <FiDollarSign className="mr-2" />
+                      <PesoIconSimple width={16} height={16} className="mr-2" />
                       <span className="hidden md:inline">Cash Float</span>
                     </button>                  )}                  {/* End of Shift Button (Manager Only) */}
                   {isManager && (

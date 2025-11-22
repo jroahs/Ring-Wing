@@ -506,19 +506,40 @@ const InventorySystem = () => {
       console.log(`[InventorySystem] Added new reservation: Order ${data.reservation.orderId}`);
     });
 
-    // Event 3: Reservation completed - update status instantly
+    // Event 3: Reservation completed - update status instantly, then remove after delay
     socket.on('reservationCompleted', (data) => {
       console.log('[InventorySystem] reservationCompleted event received:', data);
       
+      // First update the status to show it's completed
       setInventoryReservations(prevReservations => 
         prevReservations.map(r => 
           r._id === data.reservationId 
-            ? { ...r, status: 'completed', completedAt: new Date().toISOString() }
+            ? { ...r, status: 'consumed', completedAt: new Date().toISOString() }
             : r
         )
       );
 
-      console.log(`[InventorySystem] Marked reservation ${data.reservationId} as completed`);
+      console.log(`[InventorySystem] Marked reservation ${data.reservationId} as consumed`);
+      
+      // Remove consumed reservation after 3 seconds (visual feedback time)
+      setTimeout(() => {
+        setInventoryReservations(prevReservations => 
+          prevReservations.filter(r => r._id !== data.reservationId)
+        );
+        console.log(`[InventorySystem] Removed consumed reservation ${data.reservationId} from list`);
+      }, 3000);
+      
+      // 🔥 NEW: Also refresh items to ensure stock levels update immediately
+      // This is a fallback in case stockLevelChanged events are missed
+      console.log('[InventorySystem] Triggering item refresh after reservation consumption...');
+      axios.get(`${API_URL}/api/items`)
+        .then(response => {
+          setItems(response.data);
+          console.log('[InventorySystem] Items refreshed after reservation consumption');
+        })
+        .catch(error => {
+          console.error('[InventorySystem] Error refreshing items:', error);
+        });
     });
 
     // Event 4: Reservation released/cancelled - remove from list instantly
@@ -613,7 +634,24 @@ const InventorySystem = () => {
         // Handle nested response structure from backend
         const reservationsData = response.data.data?.data || response.data.data || [];
         console.log('Setting reservations:', reservationsData.length, 'items');
-        setInventoryReservations(Array.isArray(reservationsData) ? reservationsData : []);
+        
+        // Filter out old consumed/released reservations (older than 5 minutes)
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        const filteredReservations = reservationsData.filter(r => {
+          // Keep active/reserved reservations
+          if (r.status === 'reserved' || r.status === 'active') return true;
+          
+          // For consumed/released, only keep recent ones (last 5 minutes)
+          if (r.status === 'consumed' || r.status === 'released') {
+            const completedTime = new Date(r.completedAt || r.updatedAt || r.createdAt);
+            return completedTime > fiveMinutesAgo;
+          }
+          
+          return true; // Keep other statuses
+        });
+        
+        console.log('Filtered reservations:', filteredReservations.length, 'items (removed old consumed/released)');
+        setInventoryReservations(Array.isArray(filteredReservations) ? filteredReservations : []);
       }
     } catch (error) {
       console.error('Error fetching reservations:', error);
@@ -2549,7 +2587,7 @@ const InventorySystem = () => {
                       </thead>
                       <tbody>
                         {inventoryReservations.map((reservation) => (
-                          <tr key={reservation.reservationId} className="border-t hover:bg-gray-50">
+                          <tr key={reservation._id} className="border-t hover:bg-gray-50">
                             <td className="px-4 py-3 font-medium">
                               {reservation.orderNumber || `Order ${String(reservation.orderId).substring(0, 8)}`}
                             </td>

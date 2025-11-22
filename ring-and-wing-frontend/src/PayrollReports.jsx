@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import api from './services/apiService';
 import { toast } from 'react-toastify';
+import { PesoIconSimple } from './components/ui/PesoIconSimple';
 import { 
   FiFileText, 
   FiDownload, 
   FiFilter, 
   FiCalendar,
   FiUsers,
-  FiDollarSign,
+
   FiPieChart,
   FiBarChart2,
   FiArrowLeft
@@ -123,7 +124,7 @@ const PayrollReports = ({ onBack, colors }) => {
                 <p className="text-sm" style={{ color: colors.muted }}>Total Gross Pay</p>
                 <p className="text-2xl font-bold" style={{ color: colors.accent }}>₱{stats.totalGrossPay.toFixed(2)}</p>
               </div>
-              <FiDollarSign className="text-2xl" style={{ color: colors.accent }} />
+              <PesoIconSimple width={24} height={24} style={{ color: colors.accent }} />
             </div>
           </div>
           

@@ -205,8 +205,8 @@ class SocketService {
       unit,
       timestamp: Date.now()
     }, {
-      throttle: true,
-      throttleMs: 1000
+      throttle: false, // 🔥 CHANGED: No throttling - we need every stock update
+      log: true
     });
   }
   

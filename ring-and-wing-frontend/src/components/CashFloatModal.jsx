@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Modal } from './ui';
-import { FiDollarSign, FiRefreshCw, FiEdit, FiArrowRight, FiAlertCircle } from 'react-icons/fi';
+import { FiRefreshCw, FiEdit, FiArrowRight, FiAlertCircle } from 'react-icons/fi';
+import { PesoIconSimple } from './ui/PesoIconSimple';
 import TipsSection from './TipsSection';
 
 const CashFloatModal = ({ isOpen, onClose, initialCashFloat, onSave, theme }) => {
@@ -205,9 +206,8 @@ const CashFloatModal = ({ isOpen, onClose, initialCashFloat, onSave, theme }) =>
   if (!isOpen) return null;
   
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="wide" preventClose={true}>
-      <div className="relative">
-        {/* Using the reusable TipsSection with header */}
+    <Modal isOpen={isOpen} onClose={onClose} size="2xl" preventClose={true}>
+      <div className="relative">{/* Using the reusable TipsSection with header */}
         <TipsSection 
           tips={cashFloatTips}
           accentColor="orange"
@@ -226,7 +226,7 @@ const CashFloatModal = ({ isOpen, onClose, initialCashFloat, onSave, theme }) =>
                 <h3 className="text-sm font-medium text-gray-500 mb-1">Current Cash Float</h3>
                 <div className="flex items-center">
                   <div className="bg-orange-100 rounded-full p-2 mr-4">
-                    <FiDollarSign size={24} className="text-orange-500" />
+                    <PesoIconSimple width={24} height={24} className="text-orange-500" />
                   </div>
                   <div className="flex-1">
                     <div className="text-3xl font-bold text-orange-600">₱{Number(initialCashFloat).toFixed(2)}</div>
