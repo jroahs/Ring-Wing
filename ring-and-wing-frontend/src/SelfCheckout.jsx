@@ -7,11 +7,14 @@ import { useAlternatives } from './hooks/useAlternatives';
 import SelfCheckoutAIAssistant from './components/ui/SelfCheckoutAIAssistant';
 import { CartProvider, useCartContext } from './contexts/CartContext';
 import { MenuProvider, useMenuContext } from './contexts/MenuContext';
+import { useCustomerAuth } from './contexts/CustomerAuthContext';
 import LayoutSelector from './components/layouts/LayoutSelector';
 import OrderTypeSelector from './components/OrderTypeSelector';
 import PaymentMethodSelector from './components/PaymentMethodSelector';
 import ProofOfPaymentUpload from './components/ProofOfPaymentUpload';
 import OrderTimeoutTimer from './components/OrderTimeoutTimer';
+import DeliveryAddressSelector from './components/DeliveryAddressSelector';
+import AddressFormModal from './components/customer/AddressFormModal';
 import io from 'socket.io-client';
 
 const colors = {
@@ -132,11 +135,14 @@ const SelfCheckoutContent = () => {
   // Payment verification states
   const [showPaymentFlow, setShowPaymentFlow] = useState(false); // Controls when to show overlay
   const [fulfillmentType, setFulfillmentType] = useState(null); // null, 'dine_in', 'takeout', 'delivery'
+  const [selectedAddressId, setSelectedAddressId] = useState(null); // Selected delivery address
+  const [showAddressForm, setShowAddressForm] = useState(false); // Show add/edit address modal
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null); // null, 'gcash', 'paymaya'
   const [uploadedProof, setUploadedProof] = useState(null);
   const [readyToUploadProof, setReadyToUploadProof] = useState(false); // User confirms they've made payment
   const [currentOrder, setCurrentOrder] = useState(null); // Stores order with timer info
   const [socket, setSocket] = useState(null);
+  const { customer } = useCustomerAuth();
 
   // Initialize Socket.io connection
   useEffect(() => {
@@ -307,6 +313,12 @@ const SelfCheckoutContent = () => {
     try {
       console.log('Initiating PayMongo checkout');
       
+      // Validate address for delivery orders
+      if (fulfillmentType === 'delivery' && !selectedAddressId) {
+        alert('Please select a delivery address before proceeding to payment');
+        return;
+      }
+      
       // First create the order
       const totals = calculateTotal();
       const orderData = {
@@ -343,6 +355,15 @@ const SelfCheckoutContent = () => {
           status: 'pending'
         }
       };
+
+      // Add customer and address data if available
+      if (customer) {
+        orderData.customerId = customer._id;
+      }
+      
+      if (fulfillmentType === 'delivery' && selectedAddressId) {
+        orderData.deliveryAddressId = selectedAddressId;
+      }
 
       // Create order first
       const orderResponse = await fetch(`${API_URL}/api/orders`, {
@@ -413,6 +434,7 @@ const SelfCheckoutContent = () => {
   const resetFlow = () => {
     setShowPaymentFlow(false);
     setFulfillmentType(null);
+    setSelectedAddressId(null);
     setSelectedPaymentMethod(null);
     setUploadedProof(null);
     setReadyToUploadProof(false);
@@ -426,6 +448,7 @@ const SelfCheckoutContent = () => {
     if (!showPaymentFlow) return 'menu'; // Still browsing menu
     if (orderSubmitted) return 'confirmation';
     if (!fulfillmentType) return 'selectType';
+    if (fulfillmentType === 'delivery' && !selectedAddressId) return 'selectAddress'; // NEW: Address selection for delivery
     if (fulfillmentType === 'dine_in') return 'readyToSubmit';
     if (!selectedPaymentMethod) return 'selectPayment';
     
@@ -495,6 +518,24 @@ const SelfCheckoutContent = () => {
       );
     }
 
+    if (currentStep === 'selectAddress') {
+      return (
+        <div style={styles.overlay}>
+          <div style={styles.flowContainer}>
+            <h2 style={styles.flowTitle}>Select Delivery Address</h2>
+            <DeliveryAddressSelector
+              selectedAddressId={selectedAddressId}
+              onSelect={setSelectedAddressId}
+              onAddNew={() => setShowAddressForm(true)}
+            />
+            <button onClick={() => setFulfillmentType(null)} style={styles.backButton}>
+              ← Back to Order Type
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     if (fulfillmentType !== 'dine_in') {
       if (currentStep === 'selectPayment') {
         return (
@@ -506,8 +547,17 @@ const SelfCheckoutContent = () => {
                 onSelect={handlePaymentMethodSelect}
                 orderTotal={calculateTotal().total}
               />
-              <button onClick={() => setFulfillmentType(null)} style={styles.backButton}>
-                ← Back to Order Type
+              <button 
+                onClick={() => {
+                  if (fulfillmentType === 'delivery') {
+                    setSelectedAddressId(null); // Go back to address selection
+                  } else {
+                    setFulfillmentType(null); // Go back to type selection
+                  }
+                }} 
+                style={styles.backButton}
+              >
+                ← Back to {fulfillmentType === 'delivery' ? 'Delivery Address' : 'Order Type'}
               </button>
             </div>
           </div>
@@ -674,6 +724,16 @@ const SelfCheckoutContent = () => {
         onProcessOrder={processOrder}
       />
       {renderPaymentFlow()}
+      
+      {showAddressForm && (
+        <AddressFormModal
+          onClose={() => setShowAddressForm(false)}
+          onSuccess={(newAddress) => {
+            setShowAddressForm(false);
+            setSelectedAddressId(newAddress._id); // Auto-select newly added address
+          }}
+        />
+      )}
     </>
   );
 };
