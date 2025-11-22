@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useCustomerAuth } from '../contexts/CustomerAuthContext';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+import { API_URL } from '../App';
 
 export const useCustomerAddresses = () => {
   const { token, isAuthenticated } = useCustomerAuth();
