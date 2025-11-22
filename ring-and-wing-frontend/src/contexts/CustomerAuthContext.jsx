@@ -34,6 +34,11 @@ export const CustomerAuthProvider = ({ children }) => {
             setCustomer(response.data.customer);
             setToken(storedToken);
             setIsAuthenticated(true);
+            console.log('[CustomerAuth] Customer loaded:', {
+              id: response.data.customer._id,
+              username: response.data.customer.username,
+              fullCustomer: response.data.customer
+            });
           } else {
             // Invalid token, clear it
             localStorage.removeItem('customer_token');

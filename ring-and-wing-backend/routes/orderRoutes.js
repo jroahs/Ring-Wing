@@ -26,6 +26,12 @@ const validateOrder = (req, res, next) => {
 // Create new order with advanced features
 router.post('/', validateOrder, criticalCheck, async (req, res, next) => {
   try {
+    console.log('[orderRoutes POST] Creating order with body:', {
+      hasCustomerId: !!req.body.customerId,
+      customerId: req.body.customerId,
+      fulfillmentType: req.body.fulfillmentType
+    });
+    
     const orderData = {
       ...req.body,
       receiptNumber: `RNG-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`,
@@ -40,8 +46,19 @@ router.post('/', validateOrder, criticalCheck, async (req, res, next) => {
       change: 0
     };
 
+    console.log('[orderRoutes POST] Order data after processing:', {
+      hasCustomerId: !!orderData.customerId,
+      customerId: orderData.customerId
+    });
+
     const order = new Order(orderData);
     await order.save();
+    
+    console.log('[orderRoutes POST] Order saved:', {
+      orderId: order._id,
+      customerId: order.customerId,
+      receiptNumber: order.receiptNumber
+    });
     
     // Emit socket event for real-time updates (POS "Dine/Take-outs" tab)
     const io = req.app.get('io');

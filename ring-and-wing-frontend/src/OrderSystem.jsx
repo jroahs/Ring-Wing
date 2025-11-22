@@ -58,6 +58,10 @@ const OrderSystem = () => {
     const initializeSocket = () => {
       const newSocket = io(API_URL, {
         transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        timeout: 20000,
         auth: {
           token: localStorage.getItem('token') || localStorage.getItem('authToken')
         }
@@ -67,8 +71,13 @@ const OrderSystem = () => {
         console.log('[OrderSystem Socket] Connected to server');
       });
 
-      newSocket.on('disconnect', () => {
-        console.log('[OrderSystem Socket] Disconnected from server');
+      newSocket.on('disconnect', (reason) => {
+        console.log('[OrderSystem Socket] Disconnected:', reason);
+      });
+
+      newSocket.on('connect_error', (error) => {
+        console.warn('[OrderSystem Socket] Connection error:', error.message);
+        // Don't throw error, just log it
       });
 
       // Listen for new payment orders (PayMongo notifications)

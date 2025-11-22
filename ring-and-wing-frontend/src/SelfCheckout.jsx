@@ -359,11 +359,17 @@ const SelfCheckoutContent = () => {
       // Add customer and address data if available
       if (customer) {
         orderData.customerId = customer._id;
+        console.log('[PayMongo Checkout] Adding customer ID to order:', customer._id);
+      } else {
+        console.log('[PayMongo Checkout] No customer authenticated - creating guest order');
       }
       
       if (fulfillmentType === 'delivery' && selectedAddressId) {
         orderData.deliveryAddressId = selectedAddressId;
+        console.log('[PayMongo Checkout] Adding delivery address ID:', selectedAddressId);
       }
+
+      console.log('[PayMongo Checkout] Order data being sent:', JSON.stringify(orderData, null, 2));
 
       // Create order first
       const orderResponse = await fetch(`${API_URL}/api/orders`, {
@@ -380,7 +386,12 @@ const SelfCheckoutContent = () => {
       const orderId = orderResult.data._id;
       const receiptNumber = orderResult.data.receiptNumber;
       
-      console.log('Order created successfully:', { orderId, receiptNumber });
+      console.log('[PayMongo Checkout] Order created successfully:', { 
+        orderId, 
+        receiptNumber,
+        customerId: orderResult.data.customerId,
+        fullOrder: orderResult.data 
+      });
       
       // Create PayMongo checkout session
       const checkoutResponse = await fetch(`${API_URL}/api/paymongo/create-checkout`, {

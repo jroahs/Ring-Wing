@@ -11,7 +11,7 @@ export const useOrderNotifications = () => {
 
   // Initialize Socket.io connection when customer is authenticated
   useEffect(() => {
-    if (!customer || !token) {
+    if (!customer?._id || !token) {
       // Cleanup socket if customer logs out
       if (socket) {
         socket.disconnect();
@@ -26,7 +26,11 @@ export const useOrderNotifications = () => {
     const newSocket = io(API_URL, {
       auth: {
         token: token
-      }
+      },
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000
     });
 
     newSocket.on('connect', () => {
@@ -35,6 +39,10 @@ export const useOrderNotifications = () => {
 
     newSocket.on('disconnect', () => {
       console.log('[Notifications] Socket disconnected');
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.warn('[Notifications] Socket connection error:', error.message);
     });
 
     // Listen for order status changes
@@ -63,7 +71,7 @@ export const useOrderNotifications = () => {
         newSocket.disconnect();
       }
     };
-  }, [customer, token]);
+  }, [customer?._id, token]); // Only depend on customer ID, not entire customer object
 
   // Mark notification as read
   const markAsRead = useCallback((notificationId) => {

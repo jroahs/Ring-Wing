@@ -17,10 +17,12 @@ export const useCustomerOrders = () => {
   // Fetch orders with pagination
   const fetchOrders = useCallback(async (options = {}) => {
     if (!isAuthenticated || !token) {
+      console.log('[useCustomerOrders] Not authenticated, clearing orders');
       setOrders([]);
       return;
     }
 
+    console.log('[useCustomerOrders] Fetching orders with token:', token ? 'present' : 'missing');
     setIsLoading(true);
     setError(null);
 
@@ -32,10 +34,20 @@ export const useCustomerOrders = () => {
       params.append('limit', limit);
       if (status) params.append('status', status);
 
+      const url = `${API_URL}/api/customer/orders?${params.toString()}`;
+      console.log('[useCustomerOrders] Fetching from:', url);
+
       const response = await axios.get(
-        `${API_URL}/api/customer/orders?${params.toString()}`,
+        url,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
+      console.log('[useCustomerOrders] Response:', {
+        success: response.data.success,
+        count: response.data.count,
+        total: response.data.total,
+        orders: response.data.orders
+      });
 
       if (response.data.success) {
         setOrders(response.data.orders);
@@ -46,7 +58,8 @@ export const useCustomerOrders = () => {
         });
       }
     } catch (err) {
-      console.error('Error fetching orders:', err);
+      console.error('[useCustomerOrders] Error fetching orders:', err);
+      console.error('[useCustomerOrders] Error response:', err.response?.data);
       setError(err.response?.data?.message || 'Failed to fetch orders');
     } finally {
       setIsLoading(false);

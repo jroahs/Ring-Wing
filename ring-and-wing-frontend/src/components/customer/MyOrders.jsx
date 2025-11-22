@@ -22,10 +22,10 @@ const MyOrders = () => {
     if (isAuthenticated) {
       fetchOrders();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchOrders]);
 
   const currentOrders = orders.filter(order => 
-    ['pending_payment', 'payment_verified', 'preparing', 'ready'].includes(order.status)
+    ['pending', 'pending_payment', 'paymongo_verified', 'received', 'preparing', 'ready'].includes(order.status)
   );
 
   const pastOrders = orders.filter(order => 
@@ -34,8 +34,10 @@ const MyOrders = () => {
 
   const getStatusColor = (status) => {
     const colors = {
+      pending: '#f59e0b',
       pending_payment: '#f59e0b',
-      payment_verified: '#3b82f6',
+      paymongo_verified: '#3b82f6',
+      received: '#3b82f6',
       preparing: '#3b82f6',
       ready: '#10b981',
       completed: '#6b7280',
@@ -46,8 +48,10 @@ const MyOrders = () => {
 
   const getStatusLabel = (status) => {
     const labels = {
+      pending: 'Pending',
       pending_payment: 'Pending Payment',
-      payment_verified: 'Payment Verified',
+      paymongo_verified: 'Payment Verified',
+      received: 'Order Received',
       preparing: 'Preparing',
       ready: 'Ready for Pickup',
       completed: 'Completed',
@@ -146,7 +150,7 @@ const MyOrders = () => {
                 <div key={order._id} className="order-card">
                   <div className="order-card-header">
                     <div className="order-number">
-                      <strong>Order #{order.orderNumber}</strong>
+                      <strong>Order #{order.receiptNumber}</strong>
                       <span className="order-date">{formatDate(order.createdAt)}</span>
                     </div>
                     <span 
@@ -184,7 +188,7 @@ const MyOrders = () => {
 
                   <div className="order-card-footer">
                     <div className="order-total">
-                      <strong>Total: ₱{order.total?.toFixed(2)}</strong>
+                      <strong>Total: ₱{(order.totals?.total || 0).toFixed(2)}</strong>
                     </div>
                     <button 
                       className="view-details-btn"
@@ -218,7 +222,7 @@ const MyOrders = () => {
                 <div key={order._id} className="order-card">
                   <div className="order-card-header">
                     <div className="order-number">
-                      <strong>Order #{order.orderNumber}</strong>
+                      <strong>Order #{order.receiptNumber}</strong>
                       <span className="order-date">{formatDate(order.createdAt)}</span>
                     </div>
                     <span 
@@ -256,7 +260,7 @@ const MyOrders = () => {
 
                   <div className="order-card-footer">
                     <div className="order-total">
-                      <strong>Total: ₱{order.total?.toFixed(2)}</strong>
+                      <strong>Total: ₱{(order.totals?.total || 0).toFixed(2)}</strong>
                     </div>
                     <button 
                       className="view-details-btn"

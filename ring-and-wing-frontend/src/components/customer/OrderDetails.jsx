@@ -31,14 +31,18 @@ const OrderDetails = () => {
   const loadOrderDetails = async () => {
     const result = await fetchOrderById(orderId);
     if (result.success) {
+      console.log('[OrderDetails] Order data:', result.order);
+      console.log('[OrderDetails] Order totals:', result.order.totals);
       setOrder(result.order);
     }
   };
 
   const getStatusColor = (status) => {
     const colors = {
+      pending: '#f59e0b',
       pending_payment: '#f59e0b',
-      payment_verified: '#3b82f6',
+      paymongo_verified: '#3b82f6',
+      received: '#3b82f6',
       preparing: '#3b82f6',
       ready: '#10b981',
       completed: '#6b7280',
@@ -49,8 +53,10 @@ const OrderDetails = () => {
 
   const getStatusLabel = (status) => {
     const labels = {
+      pending: 'Pending',
       pending_payment: 'Pending Payment',
-      payment_verified: 'Payment Verified',
+      paymongo_verified: 'Payment Verified',
+      received: 'Order Received',
       preparing: 'Preparing',
       ready: 'Ready for Pickup',
       completed: 'Completed',
@@ -159,15 +165,15 @@ const OrderDetails = () => {
           {/* Order Timeline */}
           {order.status !== 'cancelled' && (
             <div className="order-timeline">
-              <div className={`timeline-step ${['pending_payment', 'payment_verified', 'preparing', 'ready', 'completed'].includes(order.status) ? 'completed' : ''}`}>
+              <div className={`timeline-step ${['pending_payment', 'paymongo_verified', 'received', 'preparing', 'ready', 'completed'].includes(order.status) ? 'completed' : ''}`}>
                 <div className="step-circle">✓</div>
                 <div className="step-label">Order Placed</div>
               </div>
-              <div className={`timeline-step ${['payment_verified', 'preparing', 'ready', 'completed'].includes(order.status) ? 'completed' : order.status === 'pending_payment' ? 'current' : ''}`}>
-                <div className="step-circle">{['payment_verified', 'preparing', 'ready', 'completed'].includes(order.status) ? '✓' : '2'}</div>
+              <div className={`timeline-step ${['paymongo_verified', 'received', 'preparing', 'ready', 'completed'].includes(order.status) ? 'completed' : order.status === 'pending_payment' ? 'current' : ''}`}>
+                <div className="step-circle">{['paymongo_verified', 'received', 'preparing', 'ready', 'completed'].includes(order.status) ? '✓' : '2'}</div>
                 <div className="step-label">Payment Verified</div>
               </div>
-              <div className={`timeline-step ${['preparing', 'ready', 'completed'].includes(order.status) ? 'completed' : order.status === 'payment_verified' ? 'current' : ''}`}>
+              <div className={`timeline-step ${['preparing', 'ready', 'completed'].includes(order.status) ? 'completed' : ['paymongo_verified', 'received'].includes(order.status) ? 'current' : ''}`}>
                 <div className="step-circle">{['preparing', 'ready', 'completed'].includes(order.status) ? '✓' : '3'}</div>
                 <div className="step-label">Preparing</div>
               </div>
@@ -243,23 +249,29 @@ const OrderDetails = () => {
           <div className="order-summary">
             <div className="summary-row">
               <span>Subtotal</span>
-              <span>₱{order.subtotal?.toFixed(2)}</span>
+              <span>₱{(order.totals?.subtotal || 0).toFixed(2)}</span>
             </div>
-            {order.tax > 0 && (
+            {order.totals?.discount > 0 && (
               <div className="summary-row">
-                <span>Tax</span>
-                <span>₱{order.tax.toFixed(2)}</span>
+                <span>Discount</span>
+                <span>-₱{order.totals.discount.toFixed(2)}</span>
               </div>
             )}
-            {order.deliveryFee > 0 && (
+            {order.totals?.vatExemption > 0 && (
+              <div className="summary-row">
+                <span>VAT Exemption</span>
+                <span>-₱{order.totals.vatExemption.toFixed(2)}</span>
+              </div>
+            )}
+            {order.fulfillmentType === 'delivery' && order.totals?.deliveryFee > 0 && (
               <div className="summary-row">
                 <span>Delivery Fee</span>
-                <span>₱{order.deliveryFee.toFixed(2)}</span>
+                <span>₱{order.totals.deliveryFee.toFixed(2)}</span>
               </div>
             )}
             <div className="summary-row total">
               <strong>Total</strong>
-              <strong>₱{order.total?.toFixed(2)}</strong>
+              <strong>₱{(order.totals?.total || 0).toFixed(2)}</strong>
             </div>
           </div>
         </div>

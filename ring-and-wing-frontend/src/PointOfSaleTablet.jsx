@@ -2022,6 +2022,50 @@ const PointOfSaleTablet = () => {
               </div>
             </div>
             
+            {/* Customer Information */}
+            {selectedVerificationOrder.customerId && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="font-semibold text-blue-900 mb-3">Customer Information</h3>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="text-gray-600">Name:</div>
+                  <div className="font-medium text-gray-900">
+                    {selectedVerificationOrder.customerId.firstName && selectedVerificationOrder.customerId.lastName
+                      ? `${selectedVerificationOrder.customerId.firstName} ${selectedVerificationOrder.customerId.lastName}`
+                      : selectedVerificationOrder.customerId.username || 'N/A'}
+                  </div>
+                  <div className="text-gray-600">Phone:</div>
+                  <div className="font-medium text-gray-900">
+                    {selectedVerificationOrder.customerId.phone || 'N/A'}
+                  </div>
+                  <div className="text-gray-600">Email:</div>
+                  <div className="font-medium text-gray-900 col-span-1">
+                    {selectedVerificationOrder.customerId.email || 'N/A'}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Delivery Address */}
+            {selectedVerificationOrder.fulfillmentType === 'delivery' && selectedVerificationOrder.deliveryAddressId && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <h3 className="font-semibold text-orange-900 mb-3">Delivery Address</h3>
+                <div className="text-sm space-y-1">
+                  <p className="font-semibold text-gray-900">
+                    {selectedVerificationOrder.deliveryAddressId.label || 'Delivery Address'}
+                  </p>
+                  <p className="text-gray-700">{selectedVerificationOrder.deliveryAddressId.street}</p>
+                  <p className="text-gray-700">
+                    {selectedVerificationOrder.deliveryAddressId.barangay}, {selectedVerificationOrder.deliveryAddressId.city}
+                  </p>
+                  {selectedVerificationOrder.deliveryAddressId.notes && (
+                    <p className="text-gray-600 italic mt-2">
+                      Note: {selectedVerificationOrder.deliveryAddressId.notes}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+            
             {/* Items List */}
             <div>
               <h3 className="font-semibold text-gray-900 mb-3">Items</h3>

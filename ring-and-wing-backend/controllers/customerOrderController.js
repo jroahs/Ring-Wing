@@ -8,12 +8,16 @@ exports.getCustomerOrders = async (req, res) => {
   try {
     const { limit = 20, page = 1, status } = req.query;
     
+    console.log('[customerOrderController] Fetching orders for customer:', req.customer._id);
+    
     const query = { customerId: req.customer._id };
     
     // Filter by status if provided
     if (status) {
       query.status = status;
     }
+    
+    console.log('[customerOrderController] Query:', query);
     
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
@@ -22,6 +26,9 @@ exports.getCustomerOrders = async (req, res) => {
       .limit(parseInt(limit))
       .skip(skip)
       .lean();
+    
+    console.log('[customerOrderController] Found orders:', orders.length);
+    console.log('[customerOrderController] Order IDs:', orders.map(o => o._id));
     
     const total = await Order.countDocuments(query);
     

@@ -3,19 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import './OrderNotificationToast.css';
 
 const statusLabels = {
+  pending: 'Order Pending',
   pending_payment: 'Payment Pending',
-  received: 'Payment Verified',
+  paymongo_verified: 'Payment Verified',
+  received: 'Order Received',
   preparing: 'Preparing Your Order',
   ready: 'Order Ready',
-  completed: 'Order Completed'
+  completed: 'Order Completed',
+  cancelled: 'Order Cancelled'
 };
 
 const statusIcons = {
+  pending: '⏳',
   pending_payment: '⏳',
+  paymongo_verified: '✅',
   received: '✅',
   preparing: '👨‍🍳',
   ready: '🔔',
-  completed: '✨'
+  completed: '✨',
+  cancelled: '❌'
 };
 
 const OrderNotificationToast = ({ notification, onClose, onRead }) => {

@@ -390,6 +390,8 @@ exports.getPendingVerification = async (req, res) => {
 
     const orders = await Order.find(query)
       .sort({ 'proofOfPayment.expiresAt': 1 }) // Sort by urgency (expiring soon first)
+      .populate('customerId', 'username phone email firstName lastName') // Populate customer info
+      .populate('deliveryAddressId') // Populate delivery address
       .select('-__v')
       .lean();
 
