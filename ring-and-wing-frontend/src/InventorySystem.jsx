@@ -261,6 +261,7 @@ const InventorySystem = () => {
 
   // 🔥 NEW: Socket.io for real-time inventory updates (Sprint 22)
   const [socket, setSocket] = useState(null);
+  const socketInitializedRef = useRef(false);
 
   // PDF Download Function
   const handleDownloadInventoryPDF = async () => {
@@ -428,6 +429,12 @@ const InventorySystem = () => {
 
   // 🔥 NEW: Socket.io connection for real-time inventory updates (Sprint 22)
   useEffect(() => {
+    // Prevent duplicate initialization in Strict Mode
+    if (socketInitializedRef.current) {
+      console.log('[InventorySystem] Socket already initialized, skipping');
+      return;
+    }
+    
     const token = localStorage.getItem('token') || localStorage.getItem('authToken');
     if (!token) {
       console.warn('[InventorySystem] No auth token found - socket connection skipped');
@@ -435,33 +442,44 @@ const InventorySystem = () => {
     }
 
     console.log('[InventorySystem] Initializing socket connection...');
+    socketInitializedRef.current = true;
     
     const socketConnection = io(API_URL, {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 5,
-      reconnectionDelay: 1000
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
+      autoConnect: true
     });
 
     socketConnection.on('connect', () => {
-      console.log('[InventorySystem] Socket connected - Authenticated: Yes');
-      console.log('[InventorySystem] Socket ID:', socketConnection.id);
+      console.log('[InventorySystem] Socket connected:', socketConnection.id);
     });
 
     socketConnection.on('connect_error', (error) => {
-      console.error('[InventorySystem] Socket connection error:', error.message);
+      console.warn('[InventorySystem] Socket connection error:', error.message);
+      // Don't disconnect on error - let reconnection logic handle it
     });
 
     socketConnection.on('disconnect', (reason) => {
       console.log('[InventorySystem] Socket disconnected:', reason);
+    });
+    
+    socketConnection.on('error', (error) => {
+      console.error('[InventorySystem] Socket error:', error);
     });
 
     setSocket(socketConnection);
 
     return () => {
       console.log('[InventorySystem] Cleaning up socket connection...');
-      socketConnection.disconnect();
+      socketInitializedRef.current = false;
+      if (socketConnection) {
+        socketConnection.disconnect();
+      }
     };
   }, []);
 

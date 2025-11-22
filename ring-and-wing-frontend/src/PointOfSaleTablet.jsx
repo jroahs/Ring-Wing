@@ -206,30 +206,50 @@ const PointOfSaleTablet = () => {
   const initializeSocket = () => {
     // Prevent duplicate connections
     if (globalSocket?.connected) {
+      console.log('[Socket] Reusing existing connection');
       setSocket(globalSocket);
       return;
     }
 
-    if (isConnectingRef.current) return;
+    if (isConnectingRef.current) {
+      console.log('[Socket] Connection already in progress');
+      return;
+    }
+    
+    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+    if (!token) {
+      console.warn('[Socket] No auth token found, skipping socket connection');
+      return;
+    }
+
+    console.log('[Socket] Initializing new connection...');
     isConnectingRef.current = true;
 
     globalSocket = io(API_URL, {
+      auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
       forceNew: false,
       multiplex: true,
     });
 
     // Real-time event listeners
     globalSocket.on('connect', () => {
-      console.log('[Socket] Connected to server');
+      console.log('[Socket] Connected:', globalSocket.id);
       isConnectingRef.current = false;
     });
 
-    globalSocket.on('disconnect', () => {
-      console.log('[Socket] Disconnected from server');
+    globalSocket.on('disconnect', (reason) => {
+      console.log('[Socket] Disconnected:', reason);
+    });
+    
+    globalSocket.on('connect_error', (error) => {
+      console.warn('[Socket] Connection error:', error.message);
+      isConnectingRef.current = false;
     });
 
     globalSocket.on('menuItemUpdated', (data) => {

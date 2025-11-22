@@ -157,17 +157,36 @@ const PointOfSale = () => {
 
     // Get authentication token for socket connection
     const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+    
+    if (!token) {
+      console.warn('[POS] No auth token found, skipping socket connection');
+      return;
+    }
 
+    console.log('[POS] Initializing socket connection...');
     const socketConnection = io(API_URL, {
       auth: {
         token: token // Add JWT token for authentication
       },
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000
     });
 
     socketConnection.on('connect', () => {
-      console.log('POS connected to Socket.io - Authenticated:', socketConnection.auth.token ? 'Yes' : 'No');
+      console.log('[POS] Socket connected:', socketConnection.id);
       // Server automatically joins authenticated users to 'staff' room
+    });
+    
+    socketConnection.on('disconnect', (reason) => {
+      console.log('[POS] Socket disconnected:', reason);
+    });
+
+    socketConnection.on('connect_error', (error) => {
+      console.warn('[POS] Socket connection error:', error.message);
     });
 
     socketConnection.on('newPaymentOrder', (data) => {
@@ -237,9 +256,12 @@ const PointOfSale = () => {
     setSocket(socketConnection);
 
     return () => {
-      socketConnection.disconnect();
+      console.log('[POS] Cleaning up socket connection');
+      if (socketConnection) {
+        socketConnection.disconnect();
+      }
     };
-  }, [API_URL]);
+  }, []); // Remove API_URL dependency to prevent recreating socket
 
   useEffect(() => {
     const handleResize = () => {

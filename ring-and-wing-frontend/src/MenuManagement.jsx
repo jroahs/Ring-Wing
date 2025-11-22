@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import MenuItemImage from './components/MenuItemImage';
 import ConnectionMonitor from './components/ConnectionMonitor';
@@ -268,6 +268,7 @@ const MenuPage = () => {
   
   // NEW: Socket.io state for real-time updates (Sprint 22)
   const [socket, setSocket] = useState(null);
+  const socketInitializedRef = useRef(false);
 
   const { register, handleSubmit, reset, watch, setValue, getValues, formState: { errors } } = useForm({
     defaultValues: initialItem
@@ -899,20 +900,49 @@ const MenuPage = () => {
 
   // NEW: Socket.io connection for real-time updates (Sprint 22)
   useEffect(() => {
+    // Prevent duplicate initialization in Strict Mode
+    if (socketInitializedRef.current) {
+      console.log('[MenuManagement] Socket already initialized, skipping');
+      return;
+    }
+    
     const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+    
+    if (!token) {
+      console.warn('[MenuManagement] No auth token found, skipping socket connection');
+      return;
+    }
+    
+    console.log('[MenuManagement] Initializing socket connection...');
+    socketInitializedRef.current = true;
     
     // Initialize socket connection with JWT authentication
     const socketConnection = io(API_URL, {
       auth: { token: token },
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
+      autoConnect: true
     });
     
     socketConnection.on('connect', () => {
-      console.log('[MenuManagement] Socket connected - Authenticated:', socketConnection.auth.token ? 'Yes' : 'No');
+      console.log('[MenuManagement] Socket connected:', socketConnection.id);
     });
     
-    socketConnection.on('disconnect', () => {
-      console.log('[MenuManagement] Socket disconnected');
+    socketConnection.on('disconnect', (reason) => {
+      console.log('[MenuManagement] Socket disconnected:', reason);
+    });
+    
+    socketConnection.on('connect_error', (error) => {
+      console.warn('[MenuManagement] Socket connection error:', error.message);
+      // Don't disconnect on error - let reconnection logic handle it
+    });
+    
+    socketConnection.on('error', (error) => {
+      console.error('[MenuManagement] Socket error:', error);
     });
     
     setSocket(socketConnection);
@@ -920,7 +950,10 @@ const MenuPage = () => {
     // Cleanup on unmount
     return () => {
       console.log('[MenuManagement] Cleaning up socket connection');
-      socketConnection.disconnect();
+      socketInitializedRef.current = false;
+      if (socketConnection) {
+        socketConnection.disconnect();
+      }
     };
   }, []);
   

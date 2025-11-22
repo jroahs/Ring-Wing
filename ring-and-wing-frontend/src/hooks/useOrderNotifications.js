@@ -27,22 +27,30 @@ export const useOrderNotifications = () => {
       auth: {
         token: token
       },
+      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
-      timeout: 20000
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
+      autoConnect: true
     });
 
     newSocket.on('connect', () => {
       console.log('[Notifications] Socket connected:', newSocket.id);
     });
 
-    newSocket.on('disconnect', () => {
-      console.log('[Notifications] Socket disconnected');
+    newSocket.on('disconnect', (reason) => {
+      console.log('[Notifications] Socket disconnected:', reason);
     });
 
     newSocket.on('connect_error', (error) => {
       console.warn('[Notifications] Socket connection error:', error.message);
+      // Don't disconnect on error - let reconnection logic handle it
+    });
+
+    newSocket.on('error', (error) => {
+      console.error('[Notifications] Socket error:', error);
     });
 
     // Listen for order status changes

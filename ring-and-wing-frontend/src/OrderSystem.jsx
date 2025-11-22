@@ -55,20 +55,29 @@ const OrderSystem = () => {
 
   // Socket initialization
   useEffect(() => {
+    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+    
+    if (!token) {
+      console.warn('[OrderSystem Socket] No auth token found, skipping socket connection');
+      return;
+    }
+    
     const initializeSocket = () => {
       const newSocket = io(API_URL, {
         transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
         timeout: 20000,
+        autoConnect: true,
         auth: {
-          token: localStorage.getItem('token') || localStorage.getItem('authToken')
+          token: token
         }
       });
 
       newSocket.on('connect', () => {
-        console.log('[OrderSystem Socket] Connected to server');
+        console.log('[OrderSystem Socket] Connected:', newSocket.id);
       });
 
       newSocket.on('disconnect', (reason) => {
@@ -77,7 +86,11 @@ const OrderSystem = () => {
 
       newSocket.on('connect_error', (error) => {
         console.warn('[OrderSystem Socket] Connection error:', error.message);
-        // Don't throw error, just log it
+        // Don't throw error, just log it - let reconnection logic handle it
+      });
+
+      newSocket.on('error', (error) => {
+        console.error('[OrderSystem Socket] Socket error:', error);
       });
 
       // Listen for new payment orders (PayMongo notifications)
