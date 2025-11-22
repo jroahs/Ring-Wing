@@ -3,7 +3,7 @@ import { useCustomerAddresses } from '../../hooks/useCustomerAddresses';
 import './AddressFormModal.css';
 
 const AddressFormModal = ({ isOpen, onClose, onSuccess, editingAddress = null }) => {
-  const { addAddress, updateAddress, loading, error: apiError } = useCustomerAddresses();
+  const { createAddress, updateAddress, isLoading, error: apiError } = useCustomerAddresses();
   const [error, setError] = useState('');
 
   const [formData, setFormData] = useState({
@@ -97,7 +97,7 @@ const AddressFormModal = ({ isOpen, onClose, onSuccess, editingAddress = null })
     if (editingAddress) {
       result = await updateAddress(editingAddress._id, formData);
     } else {
-      result = await addAddress(formData);
+      result = await createAddress(formData);
     }
 
     if (result.success) {
