@@ -4,6 +4,7 @@ import { useMenuContext } from '../../contexts/MenuContext';
 import { useAlternatives } from '../../hooks/useAlternatives';
 import { AlternativesModal } from '../ui/AlternativesModal';
 import AssistantPanel from '../ui/AssistantPanel';
+import SelfCheckoutHeader from '../ui/SelfCheckoutHeader';
 
 const colors = {
   primary: '#2e0304',
@@ -298,6 +299,9 @@ const DesktopLayout = ({
                   d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
+
+            {/* Customer Auth Section */}
+            <SelfCheckoutHeader />
 
             {/* Keyboard Shortcuts */}
             <div className="text-sm text-gray-500 flex items-center gap-4">

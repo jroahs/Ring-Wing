@@ -33,6 +33,41 @@ const orderSchema = new mongoose.Schema({
   },
   // Customer information
   customerName: { type: String, default: '' },
+  
+  // NEW: Customer Account Integration
+  customerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Customer',
+    default: null, // null for guest orders
+    sparse: true // Allow null values with index
+  },
+  
+  // NEW: Delivery address reference
+  deliveryAddressId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CustomerAddress',
+    default: null
+  },
+  
+  // NEW: Customer details snapshot (for historical record)
+  customerDetails: {
+    name: { type: String },
+    phone: { type: String },
+    email: { type: String }
+  },
+  
+  // NEW: Delivery address snapshot (for historical record)
+  deliveryAddress: {
+    recipientName: { type: String },
+    recipientPhone: { type: String },
+    street: { type: String },
+    barangay: { type: String },
+    city: { type: String },
+    province: { type: String },
+    postalCode: { type: String },
+    landmark: { type: String },
+    deliveryNotes: { type: String }
+  },
 
   // Payment details for different payment methods
   paymentDetails: {
@@ -130,5 +165,7 @@ orderSchema.index({ fulfillmentType: 1 }); // Filter by fulfillment type (dine-i
 orderSchema.index({ 'paymentGateway.sessionId': 1 }); // PayMongo session lookup
 orderSchema.index({ 'paymentGateway.status': 1 }); // PayMongo payment status queries
 orderSchema.index({ 'paymentGateway.expiresAt': 1 }); // PayMongo session cleanup
+orderSchema.index({ customerId: 1, createdAt: -1 }); // Customer order history
+orderSchema.index({ customerId: 1, status: 1 }); // Customer orders by status
 
 module.exports = mongoose.model('Order', orderSchema);

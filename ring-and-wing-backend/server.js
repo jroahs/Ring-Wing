@@ -326,6 +326,10 @@ app.use('/api/payroll-schedules', payrollScheduleRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/expenses', require('./routes/expenseRoutes'));
 app.use('/api/auth', require('./routes/authRoutes'));
+// Customer authentication routes (separate from staff auth)
+app.use('/api/customer/auth', require('./routes/customerAuthRoutes'));
+app.use('/api/customer/addresses', require('./routes/customerAddressRoutes'));
+app.use('/api/customer/orders', require('./routes/customerOrderRoutes'));
 app.use('/api/menu', require('./routes/menuRoutes'));
 app.use('/api/add-ons', require('./routes/addOnsRoutes'));
 app.use('/api/categories', require('./routes/categoryRoutes'));

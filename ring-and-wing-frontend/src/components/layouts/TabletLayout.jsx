@@ -4,6 +4,7 @@ import { useMenuContext } from '../../contexts/MenuContext';
 import { useAlternatives } from '../../hooks/useAlternatives';
 import { AlternativesModal } from '../ui/AlternativesModal';
 import AssistantPanel from '../ui/AssistantPanel';
+import SelfCheckoutHeader from '../ui/SelfCheckoutHeader';
 
 const colors = {
   primary: '#2e0304',
@@ -173,25 +174,28 @@ const TabletLayout = ({
       {/* Tablet Header with Search */}
       <div className="sticky top-0 bg-white/90 backdrop-blur-lg p-6 shadow-lg z-10 border-b border-gray-100">
         <div className="max-w-2xl mx-auto">
-          <div className="relative">
-            <input
-              type="text"
-              className="w-full h-14 pl-14 pr-6 rounded-full border-2 text-lg transition-all duration-300 focus:ring-4 focus:ring-orange-100 focus:border-orange-500"
-              style={{ borderColor: colors.muted }}
-              placeholder="Search menu or scan item..."
-              value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
-            />
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              className="h-7 w-7 absolute left-5 top-3.5 transition-colors duration-300" 
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke={searchTerm ? colors.accent : colors.muted}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+          <div className="flex items-center gap-4">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                className="w-full h-14 pl-14 pr-6 rounded-full border-2 text-lg transition-all duration-300 focus:ring-4 focus:ring-orange-100 focus:border-orange-500"
+                style={{ borderColor: colors.muted }}
+                placeholder="Search menu or scan item..."
+                value={searchTerm}
+                onChange={(e) => onSearchChange(e.target.value)}
+              />
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className="h-7 w-7 absolute left-5 top-3.5 transition-colors duration-300" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke={searchTerm ? colors.accent : colors.muted}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <SelfCheckoutHeader />
           </div>
         </div>
       </div>

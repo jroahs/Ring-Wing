@@ -1,0 +1,146 @@
+.customer-account-menu {
+  position: relative;
+  display: inline-block;
+}
+
+.account-menu-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.account-menu-trigger:hover {
+  background-color: #f5f5f5;
+  border-color: #ccc;
+}
+
+.account-greeting {
+  font-weight: 500;
+}
+
+.dropdown-icon {
+  transition: transform 0.2s;
+}
+
+.dropdown-icon.open {
+  transform: rotate(180deg);
+}
+
+.account-dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  min-width: 240px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.dropdown-header {
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.customer-name {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.25rem;
+}
+
+.customer-phone {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background-color: #e0e0e0;
+  margin: 0.25rem 0;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: #333;
+  transition: background-color 0.2s;
+}
+
+.dropdown-item:hover {
+  background-color: #f5f5f5;
+}
+
+.dropdown-item svg {
+  flex-shrink: 0;
+  color: #666;
+}
+
+.logout-item {
+  color: #d32f2f;
+}
+
+.logout-item svg {
+  color: #d32f2f;
+}
+
+.logout-item:hover {
+  background-color: #ffebee;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .account-greeting {
+    display: none;
+  }
+
+  .account-menu-trigger {
+    padding: 0.5rem;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    justify-content: center;
+  }
+
+  .account-menu-trigger::before {
+    content: '👤';
+    font-size: 1.25rem;
+  }
+
+  .dropdown-icon {
+    display: none;
+  }
+
+  .account-dropdown {
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+@media (max-width: 480px) {
+  .account-dropdown {
+    left: 0;
+    right: 0;
+    transform: none;
+    width: calc(100vw - 2rem);
+    margin: 0 1rem;
+  }
+}
