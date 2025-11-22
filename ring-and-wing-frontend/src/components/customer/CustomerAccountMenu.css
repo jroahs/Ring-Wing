@@ -46,6 +46,16 @@
   overflow: hidden;
 }
 
+/* In sidebar (narrow container), allow dropdown to overflow to the right */
+.w-64 .customer-account-menu {
+  overflow: visible;
+}
+
+.w-64 .account-dropdown {
+  left: 0;
+  right: auto;
+}
+
 .dropdown-header {
   padding: 1rem;
   background-color: #f9f9f9;
