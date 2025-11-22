@@ -321,6 +321,11 @@ const DesktopLayout = ({
         <div className="flex-1 flex">
           {/* Category Sidebar with Dropdown */}
           <div className="w-64 bg-white shadow-sm border-r border-gray-100 flex flex-col">
+            {/* Customer Auth Section at top */}
+            <div className="p-4 border-b border-gray-100">
+              <SelfCheckoutHeader />
+            </div>
+            
             <div className="p-4 flex-1 overflow-y-auto">
               <h3 className="font-bold text-lg text-gray-800 mb-4">Categories</h3>
               <nav className="space-y-1">
@@ -390,11 +395,6 @@ const DesktopLayout = ({
                   );
                 })}
               </nav>
-            </div>
-            
-            {/* Customer Auth Section at bottom */}
-            <div className="p-4 border-t border-gray-100">
-              <SelfCheckoutHeader />
             </div>
           </div>
 
