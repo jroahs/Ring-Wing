@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_URL } from '../App';
 
 const CustomerAuthContext = createContext();
 
@@ -10,8 +11,6 @@ export const useCustomerAuth = () => {
   }
   return context;
 };
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 export const CustomerAuthProvider = ({ children }) => {
   const [customer, setCustomer] = useState(null);
