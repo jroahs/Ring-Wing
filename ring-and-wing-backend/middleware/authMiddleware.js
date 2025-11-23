@@ -52,7 +52,13 @@ const auth = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('[Auth Debug] Authentication error:', error);
+    console.error('[Auth Debug] Authentication error:', {
+      name: error.name,
+      message: error.message,
+      tokenReceived: !!req.header('Authorization'),
+      tokenFormat: req.header('Authorization')?.substring(0, 30) + '...'
+    });
+    
     const message = error.name === 'TokenExpiredError' 
       ? 'Session expired, please login again' 
       : error.name === 'JsonWebTokenError'
