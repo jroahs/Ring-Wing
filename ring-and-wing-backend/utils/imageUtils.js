@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { uploadFile, getPublicUrl, deleteFileByUrl, generateUniqueFilename } = require('./supabaseStorage');
+const { uploadFile, getPublicUrl, getSignedUrl, deleteFileByUrl, generateUniqueFilename } = require('./supabaseStorage');
 
 /**
  * Save a base64 encoded image to Supabase Storage
@@ -36,7 +36,8 @@ const saveStaffProfileImage = async (base64Data, staffId) => {
       contentType: `image/${imageType}`
     });
 
-    const url = getPublicUrl('staff-profiles', filePath);
+    // Use signed URL for private bucket (1 year expiry)
+    const url = await getSignedUrl('staff-profiles', filePath, 31536000);
     console.log('[Staff Debug] Saved profile image to Supabase:', url);
     
     return url;
