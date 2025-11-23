@@ -607,11 +607,18 @@ const PaymentSettings = () => {
                   {settings.merchantWallets.gcash.qrCodeUrl && settings.merchantWallets.gcash.qrCodeUrl.trim() !== '' ? (
                     <div className="flex items-start gap-4">
                       <img 
-                        src={settings.merchantWallets.gcash.qrCodeUrl.startsWith('http') 
-                          ? settings.merchantWallets.gcash.qrCodeUrl 
-                          : `${API_URL}${settings.merchantWallets.gcash.qrCodeUrl}`}
+                        src={(() => {
+                          const finalUrl = settings.merchantWallets.gcash.qrCodeUrl.startsWith('http') 
+                            ? settings.merchantWallets.gcash.qrCodeUrl 
+                            : `${API_URL}${settings.merchantWallets.gcash.qrCodeUrl}`;
+                          console.log('[PaymentSettings] GCash QR image src:', finalUrl);
+                          return finalUrl;
+                        })()}
                         alt="GCash QR Code"
                         className="w-48 h-48 object-contain border rounded-lg"
+                        onError={(e) => {
+                          console.error('[PaymentSettings] GCash QR image failed to load:', e.target.src);
+                        }}
                       />
                       <button
                         onClick={() => handleDeleteQR('gcash')}
