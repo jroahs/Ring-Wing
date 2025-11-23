@@ -364,6 +364,13 @@ const PointOfSale = () => {
       
       console.log('Meal Subcategories Count:', mealSubcats);
       console.log('Beverage Subcategories Count:', bevSubcats);
+      
+      // Debug: Show total items that should render
+      console.log('🔍 TOTAL ITEMS BY CATEGORY:', {
+        Meals: menuItems.filter(i => i.category === 'Meals').length,
+        Beverages: menuItems.filter(i => i.category === 'Beverages').length,
+        Total: menuItems.length
+      });
     }
   }, [menuItems]);
   
@@ -1580,17 +1587,52 @@ const PointOfSale = () => {
         </div>
         
         {/* Display Category Items */}
-        <div className="overflow-x-auto scrollbar-hide" style={{ width: '836px', maxWidth: '100%' }}>
-          <div className="flex gap-3 pb-2" style={{ width: 'max-content' }}>
-            {menuItems
-              .filter(item => 
-                item.category === categoryName && 
+        <div 
+          className="overflow-x-scroll scrollbar-hide" 
+          style={{ 
+            maxWidth: '100%', 
+            width: '836px',
+            WebkitOverflowScrolling: 'touch',
+            cursor: 'grab',
+            userSelect: 'none'
+          }}
+          onMouseDown={(e) => {
+            const slider = e.currentTarget;
+            slider.style.cursor = 'grabbing';
+            let isDown = true;
+            let startX = e.pageX - slider.offsetLeft;
+            let scrollLeft = slider.scrollLeft;
+            
+            const handleMouseMove = (e) => {
+              if (!isDown) return;
+              e.preventDefault();
+              const x = e.pageX - slider.offsetLeft;
+              const walk = (x - startX) * 2;
+              slider.scrollLeft = scrollLeft - walk;
+            };
+            
+            const handleMouseUp = () => {
+              isDown = false;
+              slider.style.cursor = 'grab';
+              document.removeEventListener('mousemove', handleMouseMove);
+              document.removeEventListener('mouseup', handleMouseUp);
+            };
+            
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+          }}
+        >
+          <div className="flex gap-3 pb-2" style={{ minWidth: 'max-content' }}>
+            {(() => {
+              const categoryItems = menuItems.filter(i => i.category === categoryName);
+              const filtered = categoryItems.filter(item => 
                 (!selectedSubCategory || item.subCategory === selectedSubCategory) &&
                 (searchTerm === '' || 
                  item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                  item.code.toLowerCase().includes(searchTerm.toLowerCase()))
-              )
-              .map(item => (
+              );
+              
+              const renderedElements = filtered.map(item => (
                 <div key={item._id} className="flex-shrink-0" style={{ width: '200px' }}>
                   <MenuItemCard
                     item={item}
@@ -1599,7 +1641,20 @@ const PointOfSale = () => {
                     isLocked={isItemLocked()}
                   />
                 </div>
-              ))
+              ));
+              
+              console.log(`[POS] Rendering ${categoryName}:`, {
+                totalMenuItems: menuItems.length,
+                categoryItems: categoryItems.length,
+                filtered: filtered.length,
+                renderedElements: renderedElements.length,
+                selectedSubCategory,
+                searchTerm,
+                filteredItems: filtered.map(i => ({ name: i.name, subCat: i.subCategory, available: i.isAvailable }))
+              });
+              
+              return renderedElements;
+            })()
             }
           </div>
         </div>
@@ -1804,17 +1859,59 @@ const PointOfSale = () => {
                       </div>
                       
                       {/* Display Meal Items */}
-                      <div className="overflow-x-auto scrollbar-hide" style={{ width: '836px', maxWidth: '100%' }}>
-                        <div className="flex gap-3 pb-2" style={{ width: 'max-content' }}>
-                          {menuItems
-                            .filter(item => 
+                      <div 
+                        className="overflow-x-scroll scrollbar-hide" 
+                        style={{ 
+                          maxWidth: '100%', 
+                          width: '836px',
+                          WebkitOverflowScrolling: 'touch',
+                          cursor: 'grab',
+                          userSelect: 'none'
+                        }}
+                        onMouseDown={(e) => {
+                          const slider = e.currentTarget;
+                          slider.style.cursor = 'grabbing';
+                          let isDown = true;
+                          let startX = e.pageX - slider.offsetLeft;
+                          let scrollLeft = slider.scrollLeft;
+                          
+                          const handleMouseMove = (e) => {
+                            if (!isDown) return;
+                            e.preventDefault();
+                            const x = e.pageX - slider.offsetLeft;
+                            const walk = (x - startX) * 2;
+                            slider.scrollLeft = scrollLeft - walk;
+                          };
+                          
+                          const handleMouseUp = () => {
+                            isDown = false;
+                            slider.style.cursor = 'grab';
+                            document.removeEventListener('mousemove', handleMouseMove);
+                            document.removeEventListener('mouseup', handleMouseUp);
+                          };
+                          
+                          document.addEventListener('mousemove', handleMouseMove);
+                          document.addEventListener('mouseup', handleMouseUp);
+                        }}
+                      >
+                        <div className="flex gap-3 pb-2" style={{ minWidth: 'max-content' }}>
+                          {(() => {
+                            const filtered = menuItems.filter(item => 
                               item.category === 'Meals' && 
                               (!selectedMealSubCategory || item.subCategory === selectedMealSubCategory) &&
                               (searchTerm === '' || 
                                item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                                item.code.toLowerCase().includes(searchTerm.toLowerCase()))
-                            )
-                            .map(item => (
+                            );
+                            console.log('[POS] Fallback Meals:', {
+                              totalMenuItems: menuItems.length,
+                              categoryItems: menuItems.filter(i => i.category === 'Meals').length,
+                              filtered: filtered.length,
+                              selectedMealSubCategory,
+                              searchTerm
+                            });
+                            return filtered;
+                          })().map(item => (
                               <div key={item._id} className="flex-shrink-0" style={{ width: '200px' }}>
                                 <MenuItemCard
                                   item={item}
@@ -1881,17 +1978,59 @@ const PointOfSale = () => {
                       </div>
                       
                       {/* Display Beverage Items */}
-                      <div className="overflow-x-auto scrollbar-hide" style={{ width: '836px', maxWidth: '100%' }}>
-                        <div className="flex gap-3 pb-2" style={{ width: 'max-content' }}>
-                          {menuItems
-                            .filter(item => 
+                      <div 
+                        className="overflow-x-scroll scrollbar-hide" 
+                        style={{ 
+                          maxWidth: '100%', 
+                          width: '836px',
+                          WebkitOverflowScrolling: 'touch',
+                          cursor: 'grab',
+                          userSelect: 'none'
+                        }}
+                        onMouseDown={(e) => {
+                          const slider = e.currentTarget;
+                          slider.style.cursor = 'grabbing';
+                          let isDown = true;
+                          let startX = e.pageX - slider.offsetLeft;
+                          let scrollLeft = slider.scrollLeft;
+                          
+                          const handleMouseMove = (e) => {
+                            if (!isDown) return;
+                            e.preventDefault();
+                            const x = e.pageX - slider.offsetLeft;
+                            const walk = (x - startX) * 2;
+                            slider.scrollLeft = scrollLeft - walk;
+                          };
+                          
+                          const handleMouseUp = () => {
+                            isDown = false;
+                            slider.style.cursor = 'grab';
+                            document.removeEventListener('mousemove', handleMouseMove);
+                            document.removeEventListener('mouseup', handleMouseUp);
+                          };
+                          
+                          document.addEventListener('mousemove', handleMouseMove);
+                          document.addEventListener('mouseup', handleMouseUp);
+                        }}
+                      >
+                        <div className="flex gap-3 pb-2" style={{ minWidth: 'max-content' }}>
+                          {(() => {
+                            const filtered = menuItems.filter(item => 
                               item.category === 'Beverages' && 
                               (!selectedBeverageSubCategory || item.subCategory === selectedBeverageSubCategory) &&
                               (searchTerm === '' || 
                                item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                                item.code.toLowerCase().includes(searchTerm.toLowerCase()))
-                            )
-                            .map(item => (
+                            );
+                            console.log('[POS] Fallback Beverages:', {
+                              totalMenuItems: menuItems.length,
+                              categoryItems: menuItems.filter(i => i.category === 'Beverages').length,
+                              filtered: filtered.length,
+                              selectedBeverageSubCategory,
+                              searchTerm
+                            });
+                            return filtered;
+                          })().map(item => (
                               <div key={item._id} className="flex-shrink-0" style={{ width: '200px' }}>
                                 <MenuItemCard
                                   item={item}
