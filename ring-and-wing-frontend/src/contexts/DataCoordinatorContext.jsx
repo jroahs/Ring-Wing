@@ -97,7 +97,9 @@ export const DataCoordinatorProvider = ({ children }) => {
       
       const processedItems = items.map(item => ({
         ...item,
-        image: item.image ? `${API_URL}${item.image}` : null,
+        image: item.image 
+          ? (item.image.startsWith('http') ? item.image : `${API_URL}${item.image}`)
+          : null,
         pricing: item.pricing || { base: 0 },
         modifiers: item.modifiers || [],
         isAvailable: item.isAvailable

@@ -1481,7 +1481,9 @@ const MenuPage = () => {
         hasToken: !!token,
         tokenLength: token?.length,
         tokenPrefix: token?.substring(0, 20) + '...',
-        fromStorage: localStorage.getItem('token') ? 'token' : 'authToken'
+        fromStorage: localStorage.getItem('token') ? 'token' : 'authToken',
+        startsWithBearer: token?.startsWith('Bearer'),
+        actualToken: token // TEMPORARY: Full token for debugging
       });
       
       const response = await fetch(url, { 
@@ -1751,7 +1753,9 @@ const MenuPage = () => {
         setImagePreview(
           selectedItem.image.startsWith('http') 
             ? selectedItem.image
-            : `${API_URL}${selectedItem.image}`
+            : (selectedItem.image?.startsWith('http') 
+              ? selectedItem.image 
+              : `${API_URL}${selectedItem.image}`)
         );
       } else {
         // Set imagePreview to null so the placeholder will be used
@@ -2298,12 +2302,13 @@ const MenuPage = () => {
                     </td>
                     <td className="p-4">
                       <div className="flex items-center gap-3">                        <div 
-                          className="w-10 h-10 bg-cover bg-center border rounded-sm overflow-hidden"                          style={{ 
+                          className="w-10 h-10 bg-cover bg-center border rounded-sm overflow-hidden"
+                          style={{ 
                             backgroundImage: `url(${item.image ? 
-                              (item.image.startsWith('http') ? item.image : 
-                               (item.image.startsWith('data:') ? item.image : 
-                                `${API_URL}${item.image}`)) : 
-                              (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png')})`,
+                              (item.image.startsWith('http') || item.image.startsWith('data:') 
+                                ? item.image 
+                                : `${API_URL}${item.image}`) 
+                              : (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png')})`,
                             borderColor: colors.muted
                           }}
                         />

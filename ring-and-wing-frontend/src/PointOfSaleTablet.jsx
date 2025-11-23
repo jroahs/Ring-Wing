@@ -320,7 +320,9 @@ const PointOfSaleTablet = () => {
         subCategory: item.subCategory || '',
         pricing: item.pricing,
         description: item.description,
-        image: item.image ? `${API_URL}${item.image}` : 
+        image: item.image 
+          ? (item.image.startsWith('http') ? item.image : `${API_URL}${item.image}`)
+          : 
                (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png'),
         modifiers: item.modifiers || [],
         isAvailable: item.isAvailable
