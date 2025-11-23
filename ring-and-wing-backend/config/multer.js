@@ -2,47 +2,9 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Configure storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // Determine upload path based on the route
-    let uploadPath;
-    
-    if (req.originalUrl.includes('/menu')) {
-      uploadPath = path.join(__dirname, '../public/uploads/menu');
-    } else if (req.originalUrl.includes('/upload-proof') || req.originalUrl.includes('/payment-proofs')) {
-      uploadPath = path.join(__dirname, '../public/uploads/payment-proofs');
-    } else if (req.originalUrl.includes('/qr') || req.originalUrl.includes('/merchant-wallets')) {
-      uploadPath = path.join(__dirname, '../public/uploads/qr-codes');
-    } else {
-      uploadPath = path.join(__dirname, '../public/uploads');
-    }
-    
-    // Create directory with proper error handling
-    fs.mkdir(uploadPath, { recursive: true }, (err) => {
-      if (err) {
-        console.error('Directory creation error:', err);
-        return cb(new Error('Failed to create upload directory'));
-      }
-      cb(null, uploadPath);
-    });
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname).toLowerCase();
-    
-    // Generate appropriate filename based on upload type
-    let prefix = 'img';
-    if (req.originalUrl.includes('/upload-proof') || req.originalUrl.includes('/payment-proofs')) {
-      const orderId = req.params.id || 'unknown';
-      prefix = `payment-proof-${orderId}`;
-    } else if (req.originalUrl.includes('/qr') || req.originalUrl.includes('/merchant-wallets')) {
-      prefix = 'qr-code';
-    }
-    
-    cb(null, `${prefix}-${uniqueSuffix}${ext}`);
-  }
-});
+// ⚠️ IMPORTANT: Using memoryStorage to keep files in buffer for Supabase upload
+// Files are NOT saved to disk - they go directly to Supabase Storage
+const storage = multer.memoryStorage();
 
 // Enhanced file filter
 const fileFilter = (req, file, cb) => {
