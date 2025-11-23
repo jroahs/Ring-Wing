@@ -197,9 +197,14 @@ const StaffManagement = () => {
       // Base64 image
       return imagePath;
     }
+
+    // If it's already a full Supabase URL, use it directly
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
     
     // Handle different path formats
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const baseUrl = import.meta.env.VITE_API_URL;
     
     // Direct path to image in /uploads/staff
     if (imagePath.includes('/uploads/staff/')) {
@@ -227,18 +232,31 @@ const StaffManagement = () => {
       errors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errors.email = 'Invalid email format';
-    }    // Password validation - minimum 8 characters
-    if (!formData.password.trim()) {
-      errors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      errors.password = 'Password must be at least 8 characters';
     }
 
-    // Confirm Password validation
-    if (!formData.confirmPassword.trim()) {
-      errors.confirmPassword = 'Please confirm your password';
-    } else if (formData.password !== formData.confirmPassword) {
-      errors.confirmPassword = 'Passwords do not match';
+    // Password validation - only required for new staff (not in edit mode)
+    if (!editMode) {
+      // Password validation for new staff - minimum 8 characters
+      if (!formData.password || !formData.password.trim()) {
+        errors.password = 'Password is required';
+      } else if (formData.password.length < 8) {
+        errors.password = 'Password must be at least 8 characters';
+      }
+
+      // Confirm Password validation for new staff
+      if (!formData.confirmPassword || !formData.confirmPassword.trim()) {
+        errors.confirmPassword = 'Please confirm your password';
+      } else if (formData.password !== formData.confirmPassword) {
+        errors.confirmPassword = 'Passwords do not match';
+      }
+    } else if (formData.password || formData.confirmPassword) {
+      // If editing and password fields are filled, validate them
+      if (formData.password && formData.password.length < 8) {
+        errors.password = 'Password must be at least 8 characters';
+      }
+      if (formData.password !== formData.confirmPassword) {
+        errors.confirmPassword = 'Passwords do not match';
+      }
     }
 
     // PIN validation - must be 4-6 digits and unique
