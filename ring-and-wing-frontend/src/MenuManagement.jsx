@@ -1475,9 +1475,15 @@ const MenuPage = () => {
         ? `${API_URL}/api/menu/${selectedItem._id}`
         : `${API_URL}/api/menu`;
   
+      // Get auth token for request
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      
       const response = await fetch(url, { 
         method, 
         body: formData,
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
         signal: controller.signal
       });
       
