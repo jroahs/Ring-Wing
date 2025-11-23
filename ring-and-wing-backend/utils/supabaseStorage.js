@@ -43,8 +43,15 @@ function getPublicUrl(bucket, filePath) {
     .from(bucket)
     .getPublicUrl(filePath);
 
-  console.log(`[Supabase Storage] Generated public URL for ${bucket}/${filePath}`);
-  return data.publicUrl;
+  const publicUrl = data.publicUrl;
+  console.log(`[Supabase Storage] Generated public URL for ${bucket}/${filePath}:`, publicUrl);
+  
+  if (!publicUrl || !publicUrl.startsWith('http')) {
+    console.error('[Supabase Storage] Invalid public URL generated:', { bucket, filePath, publicUrl, data });
+    throw new Error(`Failed to generate valid public URL for ${bucket}/${filePath}`);
+  }
+  
+  return publicUrl;
 }
 
 /**
