@@ -21,6 +21,12 @@ const StaffAvatar = ({ imagePath, alt = 'Staff photo', size = 40, className = ''
       return;
     }
     
+    // If it's already a full URL (Supabase), use it directly
+    if (imagePath.startsWith('http')) {
+      setImageSrc(imagePath);
+      return;
+    }
+    
     // Handle different path formats
     const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     

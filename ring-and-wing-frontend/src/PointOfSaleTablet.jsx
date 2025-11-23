@@ -1972,7 +1972,9 @@ const PointOfSaleTablet = () => {
               {/* 1x1 Thumbnail Image - Top Right */}
               {selectedVerificationOrder.proofOfPayment?.imageUrl && (
                 <img 
-                  src={`${API_URL}${selectedVerificationOrder.proofOfPayment.imageUrl}`}
+                  src={selectedVerificationOrder.proofOfPayment.imageUrl.startsWith('http')
+                    ? selectedVerificationOrder.proofOfPayment.imageUrl
+                    : `${API_URL}${selectedVerificationOrder.proofOfPayment.imageUrl}`}
                   alt="Payment Proof"
                   className="w-20 h-20 object-cover rounded border-2 border-gray-300 cursor-pointer hover:border-blue-500 transition-colors"
                   onClick={() => setExpandedImage(!expandedImage)}
@@ -1989,7 +1991,9 @@ const PointOfSaleTablet = () => {
               >
                 <div className="relative max-w-4xl max-h-[90vh] p-4">
                   <img 
-                    src={`${API_URL}${selectedVerificationOrder.proofOfPayment.imageUrl}`}
+                    src={selectedVerificationOrder.proofOfPayment.imageUrl.startsWith('http')
+                      ? selectedVerificationOrder.proofOfPayment.imageUrl
+                      : `${API_URL}${selectedVerificationOrder.proofOfPayment.imageUrl}`}
                     alt="Payment Proof - Full Size"
                     className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
                   />

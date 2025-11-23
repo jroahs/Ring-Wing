@@ -607,7 +607,9 @@ const PaymentSettings = () => {
                   {settings.merchantWallets.gcash.qrCodeUrl && settings.merchantWallets.gcash.qrCodeUrl.trim() !== '' ? (
                     <div className="flex items-start gap-4">
                       <img 
-                        src={`${API_URL}${settings.merchantWallets.gcash.qrCodeUrl}`}
+                        src={settings.merchantWallets.gcash.qrCodeUrl.startsWith('http') 
+                          ? settings.merchantWallets.gcash.qrCodeUrl 
+                          : `${API_URL}${settings.merchantWallets.gcash.qrCodeUrl}`}
                         alt="GCash QR Code"
                         className="w-48 h-48 object-contain border rounded-lg"
                       />
@@ -731,7 +733,9 @@ const PaymentSettings = () => {
                   {settings.merchantWallets.paymaya.qrCodeUrl && settings.merchantWallets.paymaya.qrCodeUrl.trim() !== '' ? (
                     <div className="flex items-start gap-4">
                       <img 
-                        src={`${API_URL}${settings.merchantWallets.paymaya.qrCodeUrl}`}
+                        src={settings.merchantWallets.paymaya.qrCodeUrl.startsWith('http') 
+                          ? settings.merchantWallets.paymaya.qrCodeUrl 
+                          : `${API_URL}${settings.merchantWallets.paymaya.qrCodeUrl}`}
                         alt="PayMaya QR Code"
                         className="w-48 h-48 object-contain border rounded-lg"
                       />

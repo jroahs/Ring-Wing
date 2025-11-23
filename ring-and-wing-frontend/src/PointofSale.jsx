@@ -2186,7 +2186,9 @@ const PointOfSale = () => {
                               {!isPayMongoOrder && order.proofOfPayment?.imageUrl && (
                                 <div className="mb-2">
                                   <img 
-                                    src={`${API_URL}${order.proofOfPayment.imageUrl}`}
+                                    src={order.proofOfPayment.imageUrl.startsWith('http')
+                                      ? order.proofOfPayment.imageUrl
+                                      : `${API_URL}${order.proofOfPayment.imageUrl}`}
                                     alt="Payment Proof"
                                     className="w-full h-32 object-contain border rounded bg-gray-50"
                                     title="Click card to view details"
@@ -2507,7 +2509,9 @@ const PointOfSale = () => {
                 {selectedVerificationOrder.proofOfPayment?.imageUrl && (
                   <div className="ml-4">
                     <img 
-                      src={`${API_URL}${selectedVerificationOrder.proofOfPayment.imageUrl}`}
+                      src={selectedVerificationOrder.proofOfPayment.imageUrl.startsWith('http')
+                        ? selectedVerificationOrder.proofOfPayment.imageUrl
+                        : `${API_URL}${selectedVerificationOrder.proofOfPayment.imageUrl}`}
                       alt="Payment Proof"
                       className="w-20 h-20 object-cover cursor-pointer hover:ring-2 ring-blue-500 rounded border-2 border-gray-300 transition-all"
                       onClick={() => setExpandedImage(!expandedImage)}
@@ -2526,7 +2530,9 @@ const PointOfSale = () => {
                 >
                   <div className="relative max-w-4xl max-h-[90vh]">
                     <img 
-                      src={`${API_URL}${selectedVerificationOrder.proofOfPayment.imageUrl}`}
+                      src={selectedVerificationOrder.proofOfPayment.imageUrl.startsWith('http')
+                        ? selectedVerificationOrder.proofOfPayment.imageUrl
+                        : `${API_URL}${selectedVerificationOrder.proofOfPayment.imageUrl}`}
                       alt="Payment Proof Full Size"
                       className="max-w-full max-h-[90vh] object-contain"
                       onClick={(e) => e.stopPropagation()}
