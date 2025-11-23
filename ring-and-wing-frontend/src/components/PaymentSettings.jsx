@@ -200,8 +200,7 @@ const PaymentSettings = () => {
             }
           }
         }));
-        setSuccess(`${provider.toUpperCase()} QR code uploaded successfully!`);
-        setTimeout(() => setSuccess(''), 3000);
+        toast.success(`${provider.toUpperCase()} QR code uploaded successfully!`);
       }
     } catch (err) {
       setError(err.message);
@@ -241,8 +240,7 @@ const PaymentSettings = () => {
             }
           }
         }));
-        setSuccess(`${provider.toUpperCase()} QR code deleted successfully!`);
-        setTimeout(() => setSuccess(''), 3000);
+        toast.success(`${provider.toUpperCase()} QR code deleted successfully!`);
       }
     } catch (err) {
       setError(err.message);
