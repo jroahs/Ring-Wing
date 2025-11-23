@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { lightCheck, standardCheck, criticalCheck } = require('../middleware/dbConnectionMiddleware');
 const { ingredientMappingMonitor, costAnalysisMonitor } = require('../middleware/connectionMonitoringMiddleware');
+const { auth, isManager } = require('../middleware/authMiddleware');
 
 // ⚠️ IMPORTANT: Using memoryStorage - files buffered in memory for Supabase upload
 // Files do NOT save to disk - they go directly to Supabase Storage via controller
@@ -82,13 +83,13 @@ router.get('/', lightCheck, async (req, res) => {
 });
 
 // POST new menu item with validation - NOW USES SUPABASE VIA CONTROLLER
-router.post('/', criticalCheck, upload.single('image'), async (req, res) => {
+router.post('/', auth, isManager, criticalCheck, upload.single('image'), async (req, res) => {
   const menuController = require('../controllers/menuController');
   await menuController.createMenuItem(req, res);
 });
 
 // PUT update menu item - NOW USES SUPABASE VIA CONTROLLER
-router.put('/:id', criticalCheck, upload.single('image'), async (req, res) => {
+router.put('/:id', auth, isManager, criticalCheck, upload.single('image'), async (req, res) => {
   const menuController = require('../controllers/menuController');
   await menuController.updateMenuItem(req, res);
 });
