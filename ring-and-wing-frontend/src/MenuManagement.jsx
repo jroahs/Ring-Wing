@@ -1477,6 +1477,12 @@ const MenuPage = () => {
   
       // Get auth token for request
       const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      console.log('[Menu Save] Token check:', {
+        hasToken: !!token,
+        tokenLength: token?.length,
+        tokenPrefix: token?.substring(0, 20) + '...',
+        fromStorage: localStorage.getItem('token') ? 'token' : 'authToken'
+      });
       
       const response = await fetch(url, { 
         method, 
