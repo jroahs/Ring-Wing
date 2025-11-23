@@ -2,24 +2,19 @@
 
 const fs = require('fs');
 const path = require('path');
+const { uploadFile, getPublicUrl, deleteFileByUrl, generateUniqueFilename } = require('./supabaseStorage');
 
 /**
- * Save a base64 encoded image to the filesystem
+ * Save a base64 encoded image to Supabase Storage
  * @param {string} base64Data - The base64 encoded image data
  * @param {string} staffId - The ID of the staff member
- * @returns {string|null} - The relative path to the saved image or null if failed
+ * @returns {Promise<string|null>} - The URL to the saved image or null if failed
  */
-const saveStaffProfileImage = (base64Data, staffId) => {
+const saveStaffProfileImage = async (base64Data, staffId) => {
   try {
     if (!base64Data || typeof base64Data !== 'string' || !base64Data.startsWith('data:image')) {
       console.log('[Staff Debug] Invalid base64 image data');
       return null;
-    }
-
-    // Create the directory if it doesn't exist
-    const dir = path.join(__dirname, '../public/uploads/staff');
-    if (!fs.existsSync(dir)){
-      fs.mkdirSync(dir, { recursive: true });
     }
 
     // Extract the image data and determine file extension
@@ -33,18 +28,20 @@ const saveStaffProfileImage = (base64Data, staffId) => {
     const imageData = matches[2];
     const buffer = Buffer.from(imageData, 'base64');
 
-    // Generate filename
-    const timestamp = Date.now();
-    const filename = `${timestamp}-${staffId}-profile.${imageType === 'jpeg' ? 'jpg' : imageType}`;
-    const filepath = path.join(dir, filename);
-      // Save the file
-    fs.writeFileSync(filepath, buffer);
-    console.log('[Staff Debug] Saved base64 profile image to:', filepath);
+    // Generate filename and upload to Supabase
+    const filename = generateUniqueFilename(`profile.${imageType}`, staffId);
+    const filePath = `${staffId}/${filename}`;
+
+    await uploadFile('staff-profiles', filePath, buffer, {
+      contentType: `image/${imageType}`
+    });
+
+    const url = getPublicUrl('staff-profiles', filePath);
+    console.log('[Staff Debug] Saved profile image to Supabase:', url);
     
-    // Return the relative path for database storage (without /public prefix)
-    return `/uploads/staff/${filename}`;
+    return url;
   } catch (error) {
-    console.error('[Staff Debug] Error saving base64 profile image:', error);
+    console.error('[Staff Debug] Error saving profile image to Supabase:', error);
     return null;
   }
 };
@@ -137,12 +134,24 @@ const deleteMenuImage = (imagePath) => {
 };
 
 /**
- * Delete a staff profile image
- * @param {string} imagePath - The relative path to the image
- * @returns {boolean} - Whether the deletion was successful
+ * Delete a staff profile image (handles both Supabase and local)
+ * @param {string} imagePath - The URL or relative path to the image
+ * @returns {Promise<boolean>} - Whether the deletion was successful
  */
-const deleteStaffProfileImage = (imagePath) => {
-  return deleteImage(imagePath);
+const deleteStaffProfileImage = async (imagePath) => {
+  try {
+    // Check if it's a Supabase URL
+    if (imagePath && imagePath.includes('supabase.co')) {
+      await deleteFileByUrl(imagePath);
+      console.log('[Staff Debug] Successfully deleted Supabase profile image');
+      return true;
+    }
+    // Fallback to local deletion for legacy images
+    return deleteImage(imagePath);
+  } catch (error) {
+    console.error('[Staff Debug] Error deleting profile image:', error);
+    return false;
+  }
 };
 
 /**

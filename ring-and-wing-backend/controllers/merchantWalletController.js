@@ -2,6 +2,7 @@
 const Settings = require('../models/Settings');
 const path = require('path');
 const fs = require('fs').promises;
+const { uploadFile, getPublicUrl, deleteFileByUrl, generateUniqueFilename } = require('../utils/supabaseStorage');
 
 /**
  * Get merchant wallet settings
@@ -135,15 +136,30 @@ exports.uploadQRCode = async (req, res) => {
     const oldQRPath = settings.merchantWallets[provider].qrCodeUrl;
     if (oldQRPath) {
       try {
-        const fullPath = path.join(__dirname, '..', 'public', oldQRPath);
-        await fs.unlink(fullPath);
+        // Check if it's a Supabase URL
+        if (oldQRPath.includes('supabase.co')) {
+          await deleteFileByUrl(oldQRPath);
+          console.log('Deleted old Supabase QR code');
+        } else {
+          // Fallback to local file deletion for legacy QR codes
+          const fullPath = path.join(__dirname, '..', 'public', oldQRPath);
+          await fs.unlink(fullPath);
+        }
       } catch (err) {
         console.log('Old QR code not found or already deleted:', err.message);
       }
     }
 
-    // Save new QR code path
-    settings.merchantWallets[provider].qrCodeUrl = `/uploads/qr-codes/${req.file.filename}`;
+    // Upload new QR code to Supabase
+    const filename = generateUniqueFilename(req.file.originalname, `${provider}-qr`);
+    const filePath = `${provider}/${filename}`;
+
+    await uploadFile('merchant-qr-codes', filePath, req.file.buffer, {
+      contentType: req.file.mimetype
+    });
+
+    const qrCodeUrl = getPublicUrl('merchant-qr-codes', filePath);
+    settings.merchantWallets[provider].qrCodeUrl = qrCodeUrl;
     await settings.save();
 
     res.json({

@@ -3,22 +3,50 @@ const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
 const { deleteMenuImage, saveMenuImage } = require('../utils/imageUtils');
+const { uploadFile, getPublicUrl, deleteFileByUrl, generateUniqueFilename } = require('../utils/supabaseStorage');
 
-// Helper to handle file uploads
-const handleImageUpload = (file, base64Image, itemId) => {
-  // First check if a file was uploaded through multer
-  if (file) {
-    // Ensure we're using the menu-specific path
-    return `/uploads/menu/${file.filename}`;
+// Helper to handle file uploads - now using Supabase Storage
+const handleImageUpload = async (file, base64Image, itemCode) => {
+  try {
+    // Handle file upload through multer
+    if (file) {
+      const filename = generateUniqueFilename(file.originalname, itemCode);
+      const filePath = `images/${filename}`;
+      
+      await uploadFile('menu-items', filePath, file.buffer, {
+        contentType: file.mimetype
+      });
+      
+      return getPublicUrl('menu-items', filePath);
+    }
+    
+    // Handle base64 image upload
+    if (base64Image && base64Image.startsWith('data:image')) {
+      const matches = base64Image.match(/^data:image\/([A-Za-z-+\/]+);base64,(.+)$/);
+      if (!matches || matches.length !== 3) {
+        throw new Error('Invalid base64 image format');
+      }
+      
+      const imageType = matches[1];
+      const imageData = matches[2];
+      const buffer = Buffer.from(imageData, 'base64');
+      
+      const filename = generateUniqueFilename(`image.${imageType}`, itemCode);
+      const filePath = `images/${filename}`;
+      
+      await uploadFile('menu-items', filePath, buffer, {
+        contentType: `image/${imageType}`
+      });
+      
+      return getPublicUrl('menu-items', filePath);
+    }
+    
+    // No image provided
+    return null;
+  } catch (error) {
+    console.error('[Menu Controller] Image upload error:', error);
+    throw error;
   }
-  
-  // If no file but base64 image is provided, use our utility
-  if (base64Image && base64Image.startsWith('data:image')) {
-    return saveMenuImage(base64Image, itemId);
-  }
-  
-  // No image provided
-  return null;
 };
 
 // Get all menu items
@@ -40,11 +68,9 @@ exports.createMenuItem = async (req, res) => {
     const pricing = body.pricing ? JSON.parse(body.pricing) : [];
     const modifiers = body.modifiers ? JSON.parse(body.modifiers) : [];
     
-    // Create a temporary ID for the image name (will be replaced after save)
-    const tempId = new mongoose.Types.ObjectId();
-    
-    // Handle image upload - could be file or base64 string
-    const image = handleImageUpload(file, body.image, tempId);
+    // Handle image upload - now async with Supabase
+    const itemCode = body.code || 'ITEM';
+    const image = await handleImageUpload(file, body.image, itemCode);
     
     const newItem = new MenuItem({
       ...body,
@@ -54,24 +80,6 @@ exports.createMenuItem = async (req, res) => {
     });
 
     const savedItem = await newItem.save();
-    
-    // If we used a base64 image with tempId, rename the file to use the real ID
-    if (image && body.image && body.image.startsWith('data:image')) {
-      const updatedImagePath = image.replace(tempId.toString(), savedItem._id.toString());
-      
-      // Check if the file exists before renaming
-      const oldPath = path.join(__dirname, '../public', image);
-      const newPath = path.join(__dirname, '../public', updatedImagePath);
-      
-      if (fs.existsSync(oldPath)) {
-        fs.renameSync(oldPath, newPath);
-        
-        // Update the item with the correct path
-        savedItem.image = updatedImagePath;
-        await savedItem.save();
-      }
-    }
-    
     res.status(201).json(savedItem);
   } catch (err) {
     console.error('Error creating menu item:', err);
@@ -103,8 +111,9 @@ exports.updateMenuItem = async (req, res) => {
 
     // Handle image upload/update
     if (file || (body.image && body.image.startsWith('data:image'))) {
-      // Get new image path
-      const imagePath = handleImageUpload(file, body.image, id);
+      // Get new image path - now async with Supabase
+      const itemCode = oldItem.code || 'ITEM';
+      const imagePath = await handleImageUpload(file, body.image, itemCode);
       updates.image = imagePath;
       
       // Delete old image if exists and is different from the new one
@@ -112,9 +121,16 @@ exports.updateMenuItem = async (req, res) => {
           oldItem.image !== imagePath && 
           !oldItem.image.includes('placeholders')) {
         try {
-          const deleted = deleteMenuImage(oldItem.image);
-          if (deleted) {
-            console.log(`Successfully deleted old menu image during update: ${oldItem.image}`);
+          // Check if it's a Supabase URL
+          if (oldItem.image.includes('supabase.co')) {
+            await deleteFileByUrl(oldItem.image);
+            console.log(`Successfully deleted old Supabase image: ${oldItem.image}`);
+          } else {
+            // Fallback to local file deletion for legacy images
+            const deleted = deleteMenuImage(oldItem.image);
+            if (deleted) {
+              console.log(`Successfully deleted old local image: ${oldItem.image}`);
+            }
           }
         } catch (fileError) {
           console.error('Error deleting old menu image during update:', fileError);
@@ -145,20 +161,17 @@ exports.deleteMenuItem = async (req, res) => {
     // Delete the image before deleting the menu item
     if (item.image && !item.image.includes('placeholders')) {
       try {
-        const deleted = deleteMenuImage(item.image);
-        if (deleted) {
-          console.log(`Successfully deleted menu image: ${item.image}`);
+        // Check if it's a Supabase URL
+        if (item.image.includes('supabase.co')) {
+          await deleteFileByUrl(item.image);
+          console.log(`Successfully deleted Supabase image: ${item.image}`);
         } else {
-          console.warn(`Failed to delete menu image: ${item.image} - Image may not exist or could be a placeholder`);
-          
-          // Additional fallback check for different path formats
-          if (item.image.startsWith('/uploads/') && !item.image.includes('/menu/')) {
-            // Try checking if the image exists in the general uploads folder
-            const generalPath = path.join(__dirname, '../public', item.image);
-            if (fs.existsSync(generalPath)) {
-              fs.unlinkSync(generalPath);
-              console.log(`Successfully deleted menu image from general uploads: ${item.image}`);
-            }
+          // Fallback to local file deletion for legacy images
+          const deleted = deleteMenuImage(item.image);
+          if (deleted) {
+            console.log(`Successfully deleted local image: ${item.image}`);
+          } else {
+            console.warn(`Failed to delete image: ${item.image}`);
           }
         }
       } catch (fileError) {

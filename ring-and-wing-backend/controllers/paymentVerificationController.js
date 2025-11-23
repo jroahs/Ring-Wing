@@ -2,6 +2,7 @@
 const Order = require('../models/Order');
 const Settings = require('../models/Settings');
 const path = require('path');
+const { uploadFile, getPublicUrl, generateUniqueFilename } = require('../utils/supabaseStorage');
 
 /**
  * Upload proof of payment for an order
@@ -42,10 +43,16 @@ exports.uploadProof = async (req, res) => {
       order.proofOfPayment = {};
     }
 
-    // Handle image upload
+    // Handle image upload to Supabase
     if (req.file) {
-      // Store relative path for serving via static middleware
-      order.proofOfPayment.imageUrl = `/uploads/payment-proofs/${req.file.filename}`;
+      const filename = generateUniqueFilename(req.file.originalname, order.receiptNumber);
+      const filePath = `${orderId}/${filename}`;
+      
+      await uploadFile('payment-proofs', filePath, req.file.buffer, {
+        contentType: req.file.mimetype
+      });
+      
+      order.proofOfPayment.imageUrl = getPublicUrl('payment-proofs', filePath);
     }
 
     // Handle text reference
