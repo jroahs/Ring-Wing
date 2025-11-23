@@ -95,6 +95,8 @@ export const DataCoordinatorProvider = ({ children }) => {
       const data = await response.json();
       const items = Array.isArray(data) ? data : data.items || [];
       
+      console.log('[DataCoordinator] Sample item image BEFORE processing:', items[0]?.image);
+      
       const processedItems = items.map(item => ({
         ...item,
         image: item.image 
@@ -104,6 +106,8 @@ export const DataCoordinatorProvider = ({ children }) => {
         modifiers: item.modifiers || [],
         isAvailable: item.isAvailable
       }));
+      
+      console.log('[DataCoordinator] Sample item image AFTER processing:', processedItems[0]?.image);
 
       setMenuItems(processedItems);
       return processedItems;

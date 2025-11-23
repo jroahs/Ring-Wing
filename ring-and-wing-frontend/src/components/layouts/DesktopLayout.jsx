@@ -198,7 +198,11 @@ const DesktopLayout = ({
       >
         <div className="w-full h-32 rounded-lg overflow-hidden mb-3">
           <img 
-            src={item.image || (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png')}
+            src={(() => {
+              const imgSrc = item.image || (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png');
+              if (item.code === 'APP01') console.log('[DesktopLayout] APP01 image src:', imgSrc);
+              return imgSrc;
+            })()}
             alt={item.name}
             className={`w-full h-full object-cover transition-transform duration-200 ${
               (isHovered || isSelected) && item.isAvailable !== false ? 'scale-110' : ''
