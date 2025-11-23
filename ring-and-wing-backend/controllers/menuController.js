@@ -7,21 +7,40 @@ const { uploadFile, getPublicUrl, deleteFileByUrl, generateUniqueFilename } = re
 
 // Helper to handle file uploads - now using Supabase Storage
 const handleImageUpload = async (file, base64Image, itemCode) => {
+  console.log('🔍 [handleImageUpload] Called with:', {
+    hasFile: !!file,
+    hasBase64: !!base64Image,
+    itemCode,
+    fileDetails: file ? {
+      fieldname: file.fieldname,
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size,
+      bufferLength: file.buffer?.length
+    } : null
+  });
+  
   try {
     // Handle file upload through multer
     if (file) {
+      console.log('📤 [handleImageUpload] Processing multer file upload...');
       const filename = generateUniqueFilename(file.originalname, itemCode);
       const filePath = `images/${filename}`;
+      
+      console.log('☁️  [handleImageUpload] Uploading to Supabase:', { bucket: 'menu-items', filePath, contentType: file.mimetype });
       
       await uploadFile('menu-items', filePath, file.buffer, {
         contentType: file.mimetype
       });
       
-      return getPublicUrl('menu-items', filePath);
+      const publicUrl = getPublicUrl('menu-items', filePath);
+      console.log('✅ [handleImageUpload] Upload complete! URL:', publicUrl);
+      return publicUrl;
     }
     
     // Handle base64 image upload
     if (base64Image && base64Image.startsWith('data:image')) {
+      console.log('📤 [handleImageUpload] Processing base64 image upload...');
       const matches = base64Image.match(/^data:image\/([A-Za-z-+\/]+);base64,(.+)$/);
       if (!matches || matches.length !== 3) {
         throw new Error('Invalid base64 image format');
@@ -34,17 +53,22 @@ const handleImageUpload = async (file, base64Image, itemCode) => {
       const filename = generateUniqueFilename(`image.${imageType}`, itemCode);
       const filePath = `images/${filename}`;
       
+      console.log('☁️  [handleImageUpload] Uploading base64 to Supabase:', { bucket: 'menu-items', filePath, contentType: `image/${imageType}` });
+      
       await uploadFile('menu-items', filePath, buffer, {
         contentType: `image/${imageType}`
       });
       
-      return getPublicUrl('menu-items', filePath);
+      const publicUrl = getPublicUrl('menu-items', filePath);
+      console.log('✅ [handleImageUpload] Upload complete! URL:', publicUrl);
+      return publicUrl;
     }
     
     // No image provided
+    console.log('⚠️  [handleImageUpload] No image provided');
     return null;
   } catch (error) {
-    console.error('[Menu Controller] Image upload error:', error);
+    console.error('❌ [Menu Controller] Image upload error:', error);
     throw error;
   }
 };
