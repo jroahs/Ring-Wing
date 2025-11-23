@@ -305,6 +305,34 @@ const PointOfSale = () => {
       });
       
       setCategories(sortedCategories);
+      
+      // Build menuConfig from dynamic categories (same as Tablet POS)
+      const dynamicMenuConfig = {};
+      sortedCategories.forEach(category => {
+        const categoryName = category.name || category.category;
+        if (categoryName) {
+          dynamicMenuConfig[categoryName] = {
+            subCategories: {}
+          };
+          
+          const subcats = category.subcategories || category.subCategories || [];
+          if (subcats.length > 0) {
+            subcats
+              .filter(subCat => subCat.isActive !== false)
+              .forEach(subCat => {
+                const subCatName = subCat.name || subCat.displayName || subCat;
+                if (subCatName) {
+                  dynamicMenuConfig[categoryName].subCategories[subCatName] = {
+                    sizes: subCat.sizes || []
+                  };
+                }
+              });
+          }
+        }
+      });
+      
+      setMenuConfig(dynamicMenuConfig);
+      console.log('[POS] menuConfig updated from database:', dynamicMenuConfig);
     }
   }, [dataReady, coordinatorCategories]);
 
