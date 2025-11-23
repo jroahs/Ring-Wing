@@ -213,7 +213,9 @@ const PaymentMethodSelector = ({ selectedMethod, onSelect, orderTotal }) => {
                     <h4 style={styles.sectionTitle}>Scan QR Code</h4>
                     <div style={styles.qrCodeContainer}>
                       <img
-                        src={`${import.meta.env.VITE_API_URL}${selectedMethodData.qrCodeUrl}`}
+                        src={selectedMethodData.qrCodeUrl.startsWith('http')
+                          ? selectedMethodData.qrCodeUrl
+                          : `${import.meta.env.VITE_API_URL}${selectedMethodData.qrCodeUrl}`}
                         alt={`${selectedMethodData.label} QR Code`}
                         style={styles.qrCode}
                       />
