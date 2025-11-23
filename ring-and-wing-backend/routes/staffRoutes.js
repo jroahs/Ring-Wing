@@ -171,7 +171,7 @@ router.post('/', auth, validateStaffCreation, async (req, res) => {
       // Handle base64 profile picture if provided
       let processedProfilePicture = profilePicture;
       if (profilePicture && profilePicture.startsWith('data:image')) {
-        processedProfilePicture = saveStaffProfileImage(profilePicture, user._id);
+        processedProfilePicture = await saveStaffProfileImage(profilePicture, user._id);
       }
       
       // Create the staff member and link to the user account
@@ -314,8 +314,8 @@ router.put('/:id', auth, async (req, res) => {
       if (staffUpdates.profilePicture) {
         // Check if it's a base64 image
         if (staffUpdates.profilePicture.startsWith('data:image')) {
-          // Save the new base64 image
-          const newProfilePicturePath = saveStaffProfileImage(staffUpdates.profilePicture, staff._id);
+          // Save the new base64 image (async function, must await)
+          const newProfilePicturePath = await saveStaffProfileImage(staffUpdates.profilePicture, staff._id);
           
           // Delete the old image if it exists
           if (staff.profilePicture && 
