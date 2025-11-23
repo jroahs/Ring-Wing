@@ -2,7 +2,7 @@
 const Order = require('../models/Order');
 const Settings = require('../models/Settings');
 const path = require('path');
-const { uploadFile, getPublicUrl, generateUniqueFilename } = require('../utils/supabaseStorage');
+const { uploadFile, getPublicUrl, getSignedUrl, generateUniqueFilename } = require('../utils/supabaseStorage');
 
 /**
  * Upload proof of payment for an order
@@ -46,13 +46,14 @@ exports.uploadProof = async (req, res) => {
     // Handle image upload to Supabase
     if (req.file) {
       const filename = generateUniqueFilename(req.file.originalname, order.receiptNumber);
-      const filePath = `${orderId}/${filename}`;
+      const filePath = `${id}/${filename}`;
       
       await uploadFile('payment-proofs', filePath, req.file.buffer, {
         contentType: req.file.mimetype
       });
       
-      order.proofOfPayment.imageUrl = getPublicUrl('payment-proofs', filePath);
+      // Use signed URL for private bucket (expires in 1 year)
+      order.proofOfPayment.imageUrl = await getSignedUrl('payment-proofs', filePath, 31536000);
     }
 
     // Handle text reference

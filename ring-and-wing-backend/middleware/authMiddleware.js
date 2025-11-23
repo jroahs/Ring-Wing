@@ -4,7 +4,15 @@ const Staff = require('../models/Staff');
 
 const auth = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    const authHeader = req.header('Authorization');
+    console.log('[Auth Debug] Raw Authorization header:', authHeader?.substring(0, 50) + '...');
+    
+    const token = authHeader?.replace('Bearer ', '');
+    console.log('[Auth Debug] Token after Bearer strip:', {
+      tokenLength: token?.length,
+      startsWithBearer: token?.startsWith('Bearer'),
+      first30: token?.substring(0, 30)
+    });
     
     if (!token) {
       return res.status(401).json({ 
