@@ -3,24 +3,11 @@ const Staff = require('../models/Staff');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { uploadFile, getPublicUrl, generateUniqueFilename, getSignedUrl } = require('../utils/supabaseStorage');
 
-// Configure multer for storing time clock photos
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    // Save directly to the public/uploads/timelogs directory
-    const dir = path.join(__dirname, '../public/uploads/timelogs');
-    if (!fs.existsSync(dir)){
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    cb(null, dir);
-  },
-  filename: function (req, file, cb) {
-    // Create a unique filename using timestamp and staff ID
-    const staffId = req.body.staffId || 'unknown';
-    const timestamp = Date.now();
-    cb(null, `${timestamp}-${staffId}-${Date.now()}.jpg`);
-  }
-});
+// ⚠️ IMPORTANT: Using memoryStorage - photos buffered in memory for Supabase upload
+// Photos do NOT save to disk - they go directly to Supabase Storage 'timelogs' bucket
+const storage = multer.memoryStorage();
 
 const upload = multer({ 
   storage: storage,
@@ -153,16 +140,39 @@ const clockIn = async (req, res) => {
         });
       }
 
-      // Get photo path if uploaded
+      // Get photo path - upload to Supabase
       let photoPath = null;
       if (req.file) {
-        // Use the filename only, not the full path
-        const filename = path.basename(req.file.path);
-        photoPath = `uploads/timelogs/${filename}`;
-        console.log('[TimeLog Debug] Photo saved at:', photoPath);
+        console.log('[TimeLog Debug] Uploading photo to Supabase...');
+        const filename = generateUniqueFilename(req.file.originalname, staffMember._id.toString());
+        const filePath = `clock-in/${filename}`;
+        
+        await uploadFile('timelogs', filePath, req.file.buffer, {
+          contentType: req.file.mimetype
+        });
+        
+        // Use signed URL for private bucket access (expires in 1 year)
+        photoPath = await getSignedUrl('timelogs', filePath, 31536000);
+        console.log('[TimeLog Debug] Photo uploaded to Supabase:', photoPath);
       } else if (req.body.photoBase64) {
-        // Handle base64 photo upload
-        photoPath = saveBase64Image(req.body.photoBase64, staffMember._id);
+        console.log('[TimeLog Debug] Processing base64 photo...');
+        // Handle base64 photo upload to Supabase
+        const matches = req.body.photoBase64.match(/^data:image\/([A-Za-z-+\/]+);base64,(.+)$/);
+        if (matches && matches.length === 3) {
+          const imageType = matches[1];
+          const imageData = matches[2];
+          const buffer = Buffer.from(imageData, 'base64');
+          
+          const filename = generateUniqueFilename(`clockin.${imageType}`, staffMember._id.toString());
+          const filePath = `clock-in/${filename}`;
+          
+          await uploadFile('timelogs', filePath, buffer, {
+            contentType: `image/${imageType}`
+          });
+          
+          photoPath = await getSignedUrl('timelogs', filePath, 31536000);
+          console.log('[TimeLog Debug] Base64 photo uploaded to Supabase:', photoPath);
+        }
       }
 
       // Create clock in record
@@ -280,16 +290,39 @@ const clockOut = async (req, res) => {
       const OVERTIME_THRESHOLD = 8; // Default threshold, can be made configurable
       const isOvertime = hoursWorked > OVERTIME_THRESHOLD;
 
-      // Process photo if available
+      // Process photo if available - upload to Supabase
       let photoPath = null;
       if (req.file) {
-        // Use the filename only, not the full path
-        const filename = path.basename(req.file.path);
-        photoPath = `uploads/timelogs/${filename}`;
-        console.log('[TimeLog Debug] Photo saved at:', photoPath);
+        console.log('[TimeLog Debug] Uploading photo to Supabase...');
+        const filename = generateUniqueFilename(req.file.originalname, staffMember._id.toString());
+        const filePath = `clock-out/${filename}`;
+        
+        await uploadFile('timelogs', filePath, req.file.buffer, {
+          contentType: req.file.mimetype
+        });
+        
+        // Use signed URL for private bucket access (expires in 1 year)
+        photoPath = await getSignedUrl('timelogs', filePath, 31536000);
+        console.log('[TimeLog Debug] Photo uploaded to Supabase:', photoPath);
       } else if (req.body.photoBase64) {
-        // Handle base64 photo upload
-        photoPath = saveBase64Image(req.body.photoBase64, staffMember._id);
+        console.log('[TimeLog Debug] Processing base64 photo...');
+        // Handle base64 photo upload to Supabase
+        const matches = req.body.photoBase64.match(/^data:image\/([A-Za-z-+\/]+);base64,(.+)$/);
+        if (matches && matches.length === 3) {
+          const imageType = matches[1];
+          const imageData = matches[2];
+          const buffer = Buffer.from(imageData, 'base64');
+          
+          const filename = generateUniqueFilename(`clockout.${imageType}`, staffMember._id.toString());
+          const filePath = `clock-out/${filename}`;
+          
+          await uploadFile('timelogs', filePath, buffer, {
+            contentType: `image/${imageType}`
+          });
+          
+          photoPath = await getSignedUrl('timelogs', filePath, 31536000);
+          console.log('[TimeLog Debug] Base64 photo uploaded to Supabase:', photoPath);
+        }
       }
 
       // Create clock out record
