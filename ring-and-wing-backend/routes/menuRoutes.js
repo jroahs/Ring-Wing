@@ -81,104 +81,16 @@ router.get('/', lightCheck, async (req, res) => {
   }
 });
 
-// POST new menu item with validation
+// POST new menu item with validation - NOW USES SUPABASE VIA CONTROLLER
 router.post('/', criticalCheck, upload.single('image'), async (req, res) => {
-  try {
-    const requiredFields = ['code', 'name', 'category', 'subCategory', 'pricing'];
-    const missingFields = requiredFields.filter(field => !req.body[field]);
-    
-    if (missingFields.length > 0) {
-      return res.status(400).json({
-        message: `Missing required fields: ${missingFields.join(', ')}`
-      });
-    }
-
-    const parsedBody = {
-      code: req.body.code.trim().toUpperCase(),
-      name: req.body.name.trim(),
-      category: req.body.category,
-      subCategory: req.body.subCategory,      pricing: parseJSONField('pricing', req.body.pricing),
-      modifiers: parseJSONField('modifiers', req.body.modifiers || '[]'),
-      description: req.body.description?.trim() || '',
-      image: req.file ? `/uploads/menu/${req.file.filename}` : null
-    };
-
-    // Validate code format
-    if (!/^[A-Z0-9]{3,5}$/.test(parsedBody.code)) {
-      return res.status(400).json({ message: 'Invalid item code format' });
-    }
-
-    // Check for existing code
-    const existingItem = await MenuItem.findOne({ code: parsedBody.code });
-    if (existingItem) {
-      return res.status(409).json({ message: 'Item code already exists' });
-    }
-
-    const newItem = new MenuItem(parsedBody);
-    const savedItem = await newItem.save();
-    
-    res.status(201).json(savedItem);
-  } catch (err) {
-    const statusCode = err.name === 'ValidationError' ? 400 : 500;
-    res.status(statusCode).json({ 
-      message: err.message,
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    });
-  }
+  const menuController = require('../controllers/menuController');
+  await menuController.createMenuItem(req, res);
 });
 
-// PUT update menu item with atomic operations
+// PUT update menu item - NOW USES SUPABASE VIA CONTROLLER
 router.put('/:id', criticalCheck, upload.single('image'), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updates = {
-      ...req.body,
-      code: req.body.code?.trim().toUpperCase(),
-      name: req.body.name?.trim(),
-      pricing: parseJSONField('pricing', req.body.pricing),
-      modifiers: parseJSONField('modifiers', req.body.modifiers || '[]'),
-      description: req.body.description?.trim() || ''
-    };
-
-    const oldItem = await MenuItem.findById(id);
-    if (!oldItem) {
-      return res.status(404).json({ message: 'Item not found' });
-    }
-
-    // Code change validation
-    if (updates.code && updates.code !== oldItem.code) {
-      const existingItem = await MenuItem.findOne({ code: updates.code });
-      if (existingItem) {
-        return res.status(409).json({ message: 'Item code already exists' });
-      }
-    }    // Handle image update
-    if (req.file) {
-      updates.image = `/uploads/menu/${req.file.filename}`;
-      // Remove old image if it exists
-      if (oldItem.image && !oldItem.image.includes('placeholders')) {
-        try {
-          const { deleteMenuImage } = require('../utils/imageUtils');
-          deleteMenuImage(oldItem.image);
-        } catch (err) {
-          console.error('Error deleting old image:', err);
-        }
-      }
-    }
-
-    const updatedItem = await MenuItem.findByIdAndUpdate(
-      id,
-      { $set: updates },
-      { new: true, runValidators: true }
-    );
-
-    res.json(updatedItem);
-  } catch (err) {
-    const statusCode = err.name === 'ValidationError' ? 400 : 500;
-    res.status(statusCode).json({ 
-      message: err.message,
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    });
-  }
+  const menuController = require('../controllers/menuController');
+  await menuController.updateMenuItem(req, res);
 });
 
 // DELETE menu item with error handling
