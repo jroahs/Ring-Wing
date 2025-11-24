@@ -524,4 +524,142 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
   }
 });
 
+// GET /api/payroll/summary - Monthly payroll summary report
+router.get('/summary', auth, async (req, res) => {
+  try {
+    const { month, year, startDate, endDate } = req.query;
+
+    // Build date filter
+    let dateFilter = {};
+    if (month && year) {
+      // Specific month/year
+      const start = new Date(year, month - 1, 1);
+      const end = new Date(year, month, 0, 23, 59, 59, 999);
+      dateFilter = {
+        payrollPeriod: { $gte: start, $lte: end }
+      };
+    } else if (startDate && endDate) {
+      // Custom date range
+      dateFilter = {
+        payrollPeriod: {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate)
+        }
+      };
+    } else {
+      // Default to current month
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      dateFilter = {
+        payrollPeriod: { $gte: start, $lte: end }
+      };
+    }
+
+    // Aggregate payroll data
+    const summary = await Payroll.aggregate([
+      { $match: dateFilter },
+      {
+        $group: {
+          _id: null,
+          totalGrossPay: { $sum: '$grossPay' },
+          totalNetPay: { $sum: '$netPay' },
+          totalBasicPay: { $sum: '$basicPay' },
+          totalOvertimePay: { $sum: '$overtimePay' },
+          totalAllowances: { $sum: '$allowances' },
+          totalHolidayPay: { $sum: '$holidayPay' },
+          totalThirteenthMonthPay: { $sum: '$thirteenthMonthPay' },
+          totalHolidayBonus: { $sum: '$bonuses.holiday' },
+          totalPerformanceBonus: { $sum: '$bonuses.performance' },
+          totalSSS: { $sum: '$deductions.sss' },
+          totalPhilHealth: { $sum: '$deductions.philHealth' },
+          totalPagIbig: { $sum: '$deductions.pagIbig' },
+          totalLateDeduction: { $sum: '$deductions.lateDeduction' },
+          totalAbsentDeduction: { $sum: '$deductions.absentDeduction' },
+          totalOtherDeductions: { $sum: '$deductions.other' },
+          totalTotalDeductions: { $sum: '$deductions.total' },
+          employeeCount: { $addToSet: '$staffId' },
+          payrollCount: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          totalGrossPay: 1,
+          totalNetPay: 1,
+          earnings: {
+            basicPay: '$totalBasicPay',
+            overtimePay: '$totalOvertimePay',
+            allowances: '$totalAllowances',
+            holidayPay: '$totalHolidayPay',
+            thirteenthMonthPay: '$totalThirteenthMonthPay',
+            bonuses: {
+              holiday: '$totalHolidayBonus',
+              performance: '$totalPerformanceBonus'
+            }
+          },
+          deductions: {
+            government: {
+              sss: '$totalSSS',
+              philHealth: '$totalPhilHealth',
+              pagIbig: '$totalPagIbig',
+              total: { $add: ['$totalSSS', '$totalPhilHealth', '$totalPagIbig'] }
+            },
+            attendance: {
+              late: '$totalLateDeduction',
+              absent: '$totalAbsentDeduction',
+              total: { $add: ['$totalLateDeduction', '$totalAbsentDeduction'] }
+            },
+            other: '$totalOtherDeductions',
+            total: '$totalTotalDeductions'
+          },
+          employeeCount: { $size: '$employeeCount' },
+          payrollCount: 1
+        }
+      }
+    ]);
+
+    // If no data, return zeros
+    if (!summary || summary.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          totalGrossPay: 0,
+          totalNetPay: 0,
+          earnings: {
+            basicPay: 0,
+            overtimePay: 0,
+            allowances: 0,
+            holidayPay: 0,
+            thirteenthMonthPay: 0,
+            bonuses: { holiday: 0, performance: 0 }
+          },
+          deductions: {
+            government: { sss: 0, philHealth: 0, pagIbig: 0, total: 0 },
+            attendance: { late: 0, absent: 0, total: 0 },
+            other: 0,
+            total: 0
+          },
+          employeeCount: 0,
+          payrollCount: 0
+        },
+        period: dateFilter.payrollPeriod
+      });
+    }
+
+    res.json({
+      success: true,
+      data: summary[0],
+      period: dateFilter.payrollPeriod
+    });
+  } catch (error) {
+    console.error('Error fetching payroll summary:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching payroll summary',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

@@ -38,7 +38,7 @@ const GovernmentConfigManagement = () => {
 
   const fetchActiveConfig = async () => {
     try {
-      const response = await api.get('/government-config');
+      const response = await api.get('/api/government-config');
       if (response.data.success) {
         setActiveConfig(response.data.data);
         setFormData({
@@ -64,7 +64,7 @@ const GovernmentConfigManagement = () => {
 
   const fetchHistory = async () => {
     try {
-      const response = await api.get('/government-config/history');
+      const response = await api.get('/api/government-config/history');
       if (response.data.success) {
         setHistory(response.data.data);
       }
@@ -138,7 +138,7 @@ const GovernmentConfigManagement = () => {
         return;
       }
 
-      const response = await api.post('/government-config', formData);
+      const response = await api.post('/api/government-config', formData);
       
       if (response.data.success) {
         showMessage('Configuration saved successfully', 'success');
@@ -159,7 +159,7 @@ const GovernmentConfigManagement = () => {
         return;
       }
 
-      const response = await api.put(`/government-config/${activeConfig._id}`, {
+      const response = await api.put(`/api/government-config/${activeConfig._id}`, {
         sss: formData.sss,
         philHealth: formData.philHealth,
         pagIbig: formData.pagIbig,

@@ -236,6 +236,12 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
           icon: <FiCreditCard size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Government Config',
           positions: ['general_manager', 'admin']
+        },
+        { 
+          path: '/payroll-reports', 
+          icon: <FiPieChart size={iconSize} style={{ color: colors.iconBrown }} />, 
+          label: 'Monthly Reports',
+          positions: ['shift_manager', 'general_manager', 'admin']
         }
       ]
     },
@@ -283,6 +289,7 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
     '/orders', 
     '/inventory', 
     '/payroll',
+    '/payroll-reports',
     '/government-config',
     '/chatbot', 
     '/menu', 
