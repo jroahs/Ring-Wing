@@ -701,26 +701,56 @@ const RevenueReports = () => {
                                   </ResponsiveContainer>
                                 </div>
                               )}
-                <div className="text-center">
-                  <div className="text-sm" style={{ color: colors.muted }}>Avg Monthly</div>
-                  <div className="text-lg font-semibold" style={{ color: colors.primary }}>
-                    {monthlyHistoricalData.length > 0 
-                      ? formatCurrency(monthlyHistoricalData.reduce((sum, month) => sum + month.revenue, 0) / monthlyHistoricalData.length)
-                      : formatCurrency(0)
-                    }
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-sm" style={{ color: colors.muted }}>Growth Trend</div>
-                  <div className="text-lg font-semibold flex items-center justify-center gap-1" style={{ color: colors.accent }}>
-                    <FiTrendingUp className="w-4 h-4" />
-                    {monthlyHistoricalData.length >= 2 ? (
-                      `${(((monthlyHistoricalData[monthlyHistoricalData.length - 1]?.revenue || 0) - 
-                           (monthlyHistoricalData[monthlyHistoricalData.length - 2]?.revenue || 0)) / 
-                           (monthlyHistoricalData[monthlyHistoricalData.length - 2]?.revenue || 1) * 100).toFixed(1)}%`
-                    ) : '+0.0%'}
-                  </div>
-                </div>
+                {selectedPeriod === 'weekly' ? (
+                  <>
+                    <div className="text-center">
+                      <div className="text-sm" style={{ color: colors.muted }}>Avg Daily</div>
+                      <div className="text-lg font-semibold" style={{ color: colors.primary }}>
+                        {revenueData?.weeklySummary ? formatCurrency(revenueData.weeklySummary.averageDaily) : (
+                          revenueData?.weeklyBreakdown && revenueData.weeklyBreakdown.length > 0
+                            ? formatCurrency(revenueData.weeklyBreakdown.reduce((s, d) => s + d.revenue, 0) / 7)
+                            : formatCurrency(0)
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm" style={{ color: colors.muted }}>Week-over-week</div>
+                      <div className="text-lg font-semibold flex items-center justify-center gap-1" style={{ color: revenueData?.weeklySummary?.growthPercent > 0 ? colors.accent : colors.muted }}>
+                        {revenueData?.weeklySummary && revenueData.weeklySummary.growthPercent !== null ? (
+                          <>
+                            {revenueData.weeklySummary.growthPercent > 0 ? <FiTrendingUp className="w-4 h-4" /> : <FiTrendingDown className="w-4 h-4" />}
+                            {Math.abs(revenueData.weeklySummary.growthPercent).toFixed(1)}%
+                          </>
+                        ) : (
+                          <span className="text-sm text-gray-400">N/A</span>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-center">
+                      <div className="text-sm" style={{ color: colors.muted }}>Avg Monthly</div>
+                      <div className="text-lg font-semibold" style={{ color: colors.primary }}>
+                        {monthlyHistoricalData.length > 0 
+                          ? formatCurrency(monthlyHistoricalData.reduce((sum, month) => sum + month.revenue, 0) / monthlyHistoricalData.length)
+                          : formatCurrency(0)
+                        }
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm" style={{ color: colors.muted }}>Growth Trend</div>
+                      <div className="text-lg font-semibold flex items-center justify-center gap-1" style={{ color: colors.accent }}>
+                        <FiTrendingUp className="w-4 h-4" />
+                        {monthlyHistoricalData.length >= 2 ? (
+                          `${(((monthlyHistoricalData[monthlyHistoricalData.length - 1]?.revenue || 0) - 
+                               (monthlyHistoricalData[monthlyHistoricalData.length - 2]?.revenue || 0)) / 
+                               (monthlyHistoricalData[monthlyHistoricalData.length - 2]?.revenue || 1) * 100).toFixed(1)}%`
+                        ) : '+0.0%'}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             )}

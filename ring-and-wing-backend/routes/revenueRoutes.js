@@ -175,6 +175,40 @@ router.get('/:period', async (req, res) => {
       }
 
       weeklyBreakdown = days;
+
+      // Compute previous week totals (for growth comparisons)
+      // previous week anchored to startZoned - 7 days
+      const prevWeekStartZoned = addDays(startZoned, -7);
+      prevWeekStartZoned.setHours(0, 0, 0, 0);
+      const prevWeekEndZoned = addDays(prevWeekStartZoned, 6);
+      prevWeekEndZoned.setHours(23, 59, 59, 999);
+
+      const prevStartUtc = zonedTimeToUtc(prevWeekStartZoned, tz);
+      const prevEndUtc = zonedTimeToUtc(prevWeekEndZoned, tz);
+
+      const prevOrders = await Order.find({
+        createdAt: { $gte: prevStartUtc, $lte: prevEndUtc },
+        paymentMethod: { $ne: 'pending' }
+      });
+
+      const prevRevenue = prevOrders.reduce((acc, o) => acc + o.totals.total, 0);
+
+      // Attach weekly summary
+      var weeklySummary = {
+        totalRevenue: weeklyBreakdown.reduce((s, d) => s + d.revenue, 0),
+        averageDaily: weeklyBreakdown.reduce((s, d) => s + d.revenue, 0) / 7,
+        previousWeekRevenue: prevRevenue,
+        growthPercent: prevRevenue > 0 ? ((weeklyBreakdown.reduce((s, d) => s + d.revenue, 0) - prevRevenue) / prevRevenue) * 100 : null
+      };
+
+      // pass weeklySummary to output by reassigning variable in scope
+      // we'll include it in the response below
+      // (we'll reuse the name weeklySummary in the response)
+      // attach to weeklyBreakdown container via an outer var
+      // (handled below when building response)
+      
+      // store on res.locals for retrieval later (clean way without changing many lines)
+      res.locals.weeklySummary = weeklySummary;
     }
 
     res.json({
@@ -192,6 +226,7 @@ router.get('/:period', async (req, res) => {
         revenueBySource,
         hourlyDistribution,
         weeklyBreakdown,
+        weeklySummary: res.locals.weeklySummary || null,
         monthlyBreakdown,
         topItems
       }    });  } catch (error) {
