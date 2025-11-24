@@ -109,6 +109,30 @@ router.get('/:period', async (req, res) => {
       monthlyBreakdown = months;
     }
 
+    // For weekly reports include a daily breakdown for the week
+    let weeklyBreakdown = null;
+    if (period === 'weekly') {
+      // Create an array of days from start to end
+      const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      const days = [];
+      for (let d = new Date(startDay); d <= endDay; d.setDate(d.getDate() + 1)) {
+        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
+        const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
+        const dayOrders = orders.filter(o => new Date(o.createdAt) >= dayStart && new Date(o.createdAt) <= dayEnd);
+        const dayRevenue = dayOrders.reduce((a, o) => a + o.totals.total, 0);
+        days.push({
+          date: dayStart.toISOString().split('T')[0],
+          label: dayStart.toLocaleDateString('en-US', { weekday: 'short' }),
+          revenue: dayRevenue,
+          orders: dayOrders.length,
+          start: dayStart,
+          end: dayEnd
+        });
+      }
+      weeklyBreakdown = days;
+    }
+
     res.json({
       success: true,
       data: {
@@ -123,6 +147,7 @@ router.get('/:period', async (req, res) => {
         revenueByPayment,
         revenueBySource,
         hourlyDistribution,
+        weeklyBreakdown,
         monthlyBreakdown,
         topItems
       }    });  } catch (error) {

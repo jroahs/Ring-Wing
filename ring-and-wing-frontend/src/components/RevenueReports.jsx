@@ -382,6 +382,15 @@ const RevenueReports = () => {
     return monthlyHistoricalData;
   };
 
+  const prepareWeeklyData = () => {
+    if (!revenueData?.weeklyBreakdown) return [];
+    return revenueData.weeklyBreakdown.map(d => ({
+      label: d.label || d.date,
+      revenue: d.revenue || 0,
+      orders: d.orders || 0
+    }));
+  };
+
   const prepareOrderSourceData = () => {
     if (!revenueData?.revenueBySource) return [];
     return Object.entries(revenueData.revenueBySource).map(([source, amount]) => ({
@@ -571,47 +580,57 @@ const RevenueReports = () => {
             <div className="bg-white rounded-lg border p-6" style={{ borderColor: colors.muted + '20' }}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold" style={{ color: colors.primary }}>
-                  Monthly Revenue Trend
+                  {selectedPeriod === 'monthly' ? 'Monthly Revenue Trend' : selectedPeriod === 'weekly' ? 'Weekly Revenue Trend' : 'Monthly Revenue Trend'}
                 </h3>
                 <div className="text-sm" style={{ color: colors.muted }}>
-                  Last 12 Months
+                  {selectedPeriod === 'monthly' ? 'Last 12 Months' : selectedPeriod === 'weekly' ? 'Last 7 Days' : 'Last 12 Months'}
                 </div>
               </div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={prepareMonthlyRevenueData()}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={colors.muted + '30'} />
-                    <XAxis 
-                      dataKey="month" 
-                      tick={{ fontSize: 12 }}
-                      stroke={colors.muted}
-                    />
-                    <YAxis 
-                      tickFormatter={(value) => formatCurrency(value).replace('PHP', '₱')}
-                      tick={{ fontSize: 12 }}
-                      stroke={colors.muted}
-                    />
-                    <Tooltip 
-                      formatter={(value, name) => [
-                        name === 'revenue' ? formatCurrency(value) : value,
-                        name === 'revenue' ? 'Revenue' : 'Orders'
-                      ]}
-                      labelFormatter={(label) => `Month: ${label}`}
-                      contentStyle={{ 
-                        backgroundColor: colors.background,
-                        border: `1px solid ${colors.muted}40`,
-                        borderRadius: '8px'
-                      }}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="revenue" 
-                      stroke={colors.accent}
-                      strokeWidth={3}
-                      dot={{ fill: colors.accent, strokeWidth: 2, r: 4 }}
-                      activeDot={{ r: 6, stroke: colors.accent, strokeWidth: 2, fill: colors.background }}
-                    />
-                  </LineChart>
+                  {selectedPeriod === 'weekly' ? (
+                    <BarChart data={prepareWeeklyData()}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={colors.muted + '30'} />
+                      <XAxis dataKey="label" tick={{ fontSize: 12 }} stroke={colors.muted} />
+                      <YAxis tickFormatter={(value) => formatCurrency(value).replace('PHP', '₱')} tick={{ fontSize: 12 }} stroke={colors.muted} />
+                      <Tooltip formatter={(value, name) => [formatCurrency(value), 'Revenue']} />
+                      <Bar dataKey="revenue" fill={CHART_COLORS[0]} />
+                    </BarChart>
+                  ) : (
+                    <LineChart data={prepareMonthlyRevenueData()}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={colors.muted + '30'} />
+                      <XAxis 
+                        dataKey="month" 
+                        tick={{ fontSize: 12 }}
+                        stroke={colors.muted}
+                      />
+                      <YAxis 
+                        tickFormatter={(value) => formatCurrency(value).replace('PHP', '₱')}
+                        tick={{ fontSize: 12 }}
+                        stroke={colors.muted}
+                      />
+                      <Tooltip 
+                        formatter={(value, name) => [
+                          name === 'revenue' ? formatCurrency(value) : value,
+                          name === 'revenue' ? 'Revenue' : 'Orders'
+                        ]}
+                        labelFormatter={(label) => `Month: ${label}`}
+                        contentStyle={{ 
+                          backgroundColor: colors.background,
+                          border: `1px solid ${colors.muted}40`,
+                          borderRadius: '8px'
+                        }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="revenue" 
+                        stroke={colors.accent}
+                        strokeWidth={3}
+                        dot={{ fill: colors.accent, strokeWidth: 2, r: 4 }}
+                        activeDot={{ r: 6, stroke: colors.accent, strokeWidth: 2, fill: colors.background }}
+                      />
+                    </LineChart>
+                  )}
                 </ResponsiveContainer>
               </div>              {/* Monthly trend summary */}
               <div className="mt-4 grid grid-cols-2 gap-4">
