@@ -912,9 +912,9 @@ const StaffManagement = () => {
                       </div>
                     </div>
 
-                    {/* Employment Type Filter */}
+                    {/* Employment Type Filter - moved down to its own row */}
                     <div className="flex items-center gap-2 text-xs">
-                      <label className="text-xs font-medium" style={{ color: colors.primary }}>
+                      <label className="text-xs font-medium" style={{ color: colors.background }}>
                         Employment Type:
                       </label>
                       <select
