@@ -28,6 +28,7 @@ const RevenueReports = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('daily');
   const [revenueData, setRevenueData] = useState(null);
   const [monthlyHistoricalData, setMonthlyHistoricalData] = useState([]);
+  const [yearlyHistoricalData, setYearlyHistoricalData] = useState([]);
   const [allTimeTopItems, setAllTimeTopItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -339,6 +340,20 @@ const RevenueReports = () => {
     };
 
     fetchMonthlyHistoricalData();
+    const fetchYearlyHistoricalData = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/revenue/historical/yearly`);
+        const data = await response.json();
+        if (data.success) {
+          setYearlyHistoricalData(data.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch yearly historical data:', err);
+        setYearlyHistoricalData([]);
+      }
+    };
+
+    fetchYearlyHistoricalData();
     fetchAllTimeTopItems();
   }, []);
 
@@ -418,7 +433,7 @@ const RevenueReports = () => {
       {/* Period Selection and Export - Header */}
       <div className="flex justify-between items-center">
         <div className="flex gap-2">
-          {['daily', 'weekly', 'monthly'].map(period => (
+          {['daily', 'weekly', 'monthly', 'yearly'].map(period => (
             <button
               key={period}
               onClick={() => setSelectedPeriod(period)}
@@ -600,6 +615,35 @@ const RevenueReports = () => {
                 </ResponsiveContainer>
               </div>              {/* Monthly trend summary */}
               <div className="mt-4 grid grid-cols-2 gap-4">
+                              {/* Yearly view - show breakdown for selected year */}
+                              {selectedPeriod === 'yearly' && revenueData?.monthlyBreakdown && (
+                                <div className="p-6">
+                                  <h3 className="text-lg font-semibold mb-2">Monthly breakdown — this year</h3>
+                                  <ResponsiveContainer width="100%" height={240}>
+                                    <BarChart data={revenueData.monthlyBreakdown.map(m=>({name: m.month, revenue: m.revenue}))}>
+                                      <CartesianGrid strokeDasharray="3 3" />
+                                      <XAxis dataKey="name" />
+                                      <YAxis />
+                                      <Tooltip formatter={(v)=>formatCurrency(v)} />
+                                      <Bar dataKey="revenue" fill={CHART_COLORS[0]} />
+                                    </BarChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              )}
+                              {selectedPeriod === 'yearly' && yearlyHistoricalData.length > 0 && (
+                                <div className="p-6">
+                                  <h3 className="text-lg font-semibold mb-2">Yearly trend</h3>
+                                  <ResponsiveContainer width="100%" height={240}>
+                                    <LineChart data={yearlyHistoricalData.map(y=>({year: String(y.year), revenue: y.revenue}))}>
+                                      <CartesianGrid strokeDasharray="3 3" />
+                                      <XAxis dataKey="year" />
+                                      <YAxis />
+                                      <Tooltip formatter={(v)=>formatCurrency(v)} />
+                                      <Line dataKey="revenue" stroke={CHART_COLORS[1]} strokeWidth={3} />
+                                    </LineChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              )}
                 <div className="text-center">
                   <div className="text-sm" style={{ color: colors.muted }}>Avg Monthly</div>
                   <div className="text-lg font-semibold" style={{ color: colors.primary }}>

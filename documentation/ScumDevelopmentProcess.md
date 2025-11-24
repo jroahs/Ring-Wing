@@ -1914,7 +1914,7 @@ This sprint demonstrates strong execution of complex payment gateway integration
 
 ---
 
-### Sprint 22 (Nov 20 - Nov 25, 2025) [COMPLETED]
+### Sprint 25 (Nov 20 - Nov 25, 2025) [COMPLETED]
 **Sprint Goal:** Enterprise Payroll System with Government Compliance
 **Story Points Planned:** 58
 **Story Points Completed:** 58/58

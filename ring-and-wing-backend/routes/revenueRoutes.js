@@ -19,6 +19,12 @@ const getDateRange = (period) => {
       start.setDate(1);
       start.setHours(0, 0, 0, 0);
       break;
+    case 'yearly':
+      // Start of the current year
+      start.setMonth(0);
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+      break;
     default:
       start.setHours(0, 0, 0, 0);
   }
@@ -83,6 +89,26 @@ router.get('/:period', async (req, res) => {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
 
+    // For yearly reports include a monthly breakdown for the year
+    let monthlyBreakdown = null;
+    if (period === 'yearly') {
+      const yearStart = new Date(start.getFullYear(), 0, 1);
+      const months = Array.from({ length: 12 }).map((_, idx) => {
+        const mStart = new Date(yearStart.getFullYear(), idx, 1);
+        const mEnd = new Date(yearStart.getFullYear(), idx + 1, 0, 23, 59, 59);
+        const monthOrders = orders.filter(o => new Date(o.createdAt) >= mStart && new Date(o.createdAt) <= mEnd);
+        const monthRevenue = monthOrders.reduce((a, o) => a + o.totals.total, 0);
+        return {
+          month: mStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+          revenue: monthRevenue,
+          orders: monthOrders.length,
+          start: mStart,
+          end: mEnd
+        };
+      });
+      monthlyBreakdown = months;
+    }
+
     res.json({
       success: true,
       data: {
@@ -97,6 +123,7 @@ router.get('/:period', async (req, res) => {
         revenueByPayment,
         revenueBySource,
         hourlyDistribution,
+        monthlyBreakdown,
         topItems
       }    });  } catch (error) {
     res.status(500).json({
@@ -144,6 +171,43 @@ router.get('/historical/monthly', async (req, res) => {
       success: false,
       error: error.message
     });
+  }
+});
+
+// Get historical yearly revenue data (last N years, default 5)
+router.get('/historical/yearly', async (req, res) => {
+  try {
+    const years = parseInt(req.query.years, 10) || 5;
+    const currentYear = new Date().getFullYear();
+    const yearlyData = [];
+
+    for (let i = years - 1; i >= 0; i--) {
+      const year = currentYear - i;
+      const start = new Date(year, 0, 1);
+      const end = new Date(year, 11, 31, 23, 59, 59);
+
+      const orders = await Order.find({
+        createdAt: { $gte: start, $lte: end },
+        paymentMethod: { $ne: 'pending' }
+      });
+
+      const revenue = orders.reduce((acc, order) => acc + order.totals.total, 0);
+
+      yearlyData.push({
+        year,
+        revenue,
+        orders: orders.length,
+        start,
+        end
+      });
+    }
+
+    res.json({
+      success: true,
+      data: yearlyData
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
