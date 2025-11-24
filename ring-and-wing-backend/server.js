@@ -56,7 +56,7 @@ const dbErrorHandler = require('./middleware/dbErrorHandler');
 async function autoSeedGovernmentConfig() {
   try {
     const GovernmentDeductionConfig = require('./models/GovernmentDeductionConfig');
-    const User = require('./models/user');
+    const User = require('./models/User');
     
     // Check if configuration already exists
     const existingConfig = await GovernmentDeductionConfig.findOne({ isActive: true });
