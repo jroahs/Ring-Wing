@@ -82,6 +82,7 @@ const staffSchema = new mongoose.Schema({
   sssNumber: String,
   tinNumber: String,
   philHealthNumber: String,
+  pagIbigNumber: String,
   pinCode: {
     type: String,
     default: '0000', // Default PIN for new staff members

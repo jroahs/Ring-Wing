@@ -53,7 +53,9 @@ const StaffManagement = () => {
     status: 'Active',
     sssNumber: '',
     tinNumber: '',
-    philHealthNumber: '',    pinCode: '0000', // Default PIN
+    philHealthNumber: '',
+    pagIbigNumber: '',
+    pinCode: '0000', // Default PIN
     
     // User account details
     username: '',
@@ -115,6 +117,7 @@ const StaffManagement = () => {
             sssNumber: member.sssNumber || '',
             tinNumber: member.tinNumber || '',
             philHealthNumber: member.philHealthNumber || '',
+            pagIbigNumber: member.pagIbigNumber || '',
             // Preserve termination and reactivation info for rehire functionality
             terminationInfo: member.terminationInfo || null,
             reactivationInfo: member.reactivationInfo || null
@@ -169,7 +172,7 @@ const StaffManagement = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     
-    if (['phone', 'sssNumber', 'tinNumber', 'philHealthNumber'].includes(name)) {
+    if (['phone', 'sssNumber', 'tinNumber', 'philHealthNumber', 'pagIbigNumber'].includes(name)) {
       const cleaned = value.replace(/\D/g, '');
       setFormData(prev => ({ ...prev, [name]: cleaned }));
       return;
@@ -418,7 +421,8 @@ const StaffManagement = () => {
       status: staffMember.status || 'Active',
       sssNumber: staffMember.sssNumber || '',
       tinNumber: staffMember.tinNumber || '',
-      philHealthNumber: staffMember.philHealthNumber || ''
+      philHealthNumber: staffMember.philHealthNumber || '',
+      pagIbigNumber: staffMember.pagIbigNumber || ''
     });
   };
 
@@ -444,6 +448,7 @@ const StaffManagement = () => {
         sssNumber: formData.sssNumber || '',
         tinNumber: formData.tinNumber || '',
         philHealthNumber: formData.philHealthNumber || '',
+        pagIbigNumber: formData.pagIbigNumber || '',
         pinCode // Explicitly include PIN code as string
       };
       
@@ -488,6 +493,7 @@ const StaffManagement = () => {
         sssNumber: formData.sssNumber || '',
         tinNumber: formData.tinNumber || '',
         philHealthNumber: formData.philHealthNumber || '',
+        pagIbigNumber: formData.pagIbigNumber || '',
         pinCode,
         staffOnly: true // Flag to notify backend this is staff-only update
       };
@@ -778,6 +784,7 @@ const StaffManagement = () => {
       sssNumber: '',
       tinNumber: '',
       philHealthNumber: '',
+      pagIbigNumber: '',
       pinCode: '0000', // Reset PIN to default
       
       // User account details
@@ -1134,6 +1141,21 @@ const StaffManagement = () => {
                                   name="philHealthNumber" 
                                   placeholder="PhilHealth Number" 
                                   value={formData.philHealthNumber} 
+                                  onChange={handleInputChange}
+                                  className="p-1.5 rounded border w-full text-sm"
+                                  style={{ borderColor: colors.muted }} 
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="block text-xs font-medium mb-1" style={{ color: colors.muted }}>
+                                  Pag-IBIG Number
+                                </label>
+                                <input 
+                                  type="text" 
+                                  name="pagIbigNumber" 
+                                  placeholder="Pag-IBIG Number" 
+                                  value={formData.pagIbigNumber} 
                                   onChange={handleInputChange}
                                   className="p-1.5 rounded border w-full text-sm"
                                   style={{ borderColor: colors.muted }} 

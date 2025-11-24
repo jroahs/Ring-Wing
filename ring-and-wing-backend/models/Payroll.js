@@ -97,6 +97,26 @@ const payrollSchema = new mongoose.Schema({
       type: Number,
       default: 0,
       min: 0
+    },
+    sss: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    philHealth: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    pagIbig: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    withholdingTax: {
+      type: Number,
+      default: 0,
+      min: 0
     }
   },
   totalHoursWorked: {
@@ -125,7 +145,12 @@ payrollSchema.index({ staffId: 1, payrollPeriod: 1 }, { unique: true });
 
 // Virtual for calculating total deductions
 payrollSchema.virtual('totalDeductions').get(function() {
-  return this.deductions.late + this.deductions.absence;
+  return (this.deductions.late || 0) + 
+         (this.deductions.absence || 0) + 
+         (this.deductions.sss || 0) + 
+         (this.deductions.philHealth || 0) + 
+         (this.deductions.pagIbig || 0) + 
+         (this.deductions.withholdingTax || 0);
 });
 
 // Virtual for calculating total bonuses
@@ -153,6 +178,13 @@ payrollSchema.pre('save', function(next) {
                         (this.bonuses?.performance || 0) + 
                         (this.bonuses?.other || 0);
     
+    const totalDeductions = (this.deductions.late || 0) + 
+                           (this.deductions.absence || 0) + 
+                           (this.deductions.sss || 0) + 
+                           (this.deductions.philHealth || 0) + 
+                           (this.deductions.pagIbig || 0) + 
+                           (this.deductions.withholdingTax || 0);
+    
     this.netPay = (
       this.basicPay + 
       this.overtimePay + 
@@ -160,8 +192,7 @@ payrollSchema.pre('save', function(next) {
       (this.holidayPay || 0) + 
       (this.thirteenthMonthPay || 0) + 
       totalBonuses - 
-      (this.deductions.late || 0) - 
-      (this.deductions.absence || 0)
+      totalDeductions
     );
   }
   next();

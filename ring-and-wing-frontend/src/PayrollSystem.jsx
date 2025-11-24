@@ -10,6 +10,7 @@ import PayrollReports from './PayrollReports';
 import api from './services/apiService';
 import { toast } from 'react-toastify';
 import { useMultiTabLogout } from './hooks/useMultiTabLogout';
+import { calculateAllGovernmentDeductions } from './utils/governmentDeductions';
 
 const PayrollSystem = () => {  
   // Enable multi-tab logout synchronization
@@ -247,7 +248,12 @@ const PayrollSystem = () => {
     const absences = Number(deductions.absences) || 0;
     const lateDeduction = lateMinutes * (hourlyRate / 60);
     const absenceDeduction = absences * dailyRate;
-    const totalDeductions = lateDeduction + absenceDeduction;
+    
+    // Calculate government deductions based on basic pay (monthly salary)
+    const monthlySalary = regularPay; // Using regular pay as monthly salary basis
+    const govtDeductions = calculateAllGovernmentDeductions(monthlySalary, selectedEmployee);
+    
+    const totalDeductions = lateDeduction + absenceDeduction + govtDeductions.total;
 
     // Net pay calculation
     const netPay = (
@@ -269,12 +275,17 @@ const PayrollSystem = () => {
       totalBonuses,
       lateDeduction,
       absenceDeduction,
+      sssDeduction: govtDeductions.sss.amount,
+      philHealthDeduction: govtDeductions.philHealth.amount,
+      pagIbigDeduction: govtDeductions.pagIbig.amount,
+      governmentDeductions: govtDeductions.total,
       totalDeductions,
       allowances,
       dailyRate,
       regularHours,
       overtimeHours,
-      totalHours
+      totalHours,
+      govtDeductionsDetail: govtDeductions
     };
   };
   // Handle payroll submission
@@ -286,6 +297,7 @@ const PayrollSystem = () => {
         netPay, regularPay, overtimePay, 
         holidayPay, thirteenthMonthPay, performanceBonus, otherBonus,
         lateDeduction, absenceDeduction,
+        sssDeduction, philHealthDeduction, pagIbigDeduction,
         regularHours, overtimeHours, totalHours
       } = calculateNetSalary();
 
@@ -323,7 +335,10 @@ const PayrollSystem = () => {
           })) : [],
         deductions: {
           late: lateDeduction,
-          absence: absenceDeduction
+          absence: absenceDeduction,
+          sss: sssDeduction,
+          philHealth: philHealthDeduction,
+          pagIbig: pagIbigDeduction
         },
         netPay,
         timeLogs: timeLogs.map(log => log._id)
@@ -1062,10 +1077,78 @@ const PayrollSystem = () => {
                           </>
                         )}
                         
-                        <div className="flex justify-between items-center mb-2" style={{ color: colors.accent }}>
-                          <span>Deductions:</span>
-                          <span>- ₱{(calculateNetSalary().lateDeduction + calculateNetSalary().absenceDeduction).toFixed(2)}</span>
+                        {/* Deductions Section */}
+                        <div className="border-t border-gray-200 pt-3 mt-3">
+                          <div className="flex justify-between items-center mb-3 font-medium" style={{ color: colors.accent }}>
+                            <span>Deductions</span>
+                            <span>- ₱{calculateNetSalary().totalDeductions?.toFixed(2)}</span>
+                          </div>
+                          
+                          {/* Attendance Deductions */}
+                          {(calculateNetSalary().lateDeduction > 0 || calculateNetSalary().absenceDeduction > 0) && (
+                            <div className="ml-4 mb-3">
+                              <div className="text-sm font-medium mb-1" style={{ color: colors.secondary }}>Attendance Deductions:</div>
+                              {calculateNetSalary().lateDeduction > 0 && (
+                                <div className="flex justify-between items-center text-sm mb-1" style={{ color: colors.secondary }}>
+                                  <span className="ml-2">Late:</span>
+                                  <span>- ₱{calculateNetSalary().lateDeduction?.toFixed(2)}</span>
+                                </div>
+                              )}
+                              {calculateNetSalary().absenceDeduction > 0 && (
+                                <div className="flex justify-between items-center text-sm mb-1" style={{ color: colors.secondary }}>
+                                  <span className="ml-2">Absence:</span>
+                                  <span>- ₱{calculateNetSalary().absenceDeduction?.toFixed(2)}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Government Deductions */}
+                          {calculateNetSalary().governmentDeductions > 0 && (
+                            <div className="ml-4 mb-3">
+                              <div className="text-sm font-medium mb-1" style={{ color: colors.secondary }}>Government Deductions:</div>
+                              {calculateNetSalary().sssDeduction > 0 && selectedEmployee.sssNumber && (
+                                <div className="flex justify-between items-center text-sm mb-1" style={{ color: colors.secondary }}>
+                                  <span className="ml-2">
+                                    SSS (5%)
+                                    <span className="text-xs ml-1" title={`SSS#: ${selectedEmployee.sssNumber}`}>✓</span>
+                                  </span>
+                                  <span>- ₱{calculateNetSalary().sssDeduction?.toFixed(2)}</span>
+                                </div>
+                              )}
+                              {calculateNetSalary().philHealthDeduction > 0 && selectedEmployee.philHealthNumber && (
+                                <div className="flex justify-between items-center text-sm mb-1" style={{ color: colors.secondary }}>
+                                  <span className="ml-2">
+                                    PhilHealth (2.5%)
+                                    <span className="text-xs ml-1" title={`PhilHealth#: ${selectedEmployee.philHealthNumber}`}>✓</span>
+                                  </span>
+                                  <span>- ₱{calculateNetSalary().philHealthDeduction?.toFixed(2)}</span>
+                                </div>
+                              )}
+                              {calculateNetSalary().pagIbigDeduction > 0 && selectedEmployee.pagIbigNumber && (
+                                <div className="flex justify-between items-center text-sm mb-1" style={{ color: colors.secondary }}>
+                                  <span className="ml-2">
+                                    Pag-IBIG (2%)
+                                    <span className="text-xs ml-1" title={`Pag-IBIG#: ${selectedEmployee.pagIbigNumber}`}>✓</span>
+                                  </span>
+                                  <span>- ₱{calculateNetSalary().pagIbigDeduction?.toFixed(2)}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Missing Government IDs Notice */}
+                          {(!selectedEmployee.sssNumber || !selectedEmployee.philHealthNumber || !selectedEmployee.pagIbigNumber) && (
+                            <div className="ml-4 mb-2 text-xs" style={{ color: colors.accent, opacity: 0.7 }}>
+                              <span>Note: </span>
+                              {!selectedEmployee.sssNumber && <span>SSS </span>}
+                              {!selectedEmployee.philHealthNumber && <span>PhilHealth </span>}
+                              {!selectedEmployee.pagIbigNumber && <span>Pag-IBIG </span>}
+                              deduction(s) not applied (no ID on file)
+                            </div>
+                          )}
                         </div>
+                        
                         <div className="flex justify-between items-center font-semibold pt-2">
                           <span style={{ color: colors.secondary }}>Net Pay:</span>
                           <span style={{ color: colors.secondary }}>

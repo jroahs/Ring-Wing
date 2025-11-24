@@ -120,8 +120,10 @@ function Login() {
         username: data.username,
         email: data.email,
         role: data.role,
-        position: data.position, // Add position field
-        reportsTo: data.reportsTo
+        position: data.position,
+        reportsTo: data.reportsTo,
+        staffId: data.staffId,
+        staffName: data.staffName
       }));
 
       // Configure axios defaults for future requests

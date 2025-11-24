@@ -114,6 +114,10 @@ const loginUser = async (req, res) => {
     // Don't send password in response
     delete user.password;
 
+    // Find associated staff record
+    const Staff = require('../models/Staff');
+    const staffRecord = await Staff.findOne({ userId: user._id }).select('_id name position').lean();
+
     // Generate JWT token using model method
     const userDoc = await User.findById(user._id);
     const token = userDoc.generateAuthToken();
@@ -134,7 +138,9 @@ const loginUser = async (req, res) => {
       email: user.email,
       role: user.role,
       position: user.position,
-      reportsTo: user.reportsTo
+      reportsTo: user.reportsTo,
+      staffId: staffRecord?._id || null,
+      staffName: staffRecord?.name || null
     });
   } catch (err) {
     console.error('Login error:', err);

@@ -208,6 +208,12 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
       label: 'Time Clock',
       positions: ['cashier', 'inventory', 'shift_manager', 'general_manager', 'admin']
     },
+    {
+      path: '/my-payslips', 
+      icon: <FiCreditCard size={iconSize} className="text-white" />, 
+      label: 'My Payslips',
+      positions: ['cashier', 'inventory', 'shift_manager', 'general_manager', 'admin']
+    },
     { 
       path: '/staff',
       icon: <FiUsers size={iconSize} className="text-white" />,

@@ -25,6 +25,7 @@ import OrderNotificationContainer from './components/OrderNotificationContainer'
 import { useOrderNotifications } from './hooks/useOrderNotifications';
 import PayrollSystem from './PayrollSystem';
 import EmployeeManagement from "./EmployeeManagement";
+import StaffPayslip from './StaffPayslip';
 import TimeClock from './TimeClock';
 import RevenueReportsPage from './RevenueReportsPage';
 import TimeClockInterface from './TimeClockInterface';
@@ -400,6 +401,13 @@ function App() {
                   
                   {/* Time clock accessible to all */}
                   <Route path="/timeclock" element={<TimeClock />} />
+                  
+                  {/* Staff Payslip - accessible to all staff */}
+                  <Route path="/my-payslips" element={
+                    <PositionProtectedRoute requiredPositions={['cashier', 'inventory', 'shift_manager', 'general_manager', 'admin']}>
+                      <StaffPayslip colors={colors} />
+                    </PositionProtectedRoute>
+                  } />
                   
                   {/* Inventory routes - only for inventory staff and managers */}
                   <Route path="/inventory" element={

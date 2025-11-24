@@ -12,6 +12,7 @@ const {
   calculate13thMonthPay,
   is13thMonthPayPeriod 
 } = require('../utils/philippineHolidays');
+const { calculateAllGovernmentDeductions } = require('../utils/governmentDeductions');
 
 // Create payroll record
 router.post('/', auth, async (req, res) => {
@@ -411,6 +412,19 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
       thirteenthMonthPay = calculate13thMonthPay(totalBasicPay);
     }
 
+    // Calculate government deductions based on monthly salary
+    const monthlySalary = basicPay; // Basic pay represents monthly salary for payroll period
+    const govtDeductions = calculateAllGovernmentDeductions(monthlySalary, staff);
+    
+    console.log('Government deductions calculated:', {
+      staffName: staff.name,
+      monthlySalary,
+      sss: govtDeductions.sss.amount,
+      philHealth: govtDeductions.philHealth.amount,
+      pagIbig: govtDeductions.pagIbig.amount,
+      total: govtDeductions.total
+    });
+
     // Calculate net pay
     const grossPay =
       basicPay +
@@ -420,9 +434,15 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
       (manualBonuses.performance || 0) +
       (manualBonuses.other || 0) +
       (thirteenthMonthPay || 0);
+    
     const totalDeductions =
       (deductions?.late || 0) +
-      (deductions?.absence || 0);    const netPay = grossPay - totalDeductions;
+      (deductions?.absence || 0) +
+      govtDeductions.sss.amount +
+      govtDeductions.philHealth.amount +
+      govtDeductions.pagIbig.amount;
+      
+    const netPay = grossPay - totalDeductions;
 
     // Use frontend-provided hours (which include proper holiday compliance and business logic)
     // If not provided, fall back to backend calculation as a safety measure
@@ -458,7 +478,14 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
         other: manualBonuses.other || 0
       },
       holidaysWorked,
-      deductions,
+      deductions: {
+        late: deductions?.late || 0,
+        absence: deductions?.absence || 0,
+        sss: govtDeductions.sss.amount,
+        philHealth: govtDeductions.philHealth.amount,
+        pagIbig: govtDeductions.pagIbig.amount,
+        withholdingTax: 0 // Placeholder for future implementation
+      },
       totalHoursWorked: finalTotalHours, // Use frontend-provided values with fallback
       overtimeHours: finalOvertimeHours, // Use frontend-provided values with fallback
       grossPay,
@@ -478,6 +505,12 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
         holidaysWorked,
         totalHolidayBonus,
         thirteenthMonthPay,
+        governmentDeductions: {
+          sss: govtDeductions.sss,
+          philHealth: govtDeductions.philHealth,
+          pagIbig: govtDeductions.pagIbig,
+          total: govtDeductions.total
+        },
         grossPay: populatedPayroll.grossPay,
         netPay: populatedPayroll.netPay
       }

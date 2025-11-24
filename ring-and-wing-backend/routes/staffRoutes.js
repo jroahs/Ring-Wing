@@ -678,4 +678,106 @@ router.post('/authenticate-pin', async (req, res) => {
   }
 });
 
+// Staff Payslip Routes - Staff can view their own payslips
+// GET /api/staff/:staffId/payslips - Get all payslips for a specific staff member
+router.get('/:staffId/payslips', auth, async (req, res) => {
+  try {
+    const { staffId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    // Verify staff can only access their own payslips (unless manager/admin)
+    const requestingUser = await User.findById(req.user.id);
+    const requestingStaff = await Staff.findOne({ userId: requestingUser._id });
+    
+    const isManagerOrAdmin = ['shift_manager', 'general_manager', 'admin'].includes(requestingUser.position);
+    
+    if (!isManagerOrAdmin && requestingStaff._id.toString() !== staffId) {
+      return res.status(403).json({ 
+        success: false,
+        message: 'You can only view your own payslips' 
+      });
+    }
+
+    // Build query
+    const query = { staffId };
+    
+    if (startDate || endDate) {
+      query.payrollPeriod = {};
+      if (startDate) query.payrollPeriod.$gte = new Date(startDate);
+      if (endDate) query.payrollPeriod.$lte = new Date(endDate);
+    }
+
+    const Payroll = require('../models/Payroll');
+    const payslips = await Payroll.find(query)
+      .populate('staffId', 'name position sssNumber philHealthNumber pagIbigNumber tinNumber')
+      .sort({ payrollPeriod: -1 })
+      .lean();
+
+    res.json({
+      success: true,
+      count: payslips.length,
+      data: payslips
+    });
+  } catch (error) {
+    console.error('Error fetching staff payslips:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching payslips',
+      error: error.message 
+    });
+  }
+});
+
+// GET /api/staff/payslip/:payslipId - Get a specific payslip by ID
+router.get('/payslip/:payslipId', auth, async (req, res) => {
+  try {
+    const { payslipId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(payslipId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid payslip ID' 
+      });
+    }
+
+    const Payroll = require('../models/Payroll');
+    const payslip = await Payroll.findById(payslipId)
+      .populate('staffId', 'name position sssNumber philHealthNumber pagIbigNumber tinNumber email contactNumber')
+      .populate('timeLogs')
+      .lean();
+
+    if (!payslip) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Payslip not found' 
+      });
+    }
+
+    // Verify staff can only access their own payslips (unless manager/admin)
+    const requestingUser = await User.findById(req.user.id);
+    const requestingStaff = await Staff.findOne({ userId: requestingUser._id });
+    
+    const isManagerOrAdmin = ['shift_manager', 'general_manager', 'admin'].includes(requestingUser.position);
+    
+    if (!isManagerOrAdmin && requestingStaff._id.toString() !== payslip.staffId._id.toString()) {
+      return res.status(403).json({ 
+        success: false,
+        message: 'You can only view your own payslips' 
+      });
+    }
+
+    res.json({
+      success: true,
+      data: payslip
+    });
+  } catch (error) {
+    console.error('Error fetching payslip:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching payslip',
+      error: error.message 
+    });
+  }
+});
+
 module.exports = router;
