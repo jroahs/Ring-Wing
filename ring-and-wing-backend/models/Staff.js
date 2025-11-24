@@ -10,6 +10,12 @@ const staffSchema = new mongoose.Schema({
     required: [true, 'Position is required'],
     enum: ['Cashier', 'Inventory Staff', 'Shift Manager', 'General Manager', 'Admin', 'Barista', 'Chef', 'Server', 'Cook']
   },
+  employmentType: {
+    type: String,
+    required: [true, 'Employment type is required'],
+    enum: ['Regular', 'Part-time', 'Probationary', 'Contractual', 'Seasonal', 'Intern'],
+    default: 'Regular'
+  },
   profilePicture: {
     type: String,
     default: ''

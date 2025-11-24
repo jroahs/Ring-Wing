@@ -134,7 +134,8 @@ router.post('/', auth, validateStaffCreation, async (req, res) => {
       email, 
       password, 
       name, 
-      position, 
+      position,
+      employmentType, 
       phone, 
       dailyRate, 
       profilePicture, 
@@ -178,6 +179,7 @@ router.post('/', auth, validateStaffCreation, async (req, res) => {
       const newStaff = new Staff({
         name,
         position,
+        employmentType: employmentType || 'Regular',
         phone,
         dailyRate,
         profilePicture: processedProfilePicture,

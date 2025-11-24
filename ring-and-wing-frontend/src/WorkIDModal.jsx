@@ -173,6 +173,15 @@ function WorkIDModal({ staff, onClose, colors }) {
 
                 <div>
                   <div className="text-xs uppercase tracking-widest mb-1" style={{ color: colors.muted }}>
+                    Employment Type
+                  </div>
+                  <div className="text-md font-medium" style={{ color: colors.secondary }}>
+                    {staff.employmentType || 'Regular'}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs uppercase tracking-widest mb-1" style={{ color: colors.muted }}>
                     Daily Rate
                   </div>
                   <div className="text-md font-semibold" style={{ color: colors.primary }}>

@@ -26,6 +26,7 @@ const StaffManagement = () => {
   const [staffToTerminate, setStaffToTerminate] = useState(null);
   const [statusFilter, setStatusFilter] = useState('Active'); // Default to Active only
   const [searchQuery, setSearchQuery] = useState(''); // Search functionality
+  const [employmentTypeFilter, setEmploymentTypeFilter] = useState('All'); // Employment type filter
   const [currentPage, setCurrentPage] = useState(1); // Pagination
   const [itemsPerPage] = useState(12); // Items per page
   const statusOptions = ['Active', 'On Leave', 'Inactive'];
@@ -43,10 +44,20 @@ const StaffManagement = () => {
     'Cook'
   ];
 
+  const employmentTypeOptions = [
+    'Regular',
+    'Part-time', 
+    'Probationary',
+    'Contractual',
+    'Seasonal',
+    'Intern'
+  ];
+
   const [formData, setFormData] = useState({
     // Staff details
     name: '',
     position: '',
+    employmentType: 'Regular',
     profilePicture: '',
     phone: '',
     dailyRate: '',
@@ -102,6 +113,7 @@ const StaffManagement = () => {
             _id: member._id || `temp-${Date.now()}-${Math.random()}`,
             name: member.name || '',
             position: member.position || '',
+            employmentType: member.employmentType || 'Regular',
             // Extract email and username either from the root level or from userId
             email: member.email || userData.email || '',
             username: member.username || userData.username || '',
@@ -274,6 +286,7 @@ const StaffManagement = () => {
     // Other required fields
     if (!formData.name.trim()) errors.name = 'Name is required';
     if (!formData.position) errors.position = 'Position is required';
+    if (!formData.employmentType) errors.employmentType = 'Employment type is required';
     if (!formData.phone.trim()) errors.phone = 'Phone number is required';
     if (!/^0\d{10}$/.test(formData.phone)) errors.phone = 'Invalid phone number format (e.g., 09123456789)';
     if (!formData.dailyRate) errors.dailyRate = 'Daily rate is required';
@@ -302,6 +315,7 @@ const StaffManagement = () => {
     // Other required staff fields
     if (!formData.name.trim()) errors.name = 'Name is required';
     if (!formData.position) errors.position = 'Position is required';
+    if (!formData.employmentType) errors.employmentType = 'Employment type is required';
     if (!formData.phone.trim()) errors.phone = 'Phone number is required';
     if (!/^0\d{10}$/.test(formData.phone)) errors.phone = 'Invalid phone number format (e.g., 09123456789)';
     if (!formData.dailyRate) errors.dailyRate = 'Daily rate is required';
@@ -417,6 +431,7 @@ const StaffManagement = () => {
       pinCode: pinCode,
       name: staffMember.name || '',
       position: staffMember.position || '',
+      employmentType: staffMember.employmentType || 'Regular',
       profilePicture: staffMember.profilePicture || '',
       status: staffMember.status || 'Active',
       sssNumber: staffMember.sssNumber || '',
@@ -441,6 +456,7 @@ const StaffManagement = () => {
         password: formData.password,
         name: formData.name,
         position: formData.position,
+        employmentType: formData.employmentType,
         profilePicture: formData.profilePicture,
         phone: formData.phone,
         dailyRate: formData.dailyRate,
@@ -486,6 +502,7 @@ const StaffManagement = () => {
       const payload = {
         name: formData.name,
         position: formData.position,
+        employmentType: formData.employmentType,
         profilePicture: formData.profilePicture,
         phone: formData.phone,
         dailyRate: formData.dailyRate,
@@ -654,10 +671,13 @@ const StaffManagement = () => {
     setStaffToTerminate(staffMember);
     setIsTerminationModalOpen(true);
   };
-  // Filter staff based on status and search query
+  // Filter staff based on status, employment type, and search query
   const filteredStaff = staff.filter(staffMember => {
     // Status filter
     const statusMatch = statusFilter === 'All' || staffMember.status === statusFilter;
+    
+    // Employment type filter
+    const employmentTypeMatch = employmentTypeFilter === 'All' || staffMember.employmentType === employmentTypeFilter;
     
     // Search filter (name, position, or email)
     const searchMatch = !searchQuery || 
@@ -666,7 +686,7 @@ const StaffManagement = () => {
       staffMember.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       staffMember.username?.toLowerCase().includes(searchQuery.toLowerCase());
     
-    return statusMatch && searchMatch;
+    return statusMatch && employmentTypeMatch && searchMatch;
   });
 
   // Pagination logic
@@ -678,7 +698,7 @@ const StaffManagement = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, searchQuery]);
+  }, [statusFilter, employmentTypeFilter, searchQuery]);
 
   // Pagination component
   const PaginationControls = ({ className = "" }) => {
@@ -777,6 +797,7 @@ const StaffManagement = () => {
       // Staff details
       name: '',
       position: '',
+      employmentType: 'Regular',
       profilePicture: '',
       phone: '',
       dailyRate: '',
@@ -891,6 +912,24 @@ const StaffManagement = () => {
                       </div>
                     </div>
 
+                    {/* Employment Type Filter */}
+                    <div className="flex items-center gap-2 text-xs">
+                      <label className="text-xs font-medium" style={{ color: colors.primary }}>
+                        Employment Type:
+                      </label>
+                      <select
+                        value={employmentTypeFilter}
+                        onChange={(e) => setEmploymentTypeFilter(e.target.value)}
+                        className="p-1 rounded border text-xs"
+                        style={{ borderColor: colors.muted, backgroundColor: colors.background, color: colors.primary }}
+                      >
+                        <option value="All">All Types</option>
+                        {employmentTypeOptions.map(type => (
+                          <option key={type} value={type}>{type}</option>
+                        ))}
+                      </select>
+                    </div>
+
                     {/* Status Filter Badges - optimized for single line */}
                     <div className="flex flex-wrap gap-1 text-xs">
                       {allStatusOptions.map(status => {
@@ -912,10 +951,11 @@ const StaffManagement = () => {
                         );
                       })}
                       {/* Reset Filters Button */}
-                      {(statusFilter !== 'Active' || searchQuery) && (
+                      {(statusFilter !== 'Active' || employmentTypeFilter !== 'All' || searchQuery) && (
                         <button
                           onClick={() => {
                             setStatusFilter('Active');
+                            setEmploymentTypeFilter('All');
                             setSearchQuery('');
                           }}
                           className="px-2 py-0.5 rounded text-xs underline"
@@ -974,7 +1014,7 @@ const StaffManagement = () => {
                                 <p className="font-medium">{staffMember.name}</p>
                                 <div className="flex items-center gap-2">
                                   <p className="text-sm" style={{ color: colors.muted }}>
-                                    {staffMember.position}
+                                    {staffMember.position} • {staffMember.employmentType}
                                   </p>
                                   <span 
                                     className="text-xs px-2 py-0.5 rounded-full font-medium"
@@ -1280,6 +1320,27 @@ const StaffManagement = () => {
                           </select>
                           {formErrors.position && (
                             <div className="text-xs text-red-500 mt-1">{formErrors.position}</div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-medium mb-1" style={{ color: colors.primary }}>
+                            Employment Type
+                          </label>
+                          <select 
+                            name="employmentType" 
+                            value={formData.employmentType} 
+                            onChange={handleInputChange}
+                            className="p-2 rounded border w-full text-sm" 
+                            style={{ borderColor: formErrors.employmentType ? colors.accent : colors.muted }}
+                          >
+                            <option value="">Select Employment Type</option>
+                            {employmentTypeOptions.map(option => (
+                              <option key={option} value={option}>{option}</option>
+                            ))}
+                          </select>
+                          {formErrors.employmentType && (
+                            <div className="text-xs text-red-500 mt-1">{formErrors.employmentType}</div>
                           )}
                         </div>
 
