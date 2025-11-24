@@ -52,7 +52,11 @@ const GovernmentConfigManagement = () => {
       }
     } catch (error) {
       console.error('Error fetching config:', error);
-      showMessage('Error loading configuration', 'error');
+      if (error.response?.status === 404) {
+        showMessage('No configuration found. Please create initial configuration.', 'error');
+      } else {
+        showMessage('Error loading configuration', 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -66,6 +70,7 @@ const GovernmentConfigManagement = () => {
       }
     } catch (error) {
       console.error('Error fetching history:', error);
+      // Silently fail for history - not critical
     }
   };
 
