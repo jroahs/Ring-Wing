@@ -26,6 +26,7 @@ import { useOrderNotifications } from './hooks/useOrderNotifications';
 import PayrollSystem from './PayrollSystem';
 import EmployeeManagement from "./EmployeeManagement";
 import StaffPayslip from './StaffPayslip';
+import GovernmentConfigManagement from './GovernmentConfigManagement';
 import TimeClock from './TimeClock';
 import RevenueReportsPage from './RevenueReportsPage';
 import TimeClockInterface from './TimeClockInterface';
@@ -432,6 +433,11 @@ function App() {
                   <Route path="/payroll" element={
                     <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
                       <PayrollSystem />
+                    </PositionProtectedRoute>
+                  } />
+                  <Route path="/government-config" element={
+                    <PositionProtectedRoute requiredPositions={['general_manager', 'admin']}>
+                      <GovernmentConfigManagement />
                     </PositionProtectedRoute>
                   } />
                   <Route path="/expenses" element={

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FiDownload, FiEye, FiCalendar, FiDollarSign } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import api from './services/apiService';
+import { generatePayslipPDF } from './utils/pdfGenerator';
 
 const StaffPayslip = ({ colors }) => {
   const [payslips, setPayslips] = useState([]);
@@ -107,6 +108,21 @@ const StaffPayslip = ({ colors }) => {
 
   const formatCurrency = (amount) => {
     return `₱${amount?.toFixed(2) || '0.00'}`;
+  };
+
+  const handleDownloadPDF = () => {
+    if (!selectedPayslip) {
+      toast.error('No payslip selected');
+      return;
+    }
+
+    try {
+      generatePayslipPDF(selectedPayslip);
+      toast.success('Payslip PDF downloaded successfully');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF');
+    }
   };
 
   const calculateGrossPay = (payslip) => {
@@ -398,85 +414,85 @@ const StaffPayslip = ({ colors }) => {
                 Deductions
               </h3>
               
-              {/* Attendance Deductions */}
-              {(selectedPayslip.deductions?.late > 0 || selectedPayslip.deductions?.absence > 0) && (
-                <div className="mb-4">
-                  <p className="text-sm font-medium mb-2" style={{ color: colors.secondary }}>
-                    Attendance Deductions:
-                  </p>
-                  <div className="ml-4 space-y-1">
-                    {selectedPayslip.deductions?.late > 0 && (
-                      <div className="flex justify-between items-center text-sm">
-                        <span style={{ color: colors.secondary }}>Late</span>
-                        <span style={{ color: colors.accent }}>
-                          -{formatCurrency(selectedPayslip.deductions.late)}
-                        </span>
-                      </div>
-                    )}
-                    {selectedPayslip.deductions?.absence > 0 && (
-                      <div className="flex justify-between items-center text-sm">
-                        <span style={{ color: colors.secondary }}>Absence</span>
-                        <span style={{ color: colors.accent }}>
-                          -{formatCurrency(selectedPayslip.deductions.absence)}
-                        </span>
-                      </div>
-                    )}
+              {/* Attendance Deductions - Always show */}
+              <div className="mb-4">
+                <p className="text-sm font-medium mb-2" style={{ color: colors.secondary }}>
+                  Attendance Deductions:
+                </p>
+                <div className="ml-4 space-y-1">
+                  <div className="flex justify-between items-center text-sm">
+                    <span style={{ color: colors.secondary }}>Late</span>
+                    <span style={{ color: colors.accent }}>
+                      -{formatCurrency(selectedPayslip.deductions?.late || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span style={{ color: colors.secondary }}>Absence</span>
+                    <span style={{ color: colors.accent }}>
+                      -{formatCurrency(selectedPayslip.deductions?.absence || 0)}
+                    </span>
                   </div>
                 </div>
-              )}
+              </div>
 
-              {/* Government Deductions */}
-              {(selectedPayslip.deductions?.sss > 0 || 
-                selectedPayslip.deductions?.philHealth > 0 || 
-                selectedPayslip.deductions?.pagIbig > 0) && (
-                <div className="mb-4">
-                  <p className="text-sm font-medium mb-2" style={{ color: colors.secondary }}>
-                    Government Deductions:
-                  </p>
-                  <div className="ml-4 space-y-1">
-                    {selectedPayslip.deductions?.sss > 0 && selectedPayslip.staffId?.sssNumber && (
-                      <div className="flex justify-between items-center text-sm">
-                        <span style={{ color: colors.secondary }}>
-                          SSS (5%) - {selectedPayslip.staffId.sssNumber}
-                        </span>
-                        <span style={{ color: colors.accent }}>
-                          -{formatCurrency(selectedPayslip.deductions.sss)}
-                        </span>
-                      </div>
-                    )}
-                    {selectedPayslip.deductions?.philHealth > 0 && selectedPayslip.staffId?.philHealthNumber && (
-                      <div className="flex justify-between items-center text-sm">
-                        <span style={{ color: colors.secondary }}>
-                          PhilHealth (2.5%) - {selectedPayslip.staffId.philHealthNumber}
-                        </span>
-                        <span style={{ color: colors.accent }}>
-                          -{formatCurrency(selectedPayslip.deductions.philHealth)}
-                        </span>
-                      </div>
-                    )}
-                    {selectedPayslip.deductions?.pagIbig > 0 && selectedPayslip.staffId?.pagIbigNumber && (
-                      <div className="flex justify-between items-center text-sm">
-                        <span style={{ color: colors.secondary }}>
-                          Pag-IBIG (2%) - {selectedPayslip.staffId.pagIbigNumber}
-                        </span>
-                        <span style={{ color: colors.accent }}>
-                          -{formatCurrency(selectedPayslip.deductions.pagIbig)}
-                        </span>
-                      </div>
-                    )}
+              {/* Government Deductions - Always show */}
+              <div className="mb-4">
+                <p className="text-sm font-medium mb-2" style={{ color: colors.secondary }}>
+                  Government Deductions:
+                </p>
+                <div className="ml-4 space-y-1">
+                  <div className="flex justify-between items-center text-sm">
+                    <span style={{ color: colors.secondary }}>
+                      SSS (5%)
+                      {selectedPayslip.staffId?.sssNumber && (
+                        <span className="text-xs ml-1">- {selectedPayslip.staffId.sssNumber}</span>
+                      )}
+                      {!selectedPayslip.staffId?.sssNumber && (
+                        <span className="text-xs ml-1 opacity-60">- No ID on file</span>
+                      )}
+                    </span>
+                    <span style={{ color: colors.accent }}>
+                      -{formatCurrency(selectedPayslip.deductions?.sss || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span style={{ color: colors.secondary }}>
+                      PhilHealth (2.5%)
+                      {selectedPayslip.staffId?.philHealthNumber && (
+                        <span className="text-xs ml-1">- {selectedPayslip.staffId.philHealthNumber}</span>
+                      )}
+                      {!selectedPayslip.staffId?.philHealthNumber && (
+                        <span className="text-xs ml-1 opacity-60">- No ID on file</span>
+                      )}
+                    </span>
+                    <span style={{ color: colors.accent }}>
+                      -{formatCurrency(selectedPayslip.deductions?.philHealth || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span style={{ color: colors.secondary }}>
+                      Pag-IBIG (2%)
+                      {selectedPayslip.staffId?.pagIbigNumber && (
+                        <span className="text-xs ml-1">- {selectedPayslip.staffId.pagIbigNumber}</span>
+                      )}
+                      {!selectedPayslip.staffId?.pagIbigNumber && (
+                        <span className="text-xs ml-1 opacity-60">- No ID on file</span>
+                      )}
+                    </span>
+                    <span style={{ color: colors.accent }}>
+                      -{formatCurrency(selectedPayslip.deductions?.pagIbig || 0)}
+                    </span>
                   </div>
                 </div>
-              )}
+              </div>
 
-              {/* Withholding Tax */}
-              {selectedPayslip.deductions?.withholdingTax > 0 && (
-                <div className="flex justify-between items-center text-sm mb-4">
-                  <span style={{ color: colors.secondary }}>Withholding Tax</span>
-                  <span style={{ color: colors.accent }}>
-                    -{formatCurrency(selectedPayslip.deductions.withholdingTax)}
-                  </span>
-                </div>
-              )}
+              {/* Withholding Tax - Always show */}
+              <div className="flex justify-between items-center text-sm mb-4">
+                <span style={{ color: colors.secondary }}>Withholding Tax</span>
+                <span style={{ color: colors.accent }}>
+                  -{formatCurrency(selectedPayslip.deductions?.withholdingTax || 0)}
+                </span>
+              </div>
 
               <div className="flex justify-between items-center pt-2 border-t font-semibold" 
                    style={{ borderColor: colors.muted, color: colors.accent }}>
@@ -500,7 +516,7 @@ const StaffPayslip = ({ colors }) => {
               <button
                 className="w-full py-3 rounded-lg font-semibold transition-opacity hover:opacity-90 flex items-center justify-center"
                 style={{ backgroundColor: colors.accent, color: 'white' }}
-                onClick={() => toast.info('PDF download feature coming soon')}
+                onClick={handleDownloadPDF}
               >
                 <FiDownload className="mr-2" />
                 Download PDF

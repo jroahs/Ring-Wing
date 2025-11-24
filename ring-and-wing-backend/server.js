@@ -324,6 +324,7 @@ logger.info('[Setup] Time-log routes registered');
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/payroll-schedules', payrollScheduleRoutes);
 app.use('/api/staff', staffRoutes);
+app.use('/api/government-config', require('./routes/governmentConfigRoutes'));
 app.use('/api/expenses', require('./routes/expenseRoutes'));
 app.use('/api/auth', require('./routes/authRoutes'));
 // Customer authentication routes (separate from staff auth)

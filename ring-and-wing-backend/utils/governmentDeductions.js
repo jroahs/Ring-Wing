@@ -1,11 +1,18 @@
 /**
  * Government Deductions Utility
  * Calculates Philippine government-mandated deductions (SSS, PhilHealth, Pag-IBIG)
- * Based on 2024 official rates and tables
+ * Reads configuration from database with fallback to hardcoded 2024 rates
  */
 
-// SSS Monthly Salary Credit (MSC) Brackets - 2024
-const SSS_MSC_BRACKETS = [
+const GovernmentDeductionConfig = require('../models/GovernmentDeductionConfig');
+
+// Cache for configuration (refreshed every 5 minutes)
+let cachedConfig = null;
+let cacheTimestamp = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Fallback configuration - 2024 rates (used if database unavailable)
+const FALLBACK_SSS_MSC_BRACKETS = [
   { min: 0, max: 4249.99, msc: 4000 },
   { min: 4250, max: 4749.99, msc: 4500 },
   { min: 4750, max: 5249.99, msc: 5000 },
@@ -53,50 +60,129 @@ const SSS_MSC_BRACKETS = [
   { min: 35000, max: Infinity, msc: 35000 }
 ];
 
-const SSS_EMPLOYEE_RATE = 0.05; // 5% employee contribution
+const FALLBACK_SSS_EMPLOYEE_RATE = 0.05; // 5% employee contribution
 
-// PhilHealth Configuration - 2024
-const PHILHEALTH_CONFIG = {
+// PhilHealth Fallback Configuration - 2024
+const FALLBACK_PHILHEALTH_CONFIG = {
   floor: 10000,           // Minimum salary for calculation
   ceiling: 100000,        // Maximum salary for calculation
   totalRate: 0.05,        // 5% total premium
   employeeShare: 0.025    // 2.5% employee portion (50% of total)
 };
 
-// Pag-IBIG Configuration - 2024
-const PAGIBIG_CONFIG = {
+// Pag-IBIG Fallback Configuration - 2024
+const FALLBACK_PAGIBIG_CONFIG = {
   rate: 0.02,   // 2% employee contribution
   cap: 200      // Maximum ₱200 monthly contribution
 };
 
 /**
+ * Fetch active government deduction configuration from database
+ * Uses caching to reduce database queries
+ * @returns {Object|null} - Active configuration or null if unavailable
+ */
+async function getActiveConfig() {
+  try {
+    // Check if cache is still valid
+    const now = Date.now();
+    if (cachedConfig && cacheTimestamp && (now - cacheTimestamp) < CACHE_DURATION) {
+      return cachedConfig;
+    }
+
+    // Fetch from database
+    const config = await GovernmentDeductionConfig.getActiveConfig();
+    
+    if (config) {
+      cachedConfig = config;
+      cacheTimestamp = now;
+      return config;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error fetching government config:', error);
+    return null;
+  }
+}
+
+/**
+ * Get configuration (from database or fallback to hardcoded)
+ * @returns {Object} - Configuration object
+ */
+async function getConfig() {
+  const dbConfig = await getActiveConfig();
+  
+  if (dbConfig) {
+    return {
+      sss: {
+        employeeRate: dbConfig.sss.employeeRate,
+        mscBrackets: dbConfig.sss.mscBrackets
+      },
+      philHealth: {
+        employeeRate: dbConfig.philHealth.employeeRate,
+        floor: dbConfig.philHealth.floor,
+        ceiling: dbConfig.philHealth.ceiling
+      },
+      pagIbig: {
+        rate: dbConfig.pagIbig.employeeRate,
+        cap: dbConfig.pagIbig.maxContribution
+      }
+    };
+  }
+
+  // Fallback to hardcoded values
+  console.warn('Using fallback government deduction configuration');
+  return {
+    sss: {
+      employeeRate: FALLBACK_SSS_EMPLOYEE_RATE,
+      mscBrackets: FALLBACK_SSS_MSC_BRACKETS
+    },
+    philHealth: {
+      employeeRate: FALLBACK_PHILHEALTH_CONFIG.employeeShare,
+      floor: FALLBACK_PHILHEALTH_CONFIG.floor,
+      ceiling: FALLBACK_PHILHEALTH_CONFIG.ceiling
+    },
+    pagIbig: {
+      rate: FALLBACK_PAGIBIG_CONFIG.rate,
+      cap: FALLBACK_PAGIBIG_CONFIG.cap
+    }
+  };
+}
+
+/**
  * Find the appropriate Monthly Salary Credit (MSC) for a given salary
  * @param {number} salary - Monthly salary amount
+ * @param {Array} mscBrackets - MSC brackets from configuration
  * @returns {number} - Monthly Salary Credit
  */
-function findMSC(salary) {
-  for (const bracket of SSS_MSC_BRACKETS) {
+function findMSC(salary, mscBrackets) {
+  for (const bracket of mscBrackets) {
     if (salary >= bracket.min && salary <= bracket.max) {
       return bracket.msc;
     }
   }
   // Default to highest MSC if salary exceeds all brackets
-  return SSS_MSC_BRACKETS[SSS_MSC_BRACKETS.length - 1].msc;
+  return mscBrackets[mscBrackets.length - 1].msc;
 }
 
 /**
  * Calculate SSS (Social Security System) deduction
  * @param {number} monthlySalary - Monthly salary amount
  * @param {boolean} hasSSSNumber - Whether employee has SSS number
+ * @param {Object} config - Government deduction configuration
  * @returns {number} - SSS deduction amount (0 if no SSS number)
  */
-function calculateSSS(monthlySalary, hasSSSNumber) {
+async function calculateSSS(monthlySalary, hasSSSNumber, config = null) {
   if (!hasSSSNumber || !monthlySalary || monthlySalary <= 0) {
     return 0;
   }
+
+  if (!config) {
+    config = await getConfig();
+  }
   
-  const msc = findMSC(monthlySalary);
-  const sssDeduction = msc * SSS_EMPLOYEE_RATE;
+  const msc = findMSC(monthlySalary, config.sss.mscBrackets);
+  const sssDeduction = msc * config.sss.employeeRate;
   
   return Number(sssDeduction.toFixed(2));
 }
@@ -105,20 +191,25 @@ function calculateSSS(monthlySalary, hasSSSNumber) {
  * Calculate PhilHealth (Philippine Health Insurance) deduction
  * @param {number} monthlySalary - Monthly salary amount
  * @param {boolean} hasPhilHealthNumber - Whether employee has PhilHealth number
+ * @param {Object} config - Government deduction configuration
  * @returns {number} - PhilHealth deduction amount (0 if no PhilHealth number)
  */
-function calculatePhilHealth(monthlySalary, hasPhilHealthNumber) {
+async function calculatePhilHealth(monthlySalary, hasPhilHealthNumber, config = null) {
   if (!hasPhilHealthNumber || !monthlySalary || monthlySalary <= 0) {
     return 0;
+  }
+
+  if (!config) {
+    config = await getConfig();
   }
   
   // Apply floor and ceiling
   const baseSalary = Math.max(
-    PHILHEALTH_CONFIG.floor, 
-    Math.min(monthlySalary, PHILHEALTH_CONFIG.ceiling)
+    config.philHealth.floor, 
+    Math.min(monthlySalary, config.philHealth.ceiling)
   );
   
-  const philHealthDeduction = baseSalary * PHILHEALTH_CONFIG.employeeShare;
+  const philHealthDeduction = baseSalary * config.philHealth.employeeRate;
   
   return Number(philHealthDeduction.toFixed(2));
 }
@@ -127,17 +218,22 @@ function calculatePhilHealth(monthlySalary, hasPhilHealthNumber) {
  * Calculate Pag-IBIG (Home Development Mutual Fund) deduction
  * @param {number} monthlySalary - Monthly salary amount
  * @param {boolean} hasPagIbigNumber - Whether employee has Pag-IBIG number
+ * @param {Object} config - Government deduction configuration
  * @returns {number} - Pag-IBIG deduction amount (0 if no Pag-IBIG number)
  */
-function calculatePagIbig(monthlySalary, hasPagIbigNumber) {
+async function calculatePagIbig(monthlySalary, hasPagIbigNumber, config = null) {
   if (!hasPagIbigNumber || !monthlySalary || monthlySalary <= 0) {
     return 0;
   }
+
+  if (!config) {
+    config = await getConfig();
+  }
   
-  // Calculate 2% of salary, capped at ₱200
+  // Calculate rate% of salary, capped at max contribution
   const pagIbigDeduction = Math.min(
-    monthlySalary * PAGIBIG_CONFIG.rate, 
-    PAGIBIG_CONFIG.cap
+    monthlySalary * config.pagIbig.rate, 
+    config.pagIbig.cap
   );
   
   return Number(pagIbigDeduction.toFixed(2));
@@ -147,16 +243,18 @@ function calculatePagIbig(monthlySalary, hasPagIbigNumber) {
  * Calculate all government deductions for an employee
  * @param {number} monthlySalary - Monthly salary amount
  * @param {object} staff - Staff object with government IDs
- * @returns {object} - Object containing all deduction amounts and details
+ * @returns {object} - Object containing all calculated deductions
  */
-function calculateAllGovernmentDeductions(monthlySalary, staff) {
+async function calculateAllGovernmentDeductions(monthlySalary, staff) {
+  const config = await getConfig();
+  
   const hasSSSNumber = !!(staff.sssNumber && staff.sssNumber.trim());
   const hasPhilHealthNumber = !!(staff.philHealthNumber && staff.philHealthNumber.trim());
   const hasPagIbigNumber = !!(staff.pagIbigNumber && staff.pagIbigNumber.trim());
   
-  const sss = calculateSSS(monthlySalary, hasSSSNumber);
-  const philHealth = calculatePhilHealth(monthlySalary, hasPhilHealthNumber);
-  const pagIbig = calculatePagIbig(monthlySalary, hasPagIbigNumber);
+  const sss = await calculateSSS(monthlySalary, hasSSSNumber, config);
+  const philHealth = await calculatePhilHealth(monthlySalary, hasPhilHealthNumber, config);
+  const pagIbig = await calculatePagIbig(monthlySalary, hasPagIbigNumber, config);
   
   const total = sss + philHealth + pagIbig;
   
@@ -164,7 +262,7 @@ function calculateAllGovernmentDeductions(monthlySalary, staff) {
     sss: {
       amount: sss,
       hasId: hasSSSNumber,
-      msc: hasSSSNumber ? findMSC(monthlySalary) : 0
+      msc: hasSSSNumber ? findMSC(monthlySalary, config.sss.mscBrackets) : 0
     },
     philHealth: {
       amount: philHealth,
@@ -211,9 +309,10 @@ module.exports = {
   calculatePagIbig,
   calculateAllGovernmentDeductions,
   getGovernmentDeductionConfig,
+  getConfig,
   // Export constants for testing
-  SSS_MSC_BRACKETS,
-  SSS_EMPLOYEE_RATE,
-  PHILHEALTH_CONFIG,
-  PAGIBIG_CONFIG
+  FALLBACK_SSS_MSC_BRACKETS,
+  FALLBACK_SSS_EMPLOYEE_RATE,
+  FALLBACK_PHILHEALTH_CONFIG,
+  FALLBACK_PAGIBIG_CONFIG
 };

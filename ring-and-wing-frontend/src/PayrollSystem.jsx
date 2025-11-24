@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FiUser, FiCalendar, FiClock, FiFileText, FiPrinter, FiEdit, FiGift, FiStar } from 'react-icons/fi';
+import { FiUser, FiCalendar, FiClock, FiFileText, FiPrinter, FiEdit, FiGift, FiStar, FiDownload } from 'react-icons/fi';
 import { PesoIconSimple } from './components/ui/PesoIconSimple';
 import { FaWrench } from 'react-icons/fa';
 import { default as WorkIDModal } from './WorkIDModal';
@@ -11,6 +11,7 @@ import api from './services/apiService';
 import { toast } from 'react-toastify';
 import { useMultiTabLogout } from './hooks/useMultiTabLogout';
 import { calculateAllGovernmentDeductions } from './utils/governmentDeductions';
+import { generatePayslipPDF } from './utils/pdfGenerator';
 
 const PayrollSystem = () => {  
   // Enable multi-tab logout synchronization
@@ -422,6 +423,25 @@ const PayrollSystem = () => {
 
   const formatShortDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-PH');
+  };
+
+  const handleDownloadPayslipPDF = async (paymentId) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { Authorization: `Bearer ${token}` }
+      };
+
+      const response = await api.get(`/api/staff/payslip/${paymentId}`, config);
+      
+      if (response.data.success) {
+        generatePayslipPDF(response.data.data);
+        toast.success('Payslip PDF downloaded successfully');
+      }
+    } catch (error) {
+      console.error('Error downloading payslip:', error);
+      toast.error('Failed to download payslip');
+    }
   };
 
   // Function to toggle edit mode
@@ -1191,13 +1211,13 @@ const PayrollSystem = () => {
                       paymentHistory.map((payment) => (
                         <div
                           key={payment._id}
-                          className="p-3 rounded flex justify-between items-center"
+                          className="p-3 rounded flex justify-between items-center gap-4"
                           style={{ 
                             backgroundColor: colors.background, 
                             border: `1px solid ${colors.muted}` 
                           }}
                         >
-                          <div>
+                          <div className="flex-1">
                             <p className="font-medium">{payment.staffId?.name}</p>
                             <p className="text-sm" style={{ color: colors.muted }}>
                               {formatDate(payment.payrollPeriod)}
@@ -1211,6 +1231,14 @@ const PayrollSystem = () => {
                               {formatShortDate(payment.createdAt)}
                             </p>
                           </div>
+                          <button
+                            onClick={() => handleDownloadPayslipPDF(payment._id)}
+                            className="p-2 rounded-lg transition-opacity hover:opacity-80"
+                            style={{ backgroundColor: colors.accent, color: 'white' }}
+                            title="Download PDF"
+                          >
+                            <FiDownload size={18} />
+                          </button>
                         </div>
                       ))
                     ) : (
