@@ -1172,10 +1172,10 @@ cron.schedule('0 3 * * 0', async () => {
   timezone: "Asia/Manila"
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   logger.info(`
   Server running in ${process.env.NODE_ENV || 'development'} mode
-  Listening on port ${PORT}
+  Listening on port ${PORT} (bound to 0.0.0.0)
   Database: ${process.env.MONGO_URI}
   Keep-alive timeout: ${server.keepAliveTimeout}ms
   `);

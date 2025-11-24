@@ -140,7 +140,6 @@ router.get('/:period', async (req, res) => {
       }
       weeklyBreakdown = days;
     }
-    }
 
     res.json({
       success: true,

@@ -590,13 +590,21 @@ const RevenueReports = () => {
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   {selectedPeriod === 'weekly' ? (
-                    <BarChart data={prepareWeeklyData()}>
+                    // Weekly area + line chart (distinct visual from monthly/yearly)
+                    <AreaChart data={prepareWeeklyData()}>
+                      <defs>
+                        <linearGradient id="weeklyGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={CHART_COLORS[2]} stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor={CHART_COLORS[2]} stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke={colors.muted + '30'} />
                       <XAxis dataKey="label" tick={{ fontSize: 12 }} stroke={colors.muted} />
                       <YAxis tickFormatter={(value) => formatCurrency(value).replace('PHP', '₱')} tick={{ fontSize: 12 }} stroke={colors.muted} />
                       <Tooltip formatter={(value, name) => [formatCurrency(value), 'Revenue']} />
-                      <Bar dataKey="revenue" fill={CHART_COLORS[0]} />
-                    </BarChart>
+                      <Area type="monotone" dataKey="revenue" stroke={CHART_COLORS[2]} strokeWidth={2.5} fill="url(#weeklyGradient)" />
+                      <Line type="monotone" dataKey="revenue" stroke={CHART_COLORS[2]} strokeWidth={2} dot={{ r: 3 }} />
+                    </AreaChart>
                   ) : selectedPeriod === 'yearly' ? (
                     <LineChart data={yearlyHistoricalData.map(y=>({ year: String(y.year), revenue: y.revenue }))}>
                       <CartesianGrid strokeDasharray="3 3" stroke={colors.muted + '30'} />
@@ -672,26 +680,51 @@ const RevenueReports = () => {
                                   </ResponsiveContainer>
                                 </div>
                               )}
-                <div className="text-center">
-                  <div className="text-sm" style={{ color: colors.muted }}>Avg Monthly</div>
-                  <div className="text-lg font-semibold" style={{ color: colors.primary }}>
-                    {monthlyHistoricalData.length > 0 
-                      ? formatCurrency(monthlyHistoricalData.reduce((sum, month) => sum + month.revenue, 0) / monthlyHistoricalData.length)
-                      : formatCurrency(0)
-                    }
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-sm" style={{ color: colors.muted }}>Growth Trend</div>
-                  <div className="text-lg font-semibold flex items-center justify-center gap-1" style={{ color: colors.accent }}>
-                    <FiTrendingUp className="w-4 h-4" />
-                    {monthlyHistoricalData.length >= 2 ? (
-                      `${(((monthlyHistoricalData[monthlyHistoricalData.length - 1]?.revenue || 0) - 
-                           (monthlyHistoricalData[monthlyHistoricalData.length - 2]?.revenue || 0)) / 
-                           (monthlyHistoricalData[monthlyHistoricalData.length - 2]?.revenue || 1) * 100).toFixed(1)}%`
-                    ) : '+0.0%'}
-                  </div>
-                </div>
+                {selectedPeriod === 'weekly' ? (
+                  // Weekly-specific quick metrics
+                  <>
+                    <div className="text-center">
+                      <div className="text-sm" style={{ color: colors.muted }}>Total this week</div>
+                      <div className="text-lg font-semibold" style={{ color: colors.primary }}>
+                        {formatCurrency((revenueData?.weeklyBreakdown || []).reduce((s, d) => s + (d.revenue || 0), 0))}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm" style={{ color: colors.muted }}>Avg daily</div>
+                      <div className="text-lg font-semibold" style={{ color: colors.primary }}>
+                        {(() => {
+                          const days = (revenueData?.weeklyBreakdown || []).length || 7;
+                          const total = (revenueData?.weeklyBreakdown || []).reduce((s, d) => s + (d.revenue || 0), 0);
+                          return formatCurrency(Math.round((total / days) * 100) / 100);
+                        })()}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  // Default: monthly quick metrics
+                  <>
+                    <div className="text-center">
+                      <div className="text-sm" style={{ color: colors.muted }}>Avg Monthly</div>
+                      <div className="text-lg font-semibold" style={{ color: colors.primary }}>
+                        {monthlyHistoricalData.length > 0 
+                          ? formatCurrency(monthlyHistoricalData.reduce((sum, month) => sum + month.revenue, 0) / monthlyHistoricalData.length)
+                          : formatCurrency(0)
+                        }
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm" style={{ color: colors.muted }}>Growth Trend</div>
+                      <div className="text-lg font-semibold flex items-center justify-center gap-1" style={{ color: colors.accent }}>
+                        <FiTrendingUp className="w-4 h-4" />
+                        {monthlyHistoricalData.length >= 2 ? (
+                          `${(((monthlyHistoricalData[monthlyHistoricalData.length - 1]?.revenue || 0) - 
+                               (monthlyHistoricalData[monthlyHistoricalData.length - 2]?.revenue || 0)) / 
+                               (monthlyHistoricalData[monthlyHistoricalData.length - 2]?.revenue || 1) * 100).toFixed(1)}%`
+                        ) : '+0.0%'}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             )}

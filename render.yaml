@@ -25,9 +25,6 @@ services:
       - key: NODE_ENV
         value: production
       
-      - key: PORT
-        value: 10000
-      
       - key: MONGO_URI
         sync: false # Sensitive - set manually in dashboard
       
