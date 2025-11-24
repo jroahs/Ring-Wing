@@ -170,26 +170,30 @@ async function autoSeedGovernmentConfig() {
   }
 }
 
-// Connect to MongoDB with enhanced connection handler
+// Connect to MongoDB with enhanced connection handler (only if MONGO_URI is set)
 let dbConnection;
-(async () => {
-  try {
-    dbConnection = await connectDB();
-    logger.info('Database connection initialized with enhanced resilience');
-    
-    // Auto-seed government configuration
-    await autoSeedGovernmentConfig();
-    
-    // Start enhanced connection monitoring after successful connection
-    setTimeout(() => {
-      connectionMonitor.startMonitoring();
-      logger.info('Advanced connection monitoring activated');
-    }, 5000); // Wait 5 seconds to ensure connection is stable
-    
-  } catch (error) {
-    logger.error('Failed to initialize database connection:', error);
-  }
-})();
+if (process.env.MONGO_URI) {
+  (async () => {
+    try {
+      dbConnection = await connectDB();
+      logger.info('Database connection initialized with enhanced resilience');
+      
+      // Auto-seed government configuration
+      await autoSeedGovernmentConfig();
+      
+      // Start enhanced connection monitoring after successful connection
+      setTimeout(() => {
+        connectionMonitor.startMonitoring();
+        logger.info('Advanced connection monitoring activated');
+      }, 5000); // Wait 5 seconds to ensure connection is stable
+      
+    } catch (error) {
+      logger.error('Failed to initialize database connection:', error);
+    }
+  })();
+} else {
+  logger.warn('MONGO_URI not set - skipping database connection');
+}
 
 // Security middleware
 app.use(
