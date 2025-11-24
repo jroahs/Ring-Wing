@@ -369,7 +369,7 @@ app.get('/api/database-status', async (req, res) => {
     
     // Additional diagnostics
     const serverStatus = await mongoose.connection.db.admin().serverStatus();
-    const connectionStats = mongoose.connection.db.serverConfig.s.options;
+    const connectionStats = mongoose.connection.db.serverConfig?.s?.options || {};
     
     // Calculate connection uptime
     const currentTimestamp = Math.floor(Date.now() / 1000);
