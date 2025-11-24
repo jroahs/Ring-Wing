@@ -295,14 +295,7 @@ const RevenueReports = () => {
     const fetchRevenueData = async () => {
       try {
         setLoading(true);
-        // For weekly, request a full 7-day breakdown and pass the app timezone
-        const weekStart = 1; // default Monday
-        const tz = import.meta.env.VITE_TIMEZONE || 'Asia/Manila';
-        const url = selectedPeriod === 'weekly'
-          ? `${API_URL}/api/revenue/${selectedPeriod}?weekStart=${weekStart}&tz=${encodeURIComponent(tz)}`
-          : `${API_URL}/api/revenue/${selectedPeriod}`;
-
-        const response = await fetch(url);
+        const response = await fetch(`${API_URL}/api/revenue/${selectedPeriod}`);
         const data = await response.json();
         if (data.success) {
           setRevenueData(data.data);
@@ -597,13 +590,13 @@ const RevenueReports = () => {
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   {selectedPeriod === 'weekly' ? (
-                    <LineChart data={prepareWeeklyData()}>
+                    <BarChart data={prepareWeeklyData()}>
                       <CartesianGrid strokeDasharray="3 3" stroke={colors.muted + '30'} />
                       <XAxis dataKey="label" tick={{ fontSize: 12 }} stroke={colors.muted} />
                       <YAxis tickFormatter={(value) => formatCurrency(value).replace('PHP', '₱')} tick={{ fontSize: 12 }} stroke={colors.muted} />
-                      <Tooltip formatter={(value, name) => [formatCurrency(value), 'Revenue']} labelFormatter={(label) => `Day: ${label}`} />
-                      <Line type="monotone" dataKey="revenue" stroke={colors.accent} strokeWidth={3} dot={{ r: 4 }} />
-                    </LineChart>
+                      <Tooltip formatter={(value, name) => [formatCurrency(value), 'Revenue']} />
+                      <Bar dataKey="revenue" fill={CHART_COLORS[0]} />
+                    </BarChart>
                   ) : selectedPeriod === 'yearly' ? (
                     <LineChart data={yearlyHistoricalData.map(y=>({ year: String(y.year), revenue: y.revenue }))}>
                       <CartesianGrid strokeDasharray="3 3" stroke={colors.muted + '30'} />
@@ -612,28 +605,6 @@ const RevenueReports = () => {
                       <Tooltip formatter={(value, name) => [formatCurrency(value), 'Revenue']} />
                       <Line type="monotone" dataKey="revenue" stroke={colors.secondary} strokeWidth={3} dot={{ r: 4 }} />
                     </LineChart>
-                  ) : selectedPeriod === 'daily' ? (
-                    // For Daily view, show Top Items in the main right panel (avoid duplication)
-                    <div style={{ padding: 8 }}>
-                      <h3 className="text-md font-semibold mb-2">Top Items — Today</h3>
-                      <div className="space-y-2 max-h-56 overflow-y-auto">
-                        {revenueData.topItems.slice(0, 8).map((item, idx) => (
-                          <div key={item.name} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors bg-white border" style={{ borderColor: colors.muted + '10' }}>
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{ backgroundColor: idx < 3 ? colors.accent : colors.muted }}>{idx + 1}</div>
-                              <div>
-                                <div className="font-medium text-sm" style={{ color: colors.primary }}>{item.name}</div>
-                                <div className="text-xs" style={{ color: colors.muted }}>{item.quantity} sold</div>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="font-bold text-sm" style={{ color: colors.primary }}>{formatCurrency(item.revenue)}</div>
-                            </div>
-                          </div>
-                        ))}
-                        {revenueData.topItems.length === 0 && <div className="text-sm text-muted">No top items available</div>}
-                      </div>
-                    </div>
                   ) : (
                     <LineChart data={prepareMonthlyRevenueData()}>
                       <CartesianGrid strokeDasharray="3 3" stroke={colors.muted + '30'} />
@@ -701,56 +672,26 @@ const RevenueReports = () => {
                                   </ResponsiveContainer>
                                 </div>
                               )}
-                {selectedPeriod === 'weekly' ? (
-                  <>
-                    <div className="text-center">
-                      <div className="text-sm" style={{ color: colors.muted }}>Avg Daily</div>
-                      <div className="text-lg font-semibold" style={{ color: colors.primary }}>
-                        {revenueData?.weeklySummary ? formatCurrency(revenueData.weeklySummary.averageDaily) : (
-                          revenueData?.weeklyBreakdown && revenueData.weeklyBreakdown.length > 0
-                            ? formatCurrency(revenueData.weeklyBreakdown.reduce((s, d) => s + d.revenue, 0) / 7)
-                            : formatCurrency(0)
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-sm" style={{ color: colors.muted }}>Week-over-week</div>
-                      <div className="text-lg font-semibold flex items-center justify-center gap-1" style={{ color: revenueData?.weeklySummary?.growthPercent > 0 ? colors.accent : colors.muted }}>
-                        {revenueData?.weeklySummary && revenueData.weeklySummary.growthPercent !== null ? (
-                          <>
-                            {revenueData.weeklySummary.growthPercent > 0 ? <FiTrendingUp className="w-4 h-4" /> : <FiTrendingDown className="w-4 h-4" />}
-                            {Math.abs(revenueData.weeklySummary.growthPercent).toFixed(1)}%
-                          </>
-                        ) : (
-                          <span className="text-sm text-gray-400">N/A</span>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="text-center">
-                      <div className="text-sm" style={{ color: colors.muted }}>Avg Monthly</div>
-                      <div className="text-lg font-semibold" style={{ color: colors.primary }}>
-                        {monthlyHistoricalData.length > 0 
-                          ? formatCurrency(monthlyHistoricalData.reduce((sum, month) => sum + month.revenue, 0) / monthlyHistoricalData.length)
-                          : formatCurrency(0)
-                        }
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-sm" style={{ color: colors.muted }}>Growth Trend</div>
-                      <div className="text-lg font-semibold flex items-center justify-center gap-1" style={{ color: colors.accent }}>
-                        <FiTrendingUp className="w-4 h-4" />
-                        {monthlyHistoricalData.length >= 2 ? (
-                          `${(((monthlyHistoricalData[monthlyHistoricalData.length - 1]?.revenue || 0) - 
-                               (monthlyHistoricalData[monthlyHistoricalData.length - 2]?.revenue || 0)) / 
-                               (monthlyHistoricalData[monthlyHistoricalData.length - 2]?.revenue || 1) * 100).toFixed(1)}%`
-                        ) : '+0.0%'}
-                      </div>
-                    </div>
-                  </>
-                )}
+                <div className="text-center">
+                  <div className="text-sm" style={{ color: colors.muted }}>Avg Monthly</div>
+                  <div className="text-lg font-semibold" style={{ color: colors.primary }}>
+                    {monthlyHistoricalData.length > 0 
+                      ? formatCurrency(monthlyHistoricalData.reduce((sum, month) => sum + month.revenue, 0) / monthlyHistoricalData.length)
+                      : formatCurrency(0)
+                    }
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm" style={{ color: colors.muted }}>Growth Trend</div>
+                  <div className="text-lg font-semibold flex items-center justify-center gap-1" style={{ color: colors.accent }}>
+                    <FiTrendingUp className="w-4 h-4" />
+                    {monthlyHistoricalData.length >= 2 ? (
+                      `${(((monthlyHistoricalData[monthlyHistoricalData.length - 1]?.revenue || 0) - 
+                           (monthlyHistoricalData[monthlyHistoricalData.length - 2]?.revenue || 0)) / 
+                           (monthlyHistoricalData[monthlyHistoricalData.length - 2]?.revenue || 1) * 100).toFixed(1)}%`
+                    ) : '+0.0%'}
+                  </div>
+                </div>
               </div>
             </div>
             )}

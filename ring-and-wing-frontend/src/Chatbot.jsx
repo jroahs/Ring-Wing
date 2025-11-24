@@ -171,9 +171,7 @@ function ChatbotPage() {
     
     const fetchRevenueData = async () => {
       try {
-        const tz = import.meta.env.VITE_TIMEZONE || 'Asia/Manila';
-        const weekStart = 1; // default Monday
-        const response = await fetch(`${API_URL}/api/revenue/weekly?weekStart=${weekStart}&tz=${encodeURIComponent(tz)}`, {
+        const response = await fetch(`${API_URL}/api/revenue/weekly`, {
           signal: controller.signal
         });
         const data = await response.json();

@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
-const { utcToZonedTime, zonedTimeToUtc, format } = require('date-fns-tz');
-const { startOfWeek, addDays } = require('date-fns');
+// timezone-aware weekly logic removed to revert to last known working commit
 
 // Helper function to get date range
 const getDateRange = (period) => {
@@ -45,29 +44,7 @@ router.get('/:period', async (req, res) => {
     // get initial start/end
     let { start, end } = getDateRange(period);
 
-    // For weekly we want a full 7-day week according to weekStart and timezone
-    if (period === 'weekly') {
-      // Default to Monday (1) if not provided
-      const weekStart = Number.isInteger(weekStartParam) ? weekStartParam : 1;
-
-      // Convert now to timezone-aware date
-      const nowZoned = utcToZonedTime(new Date(), tz);
-
-      // Compute start of the week in the target timezone using date-fns startOfWeek and then convert back to UTC boundaries
-      const zoneStartOfWeek = startOfWeek(nowZoned, { weekStartsOn: weekStart });
-
-      // Start at 00:00:00 of zoneStartOfWeek and end at end of that 7th day
-      const zoneStart = new Date(zoneStartOfWeek.setHours(0, 0, 0, 0));
-      const zoneEnd = addDays(zoneStart, 6);
-      zoneEnd.setHours(23, 59, 59, 999);
-
-      // Convert zoned start/end back to UTC for DB queries
-      const utcStart = zonedTimeToUtc(zoneStart, tz);
-      const utcEnd = zonedTimeToUtc(zoneEnd, tz);
-
-      start = utcStart;
-      end = utcEnd;
-    }
+    // weekly logic uses the original simple start/end range
     
     // Include all orders that have a valid payment method (not 'pending')
     // This ensures we count orders from all sources: POS, self-checkout, and chatbot
@@ -140,75 +117,29 @@ router.get('/:period', async (req, res) => {
       monthlyBreakdown = months;
     }
 
-    // For weekly reports include a daily breakdown for the week (always 7 days, timezone-aware)
+    // For weekly reports include a daily breakdown for the week
     let weeklyBreakdown = null;
     if (period === 'weekly') {
-      // Use timezone from above
-      const weekStart = typeof req.query.weekStart !== 'undefined' ? parseInt(req.query.weekStart, 10) : 1;
-
-      // Convert start to zoned time
-      const startZoned = utcToZonedTime(start, tz);
-
-      // Build 7-day series anchored on startZoned (which is at 00:00 in zone)
+      // Create an array of days from start to end
+      const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
       const days = [];
-      for (let i = 0; i < 7; i++) {
-        const dStartZoned = addDays(startZoned, i);
-        dStartZoned.setHours(0, 0, 0, 0);
-        const dEndZoned = addDays(dStartZoned, 0);
-        dEndZoned.setHours(23, 59, 59, 999);
-
-        // Convert the zoned day bounds back to UTC for DB filtering
-        const dStartUtc = zonedTimeToUtc(dStartZoned, tz);
-        const dEndUtc = zonedTimeToUtc(dEndZoned, tz);
-
-        const dayOrders = orders.filter(o => new Date(o.createdAt) >= dStartUtc && new Date(o.createdAt) <= dEndUtc);
+      for (let d = new Date(startDay); d <= endDay; d.setDate(d.getDate() + 1)) {
+        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
+        const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
+        const dayOrders = orders.filter(o => new Date(o.createdAt) >= dayStart && new Date(o.createdAt) <= dayEnd);
         const dayRevenue = dayOrders.reduce((a, o) => a + o.totals.total, 0);
-
         days.push({
-          date: format(dStartZoned, 'yyyy-MM-dd', { timeZone: tz }),
-          label: format(dStartZoned, 'EEE', { timeZone: tz }),
+          date: dayStart.toISOString().split('T')[0],
+          label: dayStart.toLocaleDateString('en-US', { weekday: 'short' }),
           revenue: dayRevenue,
           orders: dayOrders.length,
-          start: dStartUtc,
-          end: dEndUtc
+          start: dayStart,
+          end: dayEnd
         });
       }
-
       weeklyBreakdown = days;
-
-      // Compute previous week totals (for growth comparisons)
-      // previous week anchored to startZoned - 7 days
-      const prevWeekStartZoned = addDays(startZoned, -7);
-      prevWeekStartZoned.setHours(0, 0, 0, 0);
-      const prevWeekEndZoned = addDays(prevWeekStartZoned, 6);
-      prevWeekEndZoned.setHours(23, 59, 59, 999);
-
-      const prevStartUtc = zonedTimeToUtc(prevWeekStartZoned, tz);
-      const prevEndUtc = zonedTimeToUtc(prevWeekEndZoned, tz);
-
-      const prevOrders = await Order.find({
-        createdAt: { $gte: prevStartUtc, $lte: prevEndUtc },
-        paymentMethod: { $ne: 'pending' }
-      });
-
-      const prevRevenue = prevOrders.reduce((acc, o) => acc + o.totals.total, 0);
-
-      // Attach weekly summary
-      var weeklySummary = {
-        totalRevenue: weeklyBreakdown.reduce((s, d) => s + d.revenue, 0),
-        averageDaily: weeklyBreakdown.reduce((s, d) => s + d.revenue, 0) / 7,
-        previousWeekRevenue: prevRevenue,
-        growthPercent: prevRevenue > 0 ? ((weeklyBreakdown.reduce((s, d) => s + d.revenue, 0) - prevRevenue) / prevRevenue) * 100 : null
-      };
-
-      // pass weeklySummary to output by reassigning variable in scope
-      // we'll include it in the response below
-      // (we'll reuse the name weeklySummary in the response)
-      // attach to weeklyBreakdown container via an outer var
-      // (handled below when building response)
-      
-      // store on res.locals for retrieval later (clean way without changing many lines)
-      res.locals.weeklySummary = weeklySummary;
+    }
     }
 
     res.json({
@@ -226,7 +157,6 @@ router.get('/:period', async (req, res) => {
         revenueBySource,
         hourlyDistribution,
         weeklyBreakdown,
-        weeklySummary: res.locals.weeklySummary || null,
         monthlyBreakdown,
         topItems
       }    });  } catch (error) {
