@@ -30,13 +30,26 @@ if (global.gc) {
 
 dotenv.config();
 
-// Validate environment variables
+// Validate environment variables (don't throw errors in production to allow graceful startup)
 const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET'];
+const missingVars = [];
 requiredEnvVars.forEach(varName => {
   if (!process.env[varName]) {
-    throw new Error(`${varName} environment variable is required`);
+    missingVars.push(varName);
+    logger.error(`${varName} environment variable is required but not set`);
   }
 });
+
+// In development, throw error for missing required vars
+// In production, allow startup but log critical errors
+if (missingVars.length > 0) {
+  if (process.env.NODE_ENV === 'production') {
+    logger.error(`CRITICAL: Missing required environment variables: ${missingVars.join(', ')}`);
+    logger.error('Server will attempt to start but may not function properly');
+  } else {
+    throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
+  }
+}
 
 // Optional environment variables - log warnings if missing
 const optionalEnvVars = ['OPENROUTER_API_KEY', 'GEMINI_API_KEY'];
@@ -46,8 +59,13 @@ optionalEnvVars.forEach(varName => {
   }
 });
 
+console.log('Starting server initialization...');
+
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = parseInt(process.env.PORT) || 5000;
+
+console.log(`PORT environment variable: ${process.env.PORT}`);
+console.log(`Parsed PORT: ${PORT}`);
 
 // Import database error handler
 const dbErrorHandler = require('./middleware/dbErrorHandler');
@@ -1173,6 +1191,7 @@ cron.schedule('0 3 * * 0', async () => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server is listening on port ${PORT}`);
   logger.info(`
   Server running in ${process.env.NODE_ENV || 'development'} mode
   Listening on port ${PORT} (bound to 0.0.0.0)
