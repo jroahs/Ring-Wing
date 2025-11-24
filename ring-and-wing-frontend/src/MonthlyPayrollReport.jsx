@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from './services/apiService';
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
+import { FiDownload, FiRefreshCw, FiCalendar, FiBarChart2, FiPieChart } from 'react-icons/fi';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -26,6 +27,14 @@ ChartJS.register(
 );
 
 function MonthlyPayrollReport() {
+  const colors = {
+    primary: '#2e0304',
+    background: '#fefdfd',
+    accent: '#f1670f',
+    secondary: '#853619',
+    muted: '#ac9c9b'
+  };
+
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -192,22 +201,22 @@ function MonthlyPayrollReport() {
           summary.deductions.other
         ] : [],
         backgroundColor: [
-          'rgba(255, 99, 132, 0.6)',
-          'rgba(54, 162, 235, 0.6)',
-          'rgba(255, 206, 86, 0.6)',
-          'rgba(75, 192, 192, 0.6)',
-          'rgba(153, 102, 255, 0.6)',
-          'rgba(255, 159, 64, 0.6)'
+          `${colors.primary}CC`,
+          `${colors.accent}CC`,
+          `${colors.secondary}CC`,
+          `${colors.muted}CC`,
+          '#6b7280CC',
+          '#94a3b8CC'
         ],
         borderColor: [
-          'rgba(255, 99, 132, 1)',
-          'rgba(54, 162, 235, 1)',
-          'rgba(255, 206, 86, 1)',
-          'rgba(75, 192, 192, 1)',
-          'rgba(153, 102, 255, 1)',
-          'rgba(255, 159, 64, 1)'
+          colors.primary,
+          colors.accent,
+          colors.secondary,
+          colors.muted,
+          '#6b7280',
+          '#94a3b8'
         ],
-        borderWidth: 1
+        borderWidth: 2
       }
     ]
   };
@@ -226,22 +235,22 @@ function MonthlyPayrollReport() {
           (summary.earnings.bonuses.holiday + summary.earnings.bonuses.performance)
         ] : [],
         backgroundColor: [
-          'rgba(75, 192, 192, 0.6)',
-          'rgba(54, 162, 235, 0.6)',
-          'rgba(255, 206, 86, 0.6)',
-          'rgba(153, 102, 255, 0.6)',
-          'rgba(255, 99, 132, 0.6)',
-          'rgba(255, 159, 64, 0.6)'
+          `${colors.primary}CC`,
+          `${colors.accent}CC`,
+          `${colors.secondary}CC`,
+          `${colors.muted}CC`,
+          '#6b7280CC',
+          '#94a3b8CC'
         ],
         borderColor: [
-          'rgba(75, 192, 192, 1)',
-          'rgba(54, 162, 235, 1)',
-          'rgba(255, 206, 86, 1)',
-          'rgba(153, 102, 255, 1)',
-          'rgba(255, 99, 132, 1)',
-          'rgba(255, 159, 64, 1)'
+          colors.primary,
+          colors.accent,
+          colors.secondary,
+          colors.muted,
+          '#6b7280',
+          '#94a3b8'
         ],
-        borderWidth: 1
+        borderWidth: 2
       }
     ]
   };
@@ -251,39 +260,94 @@ function MonthlyPayrollReport() {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'top'
+        position: 'top',
+        labels: {
+          color: colors.primary,
+          font: {
+            size: 12,
+            weight: '600'
+          },
+          padding: 15
+        }
       },
       tooltip: {
+        backgroundColor: colors.primary,
+        titleColor: 'white',
+        bodyColor: 'white',
+        borderColor: colors.accent,
+        borderWidth: 1,
+        padding: 12,
+        cornerRadius: 8,
         callbacks: {
           label: function(context) {
             return `${context.label}: ${formatCurrency(context.parsed.y || context.parsed)}`;
           }
         }
       }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          color: colors.muted,
+          font: {
+            size: 11
+          }
+        },
+        grid: {
+          color: `${colors.muted}20`
+        }
+      },
+      x: {
+        ticks: {
+          color: colors.primary,
+          font: {
+            size: 11,
+            weight: '500'
+          }
+        },
+        grid: {
+          display: false
+        }
+      }
     }
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
-      <h1 style={{ marginBottom: '20px', color: '#333' }}>Monthly Payroll Summary Report</h1>
+    <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto', backgroundColor: colors.background, minHeight: '100vh' }}>
+      <h1 style={{ marginBottom: '10px', color: colors.primary, fontSize: '28px', fontWeight: 'bold' }}>Monthly Payroll Summary Report</h1>
+      <p style={{ marginBottom: '25px', color: colors.muted, fontSize: '14px' }}>Comprehensive payroll analysis with visual insights</p>
       
       {/* Date Selection */}
       <div style={{ 
         display: 'flex', 
-        gap: '15px', 
-        marginBottom: '20px',
+        gap: '12px', 
+        marginBottom: '25px',
         alignItems: 'center',
-        flexWrap: 'wrap'
+        flexWrap: 'wrap',
+        backgroundColor: 'white',
+        padding: '20px',
+        borderRadius: '12px',
+        boxShadow: '0 2px 8px rgba(46, 3, 4, 0.1)',
+        border: `1px solid ${colors.muted}30`
       }}>
-        <div>
-          <label style={{ marginRight: '10px', fontWeight: 'bold' }}>Month:</label>
+        <FiCalendar style={{ color: colors.primary, fontSize: '20px' }} />
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <label style={{ color: colors.primary, fontWeight: '600', fontSize: '14px' }}>Month:</label>
           <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
             style={{
-              padding: '8px 12px',
-              borderRadius: '4px',
-              border: '1px solid #ddd'
+              padding: '10px 14px',
+              borderRadius: '8px',
+              border: `2px solid ${colors.muted}40`,
+              backgroundColor: colors.background,
+              color: colors.primary,
+              fontWeight: '500',
+              cursor: 'pointer',
+              outline: 'none',
+              transition: 'all 0.3s'
             }}
           >
             {[...Array(12)].map((_, i) => (
@@ -294,15 +358,21 @@ function MonthlyPayrollReport() {
           </select>
         </div>
         
-        <div>
-          <label style={{ marginRight: '10px', fontWeight: 'bold' }}>Year:</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <label style={{ color: colors.primary, fontWeight: '600', fontSize: '14px' }}>Year:</label>
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(parseInt(e.target.value))}
             style={{
-              padding: '8px 12px',
-              borderRadius: '4px',
-              border: '1px solid #ddd'
+              padding: '10px 14px',
+              borderRadius: '8px',
+              border: `2px solid ${colors.muted}40`,
+              backgroundColor: colors.background,
+              color: colors.primary,
+              fontWeight: '500',
+              cursor: 'pointer',
+              outline: 'none',
+              transition: 'all 0.3s'
             }}
           >
             {[...Array(5)].map((_, i) => {
@@ -315,64 +385,108 @@ function MonthlyPayrollReport() {
         <button
           onClick={fetchSummary}
           style={{
-            padding: '8px 20px',
-            backgroundColor: '#4CAF50',
+            padding: '10px 20px',
+            backgroundColor: colors.accent,
             color: 'white',
             border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontWeight: '600',
+            fontSize: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            transition: 'all 0.3s',
+            boxShadow: '0 2px 4px rgba(241, 103, 15, 0.3)'
           }}
+          onMouseOver={(e) => e.target.style.backgroundColor = colors.secondary}
+          onMouseOut={(e) => e.target.style.backgroundColor = colors.accent}
         >
+          <FiRefreshCw size={16} />
           Refresh
         </button>
         
-        <button
-          onClick={exportToPDF}
-          disabled={!summary}
-          style={{
-            padding: '8px 20px',
-            backgroundColor: '#2196F3',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: summary ? 'pointer' : 'not-allowed',
-            opacity: summary ? 1 : 0.6
-          }}
-        >
-          Export PDF
-        </button>
-        
-        <button
-          onClick={exportToExcel}
-          disabled={!summary}
-          style={{
-            padding: '8px 20px',
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: summary ? 'pointer' : 'not-allowed',
-            opacity: summary ? 1 : 0.6
-          }}
-        >
-          Export Excel
-        </button>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px' }}>
+          <button
+            onClick={exportToPDF}
+            disabled={!summary}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: summary ? colors.primary : colors.muted,
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: summary ? 'pointer' : 'not-allowed',
+              fontWeight: '600',
+              fontSize: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.3s',
+              opacity: summary ? 1 : 0.5
+            }}
+          >
+            <FiDownload size={16} />
+            PDF
+          </button>
+          
+          <button
+            onClick={exportToExcel}
+            disabled={!summary}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: summary ? colors.secondary : colors.muted,
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: summary ? 'pointer' : 'not-allowed',
+              fontWeight: '600',
+              fontSize: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.3s',
+              opacity: summary ? 1 : 0.5
+            }}
+          >
+            <FiDownload size={16} />
+            Excel
+          </button>
+        </div>
       </div>
 
       {error && (
         <div style={{
-          padding: '15px',
-          backgroundColor: '#ffebee',
-          color: '#c62828',
-          borderRadius: '4px',
-          marginBottom: '20px'
+          padding: '16px',
+          backgroundColor: '#fef2f2',
+          color: '#991b1b',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          border: '1px solid #fecaca',
+          fontWeight: '500'
         }}>
           {error}
         </div>
       )}
 
       {loading && (
-        <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '60px', 
+          color: colors.muted,
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          boxShadow: '0 2px 8px rgba(46, 3, 4, 0.1)'
+        }}>
+          <div style={{ 
+            width: '50px', 
+            height: '50px', 
+            border: `4px solid ${colors.muted}40`, 
+            borderTop: `4px solid ${colors.accent}`,
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 15px'
+          }} />
           Loading summary...
         </div>
       )}
@@ -382,57 +496,72 @@ function MonthlyPayrollReport() {
           {/* Summary Cards */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
             gap: '20px',
             marginBottom: '30px'
           }}>
             <div style={{
-              padding: '20px',
-              backgroundColor: '#e3f2fd',
-              borderRadius: '8px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              padding: '24px',
+              background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
+              borderRadius: '12px',
+              boxShadow: '0 4px 12px rgba(46, 3, 4, 0.15)',
+              color: 'white'
             }}>
-              <h3 style={{ margin: '0 0 10px 0', color: '#1976d2' }}>Total Gross Pay</h3>
-              <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <h3 style={{ margin: 0, fontSize: '14px', opacity: 0.9, fontWeight: '600' }}>Total Gross Pay</h3>
+                <FiBarChart2 size={20} style={{ opacity: 0.8 }} />
+              </div>
+              <p style={{ fontSize: '28px', fontWeight: 'bold', margin: 0 }}>
                 {formatCurrency(summary.totalGrossPay)}
               </p>
             </div>
             
             <div style={{
-              padding: '20px',
-              backgroundColor: '#ffebee',
-              borderRadius: '8px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              padding: '24px',
+              background: `linear-gradient(135deg, ${colors.accent} 0%, #ff8c42 100%)`,
+              borderRadius: '12px',
+              boxShadow: '0 4px 12px rgba(241, 103, 15, 0.15)',
+              color: 'white'
             }}>
-              <h3 style={{ margin: '0 0 10px 0', color: '#c62828' }}>Total Deductions</h3>
-              <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <h3 style={{ margin: 0, fontSize: '14px', opacity: 0.9, fontWeight: '600' }}>Total Deductions</h3>
+                <FiPieChart size={20} style={{ opacity: 0.8 }} />
+              </div>
+              <p style={{ fontSize: '28px', fontWeight: 'bold', margin: 0 }}>
                 {formatCurrency(summary.deductions.total)}
               </p>
             </div>
             
             <div style={{
-              padding: '20px',
-              backgroundColor: '#e8f5e9',
-              borderRadius: '8px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              padding: '24px',
+              background: `linear-gradient(135deg, ${colors.secondary} 0%, ${colors.accent} 100%)`,
+              borderRadius: '12px',
+              boxShadow: '0 4px 12px rgba(133, 54, 25, 0.15)',
+              color: 'white'
             }}>
-              <h3 style={{ margin: '0 0 10px 0', color: '#2e7d32' }}>Total Net Pay</h3>
-              <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <h3 style={{ margin: 0, fontSize: '14px', opacity: 0.9, fontWeight: '600' }}>Total Net Pay</h3>
+                <FiDownload size={20} style={{ opacity: 0.8 }} />
+              </div>
+              <p style={{ fontSize: '28px', fontWeight: 'bold', margin: 0 }}>
                 {formatCurrency(summary.totalNetPay)}
               </p>
             </div>
             
             <div style={{
-              padding: '20px',
-              backgroundColor: '#f3e5f5',
-              borderRadius: '8px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              padding: '24px',
+              background: `linear-gradient(135deg, ${colors.muted} 0%, #8b7d7b 100%)`,
+              borderRadius: '12px',
+              boxShadow: '0 4px 12px rgba(172, 156, 155, 0.15)',
+              color: 'white'
             }}>
-              <h3 style={{ margin: '0 0 10px 0', color: '#6a1b9a' }}>Employees Paid</h3>
-              <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <h3 style={{ margin: 0, fontSize: '14px', opacity: 0.9, fontWeight: '600' }}>Employees Paid</h3>
+              </div>
+              <p style={{ fontSize: '28px', fontWeight: 'bold', margin: 0 }}>
                 {summary.employeeCount}
               </p>
-              <p style={{ fontSize: '14px', color: '#666', margin: '5px 0 0 0' }}>
+              <p style={{ fontSize: '13px', opacity: 0.8, margin: '8px 0 0 0' }}>
                 {summary.payrollCount} payroll records
               </p>
             </div>
@@ -442,28 +571,34 @@ function MonthlyPayrollReport() {
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
-            gap: '30px',
+            gap: '25px',
             marginBottom: '30px'
           }}>
             <div style={{
-              padding: '20px',
+              padding: '24px',
               backgroundColor: 'white',
-              borderRadius: '8px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+              borderRadius: '12px',
+              boxShadow: '0 2px 12px rgba(46, 3, 4, 0.08)',
+              border: `1px solid ${colors.muted}20`
             }}>
-              <h3 style={{ marginTop: 0 }}>Deductions Breakdown</h3>
+              <h3 style={{ marginTop: 0, color: colors.primary, fontSize: '18px', fontWeight: '600', marginBottom: '20px' }}>
+                Deductions Breakdown
+              </h3>
               <div style={{ height: '300px' }}>
                 <Bar data={deductionsBarData} options={chartOptions} />
               </div>
             </div>
             
             <div style={{
-              padding: '20px',
+              padding: '24px',
               backgroundColor: 'white',
-              borderRadius: '8px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+              borderRadius: '12px',
+              boxShadow: '0 2px 12px rgba(46, 3, 4, 0.08)',
+              border: `1px solid ${colors.muted}20`
             }}>
-              <h3 style={{ marginTop: 0 }}>Earnings Distribution</h3>
+              <h3 style={{ marginTop: 0, color: colors.primary, fontSize: '18px', fontWeight: '600', marginBottom: '20px' }}>
+                Earnings Distribution
+              </h3>
               <div style={{ height: '300px' }}>
                 <Pie data={earningsPieData} options={chartOptions} />
               </div>
@@ -474,57 +609,60 @@ function MonthlyPayrollReport() {
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))',
-            gap: '20px'
+            gap: '25px'
           }}>
             {/* Earnings Table */}
             <div style={{
-              padding: '20px',
+              padding: '24px',
               backgroundColor: 'white',
-              borderRadius: '8px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+              borderRadius: '12px',
+              boxShadow: '0 2px 12px rgba(46, 3, 4, 0.08)',
+              border: `1px solid ${colors.muted}20`
             }}>
-              <h3 style={{ marginTop: 0 }}>Earnings Details</h3>
+              <h3 style={{ marginTop: 0, color: colors.primary, fontSize: '18px', fontWeight: '600', marginBottom: '20px' }}>
+                Earnings Details
+              </h3>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <tbody>
-                  <tr style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '10px' }}>Basic Pay</td>
-                    <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>
+                  <tr style={{ borderBottom: `1px solid ${colors.muted}20` }}>
+                    <td style={{ padding: '12px 0', color: colors.primary, fontWeight: '500' }}>Basic Pay</td>
+                    <td style={{ padding: '12px 0', textAlign: 'right', fontWeight: 'bold', color: colors.primary }}>
                       {formatCurrency(summary.earnings.basicPay)}
                     </td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '10px' }}>Overtime Pay</td>
-                    <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>
+                  <tr style={{ borderBottom: `1px solid ${colors.muted}20` }}>
+                    <td style={{ padding: '12px 0', color: colors.primary, fontWeight: '500' }}>Overtime Pay</td>
+                    <td style={{ padding: '12px 0', textAlign: 'right', fontWeight: 'bold', color: colors.primary }}>
                       {formatCurrency(summary.earnings.overtimePay)}
                     </td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '10px' }}>Allowances</td>
-                    <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>
+                  <tr style={{ borderBottom: `1px solid ${colors.muted}20` }}>
+                    <td style={{ padding: '12px 0', color: colors.primary, fontWeight: '500' }}>Allowances</td>
+                    <td style={{ padding: '12px 0', textAlign: 'right', fontWeight: 'bold', color: colors.primary }}>
                       {formatCurrency(summary.earnings.allowances)}
                     </td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '10px' }}>Holiday Pay</td>
-                    <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>
+                  <tr style={{ borderBottom: `1px solid ${colors.muted}20` }}>
+                    <td style={{ padding: '12px 0', color: colors.primary, fontWeight: '500' }}>Holiday Pay</td>
+                    <td style={{ padding: '12px 0', textAlign: 'right', fontWeight: 'bold', color: colors.primary }}>
                       {formatCurrency(summary.earnings.holidayPay)}
                     </td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '10px' }}>13th Month Pay</td>
-                    <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>
+                  <tr style={{ borderBottom: `1px solid ${colors.muted}20` }}>
+                    <td style={{ padding: '12px 0', color: colors.primary, fontWeight: '500' }}>13th Month Pay</td>
+                    <td style={{ padding: '12px 0', textAlign: 'right', fontWeight: 'bold', color: colors.primary }}>
                       {formatCurrency(summary.earnings.thirteenthMonthPay)}
                     </td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '10px' }}>Holiday Bonus</td>
-                    <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>
+                  <tr style={{ borderBottom: `1px solid ${colors.muted}20` }}>
+                    <td style={{ padding: '12px 0', color: colors.primary, fontWeight: '500' }}>Holiday Bonus</td>
+                    <td style={{ padding: '12px 0', textAlign: 'right', fontWeight: 'bold', color: colors.primary }}>
                       {formatCurrency(summary.earnings.bonuses.holiday)}
                     </td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '10px' }}>Performance Bonus</td>
-                    <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>
+                  <tr>
+                    <td style={{ padding: '12px 0', color: colors.primary, fontWeight: '500' }}>Performance Bonus</td>
+                    <td style={{ padding: '12px 0', textAlign: 'right', fontWeight: 'bold', color: colors.primary }}>
                       {formatCurrency(summary.earnings.bonuses.performance)}
                     </td>
                   </tr>
@@ -534,57 +672,60 @@ function MonthlyPayrollReport() {
 
             {/* Deductions Table */}
             <div style={{
-              padding: '20px',
+              padding: '24px',
               backgroundColor: 'white',
-              borderRadius: '8px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+              borderRadius: '12px',
+              boxShadow: '0 2px 12px rgba(46, 3, 4, 0.08)',
+              border: `1px solid ${colors.muted}20`
             }}>
-              <h3 style={{ marginTop: 0 }}>Deductions Details</h3>
+              <h3 style={{ marginTop: 0, color: colors.primary, fontSize: '18px', fontWeight: '600', marginBottom: '20px' }}>
+                Deductions Details
+              </h3>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <tbody>
-                  <tr style={{ borderBottom: '1px solid #eee', backgroundColor: '#f5f5f5' }}>
-                    <td colSpan="2" style={{ padding: '10px', fontWeight: 'bold' }}>
+                  <tr style={{ backgroundColor: `${colors.primary}10` }}>
+                    <td colSpan="2" style={{ padding: '10px', fontWeight: 'bold', color: colors.primary, fontSize: '14px' }}>
                       Government Deductions
                     </td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '10px 10px 10px 20px' }}>SSS</td>
-                    <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>
+                  <tr style={{ borderBottom: `1px solid ${colors.muted}20` }}>
+                    <td style={{ padding: '12px 0 12px 16px', color: colors.primary }}>SSS</td>
+                    <td style={{ padding: '12px 0', textAlign: 'right', fontWeight: 'bold', color: colors.accent }}>
                       {formatCurrency(summary.deductions.government.sss)}
                     </td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '10px 10px 10px 20px' }}>PhilHealth</td>
-                    <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>
+                  <tr style={{ borderBottom: `1px solid ${colors.muted}20` }}>
+                    <td style={{ padding: '12px 0 12px 16px', color: colors.primary }}>PhilHealth</td>
+                    <td style={{ padding: '12px 0', textAlign: 'right', fontWeight: 'bold', color: colors.accent }}>
                       {formatCurrency(summary.deductions.government.philHealth)}
                     </td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '10px 10px 10px 20px' }}>Pag-IBIG</td>
-                    <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>
+                  <tr style={{ borderBottom: `1px solid ${colors.muted}20` }}>
+                    <td style={{ padding: '12px 0 12px 16px', color: colors.primary }}>Pag-IBIG</td>
+                    <td style={{ padding: '12px 0', textAlign: 'right', fontWeight: 'bold', color: colors.accent }}>
                       {formatCurrency(summary.deductions.government.pagIbig)}
                     </td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #eee', backgroundColor: '#f5f5f5' }}>
-                    <td colSpan="2" style={{ padding: '10px', fontWeight: 'bold' }}>
+                  <tr style={{ backgroundColor: `${colors.primary}10` }}>
+                    <td colSpan="2" style={{ padding: '10px', fontWeight: 'bold', color: colors.primary, fontSize: '14px' }}>
                       Attendance Deductions
                     </td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '10px 10px 10px 20px' }}>Late</td>
-                    <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>
+                  <tr style={{ borderBottom: `1px solid ${colors.muted}20` }}>
+                    <td style={{ padding: '12px 0 12px 16px', color: colors.primary }}>Late</td>
+                    <td style={{ padding: '12px 0', textAlign: 'right', fontWeight: 'bold', color: colors.accent }}>
                       {formatCurrency(summary.deductions.attendance.late)}
                     </td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '10px 10px 10px 20px' }}>Absent</td>
-                    <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>
+                  <tr style={{ borderBottom: `1px solid ${colors.muted}20` }}>
+                    <td style={{ padding: '12px 0 12px 16px', color: colors.primary }}>Absent</td>
+                    <td style={{ padding: '12px 0', textAlign: 'right', fontWeight: 'bold', color: colors.accent }}>
                       {formatCurrency(summary.deductions.attendance.absent)}
                     </td>
                   </tr>
-                  <tr style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '10px' }}>Other Deductions</td>
-                    <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>
+                  <tr>
+                    <td style={{ padding: '12px 0', color: colors.primary, fontWeight: '500' }}>Other Deductions</td>
+                    <td style={{ padding: '12px 0', textAlign: 'right', fontWeight: 'bold', color: colors.accent }}>
                       {formatCurrency(summary.deductions.other)}
                     </td>
                   </tr>
