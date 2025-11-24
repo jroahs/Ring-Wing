@@ -18,8 +18,6 @@ services:
     plan: free # Options: free, starter ($7/mo), standard, pro
     buildCommand: cd ring-and-wing-backend && npm ci
     startCommand: cd ring-and-wing-backend && node --max-old-space-size=512 --expose-gc server.js
-    # Run seed script after deployment (safe to run multiple times)
-    preDeployCommand: cd ring-and-wing-backend && node seedGovernmentConfig.js || true
     healthCheckPath: /api/health
     
     # Environment Variables (Set these in Render Dashboard)

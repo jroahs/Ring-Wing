@@ -52,12 +52,115 @@ const PORT = process.env.PORT || 5000;
 // Import database error handler
 const dbErrorHandler = require('./middleware/dbErrorHandler');
 
+// Auto-seed government configuration on startup
+async function autoSeedGovernmentConfig() {
+  try {
+    const GovernmentDeductionConfig = require('./models/GovernmentDeductionConfig');
+    const User = require('./models/user');
+    
+    // Check if configuration already exists
+    const existingConfig = await GovernmentDeductionConfig.findOne({ isActive: true });
+    
+    if (existingConfig) {
+      logger.info('[Auto-Seed] Government configuration already exists, skipping seed');
+      return;
+    }
+    
+    logger.info('[Auto-Seed] No active government configuration found, initializing...');
+    
+    // Find admin user for audit trail (optional)
+    const adminUser = await User.findOne({ position: 'admin' });
+    
+    // SSS MSC Brackets - all 45 brackets
+    const SSS_MSC_BRACKETS = [
+      { min: 0, max: 4249.99, msc: 4000 },
+      { min: 4250, max: 4749.99, msc: 4500 },
+      { min: 4750, max: 5249.99, msc: 5000 },
+      { min: 5250, max: 5749.99, msc: 5500 },
+      { min: 5750, max: 6249.99, msc: 6000 },
+      { min: 6250, max: 6749.99, msc: 6500 },
+      { min: 6750, max: 7249.99, msc: 7000 },
+      { min: 7250, max: 7749.99, msc: 7500 },
+      { min: 7750, max: 8249.99, msc: 8000 },
+      { min: 8250, max: 8749.99, msc: 8500 },
+      { min: 8750, max: 9249.99, msc: 9000 },
+      { min: 9250, max: 9749.99, msc: 9500 },
+      { min: 9750, max: 10249.99, msc: 10000 },
+      { min: 10250, max: 10749.99, msc: 10500 },
+      { min: 10750, max: 11249.99, msc: 11000 },
+      { min: 11250, max: 11749.99, msc: 11500 },
+      { min: 11750, max: 12249.99, msc: 12000 },
+      { min: 12250, max: 12749.99, msc: 12500 },
+      { min: 12750, max: 13249.99, msc: 13000 },
+      { min: 13250, max: 13749.99, msc: 13500 },
+      { min: 13750, max: 14249.99, msc: 14000 },
+      { min: 14250, max: 14749.99, msc: 14500 },
+      { min: 14750, max: 15249.99, msc: 15000 },
+      { min: 15250, max: 15749.99, msc: 15500 },
+      { min: 15750, max: 16249.99, msc: 16000 },
+      { min: 16250, max: 16749.99, msc: 16500 },
+      { min: 16750, max: 17249.99, msc: 17000 },
+      { min: 17250, max: 17749.99, msc: 17500 },
+      { min: 17750, max: 18249.99, msc: 18000 },
+      { min: 18250, max: 18749.99, msc: 18500 },
+      { min: 18750, max: 19249.99, msc: 19000 },
+      { min: 19250, max: 19749.99, msc: 19500 },
+      { min: 19750, max: 20249.99, msc: 20000 },
+      { min: 20250, max: 20749.99, msc: 20500 },
+      { min: 20750, max: 21249.99, msc: 21000 },
+      { min: 21250, max: 21749.99, msc: 21500 },
+      { min: 21750, max: 22249.99, msc: 22000 },
+      { min: 22250, max: 22749.99, msc: 22500 },
+      { min: 22750, max: 23249.99, msc: 23000 },
+      { min: 23250, max: 23749.99, msc: 23500 },
+      { min: 23750, max: 24249.99, msc: 24000 },
+      { min: 24250, max: 24749.99, msc: 24500 },
+      { min: 24750, max: 29999.99, msc: 25000 },
+      { min: 30000, max: 34999.99, msc: 30000 },
+      { min: 35000, max: Infinity, msc: 35000 }
+    ];
+    
+    // Create new configuration
+    const newConfig = await GovernmentDeductionConfig.createNewConfig({
+      year: 2024,
+      effectiveDate: new Date('2024-01-01'),
+      sss: {
+        employeeRate: 0.05,
+        mscBrackets: SSS_MSC_BRACKETS,
+        description: 'Social Security System - 5% of Monthly Salary Credit'
+      },
+      philHealth: {
+        employeeRate: 0.025,
+        floor: 10000,
+        ceiling: 100000,
+        description: 'Philippine Health Insurance - 2.5% with floor and ceiling'
+      },
+      pagIbig: {
+        employeeRate: 0.02,
+        maxContribution: 200,
+        description: 'Home Development Mutual Fund - 2% capped at PHP 200'
+      },
+      notes: 'Auto-seeded initial configuration for 2024 Philippine government deduction rates'
+    }, adminUser?._id || null);
+    
+    logger.info('[Auto-Seed] Government configuration created successfully');
+    logger.info('[Auto-Seed] SSS: 5% of MSC (45 brackets, max MSC: PHP 35,000)');
+    logger.info('[Auto-Seed] PhilHealth: 2.5% (floor: PHP 10,000, ceiling: PHP 100,000)');
+    logger.info('[Auto-Seed] Pag-IBIG: 2% (max: PHP 200)');
+  } catch (error) {
+    logger.error('[Auto-Seed] Failed to initialize government configuration:', error);
+  }
+}
+
 // Connect to MongoDB with enhanced connection handler
 let dbConnection;
 (async () => {
   try {
     dbConnection = await connectDB();
     logger.info('Database connection initialized with enhanced resilience');
+    
+    // Auto-seed government configuration
+    await autoSeedGovernmentConfig();
     
     // Start enhanced connection monitoring after successful connection
     setTimeout(() => {
