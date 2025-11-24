@@ -295,7 +295,14 @@ const RevenueReports = () => {
     const fetchRevenueData = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${API_URL}/api/revenue/${selectedPeriod}`);
+        // For weekly, request a full 7-day breakdown and pass the app timezone
+        const weekStart = 1; // default Monday
+        const tz = import.meta.env.VITE_TIMEZONE || 'Asia/Manila';
+        const url = selectedPeriod === 'weekly'
+          ? `${API_URL}/api/revenue/${selectedPeriod}?weekStart=${weekStart}&tz=${encodeURIComponent(tz)}`
+          : `${API_URL}/api/revenue/${selectedPeriod}`;
+
+        const response = await fetch(url);
         const data = await response.json();
         if (data.success) {
           setRevenueData(data.data);
@@ -577,25 +584,56 @@ const RevenueReports = () => {
                 </div>
               </div>
             )}            {/* Monthly Revenue Trend */}
+            {selectedPeriod !== 'daily' && (
             <div className="bg-white rounded-lg border p-6" style={{ borderColor: colors.muted + '20' }}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold" style={{ color: colors.primary }}>
-                  {selectedPeriod === 'monthly' ? 'Monthly Revenue Trend' : selectedPeriod === 'weekly' ? 'Weekly Revenue Trend' : 'Monthly Revenue Trend'}
+                  {selectedPeriod === 'monthly' ? 'Monthly Revenue Trend' : selectedPeriod === 'weekly' ? 'Weekly Revenue Trend' : selectedPeriod === 'yearly' ? 'Yearly Revenue Trend' : 'Monthly Revenue Trend'}
                 </h3>
                 <div className="text-sm" style={{ color: colors.muted }}>
-                  {selectedPeriod === 'monthly' ? 'Last 12 Months' : selectedPeriod === 'weekly' ? 'Last 7 Days' : 'Last 12 Months'}
+                  {selectedPeriod === 'monthly' ? 'Last 12 Months' : selectedPeriod === 'weekly' ? 'Last 7 Days' : selectedPeriod === 'yearly' ? `Last ${yearlyHistoricalData.length || 5} Years` : 'Last 12 Months'}
                 </div>
               </div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   {selectedPeriod === 'weekly' ? (
-                    <BarChart data={prepareWeeklyData()}>
+                    <LineChart data={prepareWeeklyData()}>
                       <CartesianGrid strokeDasharray="3 3" stroke={colors.muted + '30'} />
                       <XAxis dataKey="label" tick={{ fontSize: 12 }} stroke={colors.muted} />
                       <YAxis tickFormatter={(value) => formatCurrency(value).replace('PHP', '₱')} tick={{ fontSize: 12 }} stroke={colors.muted} />
+                      <Tooltip formatter={(value, name) => [formatCurrency(value), 'Revenue']} labelFormatter={(label) => `Day: ${label}`} />
+                      <Line type="monotone" dataKey="revenue" stroke={colors.accent} strokeWidth={3} dot={{ r: 4 }} />
+                    </LineChart>
+                  ) : selectedPeriod === 'yearly' ? (
+                    <LineChart data={yearlyHistoricalData.map(y=>({ year: String(y.year), revenue: y.revenue }))}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={colors.muted + '30'} />
+                      <XAxis dataKey="year" tick={{ fontSize: 12 }} stroke={colors.muted} />
+                      <YAxis tickFormatter={(value) => formatCurrency(value).replace('PHP', '₱')} tick={{ fontSize: 12 }} stroke={colors.muted} />
                       <Tooltip formatter={(value, name) => [formatCurrency(value), 'Revenue']} />
-                      <Bar dataKey="revenue" fill={CHART_COLORS[0]} />
-                    </BarChart>
+                      <Line type="monotone" dataKey="revenue" stroke={colors.secondary} strokeWidth={3} dot={{ r: 4 }} />
+                    </LineChart>
+                  ) : selectedPeriod === 'daily' ? (
+                    // For Daily view, show Top Items in the main right panel (avoid duplication)
+                    <div style={{ padding: 8 }}>
+                      <h3 className="text-md font-semibold mb-2">Top Items — Today</h3>
+                      <div className="space-y-2 max-h-56 overflow-y-auto">
+                        {revenueData.topItems.slice(0, 8).map((item, idx) => (
+                          <div key={item.name} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors bg-white border" style={{ borderColor: colors.muted + '10' }}>
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{ backgroundColor: idx < 3 ? colors.accent : colors.muted }}>{idx + 1}</div>
+                              <div>
+                                <div className="font-medium text-sm" style={{ color: colors.primary }}>{item.name}</div>
+                                <div className="text-xs" style={{ color: colors.muted }}>{item.quantity} sold</div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-bold text-sm" style={{ color: colors.primary }}>{formatCurrency(item.revenue)}</div>
+                            </div>
+                          </div>
+                        ))}
+                        {revenueData.topItems.length === 0 && <div className="text-sm text-muted">No top items available</div>}
+                      </div>
+                    </div>
                   ) : (
                     <LineChart data={prepareMonthlyRevenueData()}>
                       <CartesianGrid strokeDasharray="3 3" stroke={colors.muted + '30'} />
@@ -633,22 +671,8 @@ const RevenueReports = () => {
                   )}
                 </ResponsiveContainer>
               </div>              {/* Monthly trend summary */}
-              <div className="mt-4 grid grid-cols-2 gap-4">
+                <div className="mt-4 grid grid-cols-2 gap-4">
                               {/* Yearly view - show breakdown for selected year */}
-                              {selectedPeriod === 'yearly' && revenueData?.monthlyBreakdown && (
-                                <div className="p-6">
-                                  <h3 className="text-lg font-semibold mb-2">Monthly breakdown — this year</h3>
-                                  <ResponsiveContainer width="100%" height={240}>
-                                    <BarChart data={revenueData.monthlyBreakdown.map(m=>({name: m.month, revenue: m.revenue}))}>
-                                      <CartesianGrid strokeDasharray="3 3" />
-                                      <XAxis dataKey="name" />
-                                      <YAxis />
-                                      <Tooltip formatter={(v)=>formatCurrency(v)} />
-                                      <Bar dataKey="revenue" fill={CHART_COLORS[0]} />
-                                    </BarChart>
-                                  </ResponsiveContainer>
-                                </div>
-                              )}
                               {selectedPeriod === 'yearly' && yearlyHistoricalData.length > 0 && (
                                 <div className="p-6">
                                   <h3 className="text-lg font-semibold mb-2">Yearly trend</h3>
@@ -660,6 +684,20 @@ const RevenueReports = () => {
                                       <Tooltip formatter={(v)=>formatCurrency(v)} />
                                       <Line dataKey="revenue" stroke={CHART_COLORS[1]} strokeWidth={3} />
                                     </LineChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              )}
+                              {selectedPeriod === 'yearly' && revenueData?.monthlyBreakdown && (
+                                <div className="p-6">
+                                  <h3 className="text-lg font-semibold mb-2">Monthly breakdown — this year</h3>
+                                  <ResponsiveContainer width="100%" height={240}>
+                                    <BarChart data={revenueData.monthlyBreakdown.map(m=>({name: m.month, revenue: m.revenue}))}>
+                                      <CartesianGrid strokeDasharray="3 3" />
+                                      <XAxis dataKey="name" />
+                                      <YAxis />
+                                      <Tooltip formatter={(v)=>formatCurrency(v)} />
+                                      <Bar dataKey="revenue" fill={CHART_COLORS[0]} />
+                                    </BarChart>
                                   </ResponsiveContainer>
                                 </div>
                               )}
@@ -685,59 +723,9 @@ const RevenueReports = () => {
                 </div>
               </div>
             </div>
+            )}
 
-            {/* Order Sources */}
-            <div className="bg-white rounded-lg border p-6" style={{ borderColor: colors.muted + '20' }}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold" style={{ color: colors.primary }}>
-                  Order Sources
-                </h3>
-                <div className="text-sm" style={{ color: colors.muted }}>
-                  Channel Performance
-                </div>
-              </div>
-              <div className="space-y-3">
-                {prepareOrderSourceData().map((source, index) => (
-                  <div key={source.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div 
-                        className="w-4 h-4 rounded"
-                        style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
-                      />
-                      <span className="text-sm font-medium" style={{ color: colors.primary }}>
-                        {source.name}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-bold" style={{ color: colors.primary }}>
-                        {formatCurrency(source.value)}
-                      </div>
-                      <div className="text-xs" style={{ color: colors.muted }}>
-                        {source.percentage}%
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {/* Progress bars */}
-              <div className="space-y-2 mt-4">
-                {prepareOrderSourceData().map((source, index) => (
-                  <div key={source.name} className="w-full">
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div 
-                        className="h-2 rounded-full transition-all duration-1000"
-                        style={{ 
-                          width: `${source.percentage}%`,
-                          backgroundColor: CHART_COLORS[index % CHART_COLORS.length]
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Top Items - Minimalist List */}
+            {/* Top Items - Minimalist List (moved into right container where Order Sources was) */}
             <div className="bg-white rounded-lg border p-6" style={{ borderColor: colors.muted + '20' }}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold" style={{ color: colors.primary }}>
@@ -772,8 +760,11 @@ const RevenueReports = () => {
                       </div>
                     </div>
                   </div>
-                ))}              </div>
+                ))}
+              </div>
             </div>
+
+            
           </div>
         </>
       )}        {/* Hidden Printable Report - positioned off-screen but still rendered */}

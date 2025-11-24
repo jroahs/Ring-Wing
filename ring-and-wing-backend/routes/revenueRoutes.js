@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
+const { utcToZonedTime, zonedTimeToUtc, format } = require('date-fns-tz');
+const { startOfWeek, addDays } = require('date-fns');
 
 // Helper function to get date range
 const getDateRange = (period) => {
@@ -36,7 +38,36 @@ const getDateRange = (period) => {
 router.get('/:period', async (req, res) => {
   try {
     const { period } = req.params;
-    const { start, end } = getDateRange(period);
+    // read weekStart and timezone query params (optional)
+    const weekStartParam = typeof req.query.weekStart !== 'undefined' ? parseInt(req.query.weekStart, 10) : undefined; // 0=Sunday .. 6=Saturday
+    const tz = req.query.tz || process.env.BUSINESS_TIMEZONE || 'Asia/Manila';
+
+    // get initial start/end
+    let { start, end } = getDateRange(period);
+
+    // For weekly we want a full 7-day week according to weekStart and timezone
+    if (period === 'weekly') {
+      // Default to Monday (1) if not provided
+      const weekStart = Number.isInteger(weekStartParam) ? weekStartParam : 1;
+
+      // Convert now to timezone-aware date
+      const nowZoned = utcToZonedTime(new Date(), tz);
+
+      // Compute start of the week in the target timezone using date-fns startOfWeek and then convert back to UTC boundaries
+      const zoneStartOfWeek = startOfWeek(nowZoned, { weekStartsOn: weekStart });
+
+      // Start at 00:00:00 of zoneStartOfWeek and end at end of that 7th day
+      const zoneStart = new Date(zoneStartOfWeek.setHours(0, 0, 0, 0));
+      const zoneEnd = addDays(zoneStart, 6);
+      zoneEnd.setHours(23, 59, 59, 999);
+
+      // Convert zoned start/end back to UTC for DB queries
+      const utcStart = zonedTimeToUtc(zoneStart, tz);
+      const utcEnd = zonedTimeToUtc(zoneEnd, tz);
+
+      start = utcStart;
+      end = utcEnd;
+    }
     
     // Include all orders that have a valid payment method (not 'pending')
     // This ensures we count orders from all sources: POS, self-checkout, and chatbot
@@ -109,27 +140,40 @@ router.get('/:period', async (req, res) => {
       monthlyBreakdown = months;
     }
 
-    // For weekly reports include a daily breakdown for the week
+    // For weekly reports include a daily breakdown for the week (always 7 days, timezone-aware)
     let weeklyBreakdown = null;
     if (period === 'weekly') {
-      // Create an array of days from start to end
-      const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-      const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      // Use timezone from above
+      const weekStart = typeof req.query.weekStart !== 'undefined' ? parseInt(req.query.weekStart, 10) : 1;
+
+      // Convert start to zoned time
+      const startZoned = utcToZonedTime(start, tz);
+
+      // Build 7-day series anchored on startZoned (which is at 00:00 in zone)
       const days = [];
-      for (let d = new Date(startDay); d <= endDay; d.setDate(d.getDate() + 1)) {
-        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
-        const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
-        const dayOrders = orders.filter(o => new Date(o.createdAt) >= dayStart && new Date(o.createdAt) <= dayEnd);
+      for (let i = 0; i < 7; i++) {
+        const dStartZoned = addDays(startZoned, i);
+        dStartZoned.setHours(0, 0, 0, 0);
+        const dEndZoned = addDays(dStartZoned, 0);
+        dEndZoned.setHours(23, 59, 59, 999);
+
+        // Convert the zoned day bounds back to UTC for DB filtering
+        const dStartUtc = zonedTimeToUtc(dStartZoned, tz);
+        const dEndUtc = zonedTimeToUtc(dEndZoned, tz);
+
+        const dayOrders = orders.filter(o => new Date(o.createdAt) >= dStartUtc && new Date(o.createdAt) <= dEndUtc);
         const dayRevenue = dayOrders.reduce((a, o) => a + o.totals.total, 0);
+
         days.push({
-          date: dayStart.toISOString().split('T')[0],
-          label: dayStart.toLocaleDateString('en-US', { weekday: 'short' }),
+          date: format(dStartZoned, 'yyyy-MM-dd', { timeZone: tz }),
+          label: format(dStartZoned, 'EEE', { timeZone: tz }),
           revenue: dayRevenue,
           orders: dayOrders.length,
-          start: dayStart,
-          end: dayEnd
+          start: dStartUtc,
+          end: dEndUtc
         });
       }
+
       weeklyBreakdown = days;
     }
 
