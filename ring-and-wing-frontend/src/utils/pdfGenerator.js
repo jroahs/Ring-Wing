@@ -209,6 +209,251 @@ export const generateRevenuePDF = (revenueData, selectedPeriod) => {
 };
 
 /**
+ * Generate Yearly Revenue Report PDF
+ * @param {Object} reportData - Yearly report data from API
+ * @param {string} periodLabel - Period label for the report
+ */
+export const generateYearlyRevenuePDF = (reportData, periodLabel) => {
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+    putOnlyUsedFonts: true,
+    compress: true
+  });
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  let yPosition = 20;
+
+  // Helper function to format currency
+  const formatCurrency = (value) => {
+    return `PHP ${parseFloat(value || 0).toLocaleString('en-PH', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    })}`;
+  };
+
+  // Helper function to add new page if needed
+  const checkPageBreak = (requiredHeight) => {
+    if (yPosition + requiredHeight > pageHeight - 20) {
+      pdf.addPage();
+      yPosition = 20;
+    }
+  };
+
+  // Header
+  pdf.setFontSize(20);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Ring & Wing Restaurant', pageWidth / 2, yPosition, { align: 'center' });
+  yPosition += 10;
+
+  pdf.setFontSize(16);
+  pdf.text('Yearly Revenue Report', pageWidth / 2, yPosition, { align: 'center' });
+  yPosition += 8;
+
+  pdf.setFontSize(12);
+  pdf.setFont('helvetica', 'normal');
+  pdf.text(periodLabel, pageWidth / 2, yPosition, { align: 'center' });
+  yPosition += 6;
+
+  pdf.setFontSize(10);
+  const reportDate = new Date().toLocaleDateString('en-PH', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  pdf.text(`Generated on: ${reportDate}`, pageWidth / 2, yPosition, { align: 'center' });
+  yPosition += 12;
+
+  // Line separator
+  pdf.line(20, yPosition, pageWidth - 20, yPosition);
+  yPosition += 10;
+
+  // Financial Summary Section
+  pdf.setFontSize(14);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Financial Summary', 20, yPosition);
+  yPosition += 10;
+
+  pdf.setFontSize(10);
+  pdf.setFont('helvetica', 'normal');
+
+  const summaryData = [
+    ['Total Revenue:', formatCurrency(reportData?.summary?.totalRevenue || 0)],
+    ['Total Expenses:', formatCurrency(reportData?.summary?.totalExpenses || 0)],
+    ['Net Revenue:', formatCurrency(reportData?.summary?.netRevenue || 0)],
+    ['Profit Margin:', `${reportData?.summary?.profitMargin || 0}%`],
+    ['Total Orders:', (reportData?.summary?.totalOrders || 0).toString()]
+  ];
+
+  summaryData.forEach(([label, value]) => {
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(label, 25, yPosition);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(value, 80, yPosition);
+    yPosition += 8;
+  });
+
+  yPosition += 10;
+  checkPageBreak(60);
+
+  // Monthly Breakdown Section
+  pdf.setFontSize(14);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Monthly Breakdown', 20, yPosition);
+  yPosition += 10;
+
+  // Table headers
+  pdf.setFontSize(9);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Month', 25, yPosition);
+  pdf.text('Revenue', 65, yPosition);
+  pdf.text('Expenses', 105, yPosition);
+  pdf.text('Net Revenue', 145, yPosition);
+  yPosition += 6;
+
+  // Table line
+  pdf.line(20, yPosition - 2, pageWidth - 20, yPosition - 2);
+  yPosition += 4;
+
+  pdf.setFont('helvetica', 'normal');
+  (reportData?.monthlyBreakdown || []).forEach((month) => {
+    checkPageBreak(10);
+    
+    pdf.text(month.month || '', 25, yPosition);
+    pdf.text(formatCurrency(month.revenue), 65, yPosition);
+    pdf.text(formatCurrency(month.expenses), 105, yPosition);
+    pdf.text(formatCurrency(month.netRevenue), 145, yPosition);
+    yPosition += 7;
+  });
+
+  // Monthly totals
+  pdf.line(20, yPosition, pageWidth - 20, yPosition);
+  yPosition += 5;
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('TOTAL', 25, yPosition);
+  pdf.text(formatCurrency(reportData?.summary?.totalRevenue || 0), 65, yPosition);
+  pdf.text(formatCurrency(reportData?.summary?.totalExpenses || 0), 105, yPosition);
+  pdf.text(formatCurrency(reportData?.summary?.netRevenue || 0), 145, yPosition);
+  yPosition += 15;
+
+  checkPageBreak(60);
+
+  // Quarterly Breakdown Section
+  pdf.setFontSize(14);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Quarterly Breakdown', 20, yPosition);
+  yPosition += 10;
+
+  // Table headers
+  pdf.setFontSize(9);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Quarter', 25, yPosition);
+  pdf.text('Revenue', 65, yPosition);
+  pdf.text('Expenses', 105, yPosition);
+  pdf.text('Net Revenue', 145, yPosition);
+  yPosition += 6;
+
+  // Table line
+  pdf.line(20, yPosition - 2, pageWidth - 20, yPosition - 2);
+  yPosition += 4;
+
+  pdf.setFont('helvetica', 'normal');
+  (reportData?.quarterlyBreakdown || []).forEach((quarter) => {
+    checkPageBreak(10);
+    
+    pdf.text(quarter.quarter || '', 25, yPosition);
+    pdf.text(formatCurrency(quarter.revenue), 65, yPosition);
+    pdf.text(formatCurrency(quarter.expenses), 105, yPosition);
+    pdf.text(formatCurrency(quarter.netRevenue), 145, yPosition);
+    yPosition += 7;
+  });
+
+  yPosition += 10;
+  checkPageBreak(50);
+
+  // Expense by Category Section
+  if (reportData?.expenseByCategory && Object.keys(reportData.expenseByCategory).length > 0) {
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Expense Breakdown by Category', 20, yPosition);
+    yPosition += 10;
+
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Category', 25, yPosition);
+    pdf.text('Amount', 100, yPosition);
+    pdf.text('% of Total', 150, yPosition);
+    yPosition += 6;
+
+    pdf.line(20, yPosition - 2, pageWidth - 20, yPosition - 2);
+    yPosition += 4;
+
+    pdf.setFont('helvetica', 'normal');
+    const totalExpenses = reportData?.summary?.totalExpenses || 1;
+    
+    Object.entries(reportData.expenseByCategory)
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([category, amount]) => {
+        checkPageBreak(10);
+        const percentage = ((amount / totalExpenses) * 100).toFixed(1);
+        
+        pdf.text(category, 25, yPosition);
+        pdf.text(formatCurrency(amount), 100, yPosition);
+        pdf.text(`${percentage}%`, 150, yPosition);
+        yPosition += 7;
+      });
+
+    yPosition += 10;
+  }
+
+  checkPageBreak(60);
+
+  // Top Items Section
+  if (reportData?.topItems && reportData.topItems.length > 0) {
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Top Selling Items', 20, yPosition);
+    yPosition += 10;
+
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Rank', 25, yPosition);
+    pdf.text('Item Name', 40, yPosition);
+    pdf.text('Qty Sold', 120, yPosition);
+    pdf.text('Revenue', 150, yPosition);
+    yPosition += 6;
+
+    pdf.line(20, yPosition - 2, pageWidth - 20, yPosition - 2);
+    yPosition += 4;
+
+    pdf.setFont('helvetica', 'normal');
+    reportData.topItems.slice(0, 10).forEach((item, index) => {
+      checkPageBreak(10);
+      
+      pdf.text(`${index + 1}`, 25, yPosition);
+      pdf.text((item.name || 'Unknown').substring(0, 30), 40, yPosition);
+      pdf.text(item.quantity.toString(), 120, yPosition);
+      pdf.text(formatCurrency(item.revenue), 150, yPosition);
+      yPosition += 7;
+    });
+  }
+
+  // Footer
+  yPosition = pageHeight - 15;
+  pdf.setFontSize(8);
+  pdf.setFont('helvetica', 'italic');
+  pdf.text('Generated by Ring & Wing POS System', pageWidth / 2, yPosition, { align: 'center' });
+
+  // Generate filename and save
+  const fileName = `Yearly_Revenue_Report_${periodLabel.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+  pdf.save(fileName);
+};
+
+/**
  * Generate Payslip PDF with Government Deductions
  * @param {Object} payslipData - Complete payslip data from API
  */
