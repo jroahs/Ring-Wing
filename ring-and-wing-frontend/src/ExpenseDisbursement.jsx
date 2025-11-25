@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiFilter, FiX, FiTrendingUp } from 'react-icons/fi';
+import { FiFilter, FiX, FiTrendingUp, FiCheck, FiXCircle, FiClock } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import ExpenseCard from './components/ui/ExpenseCard.jsx';
 import ExpenseFilters from './components/ui/ExpenseFilters.jsx';
@@ -10,6 +10,22 @@ import ExpenseFilterPanel from './components/ui/ExpenseFilterPanel.jsx';
 import { useMultiTabLogout } from './hooks/useMultiTabLogout';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+// Helper to get auth token
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('authToken');
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': token ? `Bearer ${token}` : ''
+  };
+};
+
+// Helper to check if user is admin/manager
+const isAdminOrManager = (user) => {
+  if (!user) return false;
+  return user.role === 'manager' || 
+         ['shift_manager', 'general_manager', 'admin'].includes(user.position);
+};
 
 const colors = {
   primary: '#2e0304',
@@ -27,14 +43,24 @@ const ExpenseTracker = ({ colors }) => {
   useMultiTabLogout();
   const navigate = useNavigate();
   
+  // Get current user info
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  
   const [expenses, setExpenses] = useState([]);
+  const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [activeTab, setActiveTab] = useState('all'); // 'all', 'pending'
   const [formData, setFormData] = useState({
     date: '',
     amount: '',
     category: '',
     description: '',
     paymentMethod: 'Cash'
-  });  const [showModal, setShowModal] = useState(false);
+  });
+  const [showModal, setShowModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [expenseToReject, setExpenseToReject] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -69,6 +95,40 @@ const ExpenseTracker = ({ colors }) => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Get current user on mount
+  useEffect(() => {
+    const userData = localStorage.getItem('userData');
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        setCurrentUser(user);
+        setIsAdmin(isAdminOrManager(user));
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+      }
+    }
+  }, []);
+
+  // Fetch pending approvals for admin
+  useEffect(() => {
+    const fetchPendingApprovals = async () => {
+      if (!isAdmin) return;
+      try {
+        const response = await fetch(`${API_URL}/api/expenses/pending-approvals`, {
+          headers: getAuthHeaders()
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setPendingApprovals(Array.isArray(data) ? data : []);
+        }
+      } catch (error) {
+        console.error('Error fetching pending approvals:', error);
+      }
+    };
+    fetchPendingApprovals();
+  }, [isAdmin]);
+
   useEffect(() => {
     const fetchExpenses = async () => {
       try {
@@ -77,14 +137,17 @@ const ExpenseTracker = ({ colors }) => {
           startDate: dateRange.start,
           endDate: dateRange.end,
           category: selectedCategory !== 'All' ? selectedCategory : ''
-        });        // Add payment status filters
+        });
+        // Add payment status filters
         if (paymentStatus === 'Paid') {
           params.append('disbursed', 'true');
         } else if (paymentStatus === 'Pending') {
           params.append('disbursed', 'false');
         }
 
-        const response = await fetch(`${API_URL}/api/expenses?${params}`);
+        const response = await fetch(`${API_URL}/api/expenses?${params}`, {
+          headers: getAuthHeaders()
+        });
         const data = await response.json();
         setExpenses(Array.isArray(data) ? data : []);
       } catch (error) {
@@ -149,9 +212,7 @@ const ExpenseTracker = ({ colors }) => {
 
       const response = await fetch(`${API_URL}/api/expenses`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(payload)
       });
 
@@ -177,11 +238,9 @@ const ExpenseTracker = ({ colors }) => {
     }
   };  const markAsDisbursed = async (id) => {
     try {
-      const response = await fetch(`/api/expenses/${id}`, {
+      const response = await fetch(`${API_URL}/api/expenses/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ 
           disbursed: true,
           disbursementDate: new Date().toISOString()
@@ -201,11 +260,9 @@ const ExpenseTracker = ({ colors }) => {
 
   const makePermanent = async (id) => {
     try {
-      const response = await fetch(`/api/expenses/${id}`, {
+      const response = await fetch(`${API_URL}/api/expenses/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ 
           disbursed: true,
           permanent: true,
@@ -227,16 +284,9 @@ const ExpenseTracker = ({ colors }) => {
   // New function that handles both paid and permanent status in one call
   const markAsPaidAndPermanent = async (id) => {
     try {
-      const response = await fetch(`/api/expenses/${id}`, {
+      const response = await fetch(`${API_URL}/api/expenses/${id}/mark-paid`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          disbursed: true,
-          permanent: true,
-          disbursementDate: new Date().toISOString()
-        })
+        headers: getAuthHeaders()
       });
 
       if (!response.ok) throw new Error('Update failed');
@@ -245,8 +295,57 @@ const ExpenseTracker = ({ colors }) => {
       setExpenses(prev =>
         prev.map(exp => exp._id === updatedExpense._id ? updatedExpense : exp)
       );
+      // Also remove from pending if it was there
+      setPendingApprovals(prev => prev.filter(exp => exp._id !== id));
     } catch (error) {
       console.error('Error updating expense:', error);
+    }
+  };
+
+  // Approve expense request
+  const approveExpense = async (id) => {
+    try {
+      const response = await fetch(`${API_URL}/api/expenses/${id}/approve`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+
+      if (!response.ok) throw new Error('Approval failed');
+      
+      const updatedExpense = await response.json();
+      // Remove from pending approvals
+      setPendingApprovals(prev => prev.filter(exp => exp._id !== id));
+      // Add to expenses list
+      setExpenses(prev => [...prev, updatedExpense]);
+    } catch (error) {
+      console.error('Error approving expense:', error);
+      alert('Failed to approve expense');
+    }
+  };
+
+  // Reject expense request
+  const rejectExpense = async () => {
+    if (!expenseToReject || !rejectionReason.trim()) {
+      alert('Please provide a rejection reason');
+      return;
+    }
+    try {
+      const response = await fetch(`${API_URL}/api/expenses/${expenseToReject._id}/reject`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ reason: rejectionReason })
+      });
+
+      if (!response.ok) throw new Error('Rejection failed');
+      
+      // Remove from pending approvals
+      setPendingApprovals(prev => prev.filter(exp => exp._id !== expenseToReject._id));
+      setShowRejectModal(false);
+      setExpenseToReject(null);
+      setRejectionReason('');
+    } catch (error) {
+      console.error('Error rejecting expense:', error);
+      alert('Failed to reject expense');
     }
   };
 
@@ -333,7 +432,8 @@ const ExpenseTracker = ({ colors }) => {
       }}
     >
       <div className={`flex-1 transition-all duration-300`}>
-        <div className="p-6 md:p-8 pt-24 md:pt-8">          <div className="mb-8">
+        <div className="p-6 md:p-8 pt-24 md:pt-8">
+          <div className="mb-8">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold" style={{ color: colors.primary }}>Expense Management</h1>
@@ -342,7 +442,8 @@ const ExpenseTracker = ({ colors }) => {
                 </p>
               </div>
               
-              {/* Filter Button */}              <button
+              {/* Filter Button */}
+              <button
                 onClick={() => setShowFilterPanel(!showFilterPanel)}
                 className={`
                   flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border transition-all duration-200
@@ -396,7 +497,108 @@ const ExpenseTracker = ({ colors }) => {
             activeFiltersCount={getActiveFiltersCount()}
             isOpen={showFilterPanel}
             onClose={() => setShowFilterPanel(false)}
-          /><div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          />
+
+          {/* Tabs for All Expenses vs Pending Approvals */}
+          {isAdmin && (
+            <div className="flex gap-2 mb-6 mx-6">
+              <button
+                onClick={() => setActiveTab('all')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  activeTab === 'all' 
+                    ? 'text-white' 
+                    : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
+                }`}
+                style={activeTab === 'all' ? { backgroundColor: colors.accent } : {}}
+              >
+                All Expenses
+              </button>
+              <button
+                onClick={() => setActiveTab('pending')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                  activeTab === 'pending' 
+                    ? 'text-white' 
+                    : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
+                }`}
+                style={activeTab === 'pending' ? { backgroundColor: '#eab308' } : {}}
+              >
+                <FiClock className="w-4 h-4" />
+                Pending Approvals
+                {pendingApprovals.length > 0 && (
+                  <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {pendingApprovals.length}
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* Pending Approvals Section */}
+          {isAdmin && activeTab === 'pending' && (
+            <div className="mx-6 mb-6">
+              <div className="rounded-xl overflow-hidden shadow-lg" style={{ border: `1px solid ${colors.muted}20` }}>
+                {pendingApprovals.length > 0 ? (
+                  <div className="divide-y" style={{ borderColor: colors.muted + '20' }}>
+                    {pendingApprovals.map(expense => (
+                      <div key={expense._id} className="p-4 bg-white hover:bg-gray-50 transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                For Approval
+                              </span>
+                              <span className="text-sm text-gray-500">
+                                {new Date(expense.date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </span>
+                            </div>
+                            <h4 className="font-semibold text-gray-900">{expense.description}</h4>
+                            <p className="text-sm text-gray-600 mt-1">
+                              Requested by: <span className="font-medium">{expense.requesterName || 'Unknown'}</span>
+                              {expense.requesterPosition && (
+                                <span className="text-gray-400"> ({expense.requesterPosition})</span>
+                              )}
+                            </p>
+                            <div className="flex items-center gap-4 mt-2 text-sm">
+                              <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{expense.category}</span>
+                              <span className="font-semibold" style={{ color: colors.accent }}>
+                                ₱{expense.amount?.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 ml-4">
+                            <button
+                              onClick={() => approveExpense(expense._id)}
+                              className="flex items-center gap-1 px-3 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors"
+                            >
+                              <FiCheck className="w-4 h-4" />
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => { setExpenseToReject(expense); setShowRejectModal(true); }}
+                              className="flex items-center gap-1 px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
+                            >
+                              <FiXCircle className="w-4 h-4" />
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-12 text-center">
+                    <FiCheck className="w-12 h-12 mx-auto mb-4 text-green-500" />
+                    <h3 className="text-lg font-medium text-gray-900">All caught up!</h3>
+                    <p className="text-gray-500 mt-1">No pending expense requests to review</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Main Content - Only show when on 'all' tab or not admin */}
+          {(activeTab === 'all' || !isAdmin) && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2 space-y-6">              {/* Active Filters Summary */}
               {getActiveFiltersCount() > 0 && (
                 <div className="p-4 rounded-lg border mx-6" style={{ backgroundColor: colors.activeBg, borderColor: colors.accent + '40' }}>
@@ -766,8 +968,56 @@ const ExpenseTracker = ({ colors }) => {
               </div>
             </div>
           </div>
+          )}
         </div>
       </div>
+
+      {/* Rejection Modal */}
+      {showRejectModal && expenseToReject && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowRejectModal(false)}>
+          <div className="bg-white p-6 rounded-lg max-w-md w-full relative" 
+               style={{ backgroundColor: colors.background, border: `1px solid ${colors.muted}60` }}
+               onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowRejectModal(false)} className="absolute top-2 right-2 bg-red-500 text-white rounded-full px-2 py-0 text-sm">
+              ×
+            </button>
+            <h2 className="text-xl font-semibold mb-4" style={{ color: colors.secondary }}>Reject Expense Request</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Rejecting: <strong>{expenseToReject.description}</strong> - ₱{expenseToReject.amount?.toLocaleString('en-PH')}
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: colors.primary }}>Rejection Reason</label>
+                <textarea
+                  className="w-full p-3 rounded-lg border focus:ring-2 focus:outline-none transition-all"
+                  style={{ borderColor: colors.muted + '60', backgroundColor: colors.background }}
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  rows="3"
+                  placeholder="Please provide a reason for rejection..."
+                  required
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowRejectModal(false)}
+                  className="flex-1 py-2 px-4 rounded-lg border"
+                  style={{ borderColor: colors.muted }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={rejectExpense}
+                  className="flex-1 py-2 px-4 rounded-lg bg-red-500 text-white hover:bg-red-600"
+                  disabled={!rejectionReason.trim()}
+                >
+                  Confirm Rejection
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowModal(false)}>

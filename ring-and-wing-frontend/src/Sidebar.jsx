@@ -214,6 +214,12 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
       label: 'My Payslips',
       positions: ['cashier', 'inventory', 'shift_manager', 'general_manager', 'admin']
     },
+    {
+      path: '/my-expense-requests', 
+      icon: <FiTrendingDown size={iconSize} className="text-white" />, 
+      label: 'My Expense Requests',
+      positions: ['cashier', 'inventory']
+    },
     { 
       path: '/staff',
       icon: <FiUsers size={iconSize} className="text-white" />,

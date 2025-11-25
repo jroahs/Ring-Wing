@@ -26,6 +26,7 @@ import { useOrderNotifications } from './hooks/useOrderNotifications';
 import PayrollSystem from './PayrollSystem';
 import EmployeeManagement from "./EmployeeManagement";
 import StaffPayslip from './StaffPayslip';
+import StaffExpenseRequests from './StaffExpenseRequests';
 import GovernmentConfigManagement from './GovernmentConfigManagement';
 import MonthlyPayrollReport from './MonthlyPayrollReport';
 import TimeClock from './TimeClock';
@@ -408,6 +409,13 @@ function App() {
                   <Route path="/my-payslips" element={
                     <PositionProtectedRoute requiredPositions={['cashier', 'inventory', 'shift_manager', 'general_manager', 'admin']}>
                       <StaffPayslip colors={colors} />
+                    </PositionProtectedRoute>
+                  } />
+                  
+                  {/* Staff Expense Requests - for cashier and inventory staff only */}
+                  <Route path="/my-expense-requests" element={
+                    <PositionProtectedRoute requiredPositions={['cashier', 'inventory']}>
+                      <StaffExpenseRequests />
                     </PositionProtectedRoute>
                   } />
                   
