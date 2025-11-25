@@ -476,7 +476,7 @@ const YearlyRevenueReport = ({ isOpen, onClose }) => {
                       Top Selling Items
                     </h3>
                     <div className="space-y-3 max-h-72 overflow-y-auto">
-                      {reportData.topItems.slice(0, 8).map((item, index) => (
+                      {(reportData.topItems || []).slice(0, 8).map((item, index) => (
                         <div 
                           key={item.name} 
                           className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors"
@@ -531,7 +531,7 @@ const YearlyRevenueReport = ({ isOpen, onClose }) => {
                           </tr>
                         </thead>
                         <tbody>
-                          {(viewMode === 'monthly' ? reportData.monthlyBreakdown : reportData.quarterlyBreakdown).map((row, idx) => (
+                          {(viewMode === 'monthly' ? (reportData.monthlyBreakdown || []) : (reportData.quarterlyBreakdown || [])).map((row, idx) => (
                             <tr 
                               key={viewMode === 'monthly' ? row.month : row.quarter}
                               className="border-t hover:bg-gray-50"

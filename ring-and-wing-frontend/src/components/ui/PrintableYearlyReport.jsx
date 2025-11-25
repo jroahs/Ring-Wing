@@ -65,13 +65,13 @@ export const PrintableYearlyReport = forwardRef(({
   }
 
   const chartData = viewMode === 'monthly' 
-    ? reportData.monthlyBreakdown.map(m => ({
+    ? (reportData.monthlyBreakdown || []).map(m => ({
         name: m.month,
         revenue: m.revenue,
         expenses: m.expenses,
         netRevenue: m.netRevenue
       }))
-    : reportData.quarterlyBreakdown.map(q => ({
+    : (reportData.quarterlyBreakdown || []).map(q => ({
         name: q.quarter,
         revenue: q.revenue,
         expenses: q.expenses,

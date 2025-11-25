@@ -81,17 +81,19 @@ export const useYearlyReport = (initialYear = new Date().getFullYear()) => {
 
   // Computed values
   const chartData = useMemo(() => {
-    if (!reportData) return { monthly: [], quarterly: [] };
+    if (!reportData || !reportData.monthlyBreakdown || !reportData.quarterlyBreakdown) {
+      return { monthly: [], quarterly: [] };
+    }
 
     return {
-      monthly: reportData.monthlyBreakdown.map(m => ({
+      monthly: (reportData.monthlyBreakdown || []).map(m => ({
         name: m.month,
         revenue: m.revenue,
         expenses: m.expenses,
         netRevenue: m.netRevenue,
         orders: m.orderCount
       })),
-      quarterly: reportData.quarterlyBreakdown.map(q => ({
+      quarterly: (reportData.quarterlyBreakdown || []).map(q => ({
         name: q.quarter,
         revenue: q.revenue,
         expenses: q.expenses,
