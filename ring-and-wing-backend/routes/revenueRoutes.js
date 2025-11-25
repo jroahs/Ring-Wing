@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
+const Expense = require('../models/expense');
 // timezone-aware weekly logic removed to revert to last known working commit
 
 // Helper function to get date range
@@ -32,6 +33,306 @@ const getDateRange = (period) => {
   
   return { start, end: now };
 };
+
+// ============================================
+// SPECIFIC ROUTES MUST COME BEFORE /:period
+// ============================================
+
+// Get comprehensive yearly revenue report with expenses
+router.get('/yearly-report', async (req, res) => {
+  try {
+    const { year, startMonth, endMonth, startDate, endDate } = req.query;
+    
+    // Determine date range
+    let start, end;
+    
+    if (startDate && endDate) {
+      // Custom date range
+      start = new Date(startDate);
+      end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+    } else if (year) {
+      // Year-based with optional month range
+      const targetYear = parseInt(year, 10);
+      const sMonth = startMonth ? parseInt(startMonth, 10) - 1 : 0;
+      const eMonth = endMonth ? parseInt(endMonth, 10) - 1 : 11;
+      
+      start = new Date(targetYear, sMonth, 1);
+      end = new Date(targetYear, eMonth + 1, 0, 23, 59, 59, 999);
+    } else {
+      // Default to current year
+      const currentYear = new Date().getFullYear();
+      start = new Date(currentYear, 0, 1);
+      end = new Date(currentYear, 11, 31, 23, 59, 59, 999);
+    }
+    
+    console.log('[Yearly Report] Fetching data from', start, 'to', end);
+    
+    // Fetch orders in date range
+    const orders = await Order.find({
+      createdAt: { $gte: start, $lte: end },
+      paymentMethod: { $ne: 'pending' }
+    });
+    
+    console.log('[Yearly Report] Found', orders.length, 'orders');
+    
+    // Fetch expenses in date range
+    const expenses = await Expense.find({
+      date: { $gte: start, $lte: end }
+    });
+    
+    console.log('[Yearly Report] Found', expenses.length, 'expenses');
+    
+    // Calculate total revenue
+    const totalRevenue = orders.reduce((acc, order) => acc + (order.totals?.total || 0), 0);
+    
+    // Calculate total expenses
+    const totalExpenses = expenses.reduce((acc, exp) => acc + (exp.amount || 0), 0);
+    
+    // Calculate net revenue
+    const netRevenue = totalRevenue - totalExpenses;
+    
+    // Generate monthly breakdown
+    const monthlyBreakdown = [];
+    const currentDate = new Date(start);
+    
+    while (currentDate <= end) {
+      const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
+      
+      const monthOrders = orders.filter(o => {
+        const orderDate = new Date(o.createdAt);
+        return orderDate >= monthStart && orderDate <= monthEnd;
+      });
+      
+      const monthExpenses = expenses.filter(e => {
+        const expenseDate = new Date(e.date);
+        return expenseDate >= monthStart && expenseDate <= monthEnd;
+      });
+      
+      const monthRevenue = monthOrders.reduce((a, o) => a + (o.totals?.total || 0), 0);
+      const monthExpenseTotal = monthExpenses.reduce((a, e) => a + (e.amount || 0), 0);
+      
+      monthlyBreakdown.push({
+        month: monthStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        monthIndex: currentDate.getMonth(),
+        year: currentDate.getFullYear(),
+        revenue: monthRevenue,
+        expenses: monthExpenseTotal,
+        netRevenue: monthRevenue - monthExpenseTotal,
+        orderCount: monthOrders.length,
+        expenseCount: monthExpenses.length
+      });
+      
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+    
+    // Generate quarterly breakdown
+    const quarterlyBreakdown = [];
+    const quarters = [
+      { name: 'Q1', months: [0, 1, 2] },
+      { name: 'Q2', months: [3, 4, 5] },
+      { name: 'Q3', months: [6, 7, 8] },
+      { name: 'Q4', months: [9, 10, 11] }
+    ];
+    
+    quarters.forEach((quarter, index) => {
+      const quarterMonths = monthlyBreakdown.filter(m => quarter.months.includes(m.monthIndex));
+      
+      if (quarterMonths.length > 0) {
+        const quarterRevenue = quarterMonths.reduce((a, m) => a + m.revenue, 0);
+        const quarterExpenses = quarterMonths.reduce((a, m) => a + m.expenses, 0);
+        
+        quarterlyBreakdown.push({
+          quarter: quarter.name,
+          quarterIndex: index + 1,
+          revenue: quarterRevenue,
+          expenses: quarterExpenses,
+          netRevenue: quarterRevenue - quarterExpenses,
+          orderCount: quarterMonths.reduce((a, m) => a + m.orderCount, 0),
+          expenseCount: quarterMonths.reduce((a, m) => a + m.expenseCount, 0)
+        });
+      }
+    });
+    
+    // Calculate expense breakdown by category
+    const expenseByCategory = expenses.reduce((acc, exp) => {
+      const category = exp.category || 'Uncategorized';
+      acc[category] = (acc[category] || 0) + (exp.amount || 0);
+      return acc;
+    }, {});
+    
+    // Best selling items in the period
+    const itemStats = orders.reduce((acc, order) => {
+      (order.items || []).forEach(item => {
+        if (!acc[item.name]) {
+          acc[item.name] = { quantity: 0, revenue: 0 };
+        }
+        acc[item.name].quantity += item.quantity || 0;
+        acc[item.name].revenue += (item.price || 0) * (item.quantity || 0);
+      });
+      return acc;
+    }, {});
+    
+    const topItems = Object.entries(itemStats)
+      .map(([name, stats]) => ({ name, ...stats }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+    
+    const profitMargin = totalRevenue > 0 ? ((netRevenue / totalRevenue) * 100).toFixed(2) : '0.00';
+    
+    console.log('[Yearly Report] Summary:', { totalRevenue, totalExpenses, netRevenue, profitMargin });
+    
+    res.json({
+      success: true,
+      data: {
+        period: { start, end },
+        summary: {
+          totalRevenue,
+          totalExpenses,
+          netRevenue,
+          profitMargin,
+          totalOrders: orders.length,
+          totalExpenseRecords: expenses.length
+        },
+        monthlyBreakdown,
+        quarterlyBreakdown,
+        expenseByCategory,
+        topItems
+      }
+    });
+  } catch (error) {
+    console.error('[Yearly Report] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get historical monthly revenue data (last 12 months)
+router.get('/historical/monthly', async (req, res) => {
+  try {
+    const currentDate = new Date();
+    const monthlyData = [];
+
+    // Get data for last 12 months
+    for (let i = 11; i >= 0; i--) {
+      const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() - i + 1, 0, 23, 59, 59);
+      
+      // Get orders for this month
+      const orders = await Order.find({
+        createdAt: { $gte: monthStart, $lte: monthEnd },
+        paymentMethod: { $ne: 'pending' }
+      });
+
+      // Calculate metrics for this month
+      const revenue = orders.reduce((acc, order) => acc + order.totals.total, 0);
+      const orderCount = orders.length;
+      
+      monthlyData.push({
+        month: monthStart.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        revenue: revenue,
+        orders: orderCount,
+        fullDate: monthStart
+      });
+    }
+
+    res.json({
+      success: true,
+      data: monthlyData
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get historical yearly revenue data (last N years, default 5)
+router.get('/historical/yearly', async (req, res) => {
+  try {
+    const years = parseInt(req.query.years, 10) || 5;
+    const currentYear = new Date().getFullYear();
+    const yearlyData = [];
+
+    for (let i = years - 1; i >= 0; i--) {
+      const year = currentYear - i;
+      const start = new Date(year, 0, 1);
+      const end = new Date(year, 11, 31, 23, 59, 59);
+
+      const orders = await Order.find({
+        createdAt: { $gte: start, $lte: end },
+        paymentMethod: { $ne: 'pending' }
+      });
+
+      const revenue = orders.reduce((acc, order) => acc + order.totals.total, 0);
+
+      yearlyData.push({
+        year,
+        revenue,
+        orders: orders.length,
+        start,
+        end
+      });
+    }
+
+    res.json({
+      success: true,
+      data: yearlyData
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get all-time top items (never resets)
+router.get('/top-items/all-time', async (req, res) => {
+  try {
+    // Get ALL orders ever (no date filter)
+    const orders = await Order.find({
+      paymentMethod: { $ne: 'pending' }  // Only exclude pending payment orders
+    });
+
+    // Calculate all-time item statistics
+    const itemStats = orders.reduce((acc, order) => {
+      order.items.forEach(item => {
+        if (!acc[item.name]) {
+          acc[item.name] = { quantity: 0, revenue: 0 };
+        }
+        acc[item.name].quantity += item.quantity;
+        acc[item.name].revenue += item.price * item.quantity;
+      });
+      return acc;
+    }, {});
+
+    // Get top 10 items by revenue (all-time)
+    const topItems = Object.entries(itemStats)
+      .map(([name, stats]) => ({ name, ...stats }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+
+    res.json({
+      success: true,
+      data: {
+        totalOrders: orders.length,
+        totalRevenue: orders.reduce((acc, order) => acc + order.totals.total, 0),
+        topItems
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// ============================================
+// DYNAMIC /:period ROUTE MUST COME LAST
+// ============================================
 
 // Get revenue statistics
 router.get('/:period', async (req, res) => {
@@ -159,287 +460,6 @@ router.get('/:period', async (req, res) => {
         monthlyBreakdown,
         topItems
       }    });  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// Get historical monthly revenue data (last 12 months)
-router.get('/historical/monthly', async (req, res) => {
-  try {
-    const currentDate = new Date();
-    const monthlyData = [];
-
-    // Get data for last 12 months
-    for (let i = 11; i >= 0; i--) {
-      const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-      const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() - i + 1, 0, 23, 59, 59);
-      
-      // Get orders for this month
-      const orders = await Order.find({
-        createdAt: { $gte: monthStart, $lte: monthEnd },
-        paymentMethod: { $ne: 'pending' }
-      });
-
-      // Calculate metrics for this month
-      const revenue = orders.reduce((acc, order) => acc + order.totals.total, 0);
-      const orderCount = orders.length;
-      
-      monthlyData.push({
-        month: monthStart.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-        revenue: revenue,
-        orders: orderCount,
-        fullDate: monthStart
-      });
-    }
-
-    res.json({
-      success: true,
-      data: monthlyData
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// Get historical yearly revenue data (last N years, default 5)
-router.get('/historical/yearly', async (req, res) => {
-  try {
-    const years = parseInt(req.query.years, 10) || 5;
-    const currentYear = new Date().getFullYear();
-    const yearlyData = [];
-
-    for (let i = years - 1; i >= 0; i--) {
-      const year = currentYear - i;
-      const start = new Date(year, 0, 1);
-      const end = new Date(year, 11, 31, 23, 59, 59);
-
-      const orders = await Order.find({
-        createdAt: { $gte: start, $lte: end },
-        paymentMethod: { $ne: 'pending' }
-      });
-
-      const revenue = orders.reduce((acc, order) => acc + order.totals.total, 0);
-
-      yearlyData.push({
-        year,
-        revenue,
-        orders: orders.length,
-        start,
-        end
-      });
-    }
-
-    res.json({
-      success: true,
-      data: yearlyData
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Get comprehensive yearly revenue report with expenses
-router.get('/yearly-report', async (req, res) => {
-  try {
-    const { year, startMonth, endMonth, startDate, endDate } = req.query;
-    const Expense = require('../models/expense');
-    
-    // Determine date range
-    let start, end;
-    
-    if (startDate && endDate) {
-      // Custom date range
-      start = new Date(startDate);
-      end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-    } else if (year) {
-      // Year-based with optional month range
-      const targetYear = parseInt(year, 10);
-      const sMonth = startMonth ? parseInt(startMonth, 10) - 1 : 0;
-      const eMonth = endMonth ? parseInt(endMonth, 10) - 1 : 11;
-      
-      start = new Date(targetYear, sMonth, 1);
-      end = new Date(targetYear, eMonth + 1, 0, 23, 59, 59, 999);
-    } else {
-      // Default to current year
-      const currentYear = new Date().getFullYear();
-      start = new Date(currentYear, 0, 1);
-      end = new Date(currentYear, 11, 31, 23, 59, 59, 999);
-    }
-    
-    // Fetch orders in date range
-    const orders = await Order.find({
-      createdAt: { $gte: start, $lte: end },
-      paymentMethod: { $ne: 'pending' }
-    });
-    
-    // Fetch expenses in date range
-    const expenses = await Expense.find({
-      date: { $gte: start, $lte: end }
-    });
-    
-    // Calculate total revenue
-    const totalRevenue = orders.reduce((acc, order) => acc + order.totals.total, 0);
-    
-    // Calculate total expenses
-    const totalExpenses = expenses.reduce((acc, exp) => acc + exp.amount, 0);
-    
-    // Calculate net revenue
-    const netRevenue = totalRevenue - totalExpenses;
-    
-    // Generate monthly breakdown
-    const monthlyBreakdown = [];
-    const currentDate = new Date(start);
-    
-    while (currentDate <= end) {
-      const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
-      
-      const monthOrders = orders.filter(o => {
-        const orderDate = new Date(o.createdAt);
-        return orderDate >= monthStart && orderDate <= monthEnd;
-      });
-      
-      const monthExpenses = expenses.filter(e => {
-        const expenseDate = new Date(e.date);
-        return expenseDate >= monthStart && expenseDate <= monthEnd;
-      });
-      
-      const monthRevenue = monthOrders.reduce((a, o) => a + o.totals.total, 0);
-      const monthExpenseTotal = monthExpenses.reduce((a, e) => a + e.amount, 0);
-      
-      monthlyBreakdown.push({
-        month: monthStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-        monthIndex: currentDate.getMonth(),
-        year: currentDate.getFullYear(),
-        revenue: monthRevenue,
-        expenses: monthExpenseTotal,
-        netRevenue: monthRevenue - monthExpenseTotal,
-        orderCount: monthOrders.length,
-        expenseCount: monthExpenses.length
-      });
-      
-      currentDate.setMonth(currentDate.getMonth() + 1);
-    }
-    
-    // Generate quarterly breakdown
-    const quarterlyBreakdown = [];
-    const quarters = [
-      { name: 'Q1', months: [0, 1, 2] },
-      { name: 'Q2', months: [3, 4, 5] },
-      { name: 'Q3', months: [6, 7, 8] },
-      { name: 'Q4', months: [9, 10, 11] }
-    ];
-    
-    quarters.forEach((quarter, index) => {
-      const quarterMonths = monthlyBreakdown.filter(m => quarter.months.includes(m.monthIndex));
-      
-      if (quarterMonths.length > 0) {
-        const quarterRevenue = quarterMonths.reduce((a, m) => a + m.revenue, 0);
-        const quarterExpenses = quarterMonths.reduce((a, m) => a + m.expenses, 0);
-        
-        quarterlyBreakdown.push({
-          quarter: quarter.name,
-          quarterIndex: index + 1,
-          revenue: quarterRevenue,
-          expenses: quarterExpenses,
-          netRevenue: quarterRevenue - quarterExpenses,
-          orderCount: quarterMonths.reduce((a, m) => a + m.orderCount, 0),
-          expenseCount: quarterMonths.reduce((a, m) => a + m.expenseCount, 0)
-        });
-      }
-    });
-    
-    // Calculate expense breakdown by category
-    const expenseByCategory = expenses.reduce((acc, exp) => {
-      acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
-      return acc;
-    }, {});
-    
-    // Best selling items in the period
-    const itemStats = orders.reduce((acc, order) => {
-      order.items.forEach(item => {
-        if (!acc[item.name]) {
-          acc[item.name] = { quantity: 0, revenue: 0 };
-        }
-        acc[item.name].quantity += item.quantity;
-        acc[item.name].revenue += item.price * item.quantity;
-      });
-      return acc;
-    }, {});
-    
-    const topItems = Object.entries(itemStats)
-      .map(([name, stats]) => ({ name, ...stats }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 10);
-    
-    res.json({
-      success: true,
-      data: {
-        period: { start, end },
-        summary: {
-          totalRevenue,
-          totalExpenses,
-          netRevenue,
-          profitMargin: totalRevenue > 0 ? ((netRevenue / totalRevenue) * 100).toFixed(2) : 0,
-          totalOrders: orders.length,
-          totalExpenseRecords: expenses.length
-        },
-        monthlyBreakdown,
-        quarterlyBreakdown,
-        expenseByCategory,
-        topItems
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// Get all-time top items (never resets)
-router.get('/top-items/all-time', async (req, res) => {
-  try {
-    // Get ALL orders ever (no date filter)
-    const orders = await Order.find({
-      paymentMethod: { $ne: 'pending' }  // Only exclude pending payment orders
-    });
-
-    // Calculate all-time item statistics
-    const itemStats = orders.reduce((acc, order) => {
-      order.items.forEach(item => {
-        if (!acc[item.name]) {
-          acc[item.name] = { quantity: 0, revenue: 0 };
-        }
-        acc[item.name].quantity += item.quantity;
-        acc[item.name].revenue += item.price * item.quantity;
-      });
-      return acc;
-    }, {});
-
-    // Get top 10 items by revenue (all-time)
-    const topItems = Object.entries(itemStats)
-      .map(([name, stats]) => ({ name, ...stats }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 10);
-
-    res.json({
-      success: true,
-      data: {
-        totalOrders: orders.length,
-        totalRevenue: orders.reduce((acc, order) => acc + order.totals.total, 0),
-        topItems
-      }
-    });
-  } catch (error) {
     res.status(500).json({
       success: false,
       error: error.message

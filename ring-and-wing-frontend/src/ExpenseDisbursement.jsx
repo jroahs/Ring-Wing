@@ -2,11 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiFilter, FiX, FiTrendingUp } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 import ExpenseCard from './components/ui/ExpenseCard.jsx';
 import ExpenseFilters from './components/ui/ExpenseFilters.jsx';
 import ExpenseSummary from './components/ui/ExpenseSummary.jsx';
 import ExpenseFilterPanel from './components/ui/ExpenseFilterPanel.jsx';
-import YearlyRevenueReport from './components/YearlyRevenueReport.jsx';
 import { useMultiTabLogout } from './hooks/useMultiTabLogout';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -25,6 +25,7 @@ const colors = {
 const ExpenseTracker = ({ colors }) => {
   // Enable multi-tab logout synchronization
   useMultiTabLogout();
+  const navigate = useNavigate();
   
   const [expenses, setExpenses] = useState([]);
   const [formData, setFormData] = useState({
@@ -43,7 +44,6 @@ const ExpenseTracker = ({ colors }) => {
   const [resetMessage, setResetMessage] = useState('');
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [expandedChart, setExpandedChart] = useState(null); // 'daily' or 'monthly'
-  const [showYearlyReport, setShowYearlyReport] = useState(false);
 
   // Responsive margin calculations
   const isLargeScreen = windowWidth >= 1920;
@@ -568,10 +568,10 @@ const ExpenseTracker = ({ colors }) => {
                 <button
                   className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 hover:shadow-md"
                   style={{ backgroundColor: colors.primary, color: colors.background }}
-                  onClick={() => setShowYearlyReport(true)}
+                  onClick={() => navigate('/revenue-reports?tab=yearly')}
                 >
                   <FiTrendingUp className="w-4 h-4" />
-                  Yearly Revenue Report
+                  View Yearly Report
                 </button>
                 <button
                   className="px-4 py-2 rounded-lg"
@@ -990,12 +990,6 @@ const ExpenseTracker = ({ colors }) => {
           </div>
         </div>
       )}
-
-      {/* Yearly Revenue Report Modal */}
-      <YearlyRevenueReport 
-        isOpen={showYearlyReport} 
-        onClose={() => setShowYearlyReport(false)} 
-      />
     </div>
   );
 };
