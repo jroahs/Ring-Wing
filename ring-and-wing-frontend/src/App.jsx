@@ -28,6 +28,7 @@ import EmployeeManagement from "./EmployeeManagement";
 import StaffPayslip from './StaffPayslip';
 import StaffExpenseRequests from './StaffExpenseRequests';
 import GovernmentConfigManagement from './GovernmentConfigManagement';
+import CustomerManagement from './CustomerManagement';
 import MonthlyPayrollReport from './MonthlyPayrollReport';
 import TimeClock from './TimeClock';
 import RevenueReportsPage from './RevenueReportsPage';
@@ -447,6 +448,11 @@ function App() {
                   <Route path="/government-config" element={
                     <PositionProtectedRoute requiredPositions={['general_manager', 'admin']}>
                       <GovernmentConfigManagement />
+                    </PositionProtectedRoute>
+                  } />
+                  <Route path="/customer-management" element={
+                    <PositionProtectedRoute requiredPositions={['general_manager', 'admin']}>
+                      <CustomerManagement />
                     </PositionProtectedRoute>
                   } />
                   <Route path="/payroll-reports" element={

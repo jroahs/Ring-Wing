@@ -3,7 +3,8 @@ import { Card } from './Card';
 import { Link } from 'react-router-dom';
 import { 
   FiShoppingBag, FiDollarSign, FiUsers, FiTrendingUp, 
-  FiChevronRight, FiBarChart2, FiClock, FiTrendingDown
+  FiChevronRight, FiBarChart2, FiClock, FiTrendingDown,
+  FiUserCheck, FiUserX, FiAlertTriangle
 } from 'react-icons/fi';
 import { ResponsiveContainer, BarChart, Bar, XAxis, CartesianGrid, Tooltip, LineChart, Line, YAxis } from 'recharts';
 import PesoIcon from './PesoIcon';
@@ -24,7 +25,9 @@ export const DashboardGridMinimal = ({
   className = '',
   staffData = { team: [], activeCount: 0 },
   monthlyExpenses = [],
-  revenueData = []
+  revenueData = [],
+  customerStats = null,
+  userPosition = null
 }) => {
   // Get only top 3 best sellers
   const topBestSellers = stats.bestSellers?.slice(0, 3) || [];
@@ -116,49 +119,105 @@ export const DashboardGridMinimal = ({
 
       {/* Four-Panel Layout in Single Row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        {/* Recent Orders Panel */}
-        <Card className="!p-0 overflow-hidden">
-          <div className="px-3 py-2 border-b flex justify-between items-center" 
-               style={{ borderColor: theme.colors.muted + '15' }}>
-            <div className="text-sm font-semibold" style={{ color: theme.colors.primary }}>
-              Recent Orders
-            </div>
-            <Link 
-              to="/orders" 
-              className="flex items-center text-sm font-medium"
-              style={{ color: theme.colors.accent }}
-            >
-              <FiChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
-          
-          <div className="overflow-y-auto" style={{ maxHeight: '150px' }}>
-            {orders.slice(0, 4).map((order) => (
-              <div 
-                key={order._id}
-                className="px-3 py-1.5 border-b last:border-0 flex items-center justify-between cursor-pointer hover:bg-gray-50"
-                style={{ borderColor: theme.colors.muted + '10' }}
-                onClick={() => onViewOrder(order)}
+        {/* Customer Overview Panel (Admin only) or Recent Orders Panel */}
+        {customerStats && ['admin', 'general_manager'].includes(userPosition) ? (
+          <Card className="!p-0 overflow-hidden">
+            <div className="px-3 py-2 border-b flex justify-between items-center" 
+                 style={{ borderColor: theme.colors.muted + '15' }}>
+              <div className="text-sm font-semibold flex items-center gap-1" style={{ color: theme.colors.primary }}>
+                <FiUsers className="w-4 h-4" /> Customer Overview
+              </div>
+              <Link 
+                to="/customer-management" 
+                className="flex items-center text-sm font-medium"
+                style={{ color: theme.colors.accent }}
               >
-                <div className="flex items-center gap-1.5">
-                  <div 
-                    className="w-1.5 h-1.5 rounded-full" 
-                    style={{ 
-                      backgroundColor: order.status === 'completed' ? '#16a34a' : theme.colors.accent
-                    }} 
-                  />
-                  <span className="text-sm">{truncateReceiptNumber(order.receiptNumber)}</span>
+                <FiChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+            
+            <div className="p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FiUserCheck className="w-4 h-4 text-green-500" />
+                  <span className="text-sm">Active</span>
                 </div>
-                <span className="text-sm font-medium">{formatCurrency(order.totals.total)}</span>
+                <span className="text-sm font-bold" style={{ color: theme.colors.primary }}>
+                  {customerStats.active || 0}
+                </span>
               </div>
-            ))}
-            {orders.length === 0 && (
-              <div className="px-3 py-2 text-sm text-center" style={{ color: theme.colors.muted }}>
-                No orders
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FiUserX className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm">Inactive</span>
+                </div>
+                <span className="text-sm font-medium text-gray-500">
+                  {customerStats.inactive || 0}
+                </span>
               </div>
-            )}
-          </div>
-        </Card>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FiAlertTriangle className="w-4 h-4 text-red-500" />
+                  <span className="text-sm">Banned</span>
+                </div>
+                <span className="text-sm font-medium text-red-500">
+                  {customerStats.banned || 0}
+                </span>
+              </div>
+              <div className="pt-2 mt-2 border-t" style={{ borderColor: theme.colors.muted + '15' }}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Total Customers</span>
+                  <span className="text-sm font-bold" style={{ color: theme.colors.accent }}>
+                    {customerStats.total || 0}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Card>
+        ) : (
+          <Card className="!p-0 overflow-hidden">
+            <div className="px-3 py-2 border-b flex justify-between items-center" 
+                 style={{ borderColor: theme.colors.muted + '15' }}>
+              <div className="text-sm font-semibold" style={{ color: theme.colors.primary }}>
+                Recent Orders
+              </div>
+              <Link 
+                to="/orders" 
+                className="flex items-center text-sm font-medium"
+                style={{ color: theme.colors.accent }}
+              >
+                <FiChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+            
+            <div className="overflow-y-auto" style={{ maxHeight: '150px' }}>
+              {orders.slice(0, 4).map((order) => (
+                <div 
+                  key={order._id}
+                  className="px-3 py-1.5 border-b last:border-0 flex items-center justify-between cursor-pointer hover:bg-gray-50"
+                  style={{ borderColor: theme.colors.muted + '10' }}
+                  onClick={() => onViewOrder(order)}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <div 
+                      className="w-1.5 h-1.5 rounded-full" 
+                      style={{ 
+                        backgroundColor: order.status === 'completed' ? '#16a34a' : theme.colors.accent
+                      }} 
+                    />
+                    <span className="text-sm">{truncateReceiptNumber(order.receiptNumber)}</span>
+                  </div>
+                  <span className="text-sm font-medium">{formatCurrency(order.totals.total)}</span>
+                </div>
+              ))}
+              {orders.length === 0 && (
+                <div className="px-3 py-2 text-sm text-center" style={{ color: theme.colors.muted }}>
+                  No orders
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
 
         {/* Top Items Sold Panel */}
         <Card className="!p-0 overflow-hidden">

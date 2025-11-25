@@ -456,6 +456,10 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/customer/auth', require('./routes/customerAuthRoutes'));
 app.use('/api/customer/addresses', require('./routes/customerAddressRoutes'));
 app.use('/api/customer/orders', require('./routes/customerOrderRoutes'));
+
+// Admin customer management routes
+app.use('/api/admin/customers', require('./routes/customerManagementRoutes'));
+
 app.use('/api/menu', require('./routes/menuRoutes'));
 app.use('/api/add-ons', require('./routes/addOnsRoutes'));
 app.use('/api/categories', require('./routes/categoryRoutes'));

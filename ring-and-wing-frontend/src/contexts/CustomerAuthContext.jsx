@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { io } from 'socket.io-client';
 import { API_URL } from '../App';
 
 const CustomerAuthContext = createContext();
@@ -17,6 +18,52 @@ export const CustomerAuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [accountRestricted, setAccountRestricted] = useState(null); // { action, reason }
+  const [socket, setSocket] = useState(null);
+
+  // Force logout function (for account restrictions)
+  const forceLogout = useCallback((reason) => {
+    console.log('[CustomerAuth] Force logout triggered:', reason);
+    localStorage.removeItem('customer_token');
+    setCustomer(null);
+    setToken(null);
+    setIsAuthenticated(false);
+    setAccountRestricted({ action: reason.action, reason: reason.reason });
+  }, []);
+
+  // Initialize socket connection for real-time account restrictions
+  useEffect(() => {
+    if (customer && token) {
+      const newSocket = io(API_URL, {
+        transports: ['websocket', 'polling'],
+        auth: { token, customerId: customer._id }
+      });
+
+      newSocket.on('connect', () => {
+        console.log('[CustomerAuth] Socket connected for account monitoring');
+        // Join customer-specific room
+        newSocket.emit('joinCustomerRoom', customer._id);
+      });
+
+      // Listen for account restriction events
+      newSocket.on('customerAccountRestricted', (data) => {
+        console.log('[CustomerAuth] Account restriction event received:', data);
+        if (data.customerId === customer._id) {
+          forceLogout(data);
+        }
+      });
+
+      newSocket.on('disconnect', () => {
+        console.log('[CustomerAuth] Socket disconnected');
+      });
+
+      setSocket(newSocket);
+
+      return () => {
+        newSocket.disconnect();
+      };
+    }
+  }, [customer, token, forceLogout]);
 
   // Load token and customer on mount
   useEffect(() => {
@@ -45,6 +92,13 @@ export const CustomerAuthProvider = ({ children }) => {
           }
         } catch (error) {
           console.error('Error loading customer:', error);
+          // Check if account is restricted
+          if (error.response?.status === 403) {
+            setAccountRestricted({
+              action: 'deactivated',
+              reason: error.response?.data?.message || 'Account is inactive'
+            });
+          }
           localStorage.removeItem('customer_token');
         }
       }
@@ -155,7 +209,19 @@ export const CustomerAuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error refreshing customer:', error);
+      // Check if account was restricted
+      if (error.response?.status === 403) {
+        forceLogout({
+          action: 'deactivated',
+          reason: error.response?.data?.message || 'Account is inactive'
+        });
+      }
     }
+  };
+
+  // Clear restriction message
+  const clearRestriction = () => {
+    setAccountRestricted(null);
   };
 
   const value = {
@@ -163,10 +229,12 @@ export const CustomerAuthProvider = ({ children }) => {
     token,
     isAuthenticated,
     isLoading,
+    accountRestricted,
     signup,
     login,
     logout,
-    refreshCustomer
+    refreshCustomer,
+    clearRestriction
   };
 
   return (

@@ -244,6 +244,12 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
           positions: ['general_manager', 'admin']
         },
         { 
+          path: '/customer-management', 
+          icon: <FiUsers size={iconSize} style={{ color: colors.iconBrown }} />, 
+          label: 'Customer Management',
+          positions: ['general_manager', 'admin']
+        },
+        { 
           path: '/payroll-reports', 
           icon: <FiPieChart size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Monthly Reports',
@@ -297,6 +303,7 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
     '/payroll',
     '/payroll-reports',
     '/government-config',
+    '/customer-management',
     '/chatbot', 
     '/menu', 
     '/expenses', 

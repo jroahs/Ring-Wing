@@ -55,6 +55,26 @@ const customerSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  isBanned: {
+    type: Boolean,
+    default: false
+  },
+  bannedAt: {
+    type: Date,
+    default: null
+  },
+  banReason: {
+    type: String,
+    default: null
+  },
+  deactivatedAt: {
+    type: Date,
+    default: null
+  },
+  deactivationReason: {
+    type: String,
+    default: null
+  },
   deletedAt: {
     type: Date,
     default: null

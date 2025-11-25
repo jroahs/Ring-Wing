@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const Customer = require('../models/Customer');
+const CustomerActivityLog = require('../models/CustomerActivityLog');
 
 // Generate JWT token
 const generateToken = (customer) => {
@@ -79,6 +80,16 @@ exports.signup = async (req, res) => {
     });
 
     await customer.save();
+    
+    // Log account creation
+    await CustomerActivityLog.create({
+      customerId: customer._id,
+      action: 'account_created',
+      details: {
+        ipAddress: req.ip,
+        method: 'self_registration'
+      }
+    });
 
     // Generate token
     const token = generateToken(customer);
@@ -135,17 +146,59 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Check if account is active
-    if (!customer.isActive) {
+    // Check if account is banned
+    if (customer.isBanned) {
+      // Log failed login attempt (banned)
+      await CustomerActivityLog.create({
+        customerId: customer._id,
+        action: 'login_failed',
+        details: {
+          reason: 'Account banned',
+          ipAddress: req.ip
+        }
+      });
+      
       return res.status(403).json({
         success: false,
-        message: 'Account is inactive. Please contact support.'
+        message: 'Account has been banned. Please contact support.',
+        action: 'banned',
+        reason: customer.banReason || 'Account banned'
+      });
+    }
+
+    // Check if account is active
+    if (!customer.isActive) {
+      // Log failed login attempt (deactivated)
+      await CustomerActivityLog.create({
+        customerId: customer._id,
+        action: 'login_failed',
+        details: {
+          reason: 'Account inactive',
+          ipAddress: req.ip
+        }
+      });
+      
+      return res.status(403).json({
+        success: false,
+        message: 'Account is inactive. Please contact support.',
+        action: 'deactivated',
+        reason: customer.deactivationReason || 'Account deactivated'
       });
     }
 
     // Verify password
     const isPasswordValid = await customer.comparePassword(password);
     if (!isPasswordValid) {
+      // Log failed login attempt
+      await CustomerActivityLog.create({
+        customerId: customer._id,
+        action: 'login_failed',
+        details: {
+          reason: 'Invalid password',
+          ipAddress: req.ip
+        }
+      });
+      
       return res.status(401).json({
         success: false,
         message: 'Invalid username/phone or password'
@@ -155,6 +208,16 @@ exports.login = async (req, res) => {
     // Update last login
     customer.lastLogin = Date.now();
     await customer.save();
+    
+    // Log successful login
+    await CustomerActivityLog.create({
+      customerId: customer._id,
+      action: 'login',
+      details: {
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      }
+    });
 
     // Generate token
     const token = generateToken(customer);

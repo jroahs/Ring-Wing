@@ -37,11 +37,24 @@ const DashboardMinimal = () => {
   });
   const [monthlyExpenses, setMonthlyExpenses] = useState([]);
   const [revenueData, setRevenueData] = useState([]);
+  const [customerStats, setCustomerStats] = useState(null);
+  const [userPosition, setUserPosition] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshController, setRefreshController] = useState(null);
   
   useEffect(() => {
     const controller = new AbortController();
+    
+    // Get user position from localStorage
+    const userData = localStorage.getItem('userData');
+    if (userData) {
+      try {
+        const parsed = JSON.parse(userData);
+        setUserPosition(parsed.position);
+      } catch (e) {
+        console.error('Failed to parse userData:', e);
+      }
+    }
     
     const fetchDashboardData = async () => {
       try {
@@ -209,6 +222,31 @@ const DashboardMinimal = () => {
           team: staffList,
           activeCount: activeStaffCount
         });
+        
+        // Fetch customer stats for admin/general_manager users
+        const userData = localStorage.getItem('userData');
+        let parsedUserData = null;
+        try {
+          parsedUserData = JSON.parse(userData);
+        } catch (e) {}
+        
+        if (parsedUserData && ['admin', 'general_manager'].includes(parsedUserData.position)) {
+          try {
+            const customerStatsResponse = await fetch(`${API_URL}/api/admin/customers/stats`, {
+              headers: { 'Authorization': `Bearer ${token}` },
+              signal: controller.signal
+            });
+            
+            if (customerStatsResponse.ok) {
+              const customerStatsData = await customerStatsResponse.json();
+              if (customerStatsData.success) {
+                setCustomerStats(customerStatsData.data);
+              }
+            }
+          } catch (e) {
+            console.error('Failed to fetch customer stats:', e);
+          }
+        }
           
         // Update operations state with all combined data
         setOperations({
@@ -318,6 +356,8 @@ const DashboardMinimal = () => {
         staffData={staffData}
         monthlyExpenses={monthlyExpenses}
         revenueData={revenueData}
+        customerStats={customerStats}
+        userPosition={userPosition}
       />
     </div>
   );

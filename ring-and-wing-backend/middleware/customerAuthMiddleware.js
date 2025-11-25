@@ -54,11 +54,23 @@ const authenticateCustomer = async (req, res, next) => {
       });
     }
 
+    // Check if account is banned
+    if (customer.isBanned) {
+      return res.status(403).json({
+        success: false,
+        message: 'Account has been banned. Please contact support.',
+        action: 'banned',
+        reason: customer.banReason || 'Account banned'
+      });
+    }
+
     // Check if account is active
     if (!customer.isActive) {
       return res.status(403).json({
         success: false,
-        message: 'Account is inactive. Please contact support.'
+        message: 'Account is inactive. Please contact support.',
+        action: 'deactivated',
+        reason: customer.deactivationReason || 'Account deactivated'
       });
     }
 
