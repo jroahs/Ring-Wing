@@ -6,7 +6,7 @@ import axios from 'axios';
  */
 const StaffAvatar = ({ imagePath, alt = 'Staff photo', size = 40, className = '' }) => {
   const [imageError, setImageError] = useState(false);
-  const [imageSrc, setImageSrc] = useState('');
+  const [imageSrc, setImageSrc] = useState(null);
   
   useEffect(() => {
     if (!imagePath) {
@@ -39,7 +39,6 @@ const StaffAvatar = ({ imagePath, alt = 'Staff photo', size = 40, className = ''
       const filename = imagePath.split('/').pop();
       setImageSrc(`${baseUrl}/uploads/staff/${filename}`);
     }
-    console.log(`[${new Date().toISOString()}] StaffAvatar - Setting image source to: ${imageSrc} (from: ${imagePath})`);
   }, [imagePath]);
     const handleImageError = () => {
     console.error(`Failed to load image: ${imageSrc}`);
@@ -47,7 +46,24 @@ const StaffAvatar = ({ imagePath, alt = 'Staff photo', size = 40, className = ''
     // Use local placeholder from public folder
     setImageSrc('/placeholders/staff.png');
   };
+
+  // Don't render img with empty src - prevents browser warning
+  if (!imageSrc) {
     return (
+      <div 
+        className={`bg-cover bg-center overflow-hidden ${className}`}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: '4px',
+          position: 'relative',
+          backgroundColor: '#f3f4f6'
+        }}
+      />
+    );
+  }
+    
+  return (
     <div 
       className={`bg-cover bg-center overflow-hidden ${className}`}
       style={{

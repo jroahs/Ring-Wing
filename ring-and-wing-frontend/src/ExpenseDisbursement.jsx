@@ -51,7 +51,7 @@ const ExpenseTracker = ({ colors }) => {
   const [pendingApprovals, setPendingApprovals] = useState([]);
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'pending'
   const [formData, setFormData] = useState({
-    date: '',
+    date: new Date().toISOString().split('T')[0],
     amount: '',
     category: '',
     description: '',
@@ -59,13 +59,16 @@ const ExpenseTracker = ({ colors }) => {
   });
   const [showModal, setShowModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState(null);
   const [expenseToReject, setExpenseToReject] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [paymentStatus, setPaymentStatus] = useState('All');
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [lastResetCheck, setLastResetCheck] = useState(localStorage.getItem('lastExpenseResetCheck') || '');
   const [resetMessage, setResetMessage] = useState('');
   const [showFilterPanel, setShowFilterPanel] = useState(false);
@@ -119,7 +122,9 @@ const ExpenseTracker = ({ colors }) => {
           headers: getAuthHeaders()
         });
         if (response.ok) {
-          const data = await response.json();
+          const result = await response.json();
+          // Handle both { success, data } and direct array format
+          const data = result.data || result;
           setPendingApprovals(Array.isArray(data) ? data : []);
         }
       } catch (error) {
@@ -132,12 +137,12 @@ const ExpenseTracker = ({ colors }) => {
   useEffect(() => {
     const fetchExpenses = async () => {
       try {
-        const params = new URLSearchParams({
-          search: searchTerm,
-          startDate: dateRange.start,
-          endDate: dateRange.end,
-          category: selectedCategory !== 'All' ? selectedCategory : ''
-        });
+        const params = new URLSearchParams();
+        if (searchTerm) params.append('search', searchTerm);
+        if (dateRange.start) params.append('startDate', dateRange.start);
+        if (dateRange.end) params.append('endDate', dateRange.end);
+        if (selectedCategory !== 'All') params.append('category', selectedCategory);
+        
         // Add payment status filters
         if (paymentStatus === 'Paid') {
           params.append('disbursed', 'true');
@@ -148,7 +153,16 @@ const ExpenseTracker = ({ colors }) => {
         const response = await fetch(`${API_URL}/api/expenses?${params}`, {
           headers: getAuthHeaders()
         });
-        const data = await response.json();
+        
+        if (!response.ok) {
+          console.error('Failed to fetch expenses:', response.status);
+          setExpenses([]);
+          return;
+        }
+        
+        const result = await response.json();
+        // Handle both { success, data } and direct array format
+        const data = result.data || result;
         setExpenses(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error('Error fetching expenses:', error);
@@ -199,15 +213,24 @@ const ExpenseTracker = ({ colors }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Validate fields before submitting
+      if (!formData.date || !formData.amount || !formData.category || !formData.description) {
+        alert('Please fill all required fields');
+        return;
+      }
+
       const payload = {
-        ...formData,
         date: new Date(formData.date).toISOString(),
         amount: parseFloat(formData.amount),
+        category: formData.category,
+        description: formData.description,
+        paymentMethod: formData.paymentMethod || 'Cash',
         disbursed: false
       };
 
-      if (!payload.date || isNaN(payload.amount) || !payload.category || !payload.description) {
-        throw new Error('Please fill all required fields');
+      if (isNaN(payload.amount) || payload.amount <= 0) {
+        alert('Please enter a valid amount');
+        return;
       }
 
       const response = await fetch(`${API_URL}/api/expenses`, {
@@ -222,10 +245,12 @@ const ExpenseTracker = ({ colors }) => {
         throw new Error(responseData.message || 'Failed to create expense');
       }
 
-      setExpenses(prev => [...prev, responseData]);
+      // Handle { success, data } response format
+      const newExpense = responseData.data || responseData;
+      setExpenses(prev => [newExpense, ...prev]);
       setShowModal(false);
       setFormData({
-        date: '',
+        date: new Date().toISOString().split('T')[0],
         amount: '',
         category: '',
         description: '',
@@ -285,13 +310,14 @@ const ExpenseTracker = ({ colors }) => {
   const markAsPaidAndPermanent = async (id) => {
     try {
       const response = await fetch(`${API_URL}/api/expenses/${id}/mark-paid`, {
-        method: 'PUT',
+        method: 'POST',
         headers: getAuthHeaders()
       });
 
       if (!response.ok) throw new Error('Update failed');
       
-      const updatedExpense = await response.json();
+      const result = await response.json();
+      const updatedExpense = result.data || result;
       setExpenses(prev =>
         prev.map(exp => exp._id === updatedExpense._id ? updatedExpense : exp)
       );
@@ -312,11 +338,12 @@ const ExpenseTracker = ({ colors }) => {
 
       if (!response.ok) throw new Error('Approval failed');
       
-      const updatedExpense = await response.json();
+      const result = await response.json();
+      const updatedExpense = result.data || result;
       // Remove from pending approvals
       setPendingApprovals(prev => prev.filter(exp => exp._id !== id));
       // Add to expenses list
-      setExpenses(prev => [...prev, updatedExpense]);
+      setExpenses(prev => [updatedExpense, ...prev]);
     } catch (error) {
       console.error('Error approving expense:', error);
       alert('Failed to approve expense');
@@ -520,12 +547,12 @@ const ExpenseTracker = ({ colors }) => {
                     ? 'text-white' 
                     : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
                 }`}
-                style={activeTab === 'pending' ? { backgroundColor: '#eab308' } : {}}
+                style={activeTab === 'pending' ? { backgroundColor: colors.accent } : {}}
               >
                 <FiClock className="w-4 h-4" />
                 Pending Approvals
                 {pendingApprovals.length > 0 && (
-                  <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  <span className="text-white text-xs rounded-lg w-5 h-5 flex items-center justify-center" style={{ backgroundColor: colors.secondary }}>
                     {pendingApprovals.length}
                   </span>
                 )}
@@ -544,7 +571,7 @@ const ExpenseTracker = ({ colors }) => {
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
-                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                              <span className="px-2 py-1 rounded-lg text-xs font-medium" style={{ backgroundColor: colors.activeBg, color: colors.accent }}>
                                 For Approval
                               </span>
                               <span className="text-sm text-gray-500">
@@ -559,7 +586,7 @@ const ExpenseTracker = ({ colors }) => {
                               )}
                             </p>
                             <div className="flex items-center gap-4 mt-2 text-sm">
-                              <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{expense.category}</span>
+                              <span className="px-2 py-1 rounded-lg" style={{ backgroundColor: colors.muted + '20', color: colors.secondary }}>{expense.category}</span>
                               <span className="font-semibold" style={{ color: colors.accent }}>
                                 ₱{expense.amount?.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                               </span>
@@ -568,14 +595,16 @@ const ExpenseTracker = ({ colors }) => {
                           <div className="flex gap-2 ml-4">
                             <button
                               onClick={() => approveExpense(expense._id)}
-                              className="flex items-center gap-1 px-3 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors"
+                              className="flex items-center gap-1 px-3 py-2 rounded-lg text-white hover:opacity-90 transition-colors"
+                              style={{ backgroundColor: colors.accent }}
                             >
                               <FiCheck className="w-4 h-4" />
                               Approve
                             </button>
                             <button
                               onClick={() => { setExpenseToReject(expense); setShowRejectModal(true); }}
-                              className="flex items-center gap-1 px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
+                              className="flex items-center gap-1 px-3 py-2 rounded-lg text-white hover:opacity-90 transition-colors"
+                              style={{ backgroundColor: colors.secondary }}
                             >
                               <FiXCircle className="w-4 h-4" />
                               Reject
@@ -700,29 +729,60 @@ const ExpenseTracker = ({ colors }) => {
                         </td>
                         <td className="p-4 text-sm" style={{ color: colors.secondary }}>{expense.paymentMethod}</td>
                         <td className="p-4 text-right text-sm font-medium" style={{ color: colors.secondary }}>
-                          ₱{expense.amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>                        <td className="p-4">
-                          {expense.disbursed ? (
-                            <div className="flex items-center">                              <span className="px-3 py-1 rounded-lg text-sm font-medium" 
-                                    style={{ 
-                                      backgroundColor: expense.permanent ? colors.secondary + '20' : colors.accent + '20',
-                                      color: expense.permanent ? colors.secondary : colors.accent,
-                                      border: expense.permanent ? 
-                                        `1px solid ${colors.secondary}` : 
-                                        `1px solid ${colors.accent}40`
-                                    }}>
-                                Paid {new Date(expense.disbursementDate).toLocaleDateString('en-PH', {month: 'short', day: 'numeric'})}
+                          ₱{(expense.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="p-4">
+                          {/* Status-based display */}
+                          {expense.status === 'paid' ? (
+                            <button
+                              onClick={() => { setSelectedExpense(expense); setShowDetailModal(true); }}
+                              className="px-3 py-1 rounded-lg text-sm font-medium cursor-pointer hover:opacity-80 transition-opacity"
+                              style={{ 
+                                backgroundColor: colors.activeBg,
+                                color: colors.accent,
+                                border: `1px solid ${colors.accent}40`
+                              }}
+                            >
+                              Paid {expense.disbursementDate ? new Date(expense.disbursementDate).toLocaleDateString('en-PH', {month: 'short', day: 'numeric'}) : ''}
+                            </button>
+                          ) : expense.status === 'approved' ? (
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-1 rounded-lg text-xs font-medium" style={{ backgroundColor: colors.activeBg, color: colors.accent }}>
+                                Approved
                               </span>
-                            </div>                          ): (                            <div className="flex gap-2">
                               <button
                                 onClick={() => markAsPaidAndPermanent(expense._id)}
-                                className="px-3 py-1 rounded-lg"
+                                className="px-2 py-1 rounded-lg text-xs"
                                 style={{ backgroundColor: colors.accent, color: colors.background }}
-                                title="Mark as paid and permanent (won't be reset daily)"
                               >
-                                Mark as Paid
+                                Mark Paid
                               </button>
                             </div>
+                          ) : expense.status === 'for_approval' ? (
+                            <span className="px-3 py-1 rounded-lg text-xs font-medium" style={{ backgroundColor: colors.activeBg, color: colors.accent }}>
+                              Pending Approval
+                            </span>
+                          ) : expense.status === 'rejected' ? (
+                            <span className="px-3 py-1 rounded-lg text-xs font-medium" style={{ backgroundColor: colors.secondary + '20', color: colors.secondary }}>
+                              Rejected
+                            </span>
+                          ) : expense.status === 'created' ? (
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-1 rounded-lg text-xs font-medium" style={{ backgroundColor: colors.muted + '20', color: colors.primary }}>
+                                Created
+                              </span>
+                              <button
+                                onClick={() => markAsPaidAndPermanent(expense._id)}
+                                className="px-2 py-1 rounded-lg text-xs"
+                                style={{ backgroundColor: colors.accent, color: colors.background }}
+                              >
+                                Mark Paid
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="px-3 py-1 rounded-lg text-xs font-medium" style={{ backgroundColor: colors.muted + '20', color: colors.muted }}>
+                              {expense.status || 'Unknown'}
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -1014,6 +1074,177 @@ const ExpenseTracker = ({ colors }) => {
                   Confirm Rejection
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Expense Detail Modal */}
+      {showDetailModal && selectedExpense && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowDetailModal(false)}>
+          <div 
+            className="bg-white rounded-xl max-w-lg w-full relative shadow-2xl"
+            style={{ backgroundColor: colors.background }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-6 border-b" style={{ borderColor: colors.muted + '20' }}>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold" style={{ color: colors.primary }}>Expense Details</h2>
+                <button
+                  onClick={() => setShowDetailModal(false)}
+                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <FiX className="w-5 h-5" style={{ color: colors.muted }} />
+                </button>
+              </div>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              {/* Status Badge */}
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                  ✓ Paid
+                </span>
+                {selectedExpense.disbursementDate && (
+                  <span className="text-sm text-gray-500">
+                    on {new Date(selectedExpense.disbursementDate).toLocaleDateString('en-PH', { 
+                      year: 'numeric', month: 'long', day: 'numeric' 
+                    })}
+                  </span>
+                )}
+              </div>
+
+              {/* Amount */}
+              <div className="p-4 rounded-lg" style={{ backgroundColor: colors.activeBg }}>
+                <div className="text-sm mb-1" style={{ color: colors.muted }}>Amount</div>
+                <div className="text-2xl font-bold" style={{ color: colors.accent }}>
+                  ₱{(selectedExpense.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                </div>
+              </div>
+
+              {/* Details Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm mb-1" style={{ color: colors.muted }}>Date</div>
+                  <div className="font-medium" style={{ color: colors.primary }}>
+                    {new Date(selectedExpense.date).toLocaleDateString('en-PH', { 
+                      year: 'numeric', month: 'long', day: 'numeric' 
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm mb-1" style={{ color: colors.muted }}>Category</div>
+                  <div className="font-medium" style={{ color: colors.primary }}>
+                    {selectedExpense.category}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm mb-1" style={{ color: colors.muted }}>Payment Method</div>
+                  <div className="font-medium" style={{ color: colors.primary }}>
+                    {selectedExpense.paymentMethod}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm mb-1" style={{ color: colors.muted }}>Status</div>
+                  <div className="font-medium capitalize" style={{ color: colors.primary }}>
+                    {selectedExpense.status?.replace('_', ' ')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <div className="text-sm mb-1" style={{ color: colors.muted }}>Description</div>
+                <div className="p-3 rounded-lg bg-gray-50 font-medium" style={{ color: colors.primary }}>
+                  {selectedExpense.description}
+                </div>
+              </div>
+
+              {/* Requester Info (if from staff) */}
+              {selectedExpense.requesterName && (
+                <div className="p-4 rounded-lg border" style={{ borderColor: colors.muted + '30' }}>
+                  <div className="text-sm font-medium mb-2" style={{ color: colors.secondary }}>
+                    Requested By
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium"
+                         style={{ backgroundColor: colors.accent }}>
+                      {selectedExpense.requesterName?.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="font-medium" style={{ color: colors.primary }}>
+                        {selectedExpense.requesterName}
+                      </div>
+                      <div className="text-sm capitalize" style={{ color: colors.muted }}>
+                        {selectedExpense.requesterPosition}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Approver Info */}
+              {selectedExpense.approverName && (
+                <div className="p-4 rounded-lg border" style={{ borderColor: colors.muted + '30' }}>
+                  <div className="text-sm font-medium mb-2" style={{ color: colors.secondary }}>
+                    Approved By
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium"
+                         style={{ backgroundColor: colors.secondary }}>
+                      {selectedExpense.approverName?.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="font-medium" style={{ color: colors.primary }}>
+                        {selectedExpense.approverName}
+                      </div>
+                      {selectedExpense.approvedAt && (
+                        <div className="text-sm" style={{ color: colors.muted }}>
+                          {new Date(selectedExpense.approvedAt).toLocaleDateString('en-PH', { 
+                            year: 'numeric', month: 'short', day: 'numeric' 
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Creator Info (if admin-created) */}
+              {selectedExpense.creatorName && !selectedExpense.requesterName && (
+                <div className="p-4 rounded-lg border" style={{ borderColor: colors.muted + '30' }}>
+                  <div className="text-sm font-medium mb-2" style={{ color: colors.secondary }}>
+                    Created By
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium"
+                         style={{ backgroundColor: colors.primary }}>
+                      {selectedExpense.creatorName?.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="font-medium" style={{ color: colors.primary }}>
+                        {selectedExpense.creatorName}
+                      </div>
+                      <div className="text-sm capitalize" style={{ color: colors.muted }}>
+                        {selectedExpense.creatorRole}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t" style={{ borderColor: colors.muted + '20' }}>
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="w-full py-3 rounded-lg font-medium"
+                style={{ backgroundColor: colors.primary, color: colors.background }}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

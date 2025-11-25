@@ -117,12 +117,23 @@ const DashboardMinimal = () => {
         // Delay before next call
         await new Promise(resolve => setTimeout(resolve, 250));
         
-        // Fetch expenses
+        // Fetch expenses - requires auth token
+        const token = localStorage.getItem('authToken');
         const expensesResponse = await fetch(`${API_URL}/api/expenses`, {
+          headers: { 'Authorization': `Bearer ${token}` },
           signal: controller.signal
         });
-        const expensesData = await expensesResponse.json();
-          // Process expenses for monthly disbursements (current month only)
+        
+        let expensesData = [];
+        if (expensesResponse.ok) {
+          const expensesResult = await expensesResponse.json();
+          // Handle both { success, data } and direct array format
+          expensesData = expensesResult.data || expensesResult;
+        } else {
+          console.error('Failed to fetch expenses:', expensesResponse.status);
+        }
+        
+        // Process expenses for monthly disbursements (current month only)
         let monthlyDisbursements = 0;
         const monthlyExpenseData = [];
         
@@ -133,17 +144,20 @@ const DashboardMinimal = () => {
           const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
           
           // Calculate current month disbursements only
+          // Include both legacy (disbursed=true) and new workflow (status='paid')
           monthlyDisbursements = expensesData
             .filter(exp => {
-              if (!exp.disbursed) return false;
+              const isPaid = exp.disbursed || exp.status === 'paid';
+              if (!isPaid) return false;
               const disbursementDate = new Date(exp.disbursementDate || exp.date);
               return disbursementDate >= monthStart && disbursementDate <= monthEnd;
             })
             .reduce((sum, exp) => sum + (exp.amount || 0), 0);
             
           // Group expenses by month for the chart
+          // Include both legacy (disbursed=true) and new workflow (status='paid')
           const monthlyGroups = expensesData
-            .filter(exp => exp.disbursed)
+            .filter(exp => exp.disbursed || exp.status === 'paid')
             .reduce((acc, exp) => {
               const date = new Date(exp.disbursementDate || exp.date);
               const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -171,8 +185,7 @@ const DashboardMinimal = () => {
         // Delay before final call
         await new Promise(resolve => setTimeout(resolve, 250));
         
-        // Fetch staff data
-        const token = localStorage.getItem('authToken');
+        // Fetch staff data (reuse token from above)
         const staffResponse = await fetch(`${API_URL}/api/staff`, {
           headers: { 'Authorization': `Bearer ${token}` },
           signal: controller.signal

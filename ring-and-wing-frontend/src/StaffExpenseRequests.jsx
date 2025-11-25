@@ -22,20 +22,23 @@ const getAuthHeaders = () => {
   };
 };
 
-// Status badge component
+// Status badge component using theme colors
 const StatusBadge = ({ status }) => {
   const statusConfig = {
-    for_approval: { label: 'For Approval', bg: 'bg-yellow-100', text: 'text-yellow-800', icon: FiClock },
-    approved: { label: 'Approved', bg: 'bg-green-100', text: 'text-green-800', icon: FiCheck },
-    rejected: { label: 'Rejected', bg: 'bg-red-100', text: 'text-red-800', icon: FiX },
-    paid: { label: 'Paid', bg: 'bg-blue-100', text: 'text-blue-800', icon: FiDollarSign }
+    for_approval: { label: 'For Approval', style: { bg: colors.activeBg, text: colors.accent }, icon: FiClock },
+    approved: { label: 'Approved', style: { bg: colors.activeBg, text: colors.accent }, icon: FiCheck },
+    rejected: { label: 'Rejected', style: { bg: colors.secondary + '20', text: colors.secondary }, icon: FiX },
+    paid: { label: 'Paid', style: { bg: colors.activeBg, text: colors.accent }, icon: FiDollarSign }
   };
 
   const config = statusConfig[status] || statusConfig.for_approval;
   const Icon = config.icon;
 
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+    <span 
+      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium"
+      style={{ backgroundColor: config.style.bg, color: config.style.text }}
+    >
       <Icon className="w-3 h-3" />
       {config.label}
     </span>
@@ -74,7 +77,9 @@ const StaffExpenseRequests = () => {
           headers: getAuthHeaders()
         });
         if (response.ok) {
-          const data = await response.json();
+          const result = await response.json();
+          // Handle both { success, data } and direct array format
+          const data = result.data || result;
           setMyExpenses(Array.isArray(data) ? data : []);
         }
       } catch (error) {
@@ -90,14 +95,22 @@ const StaffExpenseRequests = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Validate fields
+      if (!formData.date || !formData.amount || !formData.category || !formData.description) {
+        alert('Please fill all required fields');
+        return;
+      }
+
       const payload = {
-        ...formData,
         date: new Date(formData.date).toISOString(),
-        amount: parseFloat(formData.amount)
+        amount: parseFloat(formData.amount),
+        category: formData.category,
+        description: formData.description,
+        paymentMethod: formData.paymentMethod || 'Cash'
       };
 
-      if (!payload.date || isNaN(payload.amount) || !payload.category || !payload.description) {
-        alert('Please fill all required fields');
+      if (isNaN(payload.amount) || payload.amount <= 0) {
+        alert('Please enter a valid amount');
         return;
       }
 
@@ -107,12 +120,14 @@ const StaffExpenseRequests = () => {
         body: JSON.stringify(payload)
       });
 
+      const responseData = await response.json();
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to submit request');
+        throw new Error(responseData.message || 'Failed to submit request');
       }
 
-      const newExpense = await response.json();
+      // Handle { success, data } response format
+      const newExpense = responseData.data || responseData;
       setMyExpenses(prev => [newExpense, ...prev]);
       setShowModal(false);
       setFormData({
@@ -159,35 +174,35 @@ const StaffExpenseRequests = () => {
         </p>
       </div>
 
-      {/* Status Summary Cards */}
+      {/* Status Summary Cards - Using theme orange color */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="p-4 rounded-lg bg-yellow-50 border border-yellow-200">
+        <div className="p-4 rounded-lg" style={{ backgroundColor: colors.activeBg, border: `1px solid ${colors.accent}40` }}>
           <div className="flex items-center gap-2 mb-1">
-            <FiClock className="w-4 h-4 text-yellow-600" />
-            <span className="text-sm font-medium text-yellow-800">Pending</span>
+            <FiClock className="w-4 h-4" style={{ color: colors.accent }} />
+            <span className="text-sm font-medium" style={{ color: colors.accent }}>Pending</span>
           </div>
-          <div className="text-2xl font-bold text-yellow-600">{totals.pending}</div>
+          <div className="text-2xl font-bold" style={{ color: colors.accent }}>{totals.pending}</div>
         </div>
-        <div className="p-4 rounded-lg bg-green-50 border border-green-200">
+        <div className="p-4 rounded-lg" style={{ backgroundColor: colors.activeBg, border: `1px solid ${colors.accent}40` }}>
           <div className="flex items-center gap-2 mb-1">
-            <FiCheck className="w-4 h-4 text-green-600" />
-            <span className="text-sm font-medium text-green-800">Approved</span>
+            <FiCheck className="w-4 h-4" style={{ color: colors.accent }} />
+            <span className="text-sm font-medium" style={{ color: colors.accent }}>Approved</span>
           </div>
-          <div className="text-2xl font-bold text-green-600">{totals.approved}</div>
+          <div className="text-2xl font-bold" style={{ color: colors.accent }}>{totals.approved}</div>
         </div>
-        <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+        <div className="p-4 rounded-lg" style={{ backgroundColor: colors.activeBg, border: `1px solid ${colors.accent}40` }}>
           <div className="flex items-center gap-2 mb-1">
-            <FiDollarSign className="w-4 h-4 text-blue-600" />
-            <span className="text-sm font-medium text-blue-800">Paid</span>
+            <FiDollarSign className="w-4 h-4" style={{ color: colors.accent }} />
+            <span className="text-sm font-medium" style={{ color: colors.accent }}>Paid</span>
           </div>
-          <div className="text-2xl font-bold text-blue-600">{totals.paid}</div>
+          <div className="text-2xl font-bold" style={{ color: colors.accent }}>{totals.paid}</div>
         </div>
-        <div className="p-4 rounded-lg bg-red-50 border border-red-200">
+        <div className="p-4 rounded-lg" style={{ backgroundColor: colors.secondary + '15', border: `1px solid ${colors.secondary}40` }}>
           <div className="flex items-center gap-2 mb-1">
-            <FiX className="w-4 h-4 text-red-600" />
-            <span className="text-sm font-medium text-red-800">Rejected</span>
+            <FiX className="w-4 h-4" style={{ color: colors.secondary }} />
+            <span className="text-sm font-medium" style={{ color: colors.secondary }}>Rejected</span>
           </div>
-          <div className="text-2xl font-bold text-red-600">{totals.rejected}</div>
+          <div className="text-2xl font-bold" style={{ color: colors.secondary }}>{totals.rejected}</div>
         </div>
       </div>
 
@@ -235,7 +250,7 @@ const StaffExpenseRequests = () => {
                     </div>
                     <h4 className="font-semibold text-gray-900">{expense.description}</h4>
                     <div className="flex items-center gap-4 mt-2 text-sm">
-                      <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">{expense.category}</span>
+                      <span className="px-2 py-1 rounded-lg" style={{ backgroundColor: colors.muted + '20', color: colors.secondary }}>{expense.category}</span>
                       <span className="text-gray-500">{expense.paymentMethod}</span>
                     </div>
                     {expense.status === 'rejected' && expense.rejectionReason && (
