@@ -395,7 +395,8 @@ const CustomerDetailModal = ({ customer, onClose, onUpdate, onBan, onUnban, onRe
                   {customer.isBanned ? (
                     <button
                       onClick={() => setShowStatusModal('unban')}
-                      className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 flex items-center gap-2"
+                      className="px-4 py-2 rounded-lg hover:opacity-80 flex items-center gap-2 text-white"
+                      style={{ backgroundColor: theme.colors.accent }}
                     >
                       <FiUnlock size={16} />
                       Unban Account
@@ -404,7 +405,8 @@ const CustomerDetailModal = ({ customer, onClose, onUpdate, onBan, onUnban, onRe
                     <>
                       <button
                         onClick={() => setShowStatusModal('deactivate')}
-                        className="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 flex items-center gap-2"
+                        className="px-4 py-2 rounded-lg hover:opacity-80 flex items-center gap-2"
+                        style={{ backgroundColor: theme.colors.muted + '20', color: theme.colors.muted }}
                       >
                         <FiUserX size={16} />
                         Deactivate
@@ -421,7 +423,8 @@ const CustomerDetailModal = ({ customer, onClose, onUpdate, onBan, onUnban, onRe
                     <>
                       <button
                         onClick={() => setShowStatusModal('activate')}
-                        className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 flex items-center gap-2"
+                        className="px-4 py-2 rounded-lg hover:opacity-80 flex items-center gap-2 text-white"
+                        style={{ backgroundColor: theme.colors.accent }}
                       >
                         <FiUserCheck size={16} />
                         Activate
@@ -535,11 +538,12 @@ const CustomerDetailModal = ({ customer, onClose, onUpdate, onBan, onUnban, onRe
                   </button>
                   <button
                     onClick={() => handleStatusChange(showStatusModal)}
-                    className={`px-4 py-2 text-white rounded-lg ${
-                      showStatusModal === 'ban' ? 'bg-red-500 hover:bg-red-600' :
-                      showStatusModal === 'deactivate' ? 'bg-yellow-500 hover:bg-yellow-600' :
-                      'bg-green-500 hover:bg-green-600'
-                    }`}
+                    className="px-4 py-2 text-white rounded-lg hover:opacity-80"
+                    style={{ 
+                      backgroundColor: showStatusModal === 'ban' ? '#dc2626' : 
+                                       showStatusModal === 'deactivate' ? theme.colors.muted : 
+                                       theme.colors.accent 
+                    }}
                   >
                     Confirm
                   </button>
@@ -945,22 +949,22 @@ const CustomerManagement = () => {
             </div>
             <div className="bg-white rounded-xl p-4 shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-100">
-                  <FiUserCheck size={20} className="text-green-600" />
+                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: theme.colors.accent + '15' }}>
+                  <FiUserCheck size={20} style={{ color: theme.colors.accent }} />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-green-600">{stats.activeCustomers}</p>
+                  <p className="text-2xl font-bold" style={{ color: theme.colors.accent }}>{stats.activeCustomers}</p>
                   <p className="text-xs text-gray-500">Active</p>
                 </div>
               </div>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-yellow-100">
-                  <FiUserX size={20} className="text-yellow-600" />
+                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: theme.colors.muted + '20' }}>
+                  <FiUserX size={20} style={{ color: theme.colors.muted }} />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-yellow-600">{stats.inactiveCustomers}</p>
+                  <p className="text-2xl font-bold" style={{ color: theme.colors.muted }}>{stats.inactiveCustomers}</p>
                   <p className="text-xs text-gray-500">Inactive</p>
                 </div>
               </div>
