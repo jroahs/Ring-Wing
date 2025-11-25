@@ -7,7 +7,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/authMiddleware');
+const { auth } = require('../middleware/authMiddleware');
 const { criticalCheck } = require('../middleware/dbConnectionMiddleware');
 const {
   getAllCustomers,
@@ -35,7 +35,7 @@ const adminOnly = (req, res, next) => {
 };
 
 // All routes require authentication and admin privileges
-router.use(authenticate);
+router.use(auth);
 router.use(adminOnly);
 router.use(criticalCheck);
 
