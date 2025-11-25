@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCartContext } from '../../contexts/CartContext';
 import { useMenuContext } from '../../contexts/MenuContext';
+import { useCustomerAuth } from '../../contexts/CustomerAuthContext';
 import { useAlternatives } from '../../hooks/useAlternatives';
 import { AlternativesModal } from '../ui/AlternativesModal';
-import AssistantPanel from '../ui/AssistantPanel';
+import EmbeddedAssistant from '../ui/EmbeddedAssistant';
 import SelfCheckoutHeader from '../ui/SelfCheckoutHeader';
 
 const colors = {
@@ -27,6 +29,8 @@ const DesktopLayout = ({
   // Get contexts
   const { cartItems, addItem, updateQuantity: updateCartQuantity, updateSize: updateCartSize, removeItem, getTotals, itemCount } = useCartContext();
   const { menuItems, categories, loading, error } = useMenuContext();
+  const { isAuthenticated } = useCustomerAuth();
+  const navigate = useNavigate();
 
   // Desktop-specific state
   const [activeCategory, setActiveCategory] = useState('');
@@ -37,6 +41,8 @@ const DesktopLayout = ({
   const [keyboardMode, setKeyboardMode] = useState(false);
   const [cartCollapsed, setCartCollapsed] = useState(false);
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+  const [sidebarView, setSidebarView] = useState('cart'); // 'cart' or 'assistant'
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   
   // Refs for keyboard navigation
   const searchInputRef = useRef(null);
@@ -319,16 +325,16 @@ const DesktopLayout = ({
         </div>
 
         <div className="flex-1 flex">
-          {/* Category Sidebar with Dropdown */}
-          <div className="w-64 bg-white shadow-sm border-r border-gray-100 flex flex-col">
+          {/* Category Sidebar - Fixed/Sticky with scrollable subcategories */}
+          <div className="w-64 bg-white shadow-sm border-r border-gray-100 flex flex-col sticky top-[88px] h-[calc(100vh-88px)]">
             {/* Customer Auth Section at top */}
-            <div className="p-4 border-b border-gray-100">
+            <div className="p-4 border-b border-gray-100 flex-shrink-0">
               <SelfCheckoutHeader />
             </div>
             
-            <div className="p-4 flex-1 overflow-y-auto">
-              <h3 className="font-bold text-lg text-gray-800 mb-4">Categories</h3>
-              <nav className="space-y-1">
+            <div className="p-4 flex-1 flex flex-col min-h-0">
+              <h3 className="font-bold text-lg text-gray-800 mb-4 flex-shrink-0">Categories</h3>
+              <nav className="space-y-1 flex-1 overflow-y-auto">
                 {categories.map((categoryData, index) => {
                   const isActive = activeCategory === categoryData.category;
                   const isExpanded = expandedCategory === categoryData.category;
@@ -370,9 +376,9 @@ const DesktopLayout = ({
                         </div>
                       </button>
                       
-                      {/* Subcategories Dropdown */}
+                      {/* Subcategories - Scrollable if too many */}
                       {isExpanded && subCategories.length > 1 && (
-                        <div className="ml-4 mt-1 space-y-1 animate-fadeIn">
+                        <div className="ml-4 mt-1 space-y-1 animate-fadeIn max-h-72 overflow-y-auto">
                           {subCategories.map((subCat) => (
                             <button
                               key={subCat}
@@ -422,140 +428,252 @@ const DesktopLayout = ({
         </div>
       </div>
 
-      {/* Persistent Cart Sidebar */}
-      <div className={`fixed right-0 top-0 h-screen bg-white shadow-2xl border-l border-gray-200 transition-all duration-300 z-20 ${
+      {/* Persistent Cart/Assistant Sidebar */}
+      <div className={`fixed right-0 top-0 h-screen bg-white shadow-2xl border-l border-gray-200 transition-all duration-300 z-20 flex flex-col ${
         cartCollapsed ? 'w-20' : 'w-96'
       }`}>
-        {/* Cart Header */}
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className={`font-bold text-gray-800 transition-all duration-300 ${
-            cartCollapsed ? 'text-sm' : 'text-xl'
-          }`}>
-            {cartCollapsed ? (
-              <div className="flex flex-col items-center">
-                <svg className="w-6 h-6 text-orange-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.1 5H19M17 13v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01" />
-                </svg>
-                <span className="text-xs">{itemCount}</span>
+        {/* Sidebar Header with Toggle */}
+        <div className="p-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+          {cartCollapsed ? (
+            <div className="flex flex-col items-center w-full">
+              {/* Shopping Bag Icon when collapsed */}
+              <svg className="w-7 h-7 text-orange-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+              <span className="text-xs font-medium text-gray-600">{itemCount}</span>
+            </div>
+          ) : (
+            <>
+              {/* View Toggle Buttons */}
+              <div className="flex bg-gray-100 rounded-lg p-1 flex-1 mr-3">
+                <button
+                  onClick={() => setSidebarView('cart')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                    sidebarView === 'cart'
+                      ? 'bg-white text-orange-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  {/* Shopping Bag Icon */}
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                  <span>Cart</span>
+                  {itemCount > 0 && (
+                    <span className="bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                      {itemCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setSidebarView('assistant')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                    sidebarView === 'assistant'
+                      ? 'bg-white text-orange-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  {/* AI Assistant Icon */}
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  <span>AI Help</span>
+                </button>
               </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.1 5H19M17 13v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01" />
+              <button
+                onClick={() => setCartCollapsed(!cartCollapsed)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
+                title="Collapse sidebar"
+              >
+                <svg className="w-5 h-5 transition-transform duration-300" 
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
-                Cart ({itemCount})
-              </div>
-            )}
-          </h2>
-          <button
-            onClick={() => setCartCollapsed(!cartCollapsed)}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            title={cartCollapsed ? 'Expand cart' : 'Collapse cart'}
-          >
-            <svg className={`w-5 h-5 transition-transform duration-300 ${cartCollapsed ? 'rotate-180' : ''}`} 
-              fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
+              </button>
+            </>
+          )}
+          {cartCollapsed && (
+            <button
+              onClick={() => setCartCollapsed(false)}
+              className="absolute left-1/2 transform -translate-x-1/2 bottom-4 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              title="Expand sidebar"
+            >
+              <svg className="w-5 h-5 rotate-180" 
+                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {!cartCollapsed && (
-          <>
-            {/* Cart Items */}
-            <div className="flex-1 overflow-y-auto p-4">
-              {cartItems.length === 0 ? (
-                <div className="text-center py-16">
-                  <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.1 5H19M17 13v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01" />
-                  </svg>
-                  <p className="text-gray-500">Your cart is empty</p>
-                  <p className="text-gray-400 text-sm mt-1">Add items from the menu</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {cartItems.map(item => (
-                    <div key={`${item._id}-${item.selectedSize}`} 
-                      className="p-3 rounded-lg bg-gray-50 border border-gray-100 hover:shadow-sm transition-all">
-                      <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 rounded-lg overflow-hidden shadow-sm">
-                          <img 
-                            src={item.image || (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png')}
-                            alt={item.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between mb-1">
-                            <h4 className="font-medium text-gray-800 text-sm truncate">
-                              {item.name}
-                            </h4>
-                            <button
-                              onClick={() => removeItem(item._id, item.selectedSize)}
-                              className="text-red-500 hover:text-red-700 transition-colors p-1 ml-2"
-                              title="Remove item"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          </div>
-                          <select
-                            value={item.selectedSize}
-                            onChange={(e) => updateSize(item, e.target.value)}
-                            className="mt-1 p-1 text-xs rounded bg-orange-50 text-orange-600 border-orange-200 focus:ring-1 focus:ring-orange-200 w-full"
-                          >
-                            {item.availableSizes.map(size => (
-                              <option key={size} value={size}>
-                                {size} (₱{item.pricing[size].toFixed(2)})
-                              </option>
-                            ))}
-                          </select>
-                          <div className="flex items-center justify-between mt-2">
-                            <div className="flex items-center gap-1">
-                              <button 
-                                onClick={() => updateQuantity(item, -1)}
-                                className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs transition-all hover:bg-orange-200"
-                              >
-                                -
-                              </button>
-                              <span className="w-8 text-center font-medium text-sm">{item.quantity}</span>
-                              <button
-                                onClick={() => updateQuantity(item, 1)}
-                                className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs transition-all hover:bg-orange-200"
-                              >
-                                +
-                              </button>
-                            </div>
-                            <p className="font-bold text-orange-600 text-sm">
-                              ₱{(item.price * item.quantity).toFixed(2)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
+          <div className="flex-1 flex flex-col min-h-0">
+            {/* Cart View */}
+            {sidebarView === 'cart' && (
+              <>
+                {/* Cart Items */}
+                <div className="flex-1 overflow-y-auto p-4">
+                  {cartItems.length === 0 ? (
+                    <div className="text-center py-16">
+                      <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                      </svg>
+                      <p className="text-gray-500">Your cart is empty</p>
+                      <p className="text-gray-400 text-sm mt-1">Add items from the menu</p>
                     </div>
-                  ))}
+                  ) : (
+                    <div className="space-y-3">
+                      {cartItems.map(item => (
+                        <div key={`${item._id}-${item.selectedSize}`} 
+                          className="p-3 rounded-lg bg-gray-50 border border-gray-100 hover:shadow-sm transition-all">
+                          <div className="flex items-start gap-3">
+                            <div className="w-12 h-12 rounded-lg overflow-hidden shadow-sm">
+                              <img 
+                                src={item.image || (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png')}
+                                alt={item.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between mb-1">
+                                <h4 className="font-medium text-gray-800 text-sm truncate">
+                                  {item.name}
+                                </h4>
+                                <button
+                                  onClick={() => removeItem(item._id, item.selectedSize)}
+                                  className="text-red-500 hover:text-red-700 transition-colors p-1 ml-2"
+                                  title="Remove item"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              </div>
+                              <select
+                                value={item.selectedSize}
+                                onChange={(e) => updateSize(item, e.target.value)}
+                                className="mt-1 p-1 text-xs rounded bg-orange-50 text-orange-600 border-orange-200 focus:ring-1 focus:ring-orange-200 w-full"
+                              >
+                                {item.availableSizes.map(size => (
+                                  <option key={size} value={size}>
+                                    {size} (₱{item.pricing[size].toFixed(2)})
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="flex items-center justify-between mt-2">
+                                <div className="flex items-center gap-1">
+                                  <button 
+                                    onClick={() => updateQuantity(item, -1)}
+                                    className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs transition-all hover:bg-orange-200"
+                                  >
+                                    -
+                                  </button>
+                                  <span className="w-8 text-center font-medium text-sm">{item.quantity}</span>
+                                  <button
+                                    onClick={() => updateQuantity(item, 1)}
+                                    className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs transition-all hover:bg-orange-200"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                                <p className="font-bold text-orange-600 text-sm">
+                                  ₱{(item.price * item.quantity).toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Cart Footer */}
-            {cartItems.length > 0 && (
-              <div className="p-4 border-t border-gray-100 bg-white">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="font-medium text-gray-700">{itemCount} items</span>
-                  <span className="font-bold text-xl text-orange-600">₱{calculateTotal().total.toFixed(2)}</span>
-                </div>
-                <button 
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold transform transition-all duration-200 hover:scale-[1.02] active:scale-95 shadow-lg focus:ring-4 focus:ring-orange-200"
-                  onClick={onProcessOrder}
-                >
-                  Submit Order
-                </button>
-              </div>
+                {/* Cart Footer */}
+                {cartItems.length > 0 && (
+                  <div className="p-4 border-t border-gray-100 bg-white flex-shrink-0">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="font-medium text-gray-700">{itemCount} items</span>
+                      <span className="font-bold text-xl text-orange-600">₱{calculateTotal().total.toFixed(2)}</span>
+                    </div>
+                    {isAuthenticated ? (
+                      <button 
+                        className="w-full py-3 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold transform transition-all duration-200 hover:scale-[1.02] active:scale-95 shadow-lg focus:ring-4 focus:ring-orange-200"
+                        onClick={onProcessOrder}
+                      >
+                        Submit Order
+                      </button>
+                    ) : (
+                      <div className="space-y-2">
+                        <button 
+                          className="w-full py-3 rounded-xl bg-gray-300 text-gray-600 font-bold cursor-not-allowed"
+                          onClick={() => setShowLoginPrompt(true)}
+                        >
+                          Login to Order
+                        </button>
+                        <p className="text-xs text-center text-gray-500">
+                          Please login or sign up to place your order
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
-          </>
+
+            {/* AI Assistant View */}
+            {sidebarView === 'assistant' && (
+              <EmbeddedAssistant
+                menuItems={menuItems}
+                currentOrder={cartItems}
+                onAddToCart={addToOrder}
+              />
+            )}
+          </div>
         )}
       </div>
+
+      {/* Login Prompt Modal */}
+      {showLoginPrompt && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-2xl text-center max-w-md mx-4">
+            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold mb-2" style={{ color: colors.primary }}>Login Required</h2>
+            <p className="text-gray-600 mb-6">
+              Please login or create an account to place your order. Your cart will be saved!
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowLoginPrompt(false);
+                  navigate('/customer/login');
+                }}
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold transition-all duration-200 hover:scale-[1.02]"
+              >
+                Login
+              </button>
+              <button
+                onClick={() => {
+                  setShowLoginPrompt(false);
+                  navigate('/customer/signup');
+                }}
+                className="flex-1 py-3 rounded-xl border-2 border-orange-500 text-orange-600 font-bold transition-all duration-200 hover:bg-orange-50"
+              >
+                Sign Up
+              </button>
+            </div>
+            <button
+              onClick={() => setShowLoginPrompt(false)}
+              className="mt-4 text-gray-500 hover:text-gray-700 text-sm"
+            >
+              Continue Browsing
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Order Confirmation Modal */}
       {orderSubmitted && (
@@ -585,17 +703,6 @@ const DesktopLayout = ({
           hideAlternatives();
         }}
         loading={modalState.loading}
-      />
-
-      {/* AI Assistant */}
-      <AssistantPanel
-        menuItems={menuItems}
-        currentOrder={cartItems}
-        onAddToCart={addToOrder}
-        onOrderSuggestion={(suggestion) => {
-          console.log('AI Suggestion:', suggestion);
-        }}
-        onOpenChange={setIsAssistantOpen}
       />
     </div>
   );

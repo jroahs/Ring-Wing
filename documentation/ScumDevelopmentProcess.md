@@ -8624,3 +8624,182 @@ The initial "quick solution" of hard-coding ultimately cost 4x more effort when 
 End-to-end testing of complete menu management flow, user acceptance testing, and final production deployment preparation.
 
 ---
+
+### Sprint 24 (Nov 25, 2025) [COMPLETED]
+**Sprint Goal:** Role-Based Expense Workflow System & Dashboard Enhancement
+**Story Points Planned:** 38
+**Story Points Completed:** 38/38
+
+**Sprint Duration:** 1 day (Focused sprint for expense system overhaul)
+
+**Major Implementations Completed:**
+
+#### Role-Based Expense Workflow System (Nov 25, 2025)
+**Story Points:** 28 - **STATUS: COMPLETED**
+
+**Business Requirements:**
+Implement a comprehensive role-based expense workflow system where:
+- **Staff (Cashier/Inventory)**: Can only submit expense *requests* that require manager approval
+- **Admin/Manager**: Can create expenses directly and approve/reject staff requests
+- Staff should only see their own expense requests, not all company expenses
+
+**System Architecture Overview:**
+- **Dual Workflow System**: Separate workflows for staff (request-based) and admin (direct action)
+- **Approval Pipeline**: Staff requests require manager approval before processing
+- **Role-Based Visibility**: Staff see only their own requests; Admins see all expenses
+- **Status Tracking**: Comprehensive status flow (for_approval -> approved/rejected -> paid)
+
+#### Backend Expense Workflow Implementation
+**Story Points:** 12 - **STATUS: COMPLETED**
+
+**1. Expense Model Enhancement** (`models/expense.js`)
+- Enhanced status enum with workflow states: for_approval, approved, rejected, paid, created
+- Requester tracking fields: requesterId, requesterName, requesterPosition
+- Approval tracking fields: approvedBy, approverName, approvedAt, rejectionReason
+
+**2. Role-Based API Endpoints** (`routes/expenseRoutes.js`)
+- **POST /api/expenses**: Role-aware expense creation (Staff: for_approval, Admin: created)
+- **GET /api/expenses**: Role-based filtering (Staff sees own, Admin sees all)
+- **GET /api/expenses/my-requests**: Staff-only endpoint for personal requests
+- **GET /api/expenses/pending-approvals**: Admin-only endpoint for pending approvals
+- **POST /api/expenses/:id/approve**: Manager approval with audit trail
+- **POST /api/expenses/:id/reject**: Manager rejection with reason tracking
+- **POST /api/expenses/:id/mark-paid**: Mark approved/created expenses as paid
+
+#### Frontend Expense Management Implementation
+**Story Points:** 16 - **STATUS: COMPLETED**
+
+**1. Admin ExpenseDisbursement.jsx Enhancement**
+- Dual-Tab Interface: "All Expenses" and "Pending Approvals" tabs
+- Pending Approvals Section with Approve/Reject functionality
+- Status-Based Table Display with theme-colored badges
+- Expense Detail Modal for paid expense transactions
+
+**2. Staff StaffExpenseRequests.jsx (New Component)**
+- Personal Request View showing only user's own expense requests
+- Status Summary Cards: Pending/Approved/Paid/Rejected counts
+- Filter Tabs: All, Pending, Approved, Paid, Rejected
+- New Request Form for submitting expense requests
+- Theme-colored status badges with consistent rounded-lg shape
+
+**3. Navigation Integration**
+- Sidebar.jsx: Added "My Expense Requests" link for staff positions
+- App.jsx: Added /staff-expenses route with StaffExpenseRequests component
+
+#### Critical Bug Fixes (Nov 25, 2025)
+
+**1. 401 Unauthorized Error on Dashboard Expenses**
+- **Problem**: Dashboard showing "No expense data" and 0.00 for expenses
+- **Root Cause**: /api/expenses endpoint requires auth, Dashboard missing token
+- **Solution**: Added auth headers to expense fetch in DashboardMinimal.jsx
+- **Impact**: Dashboard now correctly displays expense data
+
+**2. Expense Amount Display Showing 0.00**
+- **Problem**: Even after auth fix, expenses still showed 0.00
+- **Root Cause**: Old filter checked `disbursed`, new workflow uses `status === 'paid'`
+- **Solution**: Updated filter: `exp.disbursed || exp.status === 'paid'`
+- **Impact**: Both legacy and new workflow expenses now counted
+
+**3. PUT vs POST for Mark-Paid Endpoint**
+- **Problem**: 404 errors when marking expenses as paid
+- **Root Cause**: Frontend used PUT but backend expects POST
+- **Solution**: Changed to POST method in ExpenseDisbursement.jsx
+
+**4. Empty src Attribute Warning**
+- **Problem**: React warning about empty string passed to img src
+- **Root Cause**: StaffAvatar initialized imageSrc as empty string
+- **Solution**: Initialize as null, add early return when null
+
+**5. API Response Format Handling**
+- **Problem**: Components not handling { success: true, data: [...] } format
+- **Solution**: Added proper extraction: `const data = result.data || result`
+
+#### Dashboard Font Size Enhancement
+
+**DashboardGridMinimal.jsx Font Updates:**
+| Section | Before | After |
+|---------|--------|-------|
+| KPI Labels | text-xs | text-sm |
+| KPI Values | text-base | text-lg |
+| Panel Headers | font-medium | font-semibold |
+| Content Text | text-xs | text-sm |
+| Chart Axis Fonts | 9-10px | 11-12px |
+
+#### Theme Color Unification
+
+**Theme Colors Applied:**
+- accent: #f1670f (Orange - primary action color)
+- secondary: #853619 (Brown - secondary/rejection color)
+- activeBg: #f1670f20 (Light orange background)
+
+**Status Badge Unification:**
+- All badges now use rounded-lg shape
+- Pending/Approved/Paid: Orange theme
+- Rejected: Brown theme
+- Created: Muted theme
+
+**Components Updated:**
+1. ExpenseDisbursement.jsx - All status badges, Pending Approvals tab
+2. StaffExpenseRequests.jsx - StatusBadge component, status summary cards
+
+#### Files Modified
+
+**Backend:**
+- models/expense.js - Added workflow status fields and requester/approver tracking
+- routes/expenseRoutes.js - Role-based endpoints for expense workflow
+
+**Frontend:**
+- ExpenseDisbursement.jsx - Admin expense management with approval workflow
+- StaffExpenseRequests.jsx - New staff expense request page
+- DashboardMinimal.jsx - Fixed auth headers, updated expense filtering
+- DashboardGridMinimal.jsx - Increased font sizes throughout
+- StaffAvatar.jsx - Fixed empty src attribute warning
+- Sidebar.jsx - Added "My Expense Requests" navigation
+- App.jsx - Added /staff-expenses route
+
+#### Sprint Metrics
+
+**Story Point Breakdown:**
+- Backend Expense Workflow: 12 points
+- Frontend Expense UI: 10 points
+- Staff Expense Requests Page: 6 points
+- Dashboard Bug Fixes: 5 points
+- Theme Color Unification: 3 points
+- Dashboard Font Enhancement: 2 points
+- **Total**: 38/38 points (100% completion)
+
+**Bug Statistics:**
+- Bugs identified: 5
+- Bugs fixed: 5
+- Critical bugs: 2 (401 auth, expense calculation)
+- Major bugs: 2 (PUT vs POST, API response format)
+- Minor bugs: 1 (empty src warning)
+
+#### Retrospective Notes
+
+**What Went Well:**
+- Complete role-based expense workflow implemented in single sprint
+- All 5 bugs identified and fixed during implementation
+- Theme color unification improves visual consistency
+- Dashboard font enhancement improves readability
+- Clean separation between staff and admin expense views
+
+**Challenges Overcome:**
+- Dashboard expense loading required auth token investigation
+- Status field migration needed dual-mode filtering
+- Multiple components needed response format updates
+
+**Action Items for Future Sprints:**
+- Add expense analytics/reporting for managers
+- Implement expense categories management
+- Add expense export functionality (PDF/Excel)
+- Consider expense budget tracking per category
+- Add expense approval notifications
+
+**Technical Debt Assessment:**
+- No new technical debt introduced
+- Clean role-based architecture
+- Consistent theme usage established
+- Proper error handling throughout
+
+---

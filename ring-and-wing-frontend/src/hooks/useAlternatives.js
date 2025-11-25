@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { API_URL } from '../App';
 
 export const useAlternatives = () => {
   const [modalState, setModalState] = useState({
@@ -11,9 +12,14 @@ export const useAlternatives = () => {
 
   const fetchAlternatives = useCallback(async (itemId) => {
     try {
-      const response = await fetch(`/api/menu/${itemId}/alternatives`);
+      const response = await fetch(`${API_URL}/api/menu/${itemId}/alternatives`);
       if (!response.ok) {
-        throw new Error('Failed to fetch alternatives');
+        // If 404 or 500, just return empty - don't throw
+        console.warn(`Alternatives API returned ${response.status} for item ${itemId}`);
+        return {
+          alternatives: [],
+          recommendedAlternative: null
+        };
       }
       const data = await response.json();
       return {
