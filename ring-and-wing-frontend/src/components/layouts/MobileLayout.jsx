@@ -278,29 +278,29 @@ const MobileLayout = ({
         </div>
       </div>
 
-      {/* Mobile Tabs */}
-      <div className="flex justify-around p-2 bg-white/80 backdrop-blur-lg shadow-sm sticky top-[72px] z-10">
+      {/* Mobile Tabs - Minimalist text style */}
+      <div className="flex justify-center gap-16 p-4 bg-white/80 backdrop-blur-lg shadow-sm sticky top-[72px] z-10">
         <button
           onClick={() => setActiveTab('menu')}
-          className={`px-6 py-2 rounded-full font-medium transition-all duration-300 ${
+          className={`px-4 py-2 transition-all duration-300 text-lg ${
             activeTab === 'menu' 
-              ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg scale-105' 
-              : 'bg-white text-gray-600 hover:bg-orange-50'
+              ? 'text-orange-500 font-bold' 
+              : 'text-gray-400 font-medium hover:text-gray-500'
           }`}
         >
           Menu
         </button>
         <button
           onClick={() => setActiveTab('cart')}
-          className={`px-6 py-2 rounded-full font-medium transition-all duration-300 relative ${
+          className={`px-4 py-2 transition-all duration-300 text-lg relative ${
             activeTab === 'cart'
-              ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg scale-105'
-              : 'bg-white text-gray-600 hover:bg-orange-50'
+              ? 'text-orange-500 font-bold'
+              : 'text-gray-400 font-medium hover:text-gray-500'
           }`}
         >
           Cart
           {itemCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+            <span className="absolute -top-1 -right-3 w-5 h-5 bg-orange-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
               {itemCount}
             </span>
           )}
@@ -832,21 +832,16 @@ const MobileLayout = ({
         loading={modalState.loading}
       />
 
-      {/* AI Assistant - Dynamic positioning based on submit button visibility */}
-      <div className={`fixed z-20 transition-all duration-300 ${
-        cartItems.length > 0 && isSubmitVisible 
-          ? 'bottom-32 right-4' 
-          : 'bottom-6 right-4'
-      }`}>
-        <AssistantPanel
-          menuItems={menuItems}
-          currentOrder={cartItems}
-          onAddToCart={addToOrder}
-          onOrderSuggestion={(suggestion) => {
-            console.log('AI Suggestion:', suggestion);
-          }}
-        />
-      </div>
+      {/* AI Assistant - Dynamic positioning based on submit button bar visibility */}
+      <AssistantPanel
+        menuItems={menuItems}
+        currentOrder={cartItems}
+        onAddToCart={addToOrder}
+        onOrderSuggestion={(suggestion) => {
+          console.log('AI Suggestion:', suggestion);
+        }}
+        bottomClass={cartItems.length > 0 ? 'bottom-36' : 'bottom-6'}
+      />
     </div>
   );
 };

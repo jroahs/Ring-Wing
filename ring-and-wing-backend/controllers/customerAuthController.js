@@ -206,6 +206,7 @@ exports.getMe = async (req, res) => {
       success: true,
       customer: {
         _id: customer._id,
+        username: customer.username,
         phone: customer.phone,
         email: customer.email,
         firstName: customer.firstName,
@@ -410,7 +411,8 @@ exports.changePassword = async (req, res) => {
       });
     }
 
-    const customer = await Customer.findById(req.customer._id);
+    // Must select +password since it's excluded by default
+    const customer = await Customer.findById(req.customer._id).select('+password');
 
     if (!customer) {
       return res.status(404).json({

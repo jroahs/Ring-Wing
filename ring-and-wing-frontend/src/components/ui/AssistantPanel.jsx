@@ -301,7 +301,8 @@ const AssistantPanel = ({
   currentOrder = [], 
   onAddToCart = () => {},
   onOrderSuggestion = () => {},
-  onOpenChange = () => {}
+  onOpenChange = () => {},
+  bottomClass = ''
 }) => {
   const { isMobile, isTablet, isDesktop } = useBreakpoint();
   
@@ -787,6 +788,16 @@ Example responses:
     }
   };
 
+  // Parse bottom position from bottomClass prop (e.g., 'bottom-28' -> 112px, 'bottom-6' -> 24px)
+  const getBottomPosition = () => {
+    if (!bottomClass) return 24; // default bottom-6 = 1.5rem = 24px
+    const match = bottomClass.match(/bottom-(\d+)/);
+    if (match) {
+      return parseInt(match[1]) * 4; // Tailwind uses 4px per unit
+    }
+    return 24;
+  };
+
   // Layout-specific rendering based on breakpoint
   if (isMobile) {
     return (
@@ -794,9 +805,17 @@ Example responses:
         {/* Floating Action Button */}
         {!isOpen && (
           <motion.div 
-            className="fixed bottom-40 right-6 z-40"
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
+            className="fixed right-4 z-40"
+            initial={{ scale: 0, bottom: 24 }}
+            animate={{ 
+              scale: 1, 
+              bottom: getBottomPosition()
+            }}
+            transition={{ 
+              type: 'spring', 
+              stiffness: 300, 
+              damping: 25 
+            }}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
           >
@@ -1073,7 +1092,8 @@ AssistantPanel.propTypes = {
   currentOrder: PropTypes.array,
   onAddToCart: PropTypes.func,
   onOrderSuggestion: PropTypes.func,
-  onOpenChange: PropTypes.func
+  onOpenChange: PropTypes.func,
+  bottomClass: PropTypes.string
 };
 
 export default AssistantPanel;
