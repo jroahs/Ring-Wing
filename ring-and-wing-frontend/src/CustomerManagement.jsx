@@ -21,27 +21,27 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const StatusBadge = ({ customer }) => {
   if (customer.isBanned) {
     return (
-      <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">
+      <span className="px-2 py-1 text-xs font-medium rounded-full" style={{ backgroundColor: '#fde8e8', color: '#c81e1e' }}>
         Banned
       </span>
     );
   }
   if (!customer.isActive) {
     return (
-      <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700">
+      <span className="px-2 py-1 text-xs font-medium rounded-full" style={{ backgroundColor: theme.colors.accent + '20', color: theme.colors.accent }}>
         Inactive
       </span>
     );
   }
   if (customer.deletedAt) {
     return (
-      <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
+      <span className="px-2 py-1 text-xs font-medium rounded-full" style={{ backgroundColor: theme.colors.muted + '20', color: theme.colors.muted }}>
         Deleted
       </span>
     );
   }
   return (
-    <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">
+    <span className="px-2 py-1 text-xs font-medium rounded-full" style={{ backgroundColor: '#d1fae5', color: '#065f46' }}>
       Active
     </span>
   );

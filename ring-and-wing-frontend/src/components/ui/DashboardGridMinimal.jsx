@@ -120,7 +120,7 @@ export const DashboardGridMinimal = ({
       {/* Four-Panel Layout in Single Row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         {/* Customer Overview Panel (Admin only) or Recent Orders Panel */}
-        {customerStats && ['admin', 'general_manager'].includes(userPosition) ? (
+        {['admin', 'general_manager'].includes(userPosition) ? (
           <Card className="!p-0 overflow-hidden">
             <div className="px-3 py-2 border-b flex justify-between items-center" 
                  style={{ borderColor: theme.colors.muted + '15' }}>
@@ -143,7 +143,7 @@ export const DashboardGridMinimal = ({
                   <span className="text-sm">Active</span>
                 </div>
                 <span className="text-sm font-bold" style={{ color: theme.colors.primary }}>
-                  {customerStats.active || 0}
+                  {customerStats?.activeCustomers || 0}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -152,7 +152,7 @@ export const DashboardGridMinimal = ({
                   <span className="text-sm">Inactive</span>
                 </div>
                 <span className="text-sm font-medium text-gray-500">
-                  {customerStats.inactive || 0}
+                  {customerStats?.inactiveCustomers || 0}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -161,14 +161,14 @@ export const DashboardGridMinimal = ({
                   <span className="text-sm">Banned</span>
                 </div>
                 <span className="text-sm font-medium text-red-500">
-                  {customerStats.banned || 0}
+                  {customerStats?.bannedCustomers || 0}
                 </span>
               </div>
               <div className="pt-2 mt-2 border-t" style={{ borderColor: theme.colors.muted + '15' }}>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-500">Total Customers</span>
                   <span className="text-sm font-bold" style={{ color: theme.colors.accent }}>
-                    {customerStats.total || 0}
+                    {customerStats?.totalCustomers || 0}
                   </span>
                 </div>
               </div>
