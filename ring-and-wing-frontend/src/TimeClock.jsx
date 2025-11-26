@@ -96,6 +96,93 @@ const TimeClock = () => {
       setNfcListening(false);
     }
   }, [attendanceMode, nfcTestMode, loadingSettings]);
+
+  // Keyboard Wedge NFC Reader Support
+  // Detects rapid keystrokes from HID NFC readers (not normal typing)
+  useEffect(() => {
+    // Only enable in NFC mode when not in test mode
+    if (attendanceMode !== 'NFC' || nfcTestMode || loadingSettings) {
+      return;
+    }
+
+    let keyBuffer = '';
+    let lastKeyTime = 0;
+    const MAX_KEY_INTERVAL = 50; // Max ms between keystrokes (readers are fast, ~10-30ms)
+    const MIN_CARD_LENGTH = 4;   // Minimum valid card ID length
+    const MAX_CARD_LENGTH = 14;  // Maximum valid card ID length
+    const BUFFER_TIMEOUT = 100;  // Clear buffer after 100ms of no input
+    let bufferTimer = null;
+
+    const handleKeyDown = (e) => {
+      const now = Date.now();
+      
+      // Ignore if user is typing in an input field (except our hidden NFC input)
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        if (!e.target.dataset.nfcCapture) {
+          return;
+        }
+      }
+
+      // Check if this keystroke is part of rapid input (NFC reader)
+      const timeSinceLastKey = now - lastKeyTime;
+      
+      // If too slow (human typing), reset buffer
+      if (timeSinceLastKey > MAX_KEY_INTERVAL && keyBuffer.length > 0) {
+        keyBuffer = '';
+      }
+
+      lastKeyTime = now;
+
+      // Clear any pending buffer timeout
+      if (bufferTimer) {
+        clearTimeout(bufferTimer);
+      }
+
+      // Handle Enter key - submit the buffer if valid
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        
+        const cardId = keyBuffer.trim().toUpperCase();
+        
+        // Validate: must be rapid input AND valid length AND alphanumeric
+        if (cardId.length >= MIN_CARD_LENGTH && 
+            cardId.length <= MAX_CARD_LENGTH && 
+            /^[A-F0-9]+$/i.test(cardId)) {
+          console.log('[NFC Reader] Card detected:', cardId);
+          handleNfcCardTap(cardId);
+        }
+        
+        keyBuffer = '';
+        return;
+      }
+
+      // Only accept hex characters (0-9, A-F) - typical for NFC card IDs
+      if (/^[a-fA-F0-9]$/.test(e.key)) {
+        keyBuffer += e.key;
+        
+        // Safety: prevent buffer overflow
+        if (keyBuffer.length > MAX_CARD_LENGTH) {
+          keyBuffer = keyBuffer.slice(-MAX_CARD_LENGTH);
+        }
+      }
+
+      // Set timeout to clear buffer if no more input
+      bufferTimer = setTimeout(() => {
+        keyBuffer = '';
+      }, BUFFER_TIMEOUT);
+    };
+
+    // Add global listener
+    window.addEventListener('keydown', handleKeyDown, true);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+      if (bufferTimer) {
+        clearTimeout(bufferTimer);
+      }
+    };
+  }, [attendanceMode, nfcTestMode, loadingSettings]);
+
   // Handle window resize for responsive layout
   useEffect(() => {
     const handleResize = () => {
