@@ -51,10 +51,15 @@ const TimeClock = () => {
   // NFC Test Mode state - dropdown selection
   const [selectedNfcCard, setSelectedNfcCard] = useState('');
   const [staffWithNfc, setStaffWithNfc] = useState([]);
+  const [showNfcTestModal, setShowNfcTestModal] = useState(false);
+  const [nfcTestStaffStatus, setNfcTestStaffStatus] = useState(null); // { staff, isClockedIn }
   
   // NFC Real Mode state - listening for cards
   const [nfcListening, setNfcListening] = useState(false);
   const [lastNfcAction, setLastNfcAction] = useState(null); // Store last NFC action result
+  
+  // Recent activities for selected staff
+  const [recentActivities, setRecentActivities] = useState([]);
 
   // Fetch attendance settings on mount
   useEffect(() => {
@@ -144,8 +149,10 @@ const TimeClock = () => {
   useEffect(() => {
     if (selectedStaff) {
       fetchLastTimeLog(selectedStaff._id);
+      fetchRecentActivities(selectedStaff._id);
     } else {
       setLastLog(null);
+      setRecentActivities([]);
     }
   }, [selectedStaff]);
 
@@ -184,6 +191,38 @@ const TimeClock = () => {
     }
   };
 
+  // Fetch recent activities (last 7 days)
+  const fetchRecentActivities = async (staffId) => {
+    try {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 7);
+      
+      const params = new URLSearchParams({ 
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
+      }).toString();
+
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      };
+
+      const { data } = await api.get(`/api/time-logs/staff/${staffId}?${params}`, config);
+      
+      if (data?.data?.length > 0) {
+        setRecentActivities(data.data.slice(0, 10)); // Get last 10 activities
+      } else {
+        setRecentActivities([]);
+      }
+    } catch (error) {
+      console.error('Error fetching recent activities:', error);
+      setRecentActivities([]);
+    }
+  };
+
   // Function to capture photo from webcam
   const capturePhoto = useCallback(() => {
     const imageSrc = webcamRef.current?.getScreenshot();
@@ -197,12 +236,22 @@ const TimeClock = () => {
       return;
     }
     
+    // In NFC mode, show "tap card again" modal instead of PIN entry
+    if (attendanceMode === 'NFC') {
+      setClockAction(type);
+      setShowNfcTapAgainModal(true);
+      return;
+    }
+    
     setClockAction(type);
     setShowPinEntry(true);
     setPinInput('');
     setShowCamera(false);
     setCapturedImage(null);
   };
+
+  // NFC "Tap Again" modal state
+  const [showNfcTapAgainModal, setShowNfcTapAgainModal] = useState(false);
 
   // Function to handle PIN verification
   const handlePinVerify = () => {
@@ -311,9 +360,11 @@ const TimeClock = () => {
   };
 
   // NFC Functions - Updated for Test Mode Dropdown
-  const handleNfcTestAction = async (action) => {
-    if (!selectedNfcCard) {
-      toast.error('Please select an NFC card from the dropdown');
+  const handleNfcTestAction = async (action, cardIdOverride = null) => {
+    const cardId = cardIdOverride || selectedNfcCard;
+    
+    if (!cardId) {
+      toast.error('No NFC card specified');
       return;
     }
 
@@ -331,7 +382,7 @@ const TimeClock = () => {
       };
 
       const { data } = await api.post(endpoint, { 
-        nfcCardId: selectedNfcCard 
+        nfcCardId: cardId 
       }, config);
       
       if (!data.success) {
@@ -356,7 +407,18 @@ const TimeClock = () => {
         totalHours: data.data?.totalHours
       });
 
-      // Reset selection
+      // Find and select the staff member to show their details
+      const foundStaff = staff.find(s => s.nfcCardId === cardId);
+      if (foundStaff) {
+        setSelectedStaff(foundStaff);
+        fetchLastTimeLog(foundStaff._id);
+        fetchRecentActivities(foundStaff._id);
+      }
+
+      // Close modals and reset selection
+      setShowNfcTestModal(false);
+      setShowNfcTapAgainModal(false);
+      setNfcTestStaffStatus(null);
       setSelectedNfcCard('');
       
       updateCurrentTime();
@@ -365,6 +427,45 @@ const TimeClock = () => {
       toast.error(error.response?.data?.message || error.message || 'NFC clock action failed');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // NFC Test Mode - Open modal and detect status when card is selected
+  const handleNfcCardSelect = async (cardId) => {
+    setSelectedNfcCard(cardId);
+    if (!cardId) {
+      setShowNfcTestModal(false);
+      setNfcTestStaffStatus(null);
+      return;
+    }
+
+    // Look up staff status
+    try {
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      };
+
+      const lookupResponse = await api.get(`/api/time-logs/nfc/lookup/${cardId.toUpperCase()}`, config);
+      
+      if (lookupResponse.data?.success) {
+        // Get profile picture from local staff list since backend might not include it
+        const localStaff = staff.find(s => s.nfcCardId === cardId);
+        const statusData = {
+          ...lookupResponse.data.data,
+          staff: {
+            ...lookupResponse.data.data.staff,
+            profilePicture: localStaff?.profilePicture || lookupResponse.data.data.staff?.profilePicture
+          }
+        };
+        setNfcTestStaffStatus(statusData);
+        setShowNfcTestModal(true);
+      }
+    } catch (error) {
+      console.error('Error looking up NFC card:', error);
+      toast.error('Failed to look up NFC card status');
     }
   };
 
@@ -426,6 +527,14 @@ const TimeClock = () => {
         totalHours: data.data?.totalHours,
         profilePicture: staffMember.profilePicture
       });
+
+      // Select the staff member to show their details
+      const foundStaff = staff.find(s => s._id === staffMember._id || s.nfcCardId === nfcCardId.toUpperCase());
+      if (foundStaff) {
+        setSelectedStaff(foundStaff);
+        fetchLastTimeLog(foundStaff._id);
+        fetchRecentActivities(foundStaff._id);
+      }
       
       updateCurrentTime();
     } catch (error) {
@@ -588,44 +697,20 @@ const TimeClock = () => {
                     Test Mode
                   </span>
                   
-                  {/* NFC Card Dropdown */}
+                  {/* NFC Card Dropdown - Opens modal on selection */}
                   <select
                     value={selectedNfcCard}
-                    onChange={(e) => setSelectedNfcCard(e.target.value)}
-                    className="px-3 py-2 rounded-lg border text-sm min-w-[200px]"
+                    onChange={(e) => handleNfcCardSelect(e.target.value)}
+                    className="px-3 py-2 rounded-lg border text-sm min-w-[250px]"
                     style={{ borderColor: colors.muted, color: colors.primary }}
                   >
-                    <option value="">Select NFC Card...</option>
+                    <option value="">Simulate NFC Card Tap...</option>
                     {staffWithNfc.map((s) => (
                       <option key={s._id} value={s.nfcCardId}>
                         {s.name} - {s.nfcCardId}
                       </option>
                     ))}
                   </select>
-                  
-                  {/* Time In/Out Buttons */}
-                  <motion.button
-                    onClick={() => handleNfcTestAction('in')}
-                    className="px-4 py-2 rounded-lg font-medium flex items-center gap-2 disabled:opacity-50"
-                    style={{ backgroundColor: colors.accent, color: colors.background }}
-                    whileHover={{ scale: selectedNfcCard ? 1.02 : 1 }}
-                    whileTap={{ scale: selectedNfcCard ? 0.98 : 1 }}
-                    disabled={loading || !selectedNfcCard}
-                  >
-                    <FiCreditCard />
-                    Time In
-                  </motion.button>
-                  <motion.button
-                    onClick={() => handleNfcTestAction('out')}
-                    className="px-4 py-2 rounded-lg font-medium flex items-center gap-2 disabled:opacity-50"
-                    style={{ backgroundColor: colors.secondary, color: colors.background }}
-                    whileHover={{ scale: selectedNfcCard ? 1.02 : 1 }}
-                    whileTap={{ scale: selectedNfcCard ? 0.98 : 1 }}
-                    disabled={loading || !selectedNfcCard}
-                  >
-                    <FiCreditCard />
-                    Time Out
-                  </motion.button>
                   
                   {staffWithNfc.length === 0 && (
                     <span className="text-xs text-amber-600">
@@ -636,6 +721,196 @@ const TimeClock = () => {
               )}
             </motion.div>
           )}
+
+          {/* NFC Test Mode Modal - Shows detected status and appropriate button */}
+          <AnimatePresence>
+            {showNfcTestModal && nfcTestStaffStatus && (
+              <motion.div
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => {
+                  setShowNfcTestModal(false);
+                  setNfcTestStaffStatus(null);
+                  setSelectedNfcCard('');
+                }}
+              >
+                <motion.div
+                  className="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl"
+                  initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Staff Info */}
+                  <div className="flex items-center gap-4 mb-6">
+                    <StaffAvatar 
+                      imagePath={nfcTestStaffStatus.staff?.profilePicture}
+                      alt={nfcTestStaffStatus.staff?.name}
+                      size={64}
+                      className="border-2 rounded-full"
+                    />
+                    <div>
+                      <h3 className="text-xl font-bold" style={{ color: colors.primary }}>
+                        {nfcTestStaffStatus.staff?.name}
+                      </h3>
+                      <p className="text-sm" style={{ color: colors.muted }}>
+                        {nfcTestStaffStatus.staff?.position}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className={`w-2 h-2 rounded-full ${nfcTestStaffStatus.isClockedIn ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                        <span className="text-xs font-medium" style={{ color: nfcTestStaffStatus.isClockedIn ? colors.accent : colors.muted }}>
+                          {nfcTestStaffStatus.isClockedIn ? 'Currently Clocked In' : 'Not Clocked In'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* NFC Card Info */}
+                  <div 
+                    className="p-3 rounded-lg mb-6 flex items-center gap-3"
+                    style={{ backgroundColor: colors.accent + '15' }}
+                  >
+                    <FiCreditCard className="text-xl" style={{ color: colors.accent }} />
+                    <div>
+                      <p className="text-xs" style={{ color: colors.muted }}>NFC Card ID</p>
+                      <p className="font-mono font-bold" style={{ color: colors.primary }}>{selectedNfcCard}</p>
+                    </div>
+                  </div>
+
+                  {/* Action Button - Based on current status */}
+                  <motion.button
+                    onClick={() => handleNfcTestAction(nfcTestStaffStatus.isClockedIn ? 'out' : 'in')}
+                    className="w-full py-4 rounded-lg font-bold text-lg flex items-center justify-center gap-3"
+                    style={{ 
+                      backgroundColor: nfcTestStaffStatus.isClockedIn ? colors.secondary : colors.accent, 
+                      color: colors.background 
+                    }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <span>Processing...</span>
+                    ) : (
+                      <>
+                        <FiCreditCard className="text-xl" />
+                        {nfcTestStaffStatus.isClockedIn ? 'Clock Out' : 'Clock In'}
+                      </>
+                    )}
+                  </motion.button>
+
+                  {/* Cancel Button */}
+                  <button
+                    onClick={() => {
+                      setShowNfcTestModal(false);
+                      setNfcTestStaffStatus(null);
+                      setSelectedNfcCard('');
+                    }}
+                    className="w-full mt-3 py-2 rounded-lg font-medium border"
+                    style={{ borderColor: colors.muted, color: colors.primary }}
+                  >
+                    Cancel
+                  </button>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* NFC Tap Again Modal - For clock in/out after staff is selected */}
+          <AnimatePresence>
+            {showNfcTapAgainModal && selectedStaff && (
+              <motion.div
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowNfcTapAgainModal(false)}
+              >
+                <motion.div
+                  className="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl text-center"
+                  initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Animated NFC Icon */}
+                  <motion.div
+                    className="mx-auto mb-6 w-24 h-24 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: clockAction === 'in' ? colors.accent + '20' : colors.secondary + '20' }}
+                    animate={{ 
+                      boxShadow: [
+                        `0 0 0 0px ${clockAction === 'in' ? colors.accent : colors.secondary}40`,
+                        `0 0 0 15px ${clockAction === 'in' ? colors.accent : colors.secondary}00`,
+                      ]
+                    }}
+                    transition={{ 
+                      repeat: Infinity, 
+                      duration: 1.5,
+                      ease: "easeOut"
+                    }}
+                  >
+                    <FiCreditCard 
+                      className="text-4xl" 
+                      style={{ color: clockAction === 'in' ? colors.accent : colors.secondary }} 
+                    />
+                  </motion.div>
+
+                  <h3 className="text-xl font-bold mb-2" style={{ color: colors.primary }}>
+                    Tap Your NFC Card
+                  </h3>
+                  <p className="mb-6" style={{ color: colors.muted }}>
+                    Tap your NFC card again to confirm {clockAction === 'in' ? 'Clock In' : 'Clock Out'}
+                  </p>
+
+                  {/* In test mode, show simulate button */}
+                  {nfcTestMode && selectedStaff.nfcCardId && (
+                    <motion.button
+                      onClick={() => {
+                        handleNfcTestAction(clockAction, selectedStaff.nfcCardId);
+                      }}
+                      className="w-full py-3 rounded-lg font-bold flex items-center justify-center gap-2 mb-3"
+                      style={{ 
+                        backgroundColor: clockAction === 'in' ? colors.accent : colors.secondary, 
+                        color: colors.background 
+                      }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <span>Processing...</span>
+                      ) : (
+                        <>
+                          <FiCreditCard />
+                          Simulate Card Tap
+                        </>
+                      )}
+                    </motion.button>
+                  )}
+
+                  {/* Show message if staff has no NFC card */}
+                  {nfcTestMode && !selectedStaff.nfcCardId && (
+                    <div 
+                      className="p-3 rounded-lg mb-3 text-sm"
+                      style={{ backgroundColor: colors.secondary + '20', color: colors.secondary }}
+                    >
+                      This staff member has no NFC card registered
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => setShowNfcTapAgainModal(false)}
+                    className="w-full py-2 rounded-lg font-medium border"
+                    style={{ borderColor: colors.muted, color: colors.primary }}
+                  >
+                    Cancel
+                  </button>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* NFC Listening Mode Interface - Full Screen for Real NFC Mode */}
           {attendanceMode === 'NFC' && !nfcTestMode && (
@@ -901,7 +1176,7 @@ const TimeClock = () => {
             ) : (
               <motion.div 
                 key="main-view"
-                className={`grid gap-6 ${showStaffPanel ? 'grid-cols-1 md:grid-cols-3 lg:grid-cols-5' : 'grid-cols-1 max-w-2xl mx-auto'}`}
+                className={`grid gap-6 ${showStaffPanel ? 'grid-cols-1 md:grid-cols-3 lg:grid-cols-5' : 'grid-cols-1 lg:grid-cols-10 max-w-6xl mx-auto'}`}
                 variants={containerVariants}
                 initial="hidden"
                 animate="visible"
@@ -1019,13 +1294,13 @@ const TimeClock = () => {
                   )}
                 </AnimatePresence>
 
-                {/* Time Clock Interface - only show PIN entry here */}
+                {/* Time Clock Interface - 70% width when staff panel is hidden */}
                 <motion.div 
-                  className={showStaffPanel ? "md:col-span-2 lg:col-span-3" : "w-full"}
+                  className={showStaffPanel ? "md:col-span-2 lg:col-span-3" : "lg:col-span-7"}
                   variants={itemVariants}
                 >
                   <div 
-                    className="rounded-lg shadow-sm p-6"
+                    className="rounded-lg shadow-sm p-6 h-full"
                     style={{ border: `1px solid ${colors.muted}` }}
                   >
                     {/* Header */}
@@ -1343,6 +1618,79 @@ const TimeClock = () => {
                     </AnimatePresence>
                   </div>
                 </motion.div>
+
+                {/* Recent Activities Panel - 30% width, always show when staff panel is hidden */}
+                {!showStaffPanel && (
+                  <motion.div 
+                    className="lg:col-span-3"
+                    variants={itemVariants}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                  >
+                    <div 
+                      className="rounded-lg shadow-sm p-4 h-full"
+                      style={{ border: `1px solid ${colors.muted}` }}
+                    >
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: colors.primary }}>
+                        <FiClock />
+                        Recent Activities
+                      </h3>
+                      
+                      <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                        {recentActivities.length > 0 ? (
+                          recentActivities.map((activity, index) => (
+                            <motion.div
+                              key={activity._id || index}
+                              className="p-3 rounded-lg"
+                              style={{ backgroundColor: colors.muted + '15' }}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: index * 0.05 }}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-2 h-2 rounded-full ${activity.type === 'clockIn' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+                                  <span 
+                                    className="font-medium text-sm"
+                                    style={{ color: activity.type === 'clockIn' ? colors.accent : colors.secondary }}
+                                  >
+                                    {activity.type === 'clockIn' ? 'Clock In' : 'Clock Out'}
+                                  </span>
+                                </div>
+                              </div>
+                              <p className="text-xs" style={{ color: colors.muted }}>
+                                {new Date(activity.timestamp || activity.createdAt).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: 'numeric',
+                                  minute: '2-digit',
+                                  hour12: true
+                                })}
+                              </p>
+                              {activity.totalHours !== undefined && activity.type === 'clockOut' && (
+                                <p className="text-xs font-medium mt-1" style={{ color: colors.secondary }}>
+                                  Duration: {typeof activity.totalHours === 'number' ? 
+                                    `${Math.floor(activity.totalHours)}h ${Math.round((activity.totalHours % 1) * 60)}m` : 
+                                    activity.totalHours}
+                                </p>
+                              )}
+                            </motion.div>
+                          ))
+                        ) : (
+                          <div 
+                            className="p-4 rounded-lg text-center"
+                            style={{ backgroundColor: colors.muted + '10' }}
+                          >
+                            <FiClock size={32} className="mx-auto mb-2 opacity-30" />
+                            <p className="text-sm" style={{ color: colors.muted }}>
+                              {selectedStaff ? 'No recent activities' : 'Select a staff member'}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
