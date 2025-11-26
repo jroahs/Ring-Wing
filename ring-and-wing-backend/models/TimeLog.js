@@ -28,6 +28,11 @@ const timeLogSchema = new mongoose.Schema({
   photo: {
     type: String,  // Path to the uploaded image
     required: false
+  },
+  clockMethod: {
+    type: String,
+    enum: ['PIN', 'NFC'],
+    default: 'PIN'
   }
 }, {
   timestamps: true

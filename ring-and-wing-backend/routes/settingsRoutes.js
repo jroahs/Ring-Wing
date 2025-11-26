@@ -10,7 +10,9 @@ const {
   performDailyReset,
   getAuditTrail,
   getPaymentGateways,
-  updatePaymentGateways
+  updatePaymentGateways,
+  getAttendanceSettings,
+  updateAttendanceSettings
 } = require('../controllers/settingsController');
 const {
   getMerchantWallets,
@@ -96,5 +98,23 @@ router.get('/payment-gateways', getPaymentGateways);
  * Requires: admin role
  */
 router.put('/payment-gateways', auth, isManager, updatePaymentGateways);
+
+// ========================================
+// ATTENDANCE SETTINGS ROUTES
+// ========================================
+
+/**
+ * Get attendance settings (mode: PIN or NFC)
+ * GET /api/settings/attendance
+ * Public - needed for time clock component
+ */
+router.get('/attendance', getAttendanceSettings);
+
+/**
+ * Update attendance settings
+ * PUT /api/settings/attendance
+ * Requires: admin role
+ */
+router.put('/attendance', auth, isManager, updateAttendanceSettings);
 
 module.exports = router;

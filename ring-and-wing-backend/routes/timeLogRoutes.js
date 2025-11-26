@@ -223,4 +223,229 @@ router.post('/verify-photo', async (req, res) => {
   }
 });
 
+// ========================================
+// NFC TIME CLOCK ROUTES
+// ========================================
+
+/**
+ * Clock in via NFC card tap
+ * POST /api/time-logs/nfc/clock-in
+ * Body: { nfcCardId: string }
+ */
+router.post('/nfc/clock-in', auth, async (req, res) => {
+  try {
+    const { nfcCardId } = req.body;
+    
+    if (!nfcCardId) {
+      return res.status(400).json({
+        success: false,
+        message: 'NFC card ID is required'
+      });
+    }
+    
+    // Find staff by NFC card ID
+    const staffMember = await Staff.findOne({ nfcCardId: nfcCardId.toUpperCase() });
+    
+    if (!staffMember) {
+      return res.status(404).json({
+        success: false,
+        message: 'No staff member found with this NFC card. Please register your card first.'
+      });
+    }
+    
+    // Check if staff member is terminated, resigned, or suspended
+    if (['Terminated', 'Resigned', 'Suspended'].includes(staffMember.status)) {
+      return res.status(403).json({
+        success: false,
+        message: staffMember.status === 'Terminated' 
+          ? 'Access denied: Your employment has been terminated'
+          : staffMember.status === 'Resigned'
+          ? 'Access denied: You have resigned from your position'
+          : 'Access denied: Your account is suspended'
+      });
+    }
+    
+    // Check if already clocked in
+    const lastLog = await TimeLog.findOne({ staffId: staffMember._id })
+      .sort({ timestamp: -1 });
+    
+    if (lastLog && lastLog.type === 'clockIn') {
+      return res.status(400).json({
+        success: false,
+        message: `${staffMember.name} is already clocked in`
+      });
+    }
+    
+    // Create clock in record (no photo required for NFC)
+    const timeLog = new TimeLog({
+      staffId: staffMember._id,
+      type: 'clockIn',
+      timestamp: new Date(),
+      photo: null, // NFC mode doesn't require photo
+      clockMethod: 'NFC'
+    });
+    await timeLog.save();
+    
+    console.log('[NFC TimeLog] Clock in successful for:', staffMember.name);
+    
+    // Convert the timestamp to a simple ISO string format before sending
+    const responseData = timeLog.toObject();
+    responseData.timestamp = timeLog.timestamp.toISOString();
+    responseData.staffName = staffMember.name;
+    responseData.staffPosition = staffMember.position;
+    
+    res.status(201).json({
+      success: true,
+      message: `${staffMember.name} clocked in successfully`,
+      data: responseData
+    });
+  } catch (error) {
+    console.error('[NFC TimeLog] Clock in error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Clock out via NFC card tap
+ * POST /api/time-logs/nfc/clock-out
+ * Body: { nfcCardId: string }
+ */
+router.post('/nfc/clock-out', auth, async (req, res) => {
+  try {
+    const { nfcCardId } = req.body;
+    
+    if (!nfcCardId) {
+      return res.status(400).json({
+        success: false,
+        message: 'NFC card ID is required'
+      });
+    }
+    
+    // Find staff by NFC card ID
+    const staffMember = await Staff.findOne({ nfcCardId: nfcCardId.toUpperCase() });
+    
+    if (!staffMember) {
+      return res.status(404).json({
+        success: false,
+        message: 'No staff member found with this NFC card. Please register your card first.'
+      });
+    }
+    
+    // Check if staff member is terminated, resigned, or suspended
+    if (['Terminated', 'Resigned', 'Suspended'].includes(staffMember.status)) {
+      return res.status(403).json({
+        success: false,
+        message: staffMember.status === 'Terminated' 
+          ? 'Access denied: Your employment has been terminated'
+          : staffMember.status === 'Resigned'
+          ? 'Access denied: You have resigned from your position'
+          : 'Access denied: Your account is suspended'
+      });
+    }
+    
+    // Find the last clock in
+    const lastLog = await TimeLog.findOne({ staffId: staffMember._id })
+      .sort({ timestamp: -1 });
+    
+    if (!lastLog || lastLog.type !== 'clockIn') {
+      return res.status(400).json({
+        success: false,
+        message: `${staffMember.name} is not currently clocked in`
+      });
+    }
+    
+    // Calculate hours worked
+    const clockOutTime = new Date();
+    const clockInTime = new Date(lastLog.timestamp);
+    const hoursWorked = Number(((clockOutTime - clockInTime) / (1000 * 60 * 60)).toFixed(2));
+    const OVERTIME_THRESHOLD = 8;
+    const isOvertime = hoursWorked > OVERTIME_THRESHOLD;
+    
+    // Create clock out record
+    const timeLog = new TimeLog({
+      staffId: staffMember._id,
+      type: 'clockOut',
+      timestamp: clockOutTime,
+      totalHours: hoursWorked,
+      isOvertime,
+      photo: null, // NFC mode doesn't require photo
+      clockMethod: 'NFC'
+    });
+    await timeLog.save();
+    
+    console.log('[NFC TimeLog] Clock out successful for:', staffMember.name, '- Hours:', hoursWorked);
+    
+    // Convert the timestamp to a simple ISO string format before sending
+    const responseData = timeLog.toObject();
+    responseData.timestamp = timeLog.timestamp.toISOString();
+    responseData.staffName = staffMember.name;
+    responseData.staffPosition = staffMember.position;
+    
+    res.status(201).json({
+      success: true,
+      message: `${staffMember.name} clocked out successfully (${hoursWorked.toFixed(2)} hours)`,
+      data: responseData
+    });
+  } catch (error) {
+    console.error('[NFC TimeLog] Clock out error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Look up staff by NFC card ID
+ * GET /api/time-logs/nfc/lookup/:cardId
+ */
+router.get('/nfc/lookup/:cardId', auth, async (req, res) => {
+  try {
+    const { cardId } = req.params;
+    
+    if (!cardId) {
+      return res.status(400).json({
+        success: false,
+        message: 'NFC card ID is required'
+      });
+    }
+    
+    // Find staff by NFC card ID
+    const staffMember = await Staff.findOne({ nfcCardId: cardId.toUpperCase() })
+      .select('_id name position profilePicture status');
+    
+    if (!staffMember) {
+      return res.status(404).json({
+        success: false,
+        message: 'No staff member found with this NFC card'
+      });
+    }
+    
+    // Get last time log to determine current status
+    const lastLog = await TimeLog.findOne({ staffId: staffMember._id })
+      .sort({ timestamp: -1 });
+    
+    res.json({
+      success: true,
+      data: {
+        ...staffMember.toObject(),
+        isClockedIn: lastLog && lastLog.type === 'clockIn',
+        lastLog: lastLog ? {
+          type: lastLog.type,
+          timestamp: lastLog.timestamp.toISOString()
+        } : null
+      }
+    });
+  } catch (error) {
+    console.error('[NFC TimeLog] Lookup error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
 module.exports = router;

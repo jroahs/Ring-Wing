@@ -99,6 +99,19 @@ const staffSchema = new mongoose.Schema({
       message: props => `${props.value} is not a valid PIN. PIN must be 4-6 digits only.`
     }
   },
+  nfcCardId: {
+    type: String,
+    default: '',
+    trim: true,
+    sparse: true, // Allow multiple null/empty values but unique non-empty values
+    validate: {
+      validator: function(v) {
+        // Allow empty string or valid NFC card ID format (hexadecimal, 4-14 characters)
+        return !v || /^[A-Fa-f0-9]{4,14}$/.test(v);
+      },
+      message: props => `${props.value} is not a valid NFC card ID. Must be 4-14 hexadecimal characters.`
+    }
+  },
   reactivationInfo: {
     reactivatedBy: {
       type: mongoose.Schema.Types.ObjectId,

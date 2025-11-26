@@ -162,6 +162,31 @@ const settingsSchema = new mongoose.Schema({
       }
     }
   },
+
+  // NEW: Attendance Settings Configuration
+  attendance: {
+    mode: {
+      type: String,
+      enum: ['PIN', 'NFC'],
+      default: 'PIN'
+    },
+    nfcSettings: {
+      requirePhoto: {
+        type: Boolean,
+        default: false // NFC mode doesn't require photo by default
+      },
+      testMode: {
+        type: Boolean,
+        default: true // Enable test mode while hardware is not available
+      }
+    },
+    pinSettings: {
+      requirePhoto: {
+        type: Boolean,
+        default: true // PIN mode requires photo by default
+      }
+    }
+  },
   
   // Metadata
   createdAt: { 

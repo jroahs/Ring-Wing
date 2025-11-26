@@ -140,7 +140,8 @@ router.post('/', auth, validateStaffCreation, async (req, res) => {
       dailyRate, 
       profilePicture, 
       allowances,
-      pinCode 
+      pinCode,
+      nfcCardId 
     } = req.body;
 
     // Check for existing username or email (case insensitive)
@@ -157,7 +158,20 @@ router.post('/', auth, validateStaffCreation, async (req, res) => {
           ? 'Username already exists' 
           : 'Email already exists' 
       });
-    }    // Find or create a default manager if reportsTo is not provided
+    }
+    
+    // Check for existing NFC Card ID if provided
+    if (nfcCardId) {
+      const cleanNfcCardId = nfcCardId.toUpperCase().replace(/\s/g, '');
+      const existingNfcStaff = await Staff.findOne({ nfcCardId: cleanNfcCardId });
+      if (existingNfcStaff) {
+        return res.status(400).json({ 
+          message: 'This NFC card ID is already registered to another staff member'
+        });
+      }
+    }
+    
+    // Find or create a default manager if reportsTo is not provided
     // Map staff position to user position
     const userPosition = User.mapStaffPositionToUserPosition(position);
     
@@ -185,10 +199,11 @@ router.post('/', auth, validateStaffCreation, async (req, res) => {
         profilePicture: processedProfilePicture,
         allowances: allowances || 0,
         userId: user._id,
-        pinCode: pinCode || '0000' // Explicitly set the PIN code
+        pinCode: pinCode || '0000', // Explicitly set the PIN code
+        nfcCardId: nfcCardId ? nfcCardId.toUpperCase().replace(/\s/g, '') : '' // NFC Card ID
       });
       
-      console.log('Creating new staff with PIN code:', pinCode || '0000');
+      console.log('Creating new staff with PIN code:', pinCode || '0000', 'NFC Card ID:', nfcCardId || 'none');
       
       const savedStaff = await newStaff.save();
       const populatedStaff = await Staff.findById(savedStaff._id)
@@ -241,9 +256,30 @@ router.put('/:id', auth, async (req, res) => {
     delete staffUpdates.accountOnly;
     delete staffUpdates.userId;
     
+    // Handle NFC Card ID - validate uniqueness if provided
+    if (staffUpdates.nfcCardId) {
+      const nfcCardId = staffUpdates.nfcCardId.toUpperCase().replace(/\s/g, '');
+      
+      // Check if this NFC card ID is already registered to another staff member
+      const existingStaffWithNfc = await Staff.findOne({ 
+        nfcCardId: nfcCardId,
+        _id: { $ne: req.params.id }
+      });
+      
+      if (existingStaffWithNfc) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'This NFC card ID is already registered to another staff member'
+        });
+      }
+      
+      staffUpdates.nfcCardId = nfcCardId;
+    }
+    
     console.log(`Staff update for ID ${req.params.id}:`, {
       updateType: staffOnly ? 'Staff Only' : accountOnly ? 'Account Only' : 'Complete',
       receivedPinCode: req.body.pinCode,
+      receivedNfcCardId: req.body.nfcCardId,
       updatesObject: staffUpdates
     });
 

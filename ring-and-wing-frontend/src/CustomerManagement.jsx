@@ -21,7 +21,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const StatusBadge = ({ customer }) => {
   if (customer.isBanned) {
     return (
-      <span className="px-2 py-1 text-xs font-medium rounded-full" style={{ backgroundColor: '#fde8e8', color: '#c81e1e' }}>
+      <span className="px-2 py-1 text-xs font-medium rounded-full" style={{ backgroundColor: theme.colors.secondary + '20', color: theme.colors.secondary }}>
         Banned
       </span>
     );
@@ -41,7 +41,7 @@ const StatusBadge = ({ customer }) => {
     );
   }
   return (
-    <span className="px-2 py-1 text-xs font-medium rounded-full" style={{ backgroundColor: '#d1fae5', color: '#065f46' }}>
+    <span className="px-2 py-1 text-xs font-medium rounded-full" style={{ backgroundColor: theme.colors.accent + '20', color: theme.colors.accent }}>
       Active
     </span>
   );
@@ -183,10 +183,10 @@ const CustomerDetailModal = ({ customer, onClose, onUpdate, onBan, onUnban, onRe
             onClick={() => setActiveTab('details')}
             className={`px-6 py-3 font-medium transition-colors ${
               activeTab === 'details' 
-                ? 'border-b-2 text-orange-600' 
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'border-b-2' 
+                : 'hover:opacity-80'
             }`}
-            style={activeTab === 'details' ? { borderColor: theme.colors.accent } : {}}
+            style={activeTab === 'details' ? { borderColor: theme.colors.accent, color: theme.colors.accent } : { color: theme.colors.muted }}
           >
             Details
           </button>
@@ -194,10 +194,10 @@ const CustomerDetailModal = ({ customer, onClose, onUpdate, onBan, onUnban, onRe
             onClick={() => setActiveTab('activity')}
             className={`px-6 py-3 font-medium transition-colors flex items-center gap-2 ${
               activeTab === 'activity' 
-                ? 'border-b-2 text-orange-600' 
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'border-b-2' 
+                : 'hover:opacity-80'
             }`}
-            style={activeTab === 'activity' ? { borderColor: theme.colors.accent } : {}}
+            style={activeTab === 'activity' ? { borderColor: theme.colors.accent, color: theme.colors.accent } : { color: theme.colors.muted }}
           >
             <FiActivity size={16} />
             Activity Log
@@ -211,71 +211,76 @@ const CustomerDetailModal = ({ customer, onClose, onUpdate, onBan, onUnban, onRe
               {/* Customer Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-gray-500">First Name</label>
+                  <label className="text-sm" style={{ color: theme.colors.muted }}>First Name</label>
                   {editMode ? (
                     <input
                       type="text"
                       value={editForm.firstName}
                       onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
                       className="w-full px-3 py-2 border rounded-lg mt-1"
+                      style={{ borderColor: theme.colors.muted + '40' }}
                     />
                   ) : (
-                    <p className="font-medium">{customer.firstName}</p>
+                    <p className="font-medium" style={{ color: theme.colors.primary }}>{customer.firstName}</p>
                   )}
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500">Last Name</label>
+                  <label className="text-sm" style={{ color: theme.colors.muted }}>Last Name</label>
                   {editMode ? (
                     <input
                       type="text"
                       value={editForm.lastName}
                       onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
                       className="w-full px-3 py-2 border rounded-lg mt-1"
+                      style={{ borderColor: theme.colors.muted + '40' }}
                     />
                   ) : (
-                    <p className="font-medium">{customer.lastName}</p>
+                    <p className="font-medium" style={{ color: theme.colors.primary }}>{customer.lastName}</p>
                   )}
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500">Username</label>
+                  <label className="text-sm" style={{ color: theme.colors.muted }}>Username</label>
                   {editMode ? (
                     <input
                       type="text"
                       value={editForm.username}
                       onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
                       className="w-full px-3 py-2 border rounded-lg mt-1"
+                      style={{ borderColor: theme.colors.muted + '40' }}
                     />
                   ) : (
-                    <p className="font-medium">@{customer.username}</p>
+                    <p className="font-medium" style={{ color: theme.colors.primary }}>@{customer.username}</p>
                   )}
                 </div>
                 <div>
-                  <label className="text-sm text-gray-500">Phone</label>
+                  <label className="text-sm" style={{ color: theme.colors.muted }}>Phone</label>
                   {editMode ? (
                     <input
                       type="text"
                       value={editForm.phone}
                       onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                       className="w-full px-3 py-2 border rounded-lg mt-1"
+                      style={{ borderColor: theme.colors.muted + '40' }}
                     />
                   ) : (
-                    <p className="font-medium flex items-center gap-2">
+                    <p className="font-medium flex items-center gap-2" style={{ color: theme.colors.primary }}>
                       <FiPhone size={14} />
                       {customer.phone}
                     </p>
                   )}
                 </div>
                 <div className="col-span-2">
-                  <label className="text-sm text-gray-500">Email</label>
+                  <label className="text-sm" style={{ color: theme.colors.muted }}>Email</label>
                   {editMode ? (
                     <input
                       type="email"
                       value={editForm.email}
                       onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                       className="w-full px-3 py-2 border rounded-lg mt-1"
+                      style={{ borderColor: theme.colors.muted + '40' }}
                     />
                   ) : (
-                    <p className="font-medium flex items-center gap-2">
+                    <p className="font-medium flex items-center gap-2" style={{ color: theme.colors.primary }}>
                       <FiMail size={14} />
                       {customer.email || 'Not provided'}
                     </p>
@@ -289,14 +294,16 @@ const CustomerDetailModal = ({ customer, onClose, onUpdate, onBan, onUnban, onRe
                   <>
                     <button
                       onClick={handleSaveEdit}
-                      className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center gap-2"
+                      className="px-4 py-2 text-white rounded-lg hover:opacity-90 flex items-center gap-2"
+                      style={{ backgroundColor: theme.colors.accent }}
                     >
                       <FiCheck size={16} />
                       Save Changes
                     </button>
                     <button
                       onClick={() => setEditMode(false)}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                      className="px-4 py-2 rounded-lg hover:opacity-80"
+                      style={{ backgroundColor: theme.colors.muted + '20', color: theme.colors.primary }}
                     >
                       Cancel
                     </button>
@@ -304,7 +311,8 @@ const CustomerDetailModal = ({ customer, onClose, onUpdate, onBan, onUnban, onRe
                 ) : (
                   <button
                     onClick={() => setEditMode(true)}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"
+                    className="px-4 py-2 text-white rounded-lg hover:opacity-90 flex items-center gap-2"
+                    style={{ backgroundColor: theme.colors.secondary }}
                   >
                     <FiEdit2 size={16} />
                     Edit Details
@@ -313,34 +321,34 @@ const CustomerDetailModal = ({ customer, onClose, onUpdate, onBan, onUnban, onRe
               </div>
 
               {/* Account Stats */}
-              <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+              <div className="grid grid-cols-3 gap-4 p-4 rounded-lg" style={{ backgroundColor: theme.colors.muted + '10' }}>
                 <div className="text-center">
                   <p className="text-2xl font-bold" style={{ color: theme.colors.primary }}>
                     {customer.totalOrders || 0}
                   </p>
-                  <p className="text-sm text-gray-500">Total Orders</p>
+                  <p className="text-sm" style={{ color: theme.colors.muted }}>Total Orders</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold" style={{ color: theme.colors.accent }}>
                     ₱{(customer.totalSpent || 0).toFixed(2)}
                   </p>
-                  <p className="text-sm text-gray-500">Total Spent</p>
+                  <p className="text-sm" style={{ color: theme.colors.muted }}>Total Spent</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-600">
+                  <p className="text-2xl font-bold" style={{ color: theme.colors.muted }}>
                     {formatDate(customer.lastLogin).split(',')[0]}
                   </p>
-                  <p className="text-sm text-gray-500">Last Login</p>
+                  <p className="text-sm" style={{ color: theme.colors.muted }}>Last Login</p>
                 </div>
               </div>
 
               {/* Account Dates */}
               <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="flex items-center gap-2 text-gray-600">
+                <div className="flex items-center gap-2" style={{ color: theme.colors.muted }}>
                   <FiClock size={14} />
                   <span>Created: {formatDate(customer.createdAt)}</span>
                 </div>
-                <div className="flex items-center gap-2 text-gray-600">
+                <div className="flex items-center gap-2" style={{ color: theme.colors.muted }}>
                   <FiClock size={14} />
                   <span>Last Login: {formatDate(customer.lastLogin)}</span>
                 </div>
@@ -360,16 +368,19 @@ const CustomerDetailModal = ({ customer, onClose, onUpdate, onBan, onUnban, onRe
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       className="flex-1 px-3 py-2 border rounded-lg"
+                      style={{ borderColor: theme.colors.muted + '40' }}
                     />
                     <button
                       onClick={handlePasswordReset}
-                      className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+                      className="px-4 py-2 text-white rounded-lg hover:opacity-90"
+                      style={{ backgroundColor: theme.colors.accent }}
                     >
                       Reset
                     </button>
                     <button
                       onClick={() => setShowPasswordReset(false)}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                      className="px-4 py-2 rounded-lg hover:opacity-80"
+                      style={{ backgroundColor: theme.colors.muted + '20', color: theme.colors.primary }}
                     >
                       Cancel
                     </button>
@@ -377,7 +388,8 @@ const CustomerDetailModal = ({ customer, onClose, onUpdate, onBan, onUnban, onRe
                 ) : (
                   <button
                     onClick={() => setShowPasswordReset(true)}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center gap-2"
+                    className="px-4 py-2 rounded-lg hover:opacity-80 flex items-center gap-2"
+                    style={{ backgroundColor: theme.colors.muted + '15', color: theme.colors.primary }}
                   >
                     <FiLock size={16} />
                     Reset Password
@@ -413,7 +425,8 @@ const CustomerDetailModal = ({ customer, onClose, onUpdate, onBan, onUnban, onRe
                       </button>
                       <button
                         onClick={() => setShowStatusModal('ban')}
-                        className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 flex items-center gap-2"
+                        className="px-4 py-2 rounded-lg hover:opacity-80 flex items-center gap-2"
+                        style={{ backgroundColor: theme.colors.secondary + '20', color: theme.colors.secondary }}
                       >
                         <FiAlertCircle size={16} />
                         Ban Account
@@ -431,7 +444,8 @@ const CustomerDetailModal = ({ customer, onClose, onUpdate, onBan, onUnban, onRe
                       </button>
                       <button
                         onClick={() => setShowStatusModal('ban')}
-                        className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 flex items-center gap-2"
+                        className="px-4 py-2 rounded-lg hover:opacity-80 flex items-center gap-2"
+                        style={{ backgroundColor: theme.colors.secondary + '20', color: theme.colors.secondary }}
                       >
                         <FiAlertCircle size={16} />
                         Ban Account
@@ -442,9 +456,9 @@ const CustomerDetailModal = ({ customer, onClose, onUpdate, onBan, onUnban, onRe
 
                 {/* Ban/Deactivate reason */}
                 {customer.banReason && (
-                  <div className="mt-3 p-3 bg-red-50 rounded-lg text-sm">
-                    <p className="font-medium text-red-700">Ban Reason:</p>
-                    <p className="text-red-600">{customer.banReason}</p>
+                  <div className="mt-3 p-3 rounded-lg text-sm" style={{ backgroundColor: theme.colors.secondary + '15' }}>
+                    <p className="font-medium" style={{ color: theme.colors.secondary }}>Ban Reason:</p>
+                    <p style={{ color: theme.colors.secondary + 'cc' }}>{customer.banReason}</p>
                   </div>
                 )}
               </div>
@@ -458,30 +472,33 @@ const CustomerDetailModal = ({ customer, onClose, onUpdate, onBan, onUnban, onRe
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: theme.colors.accent }}></div>
                 </div>
               ) : activityLogs.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8" style={{ color: theme.colors.muted }}>
                   <FiActivity size={48} className="mx-auto mb-3 opacity-50" />
                   <p>No activity logs found</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {activityLogs.map((log, index) => (
-                    <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs ${
-                        log.action.includes('banned') ? 'bg-red-500' :
-                        log.action.includes('deactivated') ? 'bg-yellow-500' :
-                        log.action.includes('activated') || log.action.includes('unbanned') ? 'bg-green-500' :
-                        log.action.includes('login') ? 'bg-blue-500' :
-                        'bg-gray-500'
-                      }`}>
+                    <div key={index} className="flex items-start gap-3 p-3 rounded-lg" style={{ backgroundColor: theme.colors.muted + '10' }}>
+                      <div 
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs"
+                        style={{ 
+                          backgroundColor: log.action.includes('banned') ? theme.colors.secondary :
+                            log.action.includes('deactivated') ? theme.colors.muted :
+                            log.action.includes('activated') || log.action.includes('unbanned') ? theme.colors.accent :
+                            log.action.includes('login') ? theme.colors.primary :
+                            theme.colors.muted
+                        }}
+                      >
                         {log.action.includes('login') ? <FiUserCheck size={14} /> :
                          log.action.includes('banned') ? <FiAlertCircle size={14} /> :
                          <FiActivity size={14} />}
                       </div>
                       <div className="flex-1">
-                        <p className="font-medium text-sm">{getActionLabel(log.action)}</p>
-                        <p className="text-xs text-gray-500">{formatDate(log.timestamp)}</p>
+                        <p className="font-medium text-sm" style={{ color: theme.colors.primary }}>{getActionLabel(log.action)}</p>
+                        <p className="text-xs" style={{ color: theme.colors.muted }}>{formatDate(log.timestamp)}</p>
                         {log.details && Object.keys(log.details).length > 0 && (
-                          <p className="text-xs text-gray-600 mt-1">
+                          <p className="text-xs mt-1" style={{ color: theme.colors.muted }}>
                             {log.details.performedByName && `By: ${log.details.performedByName}`}
                             {log.details.reason && ` - Reason: ${log.details.reason}`}
                           </p>
@@ -518,11 +535,12 @@ const CustomerDetailModal = ({ customer, onClose, onUpdate, onBan, onUnban, onRe
                 
                 {(showStatusModal === 'ban' || showStatusModal === 'deactivate') && (
                   <div className="mb-4">
-                    <label className="text-sm text-gray-600">Reason (optional)</label>
+                    <label className="text-sm" style={{ color: theme.colors.muted }}>Reason (optional)</label>
                     <textarea
                       value={statusReason}
                       onChange={(e) => setStatusReason(e.target.value)}
                       className="w-full px-3 py-2 border rounded-lg mt-1"
+                      style={{ borderColor: theme.colors.muted + '40' }}
                       rows={3}
                       placeholder="Enter reason for this action..."
                     />
@@ -532,7 +550,8 @@ const CustomerDetailModal = ({ customer, onClose, onUpdate, onBan, onUnban, onRe
                 <div className="flex gap-2 justify-end">
                   <button
                     onClick={() => setShowStatusModal(null)}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                    className="px-4 py-2 rounded-lg hover:opacity-80"
+                    style={{ backgroundColor: theme.colors.muted + '20', color: theme.colors.primary }}
                   >
                     Cancel
                   </button>
@@ -540,7 +559,7 @@ const CustomerDetailModal = ({ customer, onClose, onUpdate, onBan, onUnban, onRe
                     onClick={() => handleStatusChange(showStatusModal)}
                     className="px-4 py-2 text-white rounded-lg hover:opacity-80"
                     style={{ 
-                      backgroundColor: showStatusModal === 'ban' ? '#dc2626' : 
+                      backgroundColor: showStatusModal === 'ban' ? theme.colors.secondary : 
                                        showStatusModal === 'deactivate' ? theme.colors.muted : 
                                        theme.colors.accent 
                     }}
@@ -593,79 +612,84 @@ const CreateCustomerModal = ({ onClose, onCreate }) => {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
       >
-        <div className="px-6 py-4 border-b flex items-center justify-between">
+        <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: theme.colors.muted + '20' }}>
           <h2 className="text-lg font-bold" style={{ color: theme.colors.primary }}>Create New Customer</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} className="hover:opacity-80" style={{ color: theme.colors.muted }}>
             <FiX size={24} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+            <div className="p-3 rounded-lg text-sm" style={{ backgroundColor: theme.colors.secondary + '15', color: theme.colors.secondary }}>
               {error}
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-gray-700">First Name *</label>
+              <label className="text-sm font-medium" style={{ color: theme.colors.primary }}>First Name *</label>
               <input
                 type="text"
                 required
                 value={form.firstName}
                 onChange={(e) => setForm({ ...form, firstName: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg mt-1"
+                style={{ borderColor: theme.colors.muted + '40' }}
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Last Name *</label>
+              <label className="text-sm font-medium" style={{ color: theme.colors.primary }}>Last Name *</label>
               <input
                 type="text"
                 required
                 value={form.lastName}
                 onChange={(e) => setForm({ ...form, lastName: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg mt-1"
+                style={{ borderColor: theme.colors.muted + '40' }}
               />
             </div>
           </div>
 
           <div>
-            <label className="text-sm font-medium text-gray-700">Username *</label>
+            <label className="text-sm font-medium" style={{ color: theme.colors.primary }}>Username *</label>
             <input
               type="text"
               required
               value={form.username}
               onChange={(e) => setForm({ ...form, username: e.target.value.toLowerCase() })}
               className="w-full px-3 py-2 border rounded-lg mt-1"
+              style={{ borderColor: theme.colors.muted + '40' }}
               placeholder="lowercase, numbers, underscores only"
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium text-gray-700">Phone *</label>
+            <label className="text-sm font-medium" style={{ color: theme.colors.primary }}>Phone *</label>
             <input
               type="text"
               required
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
               className="w-full px-3 py-2 border rounded-lg mt-1"
+              style={{ borderColor: theme.colors.muted + '40' }}
               placeholder="09XXXXXXXXX"
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium text-gray-700">Email</label>
+            <label className="text-sm font-medium" style={{ color: theme.colors.primary }}>Email</label>
             <input
               type="email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               className="w-full px-3 py-2 border rounded-lg mt-1"
+              style={{ borderColor: theme.colors.muted + '40' }}
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium text-gray-700">Password *</label>
+            <label className="text-sm font-medium" style={{ color: theme.colors.primary }}>Password *</label>
             <input
               type="password"
               required
@@ -673,6 +697,7 @@ const CreateCustomerModal = ({ onClose, onCreate }) => {
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               className="w-full px-3 py-2 border rounded-lg mt-1"
+              style={{ borderColor: theme.colors.muted + '40' }}
               placeholder="Min 6 characters"
             />
           </div>
@@ -684,15 +709,17 @@ const CreateCustomerModal = ({ onClose, onCreate }) => {
               checked={form.isActive}
               onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
               className="rounded"
+              style={{ accentColor: theme.colors.accent }}
             />
-            <label htmlFor="isActive" className="text-sm text-gray-700">Account is active</label>
+            <label htmlFor="isActive" className="text-sm" style={{ color: theme.colors.primary }}>Account is active</label>
           </div>
 
           <div className="flex gap-2 pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              className="flex-1 px-4 py-2 rounded-lg hover:opacity-80"
+              style={{ backgroundColor: theme.colors.muted + '20', color: theme.colors.primary }}
             >
               Cancel
             </button>
@@ -911,13 +938,14 @@ const CustomerManagement = () => {
             <h1 className="text-2xl font-bold" style={{ color: theme.colors.primary }}>
               Customer Management
             </h1>
-            <p className="text-gray-500 text-sm">Manage customer accounts and permissions</p>
+            <p className="text-sm" style={{ color: theme.colors.muted }}>Manage customer accounts and permissions</p>
           </div>
           <div className="flex gap-2 mt-4 md:mt-0">
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center gap-2"
+              className="px-4 py-2 rounded-lg hover:opacity-80 flex items-center gap-2"
+              style={{ backgroundColor: theme.colors.muted + '15', color: theme.colors.primary }}
             >
               <FiRefreshCw className={refreshing ? 'animate-spin' : ''} size={16} />
               Refresh
@@ -943,7 +971,7 @@ const CustomerManagement = () => {
                 </div>
                 <div>
                   <p className="text-2xl font-bold" style={{ color: theme.colors.primary }}>{stats.totalCustomers}</p>
-                  <p className="text-xs text-gray-500">Total</p>
+                  <p className="text-xs" style={{ color: theme.colors.muted }}>Total</p>
                 </div>
               </div>
             </div>
@@ -954,7 +982,7 @@ const CustomerManagement = () => {
                 </div>
                 <div>
                   <p className="text-2xl font-bold" style={{ color: theme.colors.accent }}>{stats.activeCustomers}</p>
-                  <p className="text-xs text-gray-500">Active</p>
+                  <p className="text-xs" style={{ color: theme.colors.muted }}>Active</p>
                 </div>
               </div>
             </div>
@@ -965,18 +993,18 @@ const CustomerManagement = () => {
                 </div>
                 <div>
                   <p className="text-2xl font-bold" style={{ color: theme.colors.muted }}>{stats.inactiveCustomers}</p>
-                  <p className="text-xs text-gray-500">Inactive</p>
+                  <p className="text-xs" style={{ color: theme.colors.muted }}>Inactive</p>
                 </div>
               </div>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-red-100">
-                  <FiAlertCircle size={20} className="text-red-600" />
+                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: theme.colors.secondary + '15' }}>
+                  <FiAlertCircle size={20} style={{ color: theme.colors.secondary }} />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-red-600">{stats.bannedCustomers}</p>
-                  <p className="text-xs text-gray-500">Banned</p>
+                  <p className="text-2xl font-bold" style={{ color: theme.colors.secondary }}>{stats.bannedCustomers}</p>
+                  <p className="text-xs" style={{ color: theme.colors.muted }}>Banned</p>
                 </div>
               </div>
             </div>
@@ -987,7 +1015,7 @@ const CustomerManagement = () => {
                 </div>
                 <div>
                   <p className="text-2xl font-bold" style={{ color: theme.colors.accent }}>{stats.newThisMonth}</p>
-                  <p className="text-xs text-gray-500">This Month</p>
+                  <p className="text-xs" style={{ color: theme.colors.muted }}>This Month</p>
                 </div>
               </div>
             </div>
@@ -998,13 +1026,14 @@ const CustomerManagement = () => {
         <div className="bg-white rounded-xl shadow-sm mb-6">
           <div className="p-4 flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: theme.colors.muted }} size={20} />
               <input
                 type="text"
                 placeholder="Search by name, username, email, or phone..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border rounded-lg"
+                style={{ borderColor: theme.colors.muted + '40' }}
               />
             </div>
             <div className="flex gap-2">
@@ -1012,6 +1041,7 @@ const CustomerManagement = () => {
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="px-4 py-2 border rounded-lg bg-white"
+                style={{ borderColor: theme.colors.muted + '40', color: theme.colors.primary }}
               >
                 <option value="all">All Status</option>
                 <option value="active">Active</option>
@@ -1029,7 +1059,7 @@ const CustomerManagement = () => {
               <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: theme.colors.accent }}></div>
             </div>
           ) : customers.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12" style={{ color: theme.colors.muted }}>
               <FiUsers size={48} className="mx-auto mb-3 opacity-50" />
               <p>No customers found</p>
             </div>
@@ -1038,41 +1068,41 @@ const CustomerManagement = () => {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="bg-gray-50 text-left">
-                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Orders</th>
-                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
-                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <tr style={{ backgroundColor: theme.colors.muted + '10' }} className="text-left">
+                      <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider" style={{ color: theme.colors.muted }}>Customer</th>
+                      <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider" style={{ color: theme.colors.muted }}>Contact</th>
+                      <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider" style={{ color: theme.colors.muted }}>Orders</th>
+                      <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider" style={{ color: theme.colors.muted }}>Status</th>
+                      <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider" style={{ color: theme.colors.muted }}>Joined</th>
+                      <th className="px-6 py-3 text-xs font-medium uppercase tracking-wider" style={{ color: theme.colors.muted }}>Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y" style={{ borderColor: theme.colors.muted + '20' }}>
                     {customers.map((customer) => (
-                      <tr key={customer._id} className="hover:bg-gray-50">
+                      <tr key={customer._id} className="hover:opacity-90" style={{ backgroundColor: 'transparent' }}>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium" style={{ backgroundColor: theme.colors.primary }}>
                               {customer.firstName?.charAt(0)}{customer.lastName?.charAt(0)}
                             </div>
                             <div>
-                              <p className="font-medium">{customer.firstName} {customer.lastName}</p>
-                              <p className="text-sm text-gray-500">@{customer.username}</p>
+                              <p className="font-medium" style={{ color: theme.colors.primary }}>{customer.firstName} {customer.lastName}</p>
+                              <p className="text-sm" style={{ color: theme.colors.muted }}>@{customer.username}</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <p className="text-sm">{customer.phone}</p>
-                          <p className="text-sm text-gray-500">{customer.email || '-'}</p>
+                          <p className="text-sm" style={{ color: theme.colors.primary }}>{customer.phone}</p>
+                          <p className="text-sm" style={{ color: theme.colors.muted }}>{customer.email || '-'}</p>
                         </td>
                         <td className="px-6 py-4">
-                          <p className="font-medium">{customer.totalOrders || 0}</p>
-                          <p className="text-sm text-gray-500">₱{(customer.totalSpent || 0).toFixed(2)}</p>
+                          <p className="font-medium" style={{ color: theme.colors.primary }}>{customer.totalOrders || 0}</p>
+                          <p className="text-sm" style={{ color: theme.colors.muted }}>₱{(customer.totalSpent || 0).toFixed(2)}</p>
                         </td>
                         <td className="px-6 py-4">
                           <StatusBadge customer={customer} />
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
+                        <td className="px-6 py-4 text-sm" style={{ color: theme.colors.muted }}>
                           {new Date(customer.createdAt).toLocaleDateString('en-PH', {
                             month: 'short',
                             day: 'numeric',
@@ -1082,7 +1112,8 @@ const CustomerManagement = () => {
                         <td className="px-6 py-4">
                           <button
                             onClick={() => setSelectedCustomer(customer)}
-                            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+                            className="p-2 rounded-lg hover:opacity-80"
+                            style={{ color: theme.colors.muted, backgroundColor: 'transparent' }}
                           >
                             <FiEye size={18} />
                           </button>
@@ -1094,25 +1125,27 @@ const CustomerManagement = () => {
               </div>
 
               {/* Pagination */}
-              <div className="px-6 py-4 border-t flex items-center justify-between">
-                <p className="text-sm text-gray-500">
+              <div className="px-6 py-4 border-t flex items-center justify-between" style={{ borderColor: theme.colors.muted + '20' }}>
+                <p className="text-sm" style={{ color: theme.colors.muted }}>
                   Showing {((pagination.page - 1) * 20) + 1} to {Math.min(pagination.page * 20, pagination.total)} of {pagination.total} customers
                 </p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => fetchCustomers(pagination.page - 1)}
                     disabled={pagination.page <= 1}
-                    className="p-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    className="p-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-80"
+                    style={{ borderColor: theme.colors.muted + '40', color: theme.colors.primary }}
                   >
                     <FiChevronLeft size={20} />
                   </button>
-                  <span className="px-4 py-2 text-sm">
+                  <span className="px-4 py-2 text-sm" style={{ color: theme.colors.primary }}>
                     Page {pagination.page} of {pagination.pages}
                   </span>
                   <button
                     onClick={() => fetchCustomers(pagination.page + 1)}
                     disabled={pagination.page >= pagination.pages}
-                    className="p-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    className="p-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-80"
+                    style={{ borderColor: theme.colors.muted + '40', color: theme.colors.primary }}
                   >
                     <FiChevronRight size={20} />
                   </button>

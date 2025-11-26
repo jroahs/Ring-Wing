@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { FiUser, FiClock, FiSearch, FiCamera, FiCheck, FiX, FiArrowLeft } from 'react-icons/fi';
+import { FiUser, FiClock, FiSearch, FiCamera, FiCheck, FiX, FiArrowLeft, FiCreditCard } from 'react-icons/fi';
 import api from './services/apiService';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -26,6 +26,11 @@ const TimeClock = () => {
   // Layout state
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
+  // Attendance mode state
+  const [attendanceMode, setAttendanceMode] = useState('PIN'); // 'PIN' or 'NFC'
+  const [nfcTestMode, setNfcTestMode] = useState(true);
+  const [loadingSettings, setLoadingSettings] = useState(true);
+
   // Staff data
   const [staff, setStaff] = useState([]);
   const [selectedStaff, setSelectedStaff] = useState(null);
@@ -41,6 +46,32 @@ const TimeClock = () => {
   const [showCamera, setShowCamera] = useState(false);
   const [capturedImage, setCapturedImage] = useState(null);
   const webcamRef = useRef(null);
+
+  // NFC simulation state
+  const [nfcSimInput, setNfcSimInput] = useState('');
+  const [showNfcSimModal, setShowNfcSimModal] = useState(false);
+  const [nfcClockAction, setNfcClockAction] = useState(null);
+
+  // Fetch attendance settings on mount
+  useEffect(() => {
+    const fetchAttendanceSettings = async () => {
+      try {
+        const response = await api.get('/api/settings/attendance');
+        if (response.data?.success) {
+          setAttendanceMode(response.data.data.mode || 'PIN');
+          setNfcTestMode(response.data.data.nfcSettings?.testMode ?? true);
+        }
+      } catch (error) {
+        console.error('Error fetching attendance settings:', error);
+        // Default to PIN mode if settings fetch fails
+        setAttendanceMode('PIN');
+      } finally {
+        setLoadingSettings(false);
+      }
+    };
+    
+    fetchAttendanceSettings();
+  }, []);
   // Handle window resize for responsive layout
   useEffect(() => {
     const handleResize = () => {
@@ -260,6 +291,78 @@ const TimeClock = () => {
     }
   };
 
+  // NFC Functions
+  const handleNfcSimOpen = (action) => {
+    setNfcClockAction(action);
+    setNfcSimInput('');
+    setShowNfcSimModal(true);
+  };
+
+  const handleNfcSimClose = () => {
+    setShowNfcSimModal(false);
+    setNfcSimInput('');
+    setNfcClockAction(null);
+  };
+
+  const handleNfcClockAction = async () => {
+    if (!nfcSimInput || nfcSimInput.length < 4) {
+      toast.error('Please enter a valid NFC card ID (at least 4 characters)');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const endpoint = nfcClockAction === 'in' 
+        ? '/api/time-logs/nfc/clock-in' 
+        : '/api/time-logs/nfc/clock-out';
+      
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      };
+
+      const { data } = await api.post(endpoint, { 
+        nfcCardId: nfcSimInput.toUpperCase() 
+      }, config);
+      
+      if (!data.success) {
+        throw new Error(data.message || `Failed to clock ${nfcClockAction}`);
+      }
+
+      // Show success toast with staff name from response
+      toast.success(data.message || `Clock ${nfcClockAction} successful`, {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+
+      // Close modal and reset
+      handleNfcSimClose();
+      
+      // If a staff member was identified, update the selected staff and their log
+      if (data.data?.staffName) {
+        // Find the staff in our list
+        const foundStaff = staff.find(s => s.name === data.data.staffName);
+        if (foundStaff) {
+          setSelectedStaff(foundStaff);
+          fetchLastTimeLog(foundStaff._id);
+        }
+      }
+      
+      updateCurrentTime();
+    } catch (error) {
+      console.error('NFC clock error:', error);
+      toast.error(error.response?.data?.message || error.message || 'NFC clock action failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const formatDateTime = (dateString) => {
     if (!dateString) return 'N/A';
     
@@ -354,6 +457,152 @@ const TimeClock = () => {
             <FiClock className="inline mr-2" />
             Time Clock System
           </motion.h1>
+
+          {/* Attendance Mode Indicator */}
+          {!loadingSettings && (
+            <motion.div 
+              className="mb-6 flex flex-wrap items-center gap-4"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <div 
+                className="flex items-center gap-2 px-4 py-2 rounded-lg"
+                style={{ 
+                  backgroundColor: attendanceMode === 'NFC' ? colors.accent + '20' : colors.primary + '10',
+                  border: `1px solid ${attendanceMode === 'NFC' ? colors.accent : colors.muted}`
+                }}
+              >
+                {attendanceMode === 'NFC' ? (
+                  <FiCreditCard className="text-lg" style={{ color: colors.accent }} />
+                ) : (
+                  <FiUser className="text-lg" style={{ color: colors.primary }} />
+                )}
+                <span className="font-medium" style={{ color: colors.primary }}>
+                  {attendanceMode === 'NFC' ? 'NFC Card Mode' : 'PIN Mode'}
+                </span>
+              </div>
+
+              {/* NFC Simulation Buttons - Only show when NFC mode is active and test mode is enabled */}
+              {attendanceMode === 'NFC' && nfcTestMode && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm px-2 py-1 bg-amber-100 text-amber-800 rounded">
+                    Test Mode
+                  </span>
+                  <motion.button
+                    onClick={() => handleNfcSimOpen('in')}
+                    className="px-4 py-2 rounded-lg font-medium flex items-center gap-2"
+                    style={{ backgroundColor: colors.accent, color: colors.background }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    disabled={loading}
+                  >
+                    <FiCreditCard />
+                    Simulate NFC Tap – Time In
+                  </motion.button>
+                  <motion.button
+                    onClick={() => handleNfcSimOpen('out')}
+                    className="px-4 py-2 rounded-lg font-medium flex items-center gap-2"
+                    style={{ backgroundColor: colors.secondary, color: colors.background }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    disabled={loading}
+                  >
+                    <FiCreditCard />
+                    Simulate NFC Tap – Time Out
+                  </motion.button>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* NFC Simulation Modal */}
+          <AnimatePresence>
+            {showNfcSimModal && (
+              <motion.div
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={handleNfcSimClose}
+              >
+                <motion.div
+                  className="bg-white rounded-lg p-6 w-full max-w-md mx-4 shadow-xl"
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <div 
+                      className="p-3 rounded-full"
+                      style={{ backgroundColor: nfcClockAction === 'in' ? colors.accent + '20' : colors.secondary + '20' }}
+                    >
+                      <FiCreditCard 
+                        className="text-2xl" 
+                        style={{ color: nfcClockAction === 'in' ? colors.accent : colors.secondary }}
+                      />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold" style={{ color: colors.primary }}>
+                        Simulate NFC Card Tap
+                      </h3>
+                      <p className="text-sm" style={{ color: colors.muted }}>
+                        {nfcClockAction === 'in' ? 'Time In' : 'Time Out'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium mb-2" style={{ color: colors.primary }}>
+                      Enter NFC Card ID
+                    </label>
+                    <input
+                      type="text"
+                      value={nfcSimInput}
+                      onChange={(e) => setNfcSimInput(e.target.value.toUpperCase().replace(/[^A-F0-9]/g, ''))}
+                      placeholder="e.g., A1B2C3D4"
+                      className="w-full px-4 py-3 border rounded-lg text-center font-mono uppercase text-lg"
+                      style={{ borderColor: colors.muted }}
+                      maxLength={14}
+                      autoFocus
+                    />
+                    <p className="text-xs mt-2" style={{ color: colors.muted }}>
+                      Enter the NFC card ID registered to a staff member (4-14 hex characters)
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleNfcSimClose}
+                      className="flex-1 py-2 border rounded-lg font-medium"
+                      style={{ borderColor: colors.muted, color: colors.primary }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleNfcClockAction}
+                      disabled={loading || nfcSimInput.length < 4}
+                      className="flex-1 py-2 rounded-lg font-medium text-white flex items-center justify-center gap-2"
+                      style={{ 
+                        backgroundColor: nfcClockAction === 'in' ? colors.accent : colors.secondary,
+                        opacity: loading || nfcSimInput.length < 4 ? 0.5 : 1 
+                      }}
+                    >
+                      {loading ? (
+                        <span>Processing...</span>
+                      ) : (
+                        <>
+                          <FiCheck />
+                          Confirm {nfcClockAction === 'in' ? 'Clock In' : 'Clock Out'}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* When camera is active, hide grid and show camera in full width */}
           <AnimatePresence mode="wait">

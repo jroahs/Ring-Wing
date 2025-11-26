@@ -139,34 +139,34 @@ export const DashboardGridMinimal = ({
             <div className="p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <FiUserCheck className="w-4 h-4 text-green-500" />
-                  <span className="text-sm">Active</span>
+                  <FiUserCheck className="w-4 h-4" style={{ color: theme.colors.accent }} />
+                  <span className="text-sm" style={{ color: theme.colors.primary }}>Active</span>
                 </div>
-                <span className="text-sm font-bold" style={{ color: theme.colors.primary }}>
+                <span className="text-sm font-bold" style={{ color: theme.colors.accent }}>
                   {customerStats?.activeCustomers || 0}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <FiUserX className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm">Inactive</span>
+                  <FiUserX className="w-4 h-4" style={{ color: theme.colors.muted }} />
+                  <span className="text-sm" style={{ color: theme.colors.primary }}>Inactive</span>
                 </div>
-                <span className="text-sm font-medium text-gray-500">
+                <span className="text-sm font-medium" style={{ color: theme.colors.muted }}>
                   {customerStats?.inactiveCustomers || 0}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <FiAlertTriangle className="w-4 h-4 text-red-500" />
-                  <span className="text-sm">Banned</span>
+                  <FiAlertTriangle className="w-4 h-4" style={{ color: theme.colors.secondary }} />
+                  <span className="text-sm" style={{ color: theme.colors.primary }}>Banned</span>
                 </div>
-                <span className="text-sm font-medium text-red-500">
+                <span className="text-sm font-medium" style={{ color: theme.colors.secondary }}>
                   {customerStats?.bannedCustomers || 0}
                 </span>
               </div>
               <div className="pt-2 mt-2 border-t" style={{ borderColor: theme.colors.muted + '15' }}>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">Total Customers</span>
+                  <span className="text-xs" style={{ color: theme.colors.muted }}>Total Customers</span>
                   <span className="text-sm font-bold" style={{ color: theme.colors.accent }}>
                     {customerStats?.totalCustomers || 0}
                   </span>

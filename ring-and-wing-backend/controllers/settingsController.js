@@ -445,6 +445,99 @@ const updatePaymentGateways = async (req, res) => {
   }
 };
 
+// Get attendance settings
+const getAttendanceSettings = async (req, res) => {
+  try {
+    const settings = await Settings.getSettings();
+    
+    // Return attendance configuration
+    const attendanceData = {
+      mode: settings.attendance?.mode || 'PIN',
+      nfcSettings: settings.attendance?.nfcSettings || {
+        requirePhoto: false,
+        testMode: true
+      },
+      pinSettings: settings.attendance?.pinSettings || {
+        requirePhoto: true
+      }
+    };
+    
+    res.json({
+      success: true,
+      data: attendanceData
+    });
+  } catch (error) {
+    console.error('Error fetching attendance settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch attendance settings',
+      error: error.message
+    });
+  }
+};
+
+// Update attendance settings (admin only)
+const updateAttendanceSettings = async (req, res) => {
+  try {
+    const { mode, nfcSettings, pinSettings } = req.body;
+    
+    // Validate mode if provided
+    if (mode && !['PIN', 'NFC'].includes(mode)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Attendance mode must be either PIN or NFC'
+      });
+    }
+    
+    const settings = await Settings.getSettings();
+    
+    // Initialize attendance object if not exists
+    if (!settings.attendance) {
+      settings.attendance = {
+        mode: 'PIN',
+        nfcSettings: { requirePhoto: false, testMode: true },
+        pinSettings: { requirePhoto: true }
+      };
+    }
+    
+    // Update attendance settings
+    if (mode) {
+      settings.attendance.mode = mode;
+    }
+    
+    if (nfcSettings) {
+      settings.attendance.nfcSettings = {
+        ...settings.attendance.nfcSettings,
+        ...nfcSettings
+      };
+    }
+    
+    if (pinSettings) {
+      settings.attendance.pinSettings = {
+        ...settings.attendance.pinSettings,
+        ...pinSettings
+      };
+    }
+    
+    console.log('Updating attendance settings:', settings.attendance);
+    
+    await settings.save();
+    
+    res.json({
+      success: true,
+      message: 'Attendance settings updated successfully',
+      data: settings.attendance
+    });
+  } catch (error) {
+    console.error('Error updating attendance settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update attendance settings',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getSettings,
   getCashFloatSettings,
@@ -455,5 +548,7 @@ module.exports = {
   performDailyReset,
   getAuditTrail,
   getPaymentGateways,
-  updatePaymentGateways
+  updatePaymentGateways,
+  getAttendanceSettings,
+  updateAttendanceSettings
 };

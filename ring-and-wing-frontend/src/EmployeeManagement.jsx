@@ -67,6 +67,7 @@ const StaffManagement = () => {
     philHealthNumber: '',
     pagIbigNumber: '',
     pinCode: '0000', // Default PIN
+    nfcCardId: '', // NFC Card ID for contactless time tracking
     
     // User account details
     username: '',
@@ -125,6 +126,7 @@ const StaffManagement = () => {
             status: member.status || 'Active',
             password: '', // Password is never returned from server
             pinCode: member.pinCode ? String(member.pinCode) : '0000',
+            nfcCardId: member.nfcCardId || '', // NFC Card ID
             profilePicture: member.profilePicture || '',
             sssNumber: member.sssNumber || '',
             tinNumber: member.tinNumber || '',
@@ -429,6 +431,7 @@ const StaffManagement = () => {
       phone: staffMember.phone?.replace('+63', '0') || '',
       dailyRate: staffMember.dailyRate?.toString() || '',
       pinCode: pinCode,
+      nfcCardId: staffMember.nfcCardId || '', // NFC Card ID
       name: staffMember.name || '',
       position: staffMember.position || '',
       employmentType: staffMember.employmentType || 'Regular',
@@ -449,6 +452,8 @@ const StaffManagement = () => {
       
       // Make sure pinCode is a valid string
       const pinCode = formData.pinCode ? String(formData.pinCode) : '0000';
+      // Clean NFC card ID (uppercase, remove spaces)
+      const nfcCardId = formData.nfcCardId ? formData.nfcCardId.toUpperCase().replace(/\s/g, '') : '';
       
       const payload = {
         username: formData.username,
@@ -465,7 +470,8 @@ const StaffManagement = () => {
         tinNumber: formData.tinNumber || '',
         philHealthNumber: formData.philHealthNumber || '',
         pagIbigNumber: formData.pagIbigNumber || '',
-        pinCode // Explicitly include PIN code as string
+        pinCode, // Explicitly include PIN code as string
+        nfcCardId // NFC Card ID for contactless time tracking
       };
       
       console.log('Sending payload with PIN code:', payload.pinCode);
@@ -475,10 +481,11 @@ const StaffManagement = () => {
 
       console.log('Server response after update:', response.data);
       
-      // Make sure received data has the PIN code
+      // Make sure received data has the PIN code and NFC Card ID
       const updatedStaff = {
         ...response.data,
-        pinCode: response.data.pinCode || pinCode // Preserve PIN if not returned
+        pinCode: response.data.pinCode || pinCode, // Preserve PIN if not returned
+        nfcCardId: response.data.nfcCardId || nfcCardId // Preserve NFC Card ID if not returned
       };
       
       setStaff(staff.map((s) => (s._id === selectedStaff._id ? updatedStaff : s)));
@@ -807,6 +814,7 @@ const StaffManagement = () => {
       philHealthNumber: '',
       pagIbigNumber: '',
       pinCode: '0000', // Reset PIN to default
+      nfcCardId: '', // Reset NFC Card ID
       
       // User account details
       username: '',
@@ -1271,6 +1279,33 @@ const StaffManagement = () => {
                           />
                           {formErrors.pinCode && (
                             <div className="text-xs text-red-500 mt-1">{formErrors.pinCode}</div>
+                          )}
+                        </div>
+                        
+                        {/* NFC Card ID - For contactless time tracking */}
+                        <div className="w-full">
+                          <label className="block text-xs font-medium mb-1" style={{ color: colors.primary }}>
+                            NFC Card ID
+                          </label>
+                          <input 
+                            type="text" 
+                            name="nfcCardId" 
+                            placeholder="e.g., A1B2C3D4" 
+                            value={formData.nfcCardId}
+                            onChange={(e) => {
+                              // Only allow hexadecimal characters and convert to uppercase
+                              const value = e.target.value.toUpperCase().replace(/[^A-F0-9]/g, '');
+                              setFormData(prev => ({ ...prev, nfcCardId: value }));
+                            }} 
+                            className="p-2 rounded border w-full text-sm text-center font-mono uppercase"
+                            style={{ borderColor: formErrors.nfcCardId ? colors.accent : colors.muted }}
+                            maxLength={14}
+                          />
+                          <div className="text-xs mt-1" style={{ color: colors.muted }}>
+                            For NFC time clock mode
+                          </div>
+                          {formErrors.nfcCardId && (
+                            <div className="text-xs text-red-500 mt-1">{formErrors.nfcCardId}</div>
                           )}
                         </div>
                       </div>

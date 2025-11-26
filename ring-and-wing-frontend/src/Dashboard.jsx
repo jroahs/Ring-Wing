@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import DashboardMinimal from './components/DashboardMinimal';
-import PaymentSettings from './components/PaymentSettings';
+import SystemSettings from './components/SystemSettings';
 import PaymentVerificationDashboard from './components/PaymentVerificationDashboard';
 import { colors, theme } from './theme'; // Import centralized colors
 import { FiSettings } from 'react-icons/fi';
@@ -18,7 +18,8 @@ function Dashboard() {
   const getPageTitle = () => {
     if (activeTab === 'overview') return 'Dashboard Overview';
     if (activeTab === 'verification') return 'Payment Verification';
-    return 'Payment Settings';
+    if (activeTab === 'settings') return 'System Settings';
+    return 'Dashboard';
   };
 
   return (
@@ -132,7 +133,7 @@ function Dashboard() {
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3 }}
               >
-                <PaymentSettings />
+                <SystemSettings />
               </motion.div>
             )}
           </AnimatePresence>
