@@ -9,7 +9,8 @@ const AttendanceSettings = () => {
     mode: 'PIN',
     nfcSettings: {
       requirePhoto: false,
-      testMode: true
+      testMode: true,
+      tapAndGo: false // false = confirm modal, true = instant clock
     },
     pinSettings: {
       requirePhoto: true
@@ -311,6 +312,37 @@ const AttendanceSettings = () => {
                 </div>
                 <span className="ml-3 text-sm font-medium" style={{ color: theme.colors.primary }}>
                   {settings.nfcSettings.requirePhoto ? 'Yes' : 'No'}
+                </span>
+              </label>
+            </div>
+
+            {/* Tap and Go Toggle */}
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div>
+                <h3 className="font-semibold" style={{ color: theme.colors.primary }}>
+                  Tap and Go Mode
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  <span className="font-medium text-orange-600">Enabled:</span> Instant clock in/out when card is tapped (no confirmation needed)<br/>
+                  <span className="font-medium text-gray-600">Disabled:</span> Show confirmation modal after card tap (recommended)
+                </p>
+              </div>
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.nfcSettings.tapAndGo}
+                  onChange={(e) => handleNfcSettingChange('tapAndGo', e.target.checked)}
+                  className="sr-only"
+                />
+                <div className={`w-14 h-8 rounded-full transition-colors ${
+                  settings.nfcSettings.tapAndGo ? 'bg-orange-500' : 'bg-gray-300'
+                }`}>
+                  <div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform ${
+                    settings.nfcSettings.tapAndGo ? 'translate-x-7 translate-y-1' : 'translate-x-1 translate-y-1'
+                  }`}></div>
+                </div>
+                <span className="ml-3 text-sm font-medium" style={{ color: theme.colors.primary }}>
+                  {settings.nfcSettings.tapAndGo ? 'Instant' : 'Confirm'}
                 </span>
               </label>
             </div>

@@ -178,6 +178,10 @@ const settingsSchema = new mongoose.Schema({
       testMode: {
         type: Boolean,
         default: true // Enable test mode while hardware is not available
+      },
+      tapAndGo: {
+        type: Boolean,
+        default: false // false = tap and confirm (modal), true = tap and go (instant)
       }
     },
     pinSettings: {
