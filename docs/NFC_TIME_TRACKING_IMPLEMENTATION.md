@@ -100,14 +100,20 @@ New component for managing attendance settings:
 #### 4. Time Clock (`TimeClock.jsx`)
 - Fetches attendance settings on mount
 - Shows current mode indicator (PIN Mode / NFC Card Mode)
-- NFC Mode features:
-  - "Simulate NFC Tap – Time In" button
-  - "Simulate NFC Tap – Time Out" button
+- **NFC Test Mode features:**
+  - Dropdown to select from registered NFC cards
+  - Shows staff name + card ID for easy selection
+  - "Time In" and "Time Out" buttons
   - Test Mode indicator badge
-- Simulation modal:
-  - Input for NFC Card ID
-  - Validates hexadecimal format
-  - Calls NFC clock endpoints
+  - Staff selection grid visible (for reference)
+- **NFC Real Mode features:**
+  - Full-screen "Awaiting Card Tap" interface
+  - Animated NFC icon with pulse effect
+  - No staff selection or manual input (secure)
+  - Automatic clock in/out based on current status
+  - Last action display with staff info
+  - "NFC Reader Active" status indicator
+  - Continuous loop for multiple staff members
 
 ## Workflow Summary
 
@@ -118,11 +124,21 @@ New component for managing attendance settings:
 4. Take verification photo (if required)
 5. Confirm action
 
-### NFC Mode (New)
-1. Click "Simulate NFC Tap – Time In" or "Simulate NFC Tap – Time Out"
-2. Enter NFC Card ID (e.g., A1B2C3D4)
-3. System matches card ID to staff member
-4. Clock action is recorded immediately (no photo required by default)
+### NFC Test Mode (Simulation)
+1. Go to Time Clock page
+2. Ensure "Test Mode" is enabled in settings
+3. Select an NFC card from the dropdown
+4. Click "Time In" or "Time Out" button
+5. System matches card ID to staff member
+6. Clock action is recorded immediately
+
+### NFC Real Mode (Production)
+1. System displays "Awaiting Card Tap" screen
+2. Staff member taps NFC card on reader
+3. System automatically determines clock in/out based on current status
+4. Success confirmation displays with staff name and time
+5. System returns to awaiting state for next staff member
+6. **No manual selection allowed** - secure automatic workflow
 
 ## Testing Instructions
 
@@ -137,24 +153,29 @@ New component for managing attendance settings:
    - Go to Dashboard → Settings tab
    - Expand "Attendance Settings" section
    - Select "NFC Mode"
-   - Ensure "Test Mode" is enabled
+   - Enable or disable "Test Mode" as needed
    - Save settings
 
-### Testing NFC Time In/Out
+### Testing NFC Time In/Out (Test Mode)
 1. Go to Time Clock page
-2. You should see "NFC Card Mode" indicator
-3. You should see "Simulate NFC Tap" buttons
-4. Click "Simulate NFC Tap – Time In"
-5. Enter the registered NFC Card ID
-6. Click "Confirm Clock In"
-7. Success message should appear with staff name
+2. You should see "NFC Card Mode" indicator and "Test Mode" badge
+3. Select an NFC card from the dropdown (shows Staff Name - Card ID)
+4. Click "Time In" or "Time Out"
+5. Success message should appear with staff name
+
+### Testing NFC Time In/Out (Real Mode)
+1. Go to Dashboard → Settings → Attendance Settings
+2. Disable "Test Mode"
+3. Go to Time Clock page
+4. Full-screen "Awaiting Card Tap" interface should appear
+5. When NFC hardware is connected, tap card to trigger clock action
 
 ### Switching Back to PIN Mode
 1. Go to Dashboard → Settings tab
 2. Expand "Attendance Settings" section
 3. Select "PIN Mode"
 4. Save settings
-5. Time Clock will now use PIN workflow
+5. Time Clock will now use PIN workflow with staff selection
 
 ## API Reference
 
@@ -188,8 +209,8 @@ Response: { success: true, message: 'John Doe clocked out successfully (8.50 hou
 ```
 
 ## Future Enhancements (When Hardware Arrives)
-1. Replace simulation buttons with actual NFC reader integration
+1. Connect NFC reader hardware and trigger `handleNfcCardTap(cardId)` on card detection
 2. Add card registration workflow (tap card to register)
 3. Add card validation against hardware reader
-4. Implement real-time card tap detection
-5. Add audible/visual feedback for card taps
+4. Add audible/visual feedback for card taps (beep, screen flash)
+5. Consider adding kiosk mode for dedicated time clock terminal

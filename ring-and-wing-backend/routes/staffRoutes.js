@@ -40,7 +40,7 @@ router.get('/time-clock', async (req, res) => {
     const staff = await Staff.find({ 
       status: { $nin: ['Terminated', 'Resigned', 'Suspended', 'Inactive'] } 
     })
-      .select('_id name position profilePicture pinCode')
+      .select('_id name position profilePicture pinCode nfcCardId')
       .lean();
 
     console.log('Fetched active staff for time clock:', staff.length, 'records');
