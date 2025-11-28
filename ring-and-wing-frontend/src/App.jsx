@@ -332,19 +332,22 @@ const colors = {
   hoverBg: '#f1670f10'
 };
 
-// Notification wrapper to handle customer order notifications
-const NotificationWrapper = ({ children }) => {
+// Inner notification wrapper that uses Router context
+const NotificationWrapperInner = () => {
   const { notifications, markAsRead, removeNotification } = useOrderNotifications();
+  const navigate = useNavigate();
+  
+  const handleViewOrder = (orderId) => {
+    navigate(`/customer/orders/${orderId}`);
+  };
   
   return (
-    <>
-      {children}
-      <OrderNotificationContainer
-        notifications={notifications}
-        onClose={removeNotification}
-        onRead={markAsRead}
-      />
-    </>
+    <OrderNotificationContainer
+      notifications={notifications}
+      onClose={removeNotification}
+      onRead={markAsRead}
+      onView={handleViewOrder}
+    />
   );
 };
 
@@ -353,8 +356,8 @@ function App() {
     <LoadingProvider>
       <DataCoordinatorProvider>
         <CustomerAuthProvider>
-          <NotificationWrapper>
-            <Router>
+          <Router>
+            <NotificationWrapperInner />
             <Routes>
             <Route path="/" element={IS_SELF_CHECKOUT_ONLY ? <Navigate to="/self-checkout" replace /> : <Login />} />
             <Route path="/login" element={IS_SELF_CHECKOUT_ONLY ? <Navigate to="/self-checkout" replace /> : <Login />} />
@@ -482,7 +485,6 @@ function App() {
             <Route path="*" element={<Navigate to={IS_SELF_CHECKOUT_ONLY ? "/self-checkout" : "/login"} />} />
             </Routes>
           </Router>
-          </NotificationWrapper>
         </CustomerAuthProvider>
       </DataCoordinatorProvider>
     </LoadingProvider>

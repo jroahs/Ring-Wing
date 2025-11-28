@@ -2,7 +2,7 @@ import React from 'react';
 import OrderNotificationToast from './OrderNotificationToast';
 import './OrderNotificationContainer.css';
 
-const OrderNotificationContainer = ({ notifications, onClose, onRead }) => {
+const OrderNotificationContainer = ({ notifications, onClose, onRead, onView }) => {
   if (!notifications || notifications.length === 0) return null;
 
   // Show only the 3 most recent notifications
@@ -16,6 +16,7 @@ const OrderNotificationContainer = ({ notifications, onClose, onRead }) => {
           notification={notification}
           onClose={onClose}
           onRead={onRead}
+          onView={onView}
         />
       ))}
     </div>

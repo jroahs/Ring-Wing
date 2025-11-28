@@ -267,9 +267,31 @@ const SelfCheckoutContent = () => {
     }
   };
 
-  const processOrder = async () => {
+  const processOrder = async (orderTypeFromMobile = null) => {
     if (cartItems.length === 0) {
       alert('Please add items to your order');
+      return;
+    }
+
+    // If order type is passed from mobile layout, use it
+    if (orderTypeFromMobile) {
+      // Map dine_in to dine-in format if needed
+      const mappedType = orderTypeFromMobile === 'dine_in' ? 'dine_in' : orderTypeFromMobile;
+      setFulfillmentType(mappedType);
+      
+      // For dine-in, submit immediately
+      if (mappedType === 'dine_in') {
+        setShowPaymentFlow(true);
+        // Small delay to ensure state is set
+        setTimeout(async () => {
+          await saveOrderToDB();
+          clearCart();
+        }, 100);
+        return;
+      }
+      
+      // For takeout/delivery, show payment flow
+      setShowPaymentFlow(true);
       return;
     }
 

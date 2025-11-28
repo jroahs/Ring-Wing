@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import './OrderNotificationToast.css';
 
 const statusLabels = {
@@ -24,8 +23,7 @@ const statusIcons = {
   cancelled: '❌'
 };
 
-const OrderNotificationToast = ({ notification, onClose, onRead }) => {
-  const navigate = useNavigate();
+const OrderNotificationToast = ({ notification, onClose, onRead, onView }) => {
 
   // Auto-dismiss after 10 seconds
   useEffect(() => {
@@ -38,7 +36,9 @@ const OrderNotificationToast = ({ notification, onClose, onRead }) => {
 
   const handleView = () => {
     onRead(notification.id);
-    navigate(`/customer/orders/${notification.orderId}`);
+    if (onView) {
+      onView(notification.orderId);
+    }
     onClose(notification.id);
   };
 

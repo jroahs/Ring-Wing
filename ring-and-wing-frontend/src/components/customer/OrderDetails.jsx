@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useCustomerAuth } from '../../contexts/CustomerAuthContext';
 import { useCustomerOrders } from '../../hooks/useCustomerOrders';
 import { useCart } from '../../hooks/useCart';
+import { API_URL } from '../../App';
+import io from 'socket.io-client';
 import './OrderDetails.css';
 
 const OrderDetails = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
+  const { isAuthenticated, isLoading: authLoading, token } = useCustomerAuth();
   const { fetchOrderById, reorder, isLoading, error } = useCustomerOrders();
   const { addToCart } = useCart();
   const [order, setOrder] = useState(null);
@@ -21,21 +23,49 @@ const OrderDetails = () => {
     }
   }, [isAuthenticated, authLoading, navigate]);
 
-  // Fetch order details
-  useEffect(() => {
-    if (isAuthenticated && orderId) {
-      loadOrderDetails();
-    }
-  }, [isAuthenticated, orderId]);
-
-  const loadOrderDetails = async () => {
+  const loadOrderDetails = useCallback(async () => {
     const result = await fetchOrderById(orderId);
     if (result.success) {
       console.log('[OrderDetails] Order data:', result.order);
       console.log('[OrderDetails] Order totals:', result.order.totals);
       setOrder(result.order);
     }
-  };
+  }, [orderId, fetchOrderById]);
+
+  // Fetch order details
+  useEffect(() => {
+    if (isAuthenticated && orderId) {
+      loadOrderDetails();
+    }
+  }, [isAuthenticated, orderId, loadOrderDetails]);
+
+  // Subscribe to real-time order updates
+  useEffect(() => {
+    if (!isAuthenticated || !orderId || !token) return;
+
+    const socket = io(API_URL, {
+      auth: { token },
+      transports: ['websocket', 'polling']
+    });
+
+    socket.on('connect', () => {
+      console.log('[OrderDetails] Socket connected, subscribing to order:', orderId);
+      socket.emit('subscribeToOrder', orderId);
+    });
+
+    socket.on('orderStatusChanged', (data) => {
+      console.log('[OrderDetails] Order status changed:', data);
+      if (data.orderId === orderId) {
+        // Refresh order details when status changes
+        loadOrderDetails();
+      }
+    });
+
+    return () => {
+      socket.emit('unsubscribeFromOrder', orderId);
+      socket.disconnect();
+    };
+  }, [isAuthenticated, orderId, token, loadOrderDetails]);
 
   const getStatusColor = (status) => {
     const colors = {
@@ -151,7 +181,7 @@ const OrderDetails = () => {
         <div className="order-info-card">
           <div className="order-info-header">
             <div>
-              <h2>Order #{order.orderNumber}</h2>
+              <h2>Order #{order.receiptNumber || order.orderNumber || order._id?.slice(-6)}</h2>
               <p className="order-date">{formatDate(order.createdAt)}</p>
             </div>
             <span 

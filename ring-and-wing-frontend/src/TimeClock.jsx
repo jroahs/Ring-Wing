@@ -541,21 +541,31 @@ const TimeClock = () => {
       const lookupResponse = await api.get(`/api/time-logs/nfc/lookup/${cardId.toUpperCase()}`, config);
       
       if (lookupResponse.data?.success) {
-        // Get profile picture from local staff list since backend might not include it
-        const localStaff = staff.find(s => s.nfcCardId === cardId);
+        const responseData = lookupResponse.data.data;
+        // Backend returns staff data at root level (_id, name, position, profilePicture, isClockedIn)
+        // Get profile picture from local staff list as fallback
+        const localStaff = staff.find(s => s.nfcCardId === cardId.toUpperCase());
+        
         const statusData = {
-          ...lookupResponse.data.data,
           staff: {
-            ...lookupResponse.data.data.staff,
-            profilePicture: localStaff?.profilePicture || lookupResponse.data.data.staff?.profilePicture
-          }
+            _id: responseData._id,
+            name: responseData.name,
+            position: responseData.position,
+            profilePicture: localStaff?.profilePicture || responseData.profilePicture
+          },
+          isClockedIn: responseData.isClockedIn,
+          lastLog: responseData.lastLog
         };
         setNfcTestStaffStatus(statusData);
         setShowNfcTestModal(true);
       }
     } catch (error) {
       console.error('Error looking up NFC card:', error);
-      toast.error('Failed to look up NFC card status');
+      if (error.response?.status === 404) {
+        toast.error('NFC card not registered. Please register the card to a staff member first.');
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to look up NFC card status');
+      }
     }
   };
 
@@ -587,16 +597,32 @@ const TimeClock = () => {
         return;
       }
 
-      const { staff: staffMember, isClockedIn } = lookupResponse.data.data;
+      // Backend returns staff data at root level: { _id, name, position, profilePicture, isClockedIn, lastLog }
+      const responseData = lookupResponse.data.data;
+      const isClockedIn = responseData.isClockedIn;
+      
+      // Safety check - ensure we have the required data
+      if (!responseData._id || !responseData.name) {
+        toast.error('Invalid staff data received');
+        setLoading(false);
+        return;
+      }
 
-      // Get profile picture from local staff list
+      // Get profile picture from local staff list as fallback
       const localStaff = staff.find(s => s.nfcCardId === nfcCardId.toUpperCase());
+      
+      // Construct staff member object
+      const staffMember = {
+        _id: responseData._id,
+        name: responseData.name,
+        position: responseData.position,
+        profilePicture: localStaff?.profilePicture || responseData.profilePicture
+      };
+      
       const statusData = {
-        ...lookupResponse.data.data,
-        staff: {
-          ...lookupResponse.data.data.staff,
-          profilePicture: localStaff?.profilePicture || lookupResponse.data.data.staff?.profilePicture
-        }
+        staff: staffMember,
+        isClockedIn: isClockedIn,
+        lastLog: responseData.lastLog
       };
 
       // Check if Tap and Go mode is enabled
@@ -631,7 +657,7 @@ const TimeClock = () => {
           type: action,
           timestamp: new Date().toISOString(),
           totalHours: data.data?.totalHours,
-          profilePicture: localStaff?.profilePicture || staffMember.profilePicture
+          profilePicture: staffMember.profilePicture
         });
 
         // Select the staff member to show their details
@@ -650,7 +676,11 @@ const TimeClock = () => {
       }
     } catch (error) {
       console.error('NFC card tap error:', error);
-      toast.error(error.response?.data?.message || error.message || 'NFC card not recognized');
+      if (error.response?.status === 404) {
+        toast.error('NFC card not registered. Please register the card to a staff member first.');
+      } else {
+        toast.error(error.response?.data?.message || error.message || 'NFC card not recognized');
+      }
     } finally {
       setLoading(false);
     }
@@ -1672,7 +1702,7 @@ const TimeClock = () => {
                                           <span style={{ color: colors.muted }}>
                                             {lastLog.type === 'clockIn' ? 'Currently working' : 'Shift completed'}
                                           </span>
-                                          {lastLog.totalHours !== undefined && (
+                                          {lastLog.type === 'clockOut' && lastLog.totalHours !== undefined && lastLog.totalHours > 0 && (
                                             <span className="font-medium" style={{ color: colors.secondary }}>
                                               Duration: {typeof lastLog.totalHours === 'number' ? 
                                                 `${Math.floor(lastLog.totalHours)}h ${Math.round((lastLog.totalHours % 1) * 60)}m` : 
@@ -1752,7 +1782,7 @@ const TimeClock = () => {
                                   hour12: true
                                 })}
                               </p>
-                              {activity.totalHours !== undefined && activity.type === 'clockOut' && (
+                              {activity.totalHours !== undefined && activity.type === 'clockOut' && activity.totalHours > 0 && (
                                 <p className="text-xs font-medium mt-1" style={{ color: colors.secondary }}>
                                   Duration: {typeof activity.totalHours === 'number' ? 
                                     `${Math.floor(activity.totalHours)}h ${Math.round((activity.totalHours % 1) * 60)}m` : 
