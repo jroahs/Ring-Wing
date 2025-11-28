@@ -61,7 +61,7 @@ services:
   - type: web
     name: ring-wing-self-checkout
     runtime: static
-    buildCommand: cd ring-and-wing-frontend && npm ci --include=optional && npm run build
+    buildCommand: cd ring-and-wing-frontend && npm ci && npm run build
     staticPublishPath: ring-and-wing-frontend/dist
     
     # SPA Routing - Redirect all routes to index.html

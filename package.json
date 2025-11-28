@@ -45,9 +45,5 @@
     "nodemon": "^3.1.9",
     "postcss": "^8.4.29",
     "vite": "^6.2.3"
-  },
-  "optionalDependencies": {
-    "@tailwindcss/oxide-linux-x64-gnu": "^4.0.17",
-    "lightningcss-linux-x64-gnu": "^1.29.2"
   }
 }
