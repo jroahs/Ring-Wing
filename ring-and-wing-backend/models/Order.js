@@ -14,6 +14,17 @@ const orderSchema = new mongoose.Schema({
     availableSizes: [{ type: String }],
     pricing: { type: mongoose.Schema.Types.Mixed },
     modifiers: [{ type: String }],
+    // Variant/Flavor selection
+    variant: {
+      name: { type: String },
+      priceAdjustment: { type: Number, default: 0 }
+    },
+    // Add-ons selection
+    addOns: [{
+      _id: { type: String },
+      name: { type: String },
+      price: { type: Number, default: 0 }
+    }],
     pwdSeniorDiscount: {
       applied: { type: Boolean, default: false },
       discountedQuantity: { type: Number, default: 0 },

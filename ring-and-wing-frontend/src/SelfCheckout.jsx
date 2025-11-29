@@ -248,11 +248,31 @@ const SelfCheckoutContent = () => {
     }
   
     try {
+      // Safe JSON stringify that handles circular references
+      const safeStringify = (obj) => {
+        const seen = new WeakSet();
+        return JSON.stringify(obj, (key, value) => {
+          if (typeof value === 'object' && value !== null) {
+            if (seen.has(value)) {
+              return '[Circular]';
+            }
+            seen.add(value);
+          }
+          if (value instanceof Element || key.startsWith('__react')) {
+            return '[DOM/React Element]';
+          }
+          return value;
+        });
+      };
+      
+      // Clean orderData to remove any circular references
+      const cleanOrderData = JSON.parse(safeStringify(orderData));
+      
       // Step 1: Create the order
       const response = await fetch(`${API_URL}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderData)
+        body: JSON.stringify(cleanOrderData)
       });
       
       if (!response.ok) {
@@ -370,15 +390,30 @@ const SelfCheckoutContent = () => {
       // First create the order - sanitize cart items to avoid circular references
       const totals = calculateTotal();
       const sanitizedItems = cartItems.map(item => {
+        // Safely copy pricing - only include numeric values
+        const safePricing = {};
+        if (item.pricing && typeof item.pricing === 'object') {
+          Object.keys(item.pricing).forEach(key => {
+            if (key !== '_id' && typeof item.pricing[key] === 'number') {
+              safePricing[key] = item.pricing[key];
+            }
+          });
+        }
+        if (Object.keys(safePricing).length === 0) {
+          safePricing.base = Number(item.price) || 0;
+        }
+        
         // Extract only primitive/serializable data
         const sanitized = {
           name: String(item.name || ''),
           price: Number(item.price) || 0,
           quantity: Number(item.quantity) || 1,
           selectedSize: String(item.selectedSize || 'Regular'),
-          availableSizes: Array.isArray(item.availableSizes) ? [...item.availableSizes] : ['base'],
-          pricing: item.pricing ? { ...item.pricing } : { base: item.price },
-          modifiers: Array.isArray(item.modifiers) ? [...item.modifiers] : [],
+          availableSizes: Array.isArray(item.availableSizes) 
+            ? item.availableSizes.map(s => String(s)) 
+            : ['base'],
+          pricing: safePricing,
+          modifiers: [], // Don't include modifiers - they might have circular refs
           variant: null,
           addOns: [],
           pwdSeniorDiscount: {
@@ -419,6 +454,17 @@ const SelfCheckoutContent = () => {
         return sanitized;
       });
       
+      // Debug: Try to stringify each item to find problematic one
+      console.log('[PayMongo Debug] Sanitized items count:', sanitizedItems.length);
+      sanitizedItems.forEach((item, index) => {
+        try {
+          JSON.stringify(item);
+          console.log(`[PayMongo Debug] Item ${index} OK:`, item.name);
+        } catch (e) {
+          console.error(`[PayMongo Debug] Item ${index} has circular ref:`, item.name, e);
+        }
+      });
+      
       const orderData = {
         items: sanitizedItems,
         totals: {
@@ -453,17 +499,48 @@ const SelfCheckoutContent = () => {
         console.log('[PayMongo Checkout] Adding delivery address ID:', selectedAddressId);
       }
 
-      console.log('[PayMongo Checkout] Order data being sent:', JSON.stringify(orderData, null, 2));
+      // Safe JSON stringify that handles circular references
+      const safeStringify = (obj) => {
+        const seen = new WeakSet();
+        return JSON.stringify(obj, (key, value) => {
+          if (typeof value === 'object' && value !== null) {
+            if (seen.has(value)) {
+              return '[Circular]';
+            }
+            seen.add(value);
+          }
+          // Skip DOM elements and React fiber nodes
+          if (value instanceof Element || key.startsWith('__react')) {
+            return '[DOM/React Element]';
+          }
+          return value;
+        }, 2);
+      };
+
+      console.log('[PayMongo Checkout] Order data being sent:', safeStringify(orderData));
+
+      // Use JSON.parse(JSON.stringify) to deep clone and remove any non-serializable data
+      // This is the safest way to ensure no circular references exist
+      let cleanOrderData;
+      try {
+        cleanOrderData = JSON.parse(safeStringify(orderData));
+        console.log('[PayMongo Checkout] Clean order data:', cleanOrderData);
+      } catch (e) {
+        console.error('[PayMongo] Failed to clean orderData:', e);
+        throw new Error('Failed to prepare order data');
+      }
 
       // Create order first
       const orderResponse = await fetch(`${API_URL}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderData)
+        body: JSON.stringify(cleanOrderData)
       });
 
       if (!orderResponse.ok) {
-        throw new Error('Failed to create order');
+        const errorText = await orderResponse.text();
+        console.error('[PayMongo Checkout] Order creation failed:', orderResponse.status, errorText);
+        throw new Error(`Failed to create order: ${errorText}`);
       }
 
       const orderResult = await orderResponse.json();
