@@ -156,7 +156,10 @@ ChatMessage.propTypes = {
 const EmbeddedAssistant = ({ 
   menuItems = [], 
   currentOrder = [], 
-  onAddToCart = () => {}
+  onAddToCart = () => {},
+  onSubmitOrder = null,
+  isAuthenticated = false,
+  cartTotal = 0
 }) => {
   const [categories, setCategories] = useState([]);
   const [messages, setMessages] = useState([
@@ -265,24 +268,27 @@ const EmbeddedAssistant = ({
     }).join('\n');
 
     const currentOrderContext = currentOrder.length > 0 
-      ? `Current order: ${currentOrder.map(item => `${item.name} (${item.selectedSize}) x${item.quantity}`).join(', ')}`
+      ? `Current cart (${currentOrder.length} items, total ₱${cartTotal.toFixed(2)}): ${currentOrder.map(item => `${item.name} (${item.selectedSize}) x${item.quantity} = ₱${(item.price * item.quantity).toFixed(2)}`).join(', ')}`
       : 'No items in cart yet';
 
     const systemMessage = {
       role: "system",
-      content: `You are a helpful ordering assistant for Ring & Wings restaurant. Help customers with their orders.
+      content: `You are a helpful ordering assistant for Ring & Wings restaurant's self-checkout system. Help customers with their orders.
 
 MENU:
 ${menuContext}
 
-CUSTOMER'S ORDER:
+CUSTOMER'S CART:
 ${currentOrderContext}
 
 Guidelines:
 1. Be friendly and concise (1-2 sentences max)
 2. Suggest specific items with prices when asked
 3. Use ₱ for prices
-4. Don't use markdown formatting`
+4. Don't use markdown formatting
+5. If asked about the cart, provide helpful info about what's in it
+6. If the customer wants to order/submit/checkout, tell them to tap the "Submit Order" button below
+7. Suggest complementary items based on what's in their cart`
     };
 
     const payload = {
@@ -427,6 +433,36 @@ Guidelines:
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Cart Context & Submit Button */}
+      {currentOrder.length > 0 && (
+        <div className="px-3 py-2 border-t border-gray-100 bg-orange-50 flex-shrink-0">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+              <span className="text-sm font-medium text-orange-800">
+                {currentOrder.length} {currentOrder.length === 1 ? 'item' : 'items'} in cart
+              </span>
+            </div>
+            <span className="text-sm font-bold text-orange-600">₱{cartTotal.toFixed(2)}</span>
+          </div>
+          {onSubmitOrder && (
+            <button
+              onClick={onSubmitOrder}
+              disabled={!isAuthenticated}
+              className={`w-full py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                isAuthenticated
+                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 active:scale-[0.98]'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              {isAuthenticated ? 'Submit Order' : 'Login to Order'}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Input */}
       <div className="p-3 border-t border-gray-100 flex-shrink-0">
         <div className="flex gap-2 items-end">
@@ -460,7 +496,10 @@ Guidelines:
 EmbeddedAssistant.propTypes = {
   menuItems: PropTypes.array,
   currentOrder: PropTypes.array,
-  onAddToCart: PropTypes.func
+  onAddToCart: PropTypes.func,
+  onSubmitOrder: PropTypes.func,
+  isAuthenticated: PropTypes.bool,
+  cartTotal: PropTypes.number
 };
 
 export default EmbeddedAssistant;

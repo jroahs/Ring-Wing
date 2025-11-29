@@ -40,7 +40,6 @@ const DesktopLayout = ({
   const [selectedItemIndex, setSelectedItemIndex] = useState(0);
   const [keyboardMode, setKeyboardMode] = useState(false);
   const [cartCollapsed, setCartCollapsed] = useState(false);
-  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [sidebarView, setSidebarView] = useState('cart'); // 'cart' or 'assistant'
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   
@@ -61,8 +60,8 @@ const DesktopLayout = ({
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Ignore if user is typing in an input OR if assistant is open
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || isAssistantOpen) {
+      // Ignore if user is typing in an input, textarea, OR if assistant sidebar is open
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA' || sidebarView === 'assistant') {
         return;
       }
 
@@ -131,7 +130,7 @@ const DesktopLayout = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('mousemove', handleMouseMove);
     };
-  }, [activeCategory, menuItems, searchTerm, selectedItemIndex, cartCollapsed, categories, isAssistantOpen]);
+  }, [activeCategory, menuItems, searchTerm, selectedItemIndex, cartCollapsed, categories, sidebarView]);
 
   // Cart management functions
   const addToOrder = (item) => {
@@ -626,6 +625,9 @@ const DesktopLayout = ({
                 menuItems={menuItems}
                 currentOrder={cartItems}
                 onAddToCart={addToOrder}
+                onSubmitOrder={isAuthenticated ? onProcessOrder : () => setShowLoginPrompt(true)}
+                isAuthenticated={isAuthenticated}
+                cartTotal={calculateTotal().total}
               />
             )}
           </div>

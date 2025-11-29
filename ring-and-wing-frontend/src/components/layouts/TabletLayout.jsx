@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCartContext } from '../../contexts/CartContext';
 import { useMenuContext } from '../../contexts/MenuContext';
+import { useCustomerAuth } from '../../contexts/CustomerAuthContext';
 import { useAlternatives } from '../../hooks/useAlternatives';
 import { AlternativesModal } from '../ui/AlternativesModal';
 import AssistantPanel from '../ui/AssistantPanel';
@@ -27,6 +28,7 @@ const TabletLayout = ({
   // Get contexts
   const { cartItems, addItem, updateQuantity: updateCartQuantity, updateSize: updateCartSize, removeItem, getTotals, itemCount } = useCartContext();
   const { menuItems, categories, loading, error } = useMenuContext();
+  const { isAuthenticated } = useCustomerAuth();
 
   // Tablet-specific state
   const [activeCategory, setActiveCategory] = useState('');
@@ -430,6 +432,9 @@ const TabletLayout = ({
         onOrderSuggestion={(suggestion) => {
           console.log('AI Suggestion:', suggestion);
         }}
+        onSubmitOrder={isAuthenticated ? onProcessOrder : null}
+        isAuthenticated={isAuthenticated}
+        cartTotal={getTotals().total}
       />
     </div>
   );

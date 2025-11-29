@@ -840,6 +840,9 @@ const MobileLayout = ({
         onOrderSuggestion={(suggestion) => {
           console.log('AI Suggestion:', suggestion);
         }}
+        onSubmitOrder={isAuthenticated ? handleSubmitOrder : () => setShowLoginPrompt(true)}
+        isAuthenticated={isAuthenticated}
+        cartTotal={calculateTotal().total}
         bottomClass={cartItems.length > 0 ? 'bottom-36' : 'bottom-6'}
       />
     </div>

@@ -302,6 +302,9 @@ const AssistantPanel = ({
   onAddToCart = () => {},
   onOrderSuggestion = () => {},
   onOpenChange = () => {},
+  onSubmitOrder = null,
+  isAuthenticated = false,
+  cartTotal = 0,
   bottomClass = ''
 }) => {
   const { isMobile, isTablet, isDesktop } = useBreakpoint();
@@ -517,7 +520,7 @@ const AssistantPanel = ({
       : '';
 
     const currentOrderContext = currentOrder.length > 0 
-      ? `Current order: ${currentOrder.map(item => `${item.name} (${item.selectedSize}) x${item.quantity}`).join(', ')}`
+      ? `Current cart (${currentOrder.length} items, total ₱${cartTotal.toFixed(2)}): ${currentOrder.map(item => `${item.name} (${item.selectedSize}) x${item.quantity} = ₱${(item.price * item.quantity).toFixed(2)}`).join(', ')}`
       : 'No items in cart yet';
 
     const systemMessage = {
@@ -527,7 +530,7 @@ const AssistantPanel = ({
 CURRENT MENU:
 ${menuContext}${categoryContext}
 
-CUSTOMER'S CURRENT ORDER:
+CUSTOMER'S CART:
 ${currentOrderContext}
 
 Guidelines:
@@ -542,11 +545,15 @@ Guidelines:
 9. Don't use markdown formatting - plain text only
 10. If someone says they want to order something, provide specific menu options
 11. Be proactive in suggesting complementary items (drinks with meals, sides, etc.)
+12. If asked about the cart, provide helpful info about what's in it and the total
+13. If the customer wants to submit/checkout their order, tell them to tap the "Submit Order" button below
 
 Example responses:
 - User: "I want chicken wings" → "Great! We have Buffalo Wings (₱180) and Honey Garlic Wings (₱200). Which would you prefer?"
 - User: "Something to drink" → "Perfect! Try our Iced Tea (₱60) or Fresh Juice (₱80). What sounds good?"
-- User: "I'm hungry" → "I can help! Our Chicken Combo (₱250) is popular, or try our BBQ Plate (₱220). What are you in the mood for?"`
+- User: "I'm hungry" → "I can help! Our Chicken Combo (₱250) is popular, or try our BBQ Plate (₱220). What are you in the mood for?"
+- User: "What's in my cart?" → "You have [items] in your cart totaling ₱[total]. Ready to order or want to add more?"
+- User: "Submit my order" → "Tap the Submit Order button below to place your order!"`
     };
 
     const payload = {
@@ -871,6 +878,36 @@ Example responses:
                 <div ref={messagesEndRef} />
               </div>
 
+              {/* Cart Summary & Submit Button */}
+              {currentOrder.length > 0 && (
+                <div className="px-4 py-3 border-t border-gray-100 bg-orange-50">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                      </svg>
+                      <span className="text-sm font-medium text-orange-800">
+                        {currentOrder.length} {currentOrder.length === 1 ? 'item' : 'items'} in cart
+                      </span>
+                    </div>
+                    <span className="text-sm font-bold text-orange-600">₱{cartTotal.toFixed(2)}</span>
+                  </div>
+                  {onSubmitOrder && (
+                    <button
+                      onClick={onSubmitOrder}
+                      disabled={!isAuthenticated}
+                      className={`w-full py-3 rounded-xl text-sm font-bold transition-all duration-200 shadow-md ${
+                        isAuthenticated
+                          ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white active:scale-[0.98]'
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      {isAuthenticated ? '🛒 Submit Order' : '🔒 Login to Order'}
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Input */}
               <div className="p-4 border-t border-gray-100">
                 <div className="flex gap-3 items-end">
@@ -945,6 +982,36 @@ Example responses:
             ))}
             <div ref={messagesEndRef} />
           </div>
+
+          {/* Cart Summary & Submit Button */}
+          {currentOrder.length > 0 && (
+            <div className="px-4 py-3 border-t border-gray-100 bg-orange-50">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                  <span className="text-sm font-medium text-orange-800">
+                    {currentOrder.length} {currentOrder.length === 1 ? 'item' : 'items'} in cart
+                  </span>
+                </div>
+                <span className="text-sm font-bold text-orange-600">₱{cartTotal.toFixed(2)}</span>
+              </div>
+              {onSubmitOrder && (
+                <button
+                  onClick={onSubmitOrder}
+                  disabled={!isAuthenticated}
+                  className={`w-full py-3 rounded-xl text-sm font-bold transition-all duration-200 shadow-md ${
+                    isAuthenticated
+                      ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white active:scale-[0.98]'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  {isAuthenticated ? '🛒 Submit Order' : '🔒 Login to Order'}
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Input */}
           <div className="p-4 border-t border-gray-100">
@@ -1033,6 +1100,36 @@ Example responses:
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Cart Summary & Submit Button */}
+            {currentOrder.length > 0 && (
+              <div className="px-4 py-3 border-t border-gray-100 bg-orange-50">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                    <span className="text-sm font-medium text-orange-800">
+                      {currentOrder.length} {currentOrder.length === 1 ? 'item' : 'items'} in cart
+                    </span>
+                  </div>
+                  <span className="text-sm font-bold text-orange-600">₱{cartTotal.toFixed(2)}</span>
+                </div>
+                {onSubmitOrder && (
+                  <button
+                    onClick={onSubmitOrder}
+                    disabled={!isAuthenticated}
+                    className={`w-full py-3 rounded-xl text-sm font-bold transition-all duration-200 shadow-md ${
+                      isAuthenticated
+                        ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 active:scale-[0.98]'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {isAuthenticated ? '🛒 Submit Order' : '🔒 Login to Order'}
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Input */}
             <div className="p-4 border-t border-gray-100">
               <div className="flex gap-3 items-end">
@@ -1093,6 +1190,9 @@ AssistantPanel.propTypes = {
   onAddToCart: PropTypes.func,
   onOrderSuggestion: PropTypes.func,
   onOpenChange: PropTypes.func,
+  onSubmitOrder: PropTypes.func,
+  isAuthenticated: PropTypes.bool,
+  cartTotal: PropTypes.number,
   bottomClass: PropTypes.string
 };
 
