@@ -187,7 +187,14 @@ const SelfCheckoutContent = () => {
 
   const saveOrderToDB = async (overrideFulfillmentType = null) => {
     const calculatedTotals = calculateTotal();
-    const effectiveFulfillmentType = overrideFulfillmentType || fulfillmentType;
+    let effectiveFulfillmentType = overrideFulfillmentType || fulfillmentType;
+    
+    // Validate fulfillmentType is a proper string
+    const validFulfillmentTypes = ['dine_in', 'takeout', 'delivery'];
+    if (typeof effectiveFulfillmentType !== 'string' || !validFulfillmentTypes.includes(effectiveFulfillmentType)) {
+      console.warn('[saveOrderToDB] Invalid fulfillmentType:', effectiveFulfillmentType);
+      effectiveFulfillmentType = 'dine_in'; // Default fallback
+    }
     
     // Sanitize cart items to avoid circular references
     const sanitizedItems = cartItems.map(item => {
@@ -364,7 +371,12 @@ const SelfCheckoutContent = () => {
   };
 
   const handleFulfillmentTypeSelect = (type) => {
-    setFulfillmentType(type);
+    // Ensure we're setting a string, not an event object
+    if (typeof type === 'string' && ['dine_in', 'takeout', 'delivery'].includes(type)) {
+      setFulfillmentType(type);
+    } else {
+      console.warn('[SelfCheckout] Invalid type passed to handleFulfillmentTypeSelect:', type);
+    }
   };
 
   const handlePaymentMethodSelect = async (method) => {
@@ -380,9 +392,20 @@ const SelfCheckoutContent = () => {
     try {
       console.log('Initiating PayMongo checkout');
       console.log('[PayMongo Debug] Cart items:', cartItems.length);
+      console.log('[PayMongo Debug] fulfillmentType:', fulfillmentType, 'type:', typeof fulfillmentType);
+      
+      // Validate fulfillmentType is a proper string
+      const validFulfillmentTypes = ['dine_in', 'takeout', 'delivery'];
+      let safeFulfillmentType = fulfillmentType;
+      
+      // If fulfillmentType is not a valid string, default to 'takeout'
+      if (typeof fulfillmentType !== 'string' || !validFulfillmentTypes.includes(fulfillmentType)) {
+        console.warn('[PayMongo] Invalid fulfillmentType detected:', fulfillmentType);
+        safeFulfillmentType = 'takeout'; // Default fallback
+      }
       
       // Validate address for delivery orders
-      if (fulfillmentType === 'delivery' && !selectedAddressId) {
+      if (safeFulfillmentType === 'delivery' && !selectedAddressId) {
         alert('Please select a delivery address before proceeding to payment');
         return;
       }
@@ -477,7 +500,7 @@ const SelfCheckoutContent = () => {
         },
         customerName: '', // Optional for self-checkout
         orderType: 'self_checkout',
-        fulfillmentType,
+        fulfillmentType: safeFulfillmentType,
         paymentMethod: 'paymongo',
         status: 'pending_payment',
         paymentGateway: {
@@ -494,7 +517,7 @@ const SelfCheckoutContent = () => {
         console.log('[PayMongo Checkout] No customer authenticated - creating guest order');
       }
       
-      if (fulfillmentType === 'delivery' && selectedAddressId) {
+      if (safeFulfillmentType === 'delivery' && selectedAddressId) {
         orderData.deliveryAddressId = selectedAddressId;
         console.log('[PayMongo Checkout] Adding delivery address ID:', selectedAddressId);
       }

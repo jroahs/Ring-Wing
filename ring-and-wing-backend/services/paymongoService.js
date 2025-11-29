@@ -31,13 +31,26 @@ class PayMongoService {
       const response = await axios.post(`${this.baseURL}/checkout_sessions`, {
         data: {
           attributes: {
-            line_items: orderData.items.map(item => ({
-              name: item.name,
-              amount: Math.round(item.price * item.quantity * 100), // Convert to centavos
-              currency: 'PHP',
-              quantity: 1, // PayMongo handles quantity in amount calculation
-              description: `${item.quantity}x ${item.name}${item.selectedSize ? ` (${item.selectedSize})` : ''}`
-            })),
+            line_items: orderData.items.map(item => {
+              // Build a descriptive name including customizations
+              let itemName = item.name;
+              let itemDescription = `${item.quantity}x ${item.name}`;
+              
+              if (item.selectedSize) {
+                itemDescription += ` (${item.selectedSize})`;
+              }
+              if (item.description) {
+                itemDescription += ` - ${item.description}`;
+              }
+              
+              return {
+                name: itemName,
+                amount: Math.round(item.price * item.quantity * 100), // Convert to centavos (price already includes variant/addons)
+                currency: 'PHP',
+                quantity: 1, // PayMongo handles quantity in amount calculation
+                description: itemDescription
+              };
+            }),
             payment_method_types: ['gcash', 'paymaya'], // Support both GCash and PayMaya
             success_url: `${process.env.FRONTEND_URL}/self-checkout/success?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${process.env.FRONTEND_URL}/self-checkout/cancel`,

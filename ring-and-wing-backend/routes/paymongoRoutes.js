@@ -57,12 +57,39 @@ router.post('/create-checkout', async (req, res) => {
       orderType: order.orderType || 'self_checkout',
       fulfillmentType: order.fulfillmentType,
       total: parseFloat(order.totals.total),
-      items: order.items.map(item => ({
-        name: item.name,
-        price: parseFloat(item.price),
-        quantity: parseInt(item.quantity),
-        selectedSize: item.selectedSize
-      }))
+      items: order.items.map(item => {
+        // Calculate item price including variant and add-ons
+        let itemPrice = parseFloat(item.price) || 0;
+        
+        // Add variant price adjustment
+        if (item.variant?.priceAdjustment) {
+          itemPrice += parseFloat(item.variant.priceAdjustment);
+        }
+        
+        // Add add-ons prices
+        if (item.addOns?.length > 0) {
+          const addOnsTotal = item.addOns.reduce((sum, addon) => sum + (parseFloat(addon.price) || 0), 0);
+          itemPrice += addOnsTotal;
+        }
+        
+        // Build description with variant and add-ons
+        let description = item.selectedSize ? `Size: ${item.selectedSize}` : '';
+        if (item.variant?.name) {
+          description += (description ? ', ' : '') + `Flavor: ${item.variant.name}`;
+        }
+        if (item.addOns?.length > 0) {
+          const addOnNames = item.addOns.map(a => a.name).join(', ');
+          description += (description ? ', ' : '') + `Add-ons: ${addOnNames}`;
+        }
+        
+        return {
+          name: item.name,
+          price: itemPrice,
+          quantity: parseInt(item.quantity),
+          selectedSize: item.selectedSize,
+          description: description || undefined
+        };
+      })
     };
 
     logger.info('Creating PayMongo checkout session for order:', {
