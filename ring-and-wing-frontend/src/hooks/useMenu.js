@@ -49,6 +49,7 @@ const processCategories = (rawCategoriesData) => {
 export const useMenu = () => {
   const [menuItems, setMenuItems] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [addOns, setAddOns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -63,6 +64,22 @@ export const useMenu = () => {
     } catch (err) {
       console.warn('Menu fetch failed:', err);
       throw err;
+    }
+  }, []);
+
+  // Fetch add-ons
+  const fetchAddOns = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/add-ons`);
+      if (response.ok) {
+        const data = await response.json();
+        setAddOns(data);
+        return data;
+      }
+      return [];
+    } catch (err) {
+      console.warn('Add-ons fetch failed:', err);
+      return [];
     }
   }, []);
 
@@ -113,16 +130,28 @@ export const useMenu = () => {
     setLoading(true);
     
     try {
-      // Fetch menu items and categories in parallel (exact SelfCheckout logic)
-      const [menuResponse, categoriesResponse] = await Promise.all([
+      // Fetch menu items, categories, and add-ons in parallel
+      const [menuResponse, categoriesResponse, addOnsResponse] = await Promise.all([
         fetch(`${API_URL}/api/menu?limit=1000`),
-        fetch(`${API_URL}/api/categories`).catch(() => null) // Don't fail if categories API is unavailable
+        fetch(`${API_URL}/api/categories`).catch(() => null), // Don't fail if categories API is unavailable
+        fetch(`${API_URL}/api/add-ons`).catch(() => null) // Don't fail if add-ons API is unavailable
       ]);
       
       // Process menu items
       const menuData = await menuResponse.json();
       const processedItems = processMenuItems(menuData);
       setMenuItems(processedItems);
+
+      // Process add-ons
+      if (addOnsResponse && addOnsResponse.ok) {
+        try {
+          const addOnsData = await addOnsResponse.json();
+          setAddOns(addOnsData);
+        } catch (e) {
+          console.warn('Failed to parse add-ons:', e);
+          setAddOns([]);
+        }
+      }
 
       // Process categories (with fallback)
       let categoriesData = [];
@@ -204,6 +233,7 @@ export const useMenu = () => {
   return {
     menuItems,
     categories,
+    addOns,
     loading,
     error,
     refreshMenu,

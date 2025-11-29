@@ -1164,7 +1164,7 @@ const TimeClock = () => {
                             style={{ color: lastNfcAction.type === 'in' ? colors.accent : colors.secondary }}
                           >
                             Clocked {lastNfcAction.type === 'in' ? 'In' : 'Out'}
-                            {lastNfcAction.totalHours && ` (${lastNfcAction.totalHours.toFixed(2)} hrs)`}
+                            {lastNfcAction.totalHours > 0 && ` (${lastNfcAction.totalHours.toFixed(2)} hrs)`}
                           </p>
                         </div>
                         <motion.div

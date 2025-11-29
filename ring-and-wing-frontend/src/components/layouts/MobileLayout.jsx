@@ -6,6 +6,7 @@ import { useCustomerAuth } from '../../contexts/CustomerAuthContext';
 import { useAlternatives } from '../../hooks/useAlternatives';
 import { AlternativesModal } from '../ui/AlternativesModal';
 import AssistantPanel from '../ui/AssistantPanel';
+import ItemCustomizationModal from '../ItemCustomizationModal';
 import { FaStore, FaShoppingBag, FaTruck } from 'react-icons/fa';
 
 const colors = {
@@ -38,6 +39,7 @@ const MobileLayout = ({
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [showOrderTypeModal, setShowOrderTypeModal] = useState(false);
   const [selectedOrderType, setSelectedOrderType] = useState(null);
+  const [customizationItem, setCustomizationItem] = useState(null);
   
   // Ref for submit button visibility detection
   const submitButtonRef = useRef(null);
@@ -45,7 +47,7 @@ const MobileLayout = ({
   
   // Get contexts
   const { cartItems, addItem, updateQuantity: updateCartQuantity, updateSize: updateCartSize, removeItem, getTotals, itemCount } = useCartContext();
-  const { menuItems, categories, loading, error } = useMenuContext();
+  const { menuItems, categories, addOns, loading, error } = useMenuContext();
   const { isAuthenticated, isLoading: authLoading, customer, logout } = useCustomerAuth();
 
   // Alternatives modal functionality
@@ -75,6 +77,19 @@ const MobileLayout = ({
     return () => observer.disconnect();
   }, [cartItems.length]);
 
+  // Check if item needs customization
+  const needsCustomization = (item) => {
+    const sizes = Object.keys(item.pricing || {}).filter(key => key !== '_id');
+    const hasMultipleSizes = sizes.length > 1;
+    const hasVariants = (item.variants || []).length > 0;
+    const relevantAddOns = (addOns || []).filter(addon => 
+      addon.category === item.category || addon.category === 'All'
+    );
+    const hasAddOns = relevantAddOns.length > 0;
+    
+    return hasMultipleSizes || hasVariants || hasAddOns;
+  };
+
   // Cart management functions (preserve exact SelfCheckout behavior)
   const addToOrder = (item) => {
     const sizes = Object.keys(item.pricing);
@@ -82,10 +97,23 @@ const MobileLayout = ({
     addItem(item, { size: selectedSize });
   };
 
+  // Handle customization modal confirm
+  const handleCustomizationConfirm = (customizedItem) => {
+    addItem(customizedItem, { 
+      size: customizedItem.selectedSize,
+      variant: customizedItem.selectedVariant,
+      addOns: customizedItem.selectedAddOns,
+      quantity: customizedItem.quantity
+    });
+    setCustomizationItem(null);
+  };
+
   // Handle menu item click - check availability first
   const handleItemClick = (item) => {
     if (item.isAvailable === false) {
       showAlternatives(item);
+    } else if (needsCustomization(item)) {
+      setCustomizationItem(item);
     } else {
       addToOrder(item);
     }
@@ -831,6 +859,17 @@ const MobileLayout = ({
         }}
         loading={modalState.loading}
       />
+
+      {/* Item Customization Modal */}
+      {customizationItem && (
+        <ItemCustomizationModal
+          item={customizationItem}
+          addOns={addOns || []}
+          onClose={() => setCustomizationItem(null)}
+          onConfirm={handleCustomizationConfirm}
+          colors={colors}
+        />
+      )}
 
       {/* AI Assistant - Dynamic positioning based on submit button bar visibility */}
       <AssistantPanel

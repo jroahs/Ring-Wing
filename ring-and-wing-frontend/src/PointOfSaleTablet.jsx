@@ -7,7 +7,7 @@ import TimeClockInterface from './components/TimeClockInterface';
 import OrderProcessingModal from './components/OrderProcessingModal';
 import CashFloatModal from './components/CashFloatModal';
 import EndOfShiftModal from './components/EndOfShiftModal';
-import SizeSelectionModal from './components/SizeSelectionModal';
+import ItemCustomizationModal from './components/ItemCustomizationModal';
 import { useCashFloat } from './hooks/useCashFloat';
 import { FiClock, FiCoffee, FiPieChart, FiSearch } from 'react-icons/fi';
 import { PesoIconSimple } from './components/ui/PesoIconSimple';
@@ -21,6 +21,7 @@ let socketInitialized = false;
 const PointOfSaleTablet = () => {
   // === MENU & CATEGORIES ===
   const [menuItems, setMenuItems] = useState([]);
+  const [addOns, setAddOns] = useState([]); // Add-ons for customization
   const [categories, setCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -189,6 +190,7 @@ const PointOfSaleTablet = () => {
         fetchMenuItems(),
         fetchCategories(),
         fetchActiveOrders(),
+        fetchAddOns(),
       ]);
       
       // Initialize socket
@@ -339,6 +341,18 @@ const PointOfSaleTablet = () => {
     }
   };
 
+  const fetchAddOns = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/add-ons`);
+      if (response.ok) {
+        const data = await response.json();
+        setAddOns(data);
+      }
+    } catch (err) {
+      console.warn('[TabletPOS] Failed to fetch add-ons:', err);
+    }
+  };
+
   const fetchCategories = async () => {
     try {
       const response = await fetch(`${API_URL}/api/categories`);
@@ -471,6 +485,19 @@ const PointOfSaleTablet = () => {
   }, [orderViewType]);
 
   // === CART MANAGEMENT ===
+
+  // Check if item needs customization (has multiple sizes, variants, or relevant add-ons)
+  const needsCustomization = (item) => {
+    const sizes = Object.keys(item.pricing || {}).filter(key => key !== '_id');
+    const hasMultipleSizes = sizes.length > 1;
+    const hasVariants = (item.variants || []).length > 0;
+    const relevantAddOns = (addOns || []).filter(addon => 
+      addon.category === item.category || addon.category === 'All'
+    );
+    const hasAddOns = relevantAddOns.length > 0;
+    
+    return hasMultipleSizes || hasVariants || hasAddOns;
+  };
   
   const addToCart = (item) => {
     // Check if item is available
@@ -485,12 +512,9 @@ const PointOfSaleTablet = () => {
       return;
     }
 
-    // Check if item has multiple sizes
-    const sizes = Object.keys(item.pricing || {}).filter(key => key !== '_id');
-    const hasMultipleSizes = sizes.length > 1;
-    
-    if (hasMultipleSizes) {
-      // Show size selection modal
+    // Check if item needs customization
+    if (needsCustomization(item)) {
+      // Show customization modal
       setSelectedItemForSize(item);
       setShowSizeModal(true);
       return;
@@ -1877,15 +1901,16 @@ const PointOfSaleTablet = () => {
         />
       )}
 
-      {/* Size Selection Modal */}
+      {/* Item Customization Modal (Size, Variants, Add-ons) */}
       {showSizeModal && selectedItemForSize && (
-        <SizeSelectionModal
+        <ItemCustomizationModal
           item={selectedItemForSize}
+          addOns={addOns || []}
           onClose={() => {
             setShowSizeModal(false);
             setSelectedItemForSize(null);
           }}
-          onSelectSize={(orderItem) => {
+          onConfirm={(orderItem) => {
             addToCartWithSize(orderItem);
             setShowSizeModal(false);
             setSelectedItemForSize(null);

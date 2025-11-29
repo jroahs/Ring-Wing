@@ -6,6 +6,7 @@ import { useAlternatives } from '../../hooks/useAlternatives';
 import { AlternativesModal } from '../ui/AlternativesModal';
 import AssistantPanel from '../ui/AssistantPanel';
 import SelfCheckoutHeader from '../ui/SelfCheckoutHeader';
+import ItemCustomizationModal from '../ItemCustomizationModal';
 
 const colors = {
   primary: '#2e0304',
@@ -27,13 +28,14 @@ const TabletLayout = ({
 }) => {
   // Get contexts
   const { cartItems, addItem, updateQuantity: updateCartQuantity, updateSize: updateCartSize, removeItem, getTotals, itemCount } = useCartContext();
-  const { menuItems, categories, loading, error } = useMenuContext();
+  const { menuItems, categories, addOns, loading, error } = useMenuContext();
   const { isAuthenticated } = useCustomerAuth();
 
   // Tablet-specific state
   const [activeCategory, setActiveCategory] = useState('');
   const [activeSubCategory, setActiveSubCategory] = useState('All');
   const [expandedCategory, setExpandedCategory] = useState(null);
+  const [customizationItem, setCustomizationItem] = useState(null);
 
   // Alternatives modal functionality
   const { modalState, showAlternatives, hideAlternatives } = useAlternatives();
@@ -46,6 +48,19 @@ const TabletLayout = ({
     }
   }, [categories, activeCategory]);
 
+  // Check if item needs customization
+  const needsCustomization = (item) => {
+    const sizes = Object.keys(item.pricing || {}).filter(key => key !== '_id');
+    const hasMultipleSizes = sizes.length > 1;
+    const hasVariants = (item.variants || []).length > 0;
+    const relevantAddOns = (addOns || []).filter(addon => 
+      addon.category === item.category || addon.category === 'All'
+    );
+    const hasAddOns = relevantAddOns.length > 0;
+    
+    return hasMultipleSizes || hasVariants || hasAddOns;
+  };
+
   // Cart management functions
   const addToOrder = (item) => {
     const sizes = Object.keys(item.pricing);
@@ -53,9 +68,22 @@ const TabletLayout = ({
     addItem(item, { size: selectedSize });
   };
 
+  // Handle customization modal confirm
+  const handleCustomizationConfirm = (customizedItem) => {
+    addItem(customizedItem, { 
+      size: customizedItem.selectedSize,
+      variant: customizedItem.selectedVariant,
+      addOns: customizedItem.selectedAddOns,
+      quantity: customizedItem.quantity
+    });
+    setCustomizationItem(null);
+  };
+
   const handleItemClick = (item) => {
     if (item.isAvailable === false) {
       showAlternatives(item);
+    } else if (needsCustomization(item)) {
+      setCustomizationItem(item);
     } else {
       addToOrder(item);
     }
@@ -423,6 +451,17 @@ const TabletLayout = ({
         }}
         loading={modalState.loading}
       />
+
+      {/* Item Customization Modal */}
+      {customizationItem && (
+        <ItemCustomizationModal
+          item={customizationItem}
+          addOns={addOns || []}
+          onClose={() => setCustomizationItem(null)}
+          onConfirm={handleCustomizationConfirm}
+          colors={colors}
+        />
+      )}
 
       {/* AI Assistant */}
       <AssistantPanel

@@ -14,7 +14,7 @@ import { useCashFloat } from './hooks/useCashFloat';
 import { FiClock, FiPlus, FiSettings, FiCheckCircle, FiCoffee, FiPieChart, FiTrash2 } from 'react-icons/fi';
 import { PesoIconSimple } from './components/ui/PesoIconSimple';
 import EndOfShiftModal from './components/EndOfShiftModal';
-import SizeSelectionModal from './components/SizeSelectionModal';
+import ItemCustomizationModal from './components/ItemCustomizationModal';
 import io from 'socket.io-client';
 import { API_URL } from './App';
 import { useDataCoordinator } from './contexts/DataCoordinatorContext';
@@ -24,6 +24,7 @@ const PointOfSale = () => {
   const { menuItems: coordinatorMenuItems, categories: coordinatorCategories, ready: dataReady } = useDataCoordinator();
   
   const [menuItems, setMenuItems] = useState([]);
+  const [addOns, setAddOns] = useState([]); // Add-ons for customization
   const [currentOrder, setCurrentOrder] = useState([]); // Keep this for compatibility
   const [readyOrderCart, setReadyOrderCart] = useState([]);
   const [pendingOrderCart, setPendingOrderCart] = useState([]);
@@ -269,6 +270,22 @@ const PointOfSale = () => {
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Fetch add-ons for item customization
+  useEffect(() => {
+    const fetchAddOns = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/add-ons`);
+        if (response.ok) {
+          const data = await response.json();
+          setAddOns(data);
+        }
+      } catch (err) {
+        console.warn('[POS] Failed to fetch add-ons:', err);
+      }
+    };
+    fetchAddOns();
   }, []);
 
   // Load menu items from DataCoordinator
@@ -653,6 +670,19 @@ const PointOfSale = () => {
     return orderViewType === 'dineTakeout' || 
            (orderViewType === 'pending' && !isPendingOrderMode);
   };
+
+  // Check if item needs customization (has multiple sizes, variants, or relevant add-ons)
+  const needsCustomization = (item) => {
+    const sizes = Object.keys(item.pricing || {}).filter(key => key !== '_id');
+    const hasMultipleSizes = sizes.length > 1 || (sizes.length === 1 && sizes[0] !== 'base');
+    const hasVariants = (item.variants || []).length > 0;
+    const relevantAddOns = (addOns || []).filter(addon => 
+      addon.category === item.category || addon.category === 'All'
+    );
+    const hasAddOns = relevantAddOns.length > 0;
+    
+    return hasMultipleSizes || hasVariants || hasAddOns;
+  };
   
   const addToOrder = item => {
     // Check if item is available
@@ -661,18 +691,16 @@ const PointOfSale = () => {
       return;
     }
     
-    // Check if item has multiple sizes - if yes, show size selection modal
-    const sizes = Object.keys(item.pricing || {}).filter(key => key !== '_id');
-    const hasMultipleSizes = sizes.length > 1 || (sizes.length === 1 && sizes[0] !== 'base');
-    
-    if (hasMultipleSizes) {
-      // Show size selection modal
+    // Check if item needs customization (multiple sizes, variants, or add-ons)
+    if (needsCustomization(item)) {
+      // Show item customization modal
       setSelectedItemForSize(item);
       setShowSizeModal(true);
       return;
     }
     
-    // If only one price (base price), add directly to cart
+    // If only one price (base price) and no customization needed, add directly to cart
+    const sizes = Object.keys(item.pricing || {}).filter(key => key !== '_id');
     addToCartWithSize({
       ...item,
       selectedSize: 'base',
@@ -2836,15 +2864,16 @@ const PointOfSale = () => {
           </Modal>
         )}
 
-        {/* Size Selection Modal */}
+        {/* Item Customization Modal (Size, Variants, Add-ons) */}
         {showSizeModal && selectedItemForSize && (
-          <SizeSelectionModal
+          <ItemCustomizationModal
             item={selectedItemForSize}
+            addOns={addOns || []}
             onClose={() => {
               setShowSizeModal(false);
               setSelectedItemForSize(null);
             }}
-            onSelectSize={(orderItem) => {
+            onConfirm={(orderItem) => {
               addToCartWithSize(orderItem);
               setShowSizeModal(false);
               setSelectedItemForSize(null);
