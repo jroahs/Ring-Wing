@@ -78,6 +78,30 @@ export const OrderItem = ({
             ))}
           </select>
 
+          {/* Variant/Flavor Info */}
+          {item.variant && (
+            <div className="mt-1 text-xs px-2 py-1 rounded" style={{ backgroundColor: theme.colors.accent + '20', color: theme.colors.accent }}>
+              <span className="font-medium">Flavor:</span> {item.variant.name}
+              {item.variant.priceAdjustment > 0 && (
+                <span className="ml-1">(+₱{item.variant.priceAdjustment.toFixed(2)})</span>
+              )}
+            </div>
+          )}
+
+          {/* Add-ons Info */}
+          {item.addOns && item.addOns.length > 0 && (
+            <div className="mt-1 text-xs px-2 py-1 rounded" style={{ backgroundColor: theme.colors.primary + '10', color: theme.colors.primary }}>
+              <span className="font-medium">Add-ons:</span>
+              <ul className="ml-2">
+                {item.addOns.map((addon, idx) => (
+                  <li key={addon._id || idx}>
+                    • {addon.name} (+₱{(addon.price || 0).toFixed(2)})
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* PWD/Senior Discount Info */}
           {hasDiscount && (
             <div className="mt-1 text-xs bg-blue-50 px-2 py-1 rounded" style={{ color: theme.colors.primary }}>

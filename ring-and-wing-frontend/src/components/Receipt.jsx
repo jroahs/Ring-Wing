@@ -90,6 +90,21 @@ export const Receipt = React.forwardRef(({ order, totals, paymentMethod }, ref) 
                 <small style={{ color: theme.colors.secondary }}>
                   ₱{item.price.toFixed(2)}
                 </small>
+                {/* Variant/Flavor */}
+                {item.variant && (
+                  <div className="text-xs" style={{ color: theme.colors.accent }}>
+                    Flavor: {item.variant.name}
+                    {item.variant.priceAdjustment > 0 && ` (+₱${item.variant.priceAdjustment.toFixed(2)})`}
+                  </div>
+                )}
+                {/* Add-ons */}
+                {item.addOns && item.addOns.length > 0 && (
+                  <div className="text-xs" style={{ color: theme.colors.secondary }}>
+                    {item.addOns.map((addon, idx) => (
+                      <div key={addon._id || idx}>+ {addon.name} (+₱{(addon.price || 0).toFixed(2)})</div>
+                    ))}
+                  </div>
+                )}
               </td>
               <td 
                 className="py-1 md:py-2 text-center" 
@@ -101,7 +116,17 @@ export const Receipt = React.forwardRef(({ order, totals, paymentMethod }, ref) 
                 className="py-1 md:py-2 text-right" 
                 style={{ color: theme.colors.primary }}
               >
-                ₱{(item.quantity * item.price).toFixed(2)}
+                ₱{(() => {
+                  let itemTotal = item.price * item.quantity;
+                  if (item.variant?.priceAdjustment) {
+                    itemTotal += item.variant.priceAdjustment * item.quantity;
+                  }
+                  if (item.addOns?.length > 0) {
+                    const addOnsTotal = item.addOns.reduce((sum, addon) => sum + (addon.price || 0), 0);
+                    itemTotal += addOnsTotal * item.quantity;
+                  }
+                  return itemTotal.toFixed(2);
+                })()}
               </td>
             </tr>
           ))}

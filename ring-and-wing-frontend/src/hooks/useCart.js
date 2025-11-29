@@ -15,7 +15,20 @@ const CART_STORAGE_KEY = 'ringwing_cart_v1';
 
 // Pure function to calculate totals (easily testable)
 export const calculateCartTotals = (cartItems) => {
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const subtotal = cartItems.reduce((sum, item) => {
+    // Base price * quantity
+    let itemTotal = item.price * item.quantity;
+    // Add variant price adjustment if any
+    if (item.variant?.priceAdjustment) {
+      itemTotal += item.variant.priceAdjustment * item.quantity;
+    }
+    // Add add-ons prices
+    if (item.addOns?.length > 0) {
+      const addOnsTotal = item.addOns.reduce((sum, addon) => sum + (addon.price || 0), 0);
+      itemTotal += addOnsTotal * item.quantity;
+    }
+    return sum + itemTotal;
+  }, 0);
   const discount = 0; // Can be extended later
   return {
     subtotal,
@@ -33,18 +46,27 @@ export const getCartItemCount = (cartItems) => {
 const cartReducer = (state, action) => {
   switch (action.type) {
     case CART_ACTIONS.ADD_ITEM: {
-      const { item, selectedSize } = action.payload;
+      const { item, selectedSize, variant, addOns, quantity } = action.payload;
       
-      // Check if item with same size already exists
-      const existingIndex = state.findIndex(cartItem => 
-        cartItem._id === item._id && cartItem.selectedSize === selectedSize
-      );
+      // Create a unique key that includes variant and addOns for matching
+      const variantKey = variant ? JSON.stringify(variant) : '';
+      const addOnsKey = addOns?.length > 0 ? JSON.stringify(addOns.map(a => a._id).sort()) : '';
+      
+      // Check if item with same size, variant, and addOns already exists
+      const existingIndex = state.findIndex(cartItem => {
+        const cartVariantKey = cartItem.variant ? JSON.stringify(cartItem.variant) : '';
+        const cartAddOnsKey = cartItem.addOns?.length > 0 ? JSON.stringify(cartItem.addOns.map(a => a._id).sort()) : '';
+        return cartItem._id === item._id && 
+               cartItem.selectedSize === selectedSize &&
+               cartVariantKey === variantKey &&
+               cartAddOnsKey === addOnsKey;
+      });
       
       if (existingIndex >= 0) {
         // Increment quantity of existing item
         return state.map((cartItem, index) => 
           index === existingIndex 
-            ? { ...cartItem, quantity: cartItem.quantity + 1 }
+            ? { ...cartItem, quantity: cartItem.quantity + (quantity || 1) }
             : cartItem
         );
       } else {
@@ -55,7 +77,9 @@ const cartReducer = (state, action) => {
           selectedSize,
           availableSizes: Object.keys(item.pricing),
           pricing: item.pricing,
-          quantity: 1
+          variant: variant || null,
+          addOns: addOns || [],
+          quantity: quantity || 1
         };
         return [...state, cartItem];
       }
@@ -146,7 +170,13 @@ export const useCart = () => {
     
     dispatch({ 
       type: CART_ACTIONS.ADD_ITEM, 
-      payload: { item, selectedSize } 
+      payload: { 
+        item, 
+        selectedSize,
+        variant: options.variant || null,
+        addOns: options.addOns || [],
+        quantity: options.quantity || 1
+      } 
     });
   }, []);
   

@@ -89,6 +89,7 @@ const PointOfSale = () => {
   const [isPendingOrderMode, setIsPendingOrderMode] = useState(false);
   const [pendingOrderItems, setPendingOrderItems] = useState([]);
   const [takeoutOrders, setTakeoutOrders] = useState([]); // NEW: For payment verification orders
+  const [seenOrderIds, setSeenOrderIds] = useState(new Set()); // NEW: Track which orders have been seen
   const [processingPayMongoId, setProcessingPayMongoId] = useState(null); // Track which PayMongo order is processing
   const [socket, setSocket] = useState(null); // NEW: Socket.io connection
   const [selectedVerificationOrder, setSelectedVerificationOrder] = useState(null); // NEW: For verification modal
@@ -2086,7 +2087,11 @@ const PointOfSale = () => {
                 {/* Order View Toggle - three tabs now */}
                 <div className="flex justify-center mb-2 gap-2">
                   <button
-                    className={`px-4 py-1 rounded-lg font-semibold text-sm transition-colors ${orderViewType === 'ready' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}
+                    className={`px-4 py-1 rounded-lg font-semibold text-sm transition-colors relative`}
+                    style={{
+                      backgroundColor: orderViewType === 'ready' ? theme.colors.accentLight : '#f3f4f6',
+                      color: orderViewType === 'ready' ? theme.colors.accent : '#6b7280'
+                    }}
                     onClick={() => {
                       setOrderViewType('ready');
                       setIsPendingOrderMode(false);
@@ -2097,26 +2102,68 @@ const PointOfSale = () => {
                     Ready Orders
                   </button>
                   <button
-                    className={`px-4 py-1 rounded-lg font-semibold text-sm transition-colors ${orderViewType === 'pending' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}
+                    className={`px-4 py-1 rounded-lg font-semibold text-sm transition-colors relative`}
+                    style={{
+                      backgroundColor: orderViewType === 'pending' ? theme.colors.accentLight : '#f3f4f6',
+                      color: orderViewType === 'pending' ? theme.colors.accent : '#6b7280'
+                    }}
                     onClick={() => {
                       setOrderViewType('pending');
                       if (!isPendingOrderMode) {
                         setEditingPendingOrder(null);
                       }
+                      // Mark all pending orders as seen
+                      const pendingIds = activeOrders
+                        .filter(order => order.status === "pending" && order.paymentMethod === "pending")
+                        .map(order => order._id);
+                      setSeenOrderIds(prev => new Set([...prev, ...pendingIds]));
                     }}
                   >
                     Pending Orders
+                    {/* New order indicator */}
+                    {activeOrders.filter(order => 
+                      order.status === "pending" && 
+                      order.paymentMethod === "pending" && 
+                      !seenOrderIds.has(order._id)
+                    ).length > 0 && (
+                      <span 
+                        className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-white text-xs flex items-center justify-center animate-pulse"
+                        style={{ backgroundColor: theme.colors.accent }}
+                      >
+                        {activeOrders.filter(order => 
+                          order.status === "pending" && 
+                          order.paymentMethod === "pending" && 
+                          !seenOrderIds.has(order._id)
+                        ).length}
+                      </span>
+                    )}
                   </button>
                   <button
-                    className={`px-4 py-1 rounded-lg font-semibold text-sm transition-colors ${orderViewType === 'dineTakeout' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}
+                    className={`px-4 py-1 rounded-lg font-semibold text-sm transition-colors relative`}
+                    style={{
+                      backgroundColor: orderViewType === 'dineTakeout' ? theme.colors.accentLight : '#f3f4f6',
+                      color: orderViewType === 'dineTakeout' ? theme.colors.accent : '#6b7280'
+                    }}
                     onClick={() => {
                       setOrderViewType('dineTakeout');
                       setIsPendingOrderMode(false);
                       setEditingPendingOrder(null);
                       setPendingOrderItems([]);
+                      // Mark all takeout orders as seen
+                      const takeoutIds = takeoutOrders.map(order => order._id);
+                      setSeenOrderIds(prev => new Set([...prev, ...takeoutIds]));
                     }}
                   >
                     Dine/Take-outs
+                    {/* New order indicator */}
+                    {takeoutOrders.filter(order => !seenOrderIds.has(order._id)).length > 0 && (
+                      <span 
+                        className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-white text-xs flex items-center justify-center animate-pulse"
+                        style={{ backgroundColor: theme.colors.accent }}
+                      >
+                        {takeoutOrders.filter(order => !seenOrderIds.has(order._id)).length}
+                      </span>
+                    )}
                   </button>
                 </div>
 
@@ -2194,11 +2241,26 @@ const PointOfSale = () => {
                               ) : (
                                 activeOrders
                                   .filter(order => order.status === "pending" && order.paymentMethod === "pending")
-                                  .map(order => (
+                                  .map(order => {
+                                    const isNewOrder = !seenOrderIds.has(order._id);
+                                    return (
                                     <div
                                       key={order._id}
                                       className="p-3 rounded-lg hover:bg-gray-50 relative group"
+                                      style={{ 
+                                        backgroundColor: isNewOrder ? theme.colors.accentLight : undefined,
+                                        border: isNewOrder ? `2px solid ${theme.colors.accent}` : undefined
+                                      }}
                                     >
+                                      {/* New order indicator */}
+                                      {isNewOrder && (
+                                        <div 
+                                          className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-white text-xs font-bold animate-pulse"
+                                          style={{ backgroundColor: theme.colors.accent }}
+                                        >
+                                          NEW
+                                        </div>
+                                      )}
                                       <div className="flex items-start gap-2">
                                         {/* Delete Button - Left side */}
                                         <button
@@ -2215,6 +2277,8 @@ const PointOfSale = () => {
                                         <div 
                                           className="flex-1 cursor-pointer"
                                           onClick={() => {
+                                            // Mark as seen when clicked
+                                            setSeenOrderIds(prev => new Set([...prev, order._id]));
                                             setEditingPendingOrder(order);
                                             setIsPendingOrderMode(true);
                                             setPendingOrderItems(order.items.map(item => ({
@@ -2255,7 +2319,7 @@ const PointOfSale = () => {
                                         </div>
                                       </div>
                                     </div>
-                                ))
+                                  );})
                               )}
                             </div>
                           </div>
@@ -2311,17 +2375,31 @@ const PointOfSale = () => {
                           
                           // Detect PayMongo orders
                           const isPayMongoOrder = order.paymentMethod === 'paymongo' || order.status === 'paymongo_verified';
+                          const isNewOrder = !seenOrderIds.has(order._id);
                           
                           return (
                             <div 
                               key={order._id}
-                              className={`p-3 rounded-lg border transition-shadow ${
-                                isPayMongoOrder ? 'bg-green-50 border-green-200' :
+                              className={`p-3 rounded-lg border transition-shadow relative ${
                                 isExpired ? 'bg-red-50 border-red-300' : 
                                 isExpiringSoon ? 'bg-yellow-50 border-yellow-300' : 
-                                'bg-white border-gray-200'
+                                'border-gray-200'
                               }`}
+                              style={{
+                                backgroundColor: isPayMongoOrder && !isExpired && !isExpiringSoon 
+                                  ? theme.colors.accentLight 
+                                  : undefined
+                              }}
                             >
+                              {/* New order indicator */}
+                              {isNewOrder && (
+                                <div 
+                                  className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-white text-xs font-bold animate-pulse"
+                                  style={{ backgroundColor: theme.colors.accent }}
+                                >
+                                  NEW
+                                </div>
+                              )}
                               {/* Order Header */}
                               <div className="flex justify-between items-center mb-2">
                                 <div className="flex-1">
@@ -2337,7 +2415,7 @@ const PointOfSale = () => {
                                     ₱{order.totals?.total}
                                   </div>
                                   {isPayMongoOrder ? (
-                                    <div className="text-xs text-green-600 mt-1 font-semibold">
+                                    <div className="text-xs mt-1 font-semibold" style={{ color: theme.colors.accent }}>
                                       ✓ Payment Verified by PayMongo
                                     </div>
                                   ) : (
@@ -2357,7 +2435,10 @@ const PointOfSale = () => {
                                 </div>
                                 <div className="text-right">
                                   {isPayMongoOrder ? (
-                                    <span className="text-xs px-3 py-1 rounded-full font-semibold bg-green-100 text-green-700">
+                                    <span 
+                                      className="text-xs px-3 py-1 rounded-full font-semibold text-white"
+                                      style={{ backgroundColor: theme.colors.accent }}
+                                    >
                                       PAID
                                     </span>
                                   ) : (
@@ -2397,7 +2478,7 @@ const PointOfSale = () => {
                                   {/* Loading overlay */}
                                   {processingPayMongoId === order._id && (
                                     <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-lg flex items-center justify-center z-20">
-                                      <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-300 border-t-[#f1670f]"></div>
+                                      <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-300" style={{ borderTopColor: theme.colors.accent }}></div>
                                     </div>
                                   )}
                                   
@@ -2417,7 +2498,7 @@ const PointOfSale = () => {
                                         : 'text-white hover:shadow-lg'
                                     }`}
                                     style={{
-                                      backgroundColor: processingPayMongoId === order._id ? undefined : (theme.colors.success || '#10b981')
+                                      backgroundColor: processingPayMongoId === order._id ? undefined : theme.colors.accent
                                     }}
                                   >
                                     Generate Receipt & Process

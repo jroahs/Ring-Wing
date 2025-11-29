@@ -587,6 +587,27 @@ const DesktopLayout = ({
                                   </option>
                                 ))}
                               </select>
+                              {/* Variant/Flavor indicator */}
+                              {item.variant && (
+                                <div className="mt-1 text-xs px-2 py-0.5 rounded bg-purple-50 text-purple-600">
+                                  <span className="font-medium">Flavor:</span> {item.variant.name}
+                                  {item.variant.priceAdjustment > 0 && (
+                                    <span className="ml-1">(+₱{item.variant.priceAdjustment.toFixed(2)})</span>
+                                  )}
+                                </div>
+                              )}
+                              {/* Add-ons indicator */}
+                              {item.addOns && item.addOns.length > 0 && (
+                                <div className="mt-1 text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-600">
+                                  <span className="font-medium">Add-ons:</span>
+                                  {item.addOns.map((addon, idx) => (
+                                    <span key={addon._id || idx} className="ml-1">
+                                      {addon.name} (+₱{(addon.price || 0).toFixed(2)})
+                                      {idx < item.addOns.length - 1 && ','}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                               <div className="flex items-center justify-between mt-2">
                                 <div className="flex items-center gap-1">
                                   <button 
@@ -604,7 +625,17 @@ const DesktopLayout = ({
                                   </button>
                                 </div>
                                 <p className="font-bold text-orange-600 text-sm">
-                                  ₱{(item.price * item.quantity).toFixed(2)}
+                                  ₱{(() => {
+                                    let itemTotal = item.price * item.quantity;
+                                    if (item.variant?.priceAdjustment) {
+                                      itemTotal += item.variant.priceAdjustment * item.quantity;
+                                    }
+                                    if (item.addOns?.length > 0) {
+                                      const addOnsTotal = item.addOns.reduce((sum, addon) => sum + (addon.price || 0), 0);
+                                      itemTotal += addOnsTotal * item.quantity;
+                                    }
+                                    return itemTotal.toFixed(2);
+                                  })()}
                                 </p>
                               </div>
                             </div>
