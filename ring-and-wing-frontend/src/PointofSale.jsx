@@ -2235,7 +2235,7 @@ const PointOfSale = () => {
                             >
                               Pending Orders ({activeOrders.filter(order => order.status === "pending" && order.paymentMethod === "pending").length})
                             </h3>
-                            <div className="space-y-3">
+                            <div className="space-y-3 overflow-visible">
                               {activeOrders.filter(order => order.status === "pending" && order.paymentMethod === "pending").length === 0 ? (
                                 <div className="text-center text-gray-400 py-8">No pending orders.</div>
                               ) : (
@@ -2246,7 +2246,7 @@ const PointOfSale = () => {
                                     return (
                                     <div
                                       key={order._id}
-                                      className="p-3 rounded-lg hover:bg-gray-50 relative group"
+                                      className="p-3 rounded-lg hover:bg-gray-50 relative group overflow-visible"
                                       style={{ 
                                         backgroundColor: isNewOrder ? theme.colors.accentLight : undefined,
                                         border: isNewOrder ? `2px solid ${theme.colors.accent}` : undefined
@@ -2255,7 +2255,7 @@ const PointOfSale = () => {
                                       {/* New order indicator */}
                                       {isNewOrder && (
                                         <div 
-                                          className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-white text-xs font-bold animate-pulse"
+                                          className="absolute top-1 right-1 px-2 py-0.5 rounded-full text-white text-xs font-bold animate-pulse z-10"
                                           style={{ backgroundColor: theme.colors.accent }}
                                         >
                                           NEW
@@ -2365,7 +2365,7 @@ const PointOfSale = () => {
                     <h3 className="text-lg font-semibold mb-3" style={{ color: theme.colors.primary }}>
                       Awaiting Payment Verification ({takeoutOrders.length})
                     </h3>
-                    <div className="space-y-3 max-h-[70vh] overflow-y-auto">
+                    <div className="space-y-3 max-h-[70vh] overflow-y-auto pt-3">
                       {takeoutOrders.length > 0 ? (
                         takeoutOrders.map(order => {
                           const isExpiringSoon = order.proofOfPayment?.expiresAt && 
@@ -2394,7 +2394,7 @@ const PointOfSale = () => {
                               {/* New order indicator */}
                               {isNewOrder && (
                                 <div 
-                                  className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-white text-xs font-bold animate-pulse"
+                                  className="absolute top-1 right-1 px-2 py-0.5 rounded-full text-white text-xs font-bold animate-pulse z-10"
                                   style={{ backgroundColor: theme.colors.accent }}
                                 >
                                   NEW

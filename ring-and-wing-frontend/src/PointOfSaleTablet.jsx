@@ -1680,7 +1680,7 @@ const PointOfSaleTablet = () => {
                       <p>No pending orders</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-3 overflow-visible">
                       {activeOrders
                         .filter(o => o.status === 'pending')
                         .map(order => {
@@ -1688,7 +1688,7 @@ const PointOfSaleTablet = () => {
                           return (
                           <div 
                             key={order._id} 
-                            className="p-4 rounded-lg border-2 transition-colors relative"
+                            className="p-4 rounded-lg border-2 transition-colors relative overflow-visible"
                             style={{
                               backgroundColor: isNewOrder ? theme.colors.accentLight : '#f9fafb',
                               borderColor: isNewOrder ? theme.colors.accent : '#e5e7eb'
@@ -1697,7 +1697,7 @@ const PointOfSaleTablet = () => {
                             {/* New order indicator */}
                             {isNewOrder && (
                               <div 
-                                className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-white text-xs font-bold animate-pulse"
+                                className="absolute top-1 right-1 px-2 py-0.5 rounded-full text-white text-xs font-bold animate-pulse z-10"
                                 style={{ backgroundColor: theme.colors.accent }}
                               >
                                 NEW
@@ -1755,7 +1755,7 @@ const PointOfSaleTablet = () => {
                       <p className="text-sm">Takeout and delivery orders will appear here for verification (manual payments) or receipt generation (PayMongo payments)</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-3 pt-3">
                       {takeoutOrders.map(order => {
                         const isExpiringSoon = order.proofOfPayment?.expiresAt && 
                           new Date(order.proofOfPayment.expiresAt) - new Date() < 5 * 60 * 1000;
@@ -1766,7 +1766,7 @@ const PointOfSaleTablet = () => {
                         return (
                           <div 
                             key={order._id} 
-                            className={`p-4 rounded-lg border-2 shadow-sm relative ${
+                            className={`p-4 rounded-lg border-2 shadow-sm relative overflow-visible ${
                               isExpired ? 'bg-red-50 border-red-300' : 
                               isExpiringSoon ? 'bg-yellow-50 border-yellow-300' : 
                               ''
@@ -1779,7 +1779,7 @@ const PointOfSaleTablet = () => {
                             {/* New order indicator */}
                             {isNewOrder && (
                               <div 
-                                className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-white text-xs font-bold animate-pulse"
+                                className="absolute top-1 right-1 px-2 py-0.5 rounded-full text-white text-xs font-bold animate-pulse z-10"
                                 style={{ backgroundColor: theme.colors.accent }}
                               >
                                 NEW

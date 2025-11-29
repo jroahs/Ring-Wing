@@ -134,17 +134,15 @@ const ItemCustomizationModal = ({
           {/* Left Side - Image */}
           <div className="w-full md:w-2/5 bg-gray-100 relative overflow-hidden">
             {/* Blurred Background Image */}
-            {item.image && (
-              <div 
-                className="absolute inset-0 bg-cover bg-center"
-                style={{
-                  backgroundImage: `url(${item.image})`,
-                  filter: 'blur(20px)',
-                  transform: 'scale(1.1)',
-                  opacity: 0.6
-                }}
-              />
-            )}
+            <div 
+              className="absolute inset-0 bg-cover bg-center"
+              style={{
+                backgroundImage: `url(${item.image || (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png')})`,
+                filter: 'blur(20px)',
+                transform: 'scale(1.1)',
+                opacity: 0.6
+              }}
+            />
             
             {/* Overlay gradient */}
             <div className="absolute inset-0 bg-gradient-to-br from-black/10 to-black/20" />
@@ -160,23 +158,15 @@ const ItemCustomizationModal = ({
             
             <div className="relative w-full h-full flex items-center justify-center p-6 min-h-[300px] md:min-h-[400px]">
               <div className="relative w-full aspect-square max-w-sm">
-                {item.image ? (
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="w-full h-full object-cover rounded-xl shadow-2xl"
-                    onError={(e) => {
-                      e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23f0f0f0" width="400" height="400"/%3E%3Ctext fill="%23999" font-family="Arial" font-size="24" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-100 to-red-100 rounded-xl shadow-2xl">
-                    <div className="text-center">
-                      <div className="text-6xl mb-2">🍽️</div>
-                      <p className="text-gray-500 text-sm">No Image</p>
-                    </div>
-                  </div>
-                )}
+                <img
+                  src={item.image || (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png')}
+                  alt={item.name}
+                  className="w-full h-full object-cover rounded-xl shadow-2xl"
+                  onError={(e) => {
+                    // Use category-specific placeholder on error
+                    e.target.src = item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png';
+                  }}
+                />
               </div>
             </div>
           </div>
