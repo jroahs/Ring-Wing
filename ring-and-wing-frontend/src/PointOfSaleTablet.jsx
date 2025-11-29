@@ -797,6 +797,14 @@ const PointOfSaleTablet = () => {
               availableSizes: item.availableSizes || ['base'],
               pricing: item.pricing || { base: item.price },
               modifiers: item.modifiers || [],
+              variant: item.selectedVariant ? {
+                name: item.selectedVariant.name,
+                priceAdjustment: item.selectedVariant.priceAdjustment || 0
+              } : null,
+              addOns: (item.selectedAddOns || []).map(addon => ({
+                name: addon.name,
+                price: addon.price || 0
+              })),
               pwdSeniorDiscount: item.pwdSeniorDiscount || {
                 applied: false,
                 discountedQuantity: 0,
@@ -913,6 +921,14 @@ const PointOfSaleTablet = () => {
           availableSizes: item.availableSizes || ['base'],
           pricing: item.pricing || { base: item.price },
           modifiers: item.modifiers || [],
+          variant: item.selectedVariant ? {
+            name: item.selectedVariant.name,
+            priceAdjustment: item.selectedVariant.priceAdjustment || 0
+          } : null,
+          addOns: (item.selectedAddOns || []).map(addon => ({
+            name: addon.name,
+            price: addon.price || 0
+          })),
           pwdSeniorDiscount: item.pwdSeniorDiscount || {
             applied: false,
             discountedQuantity: 0,
@@ -1252,6 +1268,14 @@ const PointOfSaleTablet = () => {
             quantity: item.quantity,
             price: item.price,
             size: item.size || 'Regular',
+            variant: item.selectedVariant ? {
+              name: item.selectedVariant.name,
+              priceAdjustment: item.selectedVariant.priceAdjustment || 0
+            } : null,
+            addOns: (item.selectedAddOns || []).map(addon => ({
+              name: addon.name,
+              price: addon.price || 0
+            })),
             pwdSeniorDiscount: item.pwdSeniorDiscount || {
               applied: false,
               discountedQuantity: 0,

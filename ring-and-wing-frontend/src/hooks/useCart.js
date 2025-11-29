@@ -48,9 +48,22 @@ const cartReducer = (state, action) => {
     case CART_ACTIONS.ADD_ITEM: {
       const { item, selectedSize, variant, addOns, quantity } = action.payload;
       
+      // Sanitize variant to prevent circular references (only keep serializable data)
+      const sanitizedVariant = variant ? {
+        name: String(variant.name || ''),
+        priceAdjustment: Number(variant.priceAdjustment) || 0
+      } : null;
+      
+      // Sanitize addOns to prevent circular references
+      const sanitizedAddOns = Array.isArray(addOns) ? addOns.map(addon => ({
+        _id: String(addon._id || ''),
+        name: String(addon.name || ''),
+        price: Number(addon.price) || 0
+      })) : [];
+      
       // Create a unique key that includes variant and addOns for matching
-      const variantKey = variant ? JSON.stringify(variant) : '';
-      const addOnsKey = addOns?.length > 0 ? JSON.stringify(addOns.map(a => a._id).sort()) : '';
+      const variantKey = sanitizedVariant ? JSON.stringify(sanitizedVariant) : '';
+      const addOnsKey = sanitizedAddOns.length > 0 ? JSON.stringify(sanitizedAddOns.map(a => a._id).sort()) : '';
       
       // Check if item with same size, variant, and addOns already exists
       const existingIndex = state.findIndex(cartItem => {
@@ -70,15 +83,20 @@ const cartReducer = (state, action) => {
             : cartItem
         );
       } else {
-        // Add new item to cart
+        // Add new item to cart - only include serializable properties
         const cartItem = {
-          ...item,
-          price: item.pricing[selectedSize],
-          selectedSize,
-          availableSizes: Object.keys(item.pricing),
-          pricing: item.pricing,
-          variant: variant || null,
-          addOns: addOns || [],
+          _id: item._id,
+          name: String(item.name || ''),
+          category: String(item.category || ''),
+          description: String(item.description || ''),
+          image: item.image || '',
+          price: Number(item.pricing?.[selectedSize]) || 0,
+          selectedSize: String(selectedSize),
+          availableSizes: Object.keys(item.pricing || {}),
+          pricing: { ...item.pricing },
+          modifiers: Array.isArray(item.modifiers) ? [...item.modifiers] : [],
+          variant: sanitizedVariant,
+          addOns: sanitizedAddOns,
           quantity: quantity || 1
         };
         return [...state, cartItem];

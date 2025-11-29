@@ -189,16 +189,42 @@ const SelfCheckoutContent = () => {
     const calculatedTotals = calculateTotal();
     const effectiveFulfillmentType = overrideFulfillmentType || fulfillmentType;
     
+    // Sanitize cart items to avoid circular references
+    const sanitizedItems = cartItems.map(item => {
+      const sanitized = {
+        name: String(item.name || ''),
+        price: Number(item.price) || 0,
+        quantity: Number(item.quantity) || 1,
+        selectedSize: String(item.selectedSize || 'Regular'),
+        availableSizes: Array.isArray(item.availableSizes) ? [...item.availableSizes] : ['base'],
+        pricing: item.pricing ? { ...item.pricing } : { base: item.price },
+        variant: null,
+        addOns: []
+      };
+      
+      // Safely extract variant data
+      if (item.variant && typeof item.variant === 'object') {
+        sanitized.variant = {
+          name: String(item.variant.name || ''),
+          priceAdjustment: Number(item.variant.priceAdjustment) || 0
+        };
+      }
+      
+      // Safely extract add-ons data
+      if (Array.isArray(item.addOns)) {
+        sanitized.addOns = item.addOns.map(addon => ({
+          _id: String(addon._id || ''),
+          name: String(addon.name || ''),
+          price: Number(addon.price) || 0
+        }));
+      }
+      
+      return sanitized;
+    });
+    
     // Base order data
     const orderData = {
-      items: cartItems.map(item => ({
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        selectedSize: item.selectedSize,
-        availableSizes: item.availableSizes || ['base'],
-        pricing: item.pricing || { base: item.price }
-      })),
+      items: sanitizedItems,
       totals: {
         subtotal: calculatedTotals.subtotal,
         total: calculatedTotals.total
@@ -333,6 +359,7 @@ const SelfCheckoutContent = () => {
   const handlePayMongoCheckout = async () => {
     try {
       console.log('Initiating PayMongo checkout');
+      console.log('[PayMongo Debug] Cart items:', cartItems.length);
       
       // Validate address for delivery orders
       if (fulfillmentType === 'delivery' && !selectedAddressId) {
@@ -340,24 +367,60 @@ const SelfCheckoutContent = () => {
         return;
       }
       
-      // First create the order
+      // First create the order - sanitize cart items to avoid circular references
       const totals = calculateTotal();
-      const orderData = {
-        items: cartItems.map(item => ({
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          selectedSize: item.selectedSize,
-          availableSizes: item.availableSizes || ['base'],
-          pricing: item.pricing || { base: item.price },
-          modifiers: item.modifiers || [],
-          pwdSeniorDiscount: item.pwdSeniorDiscount || {
+      const sanitizedItems = cartItems.map(item => {
+        // Extract only primitive/serializable data
+        const sanitized = {
+          name: String(item.name || ''),
+          price: Number(item.price) || 0,
+          quantity: Number(item.quantity) || 1,
+          selectedSize: String(item.selectedSize || 'Regular'),
+          availableSizes: Array.isArray(item.availableSizes) ? [...item.availableSizes] : ['base'],
+          pricing: item.pricing ? { ...item.pricing } : { base: item.price },
+          modifiers: Array.isArray(item.modifiers) ? [...item.modifiers] : [],
+          variant: null,
+          addOns: [],
+          pwdSeniorDiscount: {
             applied: false,
             discountedQuantity: 0,
             discountAmount: 0,
             vatExempt: false
           }
-        })),
+        };
+        
+        // Safely extract variant data
+        if (item.variant && typeof item.variant === 'object') {
+          sanitized.variant = {
+            name: String(item.variant.name || ''),
+            priceAdjustment: Number(item.variant.priceAdjustment) || 0
+          };
+        }
+        
+        // Safely extract add-ons data
+        if (Array.isArray(item.addOns)) {
+          sanitized.addOns = item.addOns.map(addon => ({
+            _id: String(addon._id || ''),
+            name: String(addon.name || ''),
+            price: Number(addon.price) || 0
+          }));
+        }
+        
+        // Safely extract PWD/Senior discount
+        if (item.pwdSeniorDiscount && typeof item.pwdSeniorDiscount === 'object') {
+          sanitized.pwdSeniorDiscount = {
+            applied: Boolean(item.pwdSeniorDiscount.applied),
+            discountedQuantity: Number(item.pwdSeniorDiscount.discountedQuantity) || 0,
+            discountAmount: Number(item.pwdSeniorDiscount.discountAmount) || 0,
+            vatExempt: Boolean(item.pwdSeniorDiscount.vatExempt)
+          };
+        }
+        
+        return sanitized;
+      });
+      
+      const orderData = {
+        items: sanitizedItems,
         totals: {
           subtotal: totals.subtotal,
           discount: totals.discount || 0,

@@ -1212,6 +1212,17 @@ const PointOfSale = () => {
             quantity: item.quantity,
             selectedSize: item.selectedSize,
             modifiers: item.modifiers,
+            // Add variant data (serializable only)
+            variant: item.variant ? {
+              name: item.variant.name,
+              priceAdjustment: item.variant.priceAdjustment || 0
+            } : null,
+            // Add add-ons data (serializable only)
+            addOns: (item.addOns || []).map(addon => ({
+              _id: addon._id,
+              name: addon.name,
+              price: addon.price || 0
+            })),
             pwdSeniorDiscount: item.pwdSeniorDiscount || {
               applied: false,
               discountedQuantity: 0,
@@ -1334,6 +1345,17 @@ const PointOfSale = () => {
           availableSizes: item.availableSizes || ['base'],
           pricing: item.pricing || { base: item.price },
           modifiers: item.modifiers,
+          // Add variant data (serializable only)
+          variant: item.variant ? {
+            name: item.variant.name,
+            priceAdjustment: item.variant.priceAdjustment || 0
+          } : null,
+          // Add add-ons data (serializable only)
+          addOns: (item.addOns || []).map(addon => ({
+            _id: addon._id,
+            name: addon.name,
+            price: addon.price || 0
+          })),
           pwdSeniorDiscount: item.pwdSeniorDiscount || {
             applied: false,
             discountedQuantity: 0,
