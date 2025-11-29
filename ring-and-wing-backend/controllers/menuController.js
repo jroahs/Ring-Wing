@@ -91,6 +91,7 @@ exports.createMenuItem = async (req, res) => {
     // Parse JSON fields
     const pricing = body.pricing ? JSON.parse(body.pricing) : [];
     const modifiers = body.modifiers ? JSON.parse(body.modifiers) : [];
+    const variants = body.variants ? JSON.parse(body.variants) : [];
     
     // Handle image upload - now async with Supabase
     const itemCode = body.code || 'ITEM';
@@ -100,6 +101,7 @@ exports.createMenuItem = async (req, res) => {
       ...body,
       pricing,
       modifiers,
+      variants,
       image
     });
 
@@ -120,6 +122,7 @@ exports.updateMenuItem = async (req, res) => {
     // Parse JSON fields with fallbacks
     const pricing = body.pricing ? JSON.parse(body.pricing) : [];
     const modifiers = body.modifiers ? JSON.parse(body.modifiers) : [];
+    const variants = body.variants ? JSON.parse(body.variants) : [];
     
     // First get the old item
     const oldItem = await MenuItem.findById(id);
@@ -130,7 +133,8 @@ exports.updateMenuItem = async (req, res) => {
     const updates = {
       ...body,
       pricing,
-      modifiers
+      modifiers,
+      variants
     };
 
     // Handle image upload/update

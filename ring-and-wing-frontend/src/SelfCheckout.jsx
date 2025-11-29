@@ -185,8 +185,9 @@ const SelfCheckoutContent = () => {
     return getTotals();
   };
 
-  const saveOrderToDB = async () => {
+  const saveOrderToDB = async (overrideFulfillmentType = null) => {
     const calculatedTotals = calculateTotal();
+    const effectiveFulfillmentType = overrideFulfillmentType || fulfillmentType;
     
     // Base order data
     const orderData = {
@@ -203,11 +204,11 @@ const SelfCheckoutContent = () => {
         total: calculatedTotals.total
       },
       orderType: 'self_checkout',
-      fulfillmentType: fulfillmentType
+      fulfillmentType: effectiveFulfillmentType
     };
 
     // Add payment-specific fields based on fulfillment type
-    if (fulfillmentType === 'dine_in') {
+    if (effectiveFulfillmentType === 'dine_in') {
       // Traditional dine-in flow
       orderData.paymentMethod = 'pending';
       orderData.status = 'pending';
@@ -279,14 +280,12 @@ const SelfCheckoutContent = () => {
       const mappedType = orderTypeFromMobile === 'dine_in' ? 'dine_in' : orderTypeFromMobile;
       setFulfillmentType(mappedType);
       
-      // For dine-in, submit immediately
+      // For dine-in, submit immediately with the type passed directly
       if (mappedType === 'dine_in') {
         setShowPaymentFlow(true);
-        // Small delay to ensure state is set
-        setTimeout(async () => {
-          await saveOrderToDB();
-          clearCart();
-        }, 100);
+        // Pass fulfillment type directly to avoid race condition with setState
+        await saveOrderToDB(mappedType);
+        clearCart();
         return;
       }
       

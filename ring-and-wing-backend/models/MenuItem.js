@@ -16,6 +16,11 @@ const menuItemSchema = new mongoose.Schema({
   ignoreSizes: { type: Boolean, default: false }, // For items that don't use size variations
   description: { type: String },
   image: { type: String },
+  // Optional variants/flavors (e.g., Buffalo, Garlic Parmesan for wings)
+  variants: [{
+    name: { type: String, required: true },
+    priceAdjustment: { type: Number, default: 0 } // Additional cost for this variant (can be 0)
+  }],
   modifiers: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'AddOn'

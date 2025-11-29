@@ -102,6 +102,7 @@ const initialItem = {
   description: '',
   image: '',
   modifiers: [],
+  variants: [], // Optional variants/flavors (e.g., Buffalo, Garlic Parmesan)
   preparationTime: 15,
   isAvailable: true,
   ingredients: []
@@ -230,6 +231,7 @@ const MenuPage = () => {
     category: 'Beverages'
   });
   const [isAddOnsExpanded, setIsAddOnsExpanded] = useState(false);
+  const [isVariantsExpanded, setIsVariantsExpanded] = useState(false);
   
   // Dynamic categories state
   const [categories, setCategories] = useState([]);
@@ -1467,6 +1469,7 @@ const MenuPage = () => {
       formData.append('isAvailable', data.isAvailable.toString());
       formData.append('ignoreSizes', data.ignoreSizes ? 'true' : 'false');
       formData.append('ingredients', JSON.stringify(selectedIngredients));
+      formData.append('variants', JSON.stringify(data.variants || []));
   
       if (imageFile) formData.append('image', imageFile);
   
@@ -2738,6 +2741,94 @@ const MenuPage = () => {
           })()}
         </div>
 
+        {/* Variants/Flavors Section */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-medium" style={{ color: colors.primary }}>
+                Variants / Flavors
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Add flavor options like "Buffalo", "Garlic Parmesan", etc.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsVariantsExpanded(!isVariantsExpanded)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm hover:bg-gray-100 transition-colors"
+              style={{ color: colors.primary }}
+            >
+              {isVariantsExpanded ? 'Collapse' : 'Expand'}
+              <ChevronIcon className="w-4 h-4" isExpanded={isVariantsExpanded} />
+            </button>
+          </div>
+          
+          {isVariantsExpanded && (
+            <div className="space-y-3">
+              {/* Display existing variants */}
+              {(watch('variants') || []).map((variant, index) => (
+                <div 
+                  key={index}
+                  className="flex items-center gap-3 p-3 rounded-lg border"
+                  style={{ borderColor: colors.muted + '80', backgroundColor: colors.background }}
+                >
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      {...register(`variants.${index}.name`, { required: true })}
+                      className="w-full p-2 border rounded-lg text-sm"
+                      style={{ borderColor: colors.muted }}
+                      placeholder="Variant name (e.g., Buffalo)"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 w-40">
+                    <span className="text-sm text-gray-500">+₱</span>
+                    <input
+                      type="number"
+                      {...register(`variants.${index}.priceAdjustment`, { min: 0 })}
+                      className="w-full p-2 border rounded-lg text-sm"
+                      style={{ borderColor: colors.muted }}
+                      step="0.01"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentVariants = getValues('variants') || [];
+                      setValue('variants', currentVariants.filter((_, i) => i !== index));
+                    }}
+                    className="p-2 rounded-full hover:bg-red-100 text-red-500 hover:text-red-700 transition-colors"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              
+              {/* Add new variant button */}
+              <button
+                type="button"
+                className="w-full px-4 py-3 rounded-lg flex items-center justify-center gap-2 border-2 border-dashed hover:border-opacity-100 transition-all hover:shadow-sm"
+                style={{ borderColor: colors.accent + '60', color: colors.accent, backgroundColor: colors.activeBg }}
+                onClick={() => {
+                  const currentVariants = getValues('variants') || [];
+                  setValue('variants', [...currentVariants, { name: '', priceAdjustment: 0 }]);
+                }}
+              >
+                <PlusIcon className="w-5 h-5" />
+                <span className="font-medium">Add Variant / Flavor</span>
+              </button>
+              
+              {/* Empty state message */}
+              {(!watch('variants') || watch('variants').length === 0) && (
+                <div className="text-center p-4 text-gray-500 text-sm">
+                  No variants added yet. Add variants for items with multiple flavors like wings.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Add-Ons Section */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
@@ -2756,68 +2847,74 @@ const MenuPage = () => {
           </div>
           
           {isAddOnsExpanded && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {addOns
-              .filter(a => {
+            <div className="space-y-3">
+              {/* Add new add-on button - always visible */}
+              <button
+                type="button"
+                className="w-full px-4 py-3 rounded-lg flex items-center justify-center gap-2 border-2 border-dashed hover:border-opacity-100 transition-all hover:shadow-sm"
+                style={{ borderColor: colors.accent + '60', color: colors.accent, backgroundColor: colors.activeBg }}
+                onClick={() => setShowAddOnModal(true)}
+              >
+                <PlusIcon className="w-5 h-5" />
+                <span className="font-medium">Add New Add-On</span>
+              </button>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {addOns
+                .filter(a => {
+                  const currentSubCategory = menuConfig[selectedCategory]?.subCategories[selectedSubCategory];
+                  return currentSubCategory?.addons?.includes(a.name) ||
+                         a.category === selectedCategory;
+                })
+                .map((addOn) => (
+                  <div 
+                    key={addOn._id} 
+                    className="flex items-center justify-between p-3.5 rounded-lg border hover:border-opacity-100 transition-all hover:shadow-sm"
+                    style={{ borderColor: colors.muted + '80', backgroundColor: colors.background }}
+                  >
+                    <label className="flex items-center gap-3 cursor-pointer flex-1">
+                      <div className="flex items-center justify-center">
+                        <input
+                          type="checkbox"
+                          value={addOn._id}
+                          {...register('modifiers')}
+                          className="form-checkbox h-5 w-5 rounded border-2 focus:ring-2 focus:ring-offset-2 transition-all"
+                          style={{ color: colors.accent, borderColor: colors.muted }}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium">{addOn.name}</p>
+                        <div className="flex items-center mt-0.5">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium" 
+                                style={{ backgroundColor: colors.activeBg, color: colors.accent }}>
+                            +₱{addOn.price.toFixed(2)}
+                          </span>
+                          <span className="ml-2 text-xs text-gray-500">{addOn.category}</span>
+                        </div>
+                      </div>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setAddOnToDelete(addOn._id)}
+                      className="p-1.5 rounded-full hover:bg-red-100 text-red-500 hover:text-red-700 transition-colors"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                
+              {addOns.filter(a => {
                 const currentSubCategory = menuConfig[selectedCategory]?.subCategories[selectedSubCategory];
                 return currentSubCategory?.addons?.includes(a.name) ||
                        a.category === selectedCategory;
-              })
-              .map((addOn) => (
-                <div 
-                  key={addOn._id} 
-                  className="flex items-center justify-between p-3.5 rounded-lg border hover:border-opacity-100 transition-all hover:shadow-sm"
-                  style={{ borderColor: colors.muted + '80', backgroundColor: colors.background }}
-                >
-                  <label className="flex items-center gap-3 cursor-pointer flex-1">
-                    <div className="flex items-center justify-center">
-                      <input
-                        type="checkbox"
-                        value={addOn._id}
-                        {...register('modifiers')}
-                        className="form-checkbox h-5 w-5 rounded border-2 focus:ring-2 focus:ring-offset-2 transition-all"
-                        style={{ color: colors.accent, borderColor: colors.muted }}
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium">{addOn.name}</p>
-                      <div className="flex items-center mt-0.5">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium" 
-                              style={{ backgroundColor: colors.activeBg, color: colors.accent }}>
-                          +₱{addOn.price.toFixed(2)}
-                        </span>
-                        <span className="ml-2 text-xs text-gray-500">{addOn.category}</span>
-                      </div>
-                    </div>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setAddOnToDelete(addOn._id)}
-                    className="p-1.5 rounded-full hover:bg-red-100 text-red-500 hover:text-red-700 transition-colors"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </button>
+              }).length === 0 && (
+                <div className="col-span-2 p-6 border border-dashed rounded-lg flex flex-col items-center justify-center"
+                     style={{ borderColor: colors.muted + '60' }}>
+                  <p className="text-gray-500">No relevant add-ons found for this item type</p>
+                  <p className="text-sm text-gray-400 mt-1">Use the button above to create one</p>
                 </div>
-              ))}
-              
-            {addOns.filter(a => {
-              const currentSubCategory = menuConfig[selectedCategory]?.subCategories[selectedSubCategory];
-              return currentSubCategory?.addons?.includes(a.name) ||
-                     a.category === selectedCategory;
-            }).length === 0 && (
-              <div className="col-span-2 p-6 border border-dashed rounded-lg flex flex-col items-center justify-center"
-                   style={{ borderColor: colors.muted + '60' }}>
-                <p className="text-gray-500 mb-3">No relevant add-ons found for this item type</p>                <button
-                  type="button"
-                  className="px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm hover:opacity-90 transition-opacity"
-                  style={{ backgroundColor: colors.accent, color: colors.background }}
-                  onClick={() => setShowAddOnModal(true)}
-                >
-                  <PlusIcon className="w-4 h-4" />
-                  Create Add-On
-                </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
           )}
         </div>        {/* Description */}
