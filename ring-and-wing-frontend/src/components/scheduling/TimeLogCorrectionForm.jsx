@@ -10,7 +10,7 @@ import {
   AlertCircle,
   Loader2
 } from 'lucide-react';
-import api from '../../utils/api';
+import api from '../../services/api';
 
 const correctionTypes = [
   { value: 'add_clock_in', label: 'Add Clock In', description: 'Add a missing clock in entry' },
@@ -40,7 +40,7 @@ const TimeLogCorrectionForm = ({ staffId, onSuccess, onCancel }) => {
     
     try {
       setLoadingLogs(true);
-      const response = await api.get(`/time-logs/staff/${staffId}`, {
+      const response = await api.get(`/api/time-logs/staff/${staffId}`, {
         params: {
           startDate: date,
           endDate: date
@@ -111,7 +111,7 @@ const TimeLogCorrectionForm = ({ staffId, onSuccess, onCancel }) => {
         payload.correctedTimestamp = timestamp.toISOString();
       }
 
-      const response = await api.post('/time-log-corrections', payload);
+      const response = await api.post('/api/time-log-corrections', payload);
 
       if (response.data.success) {
         onSuccess?.(response.data.data);

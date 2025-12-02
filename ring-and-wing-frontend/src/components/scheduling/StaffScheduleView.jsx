@@ -13,7 +13,7 @@ import {
   AlertCircle,
   Loader2
 } from 'lucide-react';
-import api from '../../utils/api';
+import api from '../../services/api';
 
 const StaffScheduleView = () => {
   const [loading, setLoading] = useState(true);
@@ -58,7 +58,7 @@ const StaffScheduleView = () => {
         const startDate = new Date(year, month - 1, 1);
         const endDate = new Date(year, month, 0);
 
-        const response = await api.get('/schedules/my-schedule', {
+        const response = await api.get('/api/schedules/my-schedule', {
           params: {
             startDate: startDate.toISOString(),
             endDate: endDate.toISOString()

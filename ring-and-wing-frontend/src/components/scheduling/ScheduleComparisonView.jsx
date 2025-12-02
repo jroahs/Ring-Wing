@@ -16,9 +16,9 @@ import {
   Flag,
   User
 } from 'lucide-react';
-import api from '../../utils/api';
+import api from '../../services/api';
 
-const ScheduleComparisonView = ({ staffId, staffName }) => {
+const ScheduleComparisonView = ({ staffId, staffName, colors = {} }) => {
   const [comparison, setComparison] = useState([]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -27,6 +27,20 @@ const ScheduleComparisonView = ({ staffId, staffName }) => {
     startDate: getFirstDayOfMonth(),
     endDate: getLastDayOfMonth()
   });
+
+  // Theme
+  const defaultColors = {
+    text: '#1a1a1a',
+    muted: '#6b7280',
+    border: '#e5e0df',
+    background: '#f9fafb',
+    primary: '#f1670f',
+    accent: '#f1670f',
+    danger: '#ef4444',
+    warning: '#f59e0b',
+    success: '#10b981'
+  };
+  const c = { ...defaultColors, ...colors };
 
   function getFirstDayOfMonth() {
     const d = new Date();
@@ -47,7 +61,7 @@ const ScheduleComparisonView = ({ staffId, staffName }) => {
         setLoading(true);
         setError(null);
 
-        const response = await api.get(`/schedules/compare/${staffId}`, {
+        const response = await api.get(`/api/schedules/compare/${staffId}`, {
           params: dateRange
         });
 
@@ -96,35 +110,50 @@ const ScheduleComparisonView = ({ staffId, staffName }) => {
     switch (status) {
       case 'worked':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-500/20 text-green-400">
+          <span 
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
+            style={{ backgroundColor: `${c.success}15`, color: c.success }}
+          >
             <CheckCircle className="w-3 h-3" />
             Present
           </span>
         );
       case 'absent':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-red-500/20 text-red-400">
+          <span 
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
+            style={{ backgroundColor: `${c.danger}15`, color: c.danger }}
+          >
             <XCircle className="w-3 h-3" />
             Absent
           </span>
         );
       case 'partial':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-400">
+          <span 
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
+            style={{ backgroundColor: `${c.warning}15`, color: c.warning }}
+          >
             <AlertTriangle className="w-3 h-3" />
             Partial
           </span>
         );
       case 'rest':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-gray-500/20 text-gray-400">
+          <span 
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
+            style={{ backgroundColor: `${c.muted}15`, color: c.muted }}
+          >
             <Moon className="w-3 h-3" />
             Rest
           </span>
         );
       case 'scheduled':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-400">
+          <span 
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
+            style={{ backgroundColor: `${c.primary}15`, color: c.primary }}
+          >
             <Calendar className="w-3 h-3" />
             Scheduled
           </span>
@@ -158,24 +187,24 @@ const ScheduleComparisonView = ({ staffId, staffName }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: c.primary }} />
       </div>
     );
   }
 
   return (
-    <div className="bg-gray-800 rounded-xl overflow-hidden">
+    <div className="rounded-xl overflow-hidden" style={{ backgroundColor: '#fff', border: `1px solid ${c.border}` }}>
       {/* Header */}
-      <div className="bg-gray-900 p-4 border-b border-gray-700">
+      <div className="p-4" style={{ backgroundColor: `${c.muted}05`, borderBottom: `1px solid ${c.border}` }}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-500/20 rounded-lg">
-              <Clock className="w-5 h-5 text-blue-400" />
+            <div className="p-2 rounded-lg" style={{ backgroundColor: `${c.primary}15` }}>
+              <Clock className="w-5 h-5" style={{ color: c.primary }} />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-white">Attendance Comparison</h3>
+              <h3 className="text-lg font-semibold" style={{ color: c.text }}>Attendance Comparison</h3>
               {staffName && (
-                <p className="text-sm text-gray-400 flex items-center gap-1">
+                <p className="text-sm flex items-center gap-1" style={{ color: c.muted }}>
                   <User className="w-3 h-3" />
                   {staffName}
                 </p>
@@ -187,16 +216,34 @@ const ScheduleComparisonView = ({ staffId, staffName }) => {
           <div className="flex items-center gap-2">
             <button
               onClick={goToPreviousMonth}
-              className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
+              className="p-2 rounded-lg transition-colors"
+              style={{ color: c.muted }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = c.text;
+                e.currentTarget.style.backgroundColor = `${c.muted}10`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = c.muted;
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <span className="text-white font-medium px-3">
+            <span className="font-medium px-3" style={{ color: c.text }}>
               {new Date(dateRange.startDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
             </span>
             <button
               onClick={goToNextMonth}
-              className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
+              className="p-2 rounded-lg transition-colors"
+              style={{ color: c.muted }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = c.text;
+                e.currentTarget.style.backgroundColor = `${c.muted}10`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = c.muted;
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
             >
               <ChevronRight className="w-5 h-5" />
             </button>
@@ -206,29 +253,29 @@ const ScheduleComparisonView = ({ staffId, staffName }) => {
         {/* Summary stats */}
         {summary && (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <div className="bg-gray-800 p-3 rounded-lg">
-              <div className="text-2xl font-bold text-white">{attendanceRate}%</div>
-              <div className="text-xs text-gray-400">Attendance Rate</div>
+            <div className="p-3 rounded-lg" style={{ backgroundColor: '#fff', border: `1px solid ${c.border}` }}>
+              <div className="text-2xl font-bold" style={{ color: c.text }}>{attendanceRate}%</div>
+              <div className="text-xs" style={{ color: c.muted }}>Attendance Rate</div>
             </div>
-            <div className="bg-gray-800 p-3 rounded-lg">
-              <div className="text-2xl font-bold text-green-400">{summary.workedDays}</div>
-              <div className="text-xs text-gray-400">Days Worked</div>
+            <div className="p-3 rounded-lg" style={{ backgroundColor: '#fff', border: `1px solid ${c.border}` }}>
+              <div className="text-2xl font-bold" style={{ color: c.success }}>{summary.workedDays}</div>
+              <div className="text-xs" style={{ color: c.muted }}>Days Worked</div>
             </div>
-            <div className="bg-gray-800 p-3 rounded-lg">
-              <div className="text-2xl font-bold text-red-400">{summary.absentDays}</div>
-              <div className="text-xs text-gray-400">Days Absent</div>
+            <div className="p-3 rounded-lg" style={{ backgroundColor: '#fff', border: `1px solid ${c.border}` }}>
+              <div className="text-2xl font-bold" style={{ color: c.danger }}>{summary.absentDays}</div>
+              <div className="text-xs" style={{ color: c.muted }}>Days Absent</div>
             </div>
-            <div className="bg-gray-800 p-3 rounded-lg">
-              <div className="text-2xl font-bold text-amber-400">
+            <div className="p-3 rounded-lg" style={{ backgroundColor: '#fff', border: `1px solid ${c.border}` }}>
+              <div className="text-2xl font-bold" style={{ color: c.warning }}>
                 {formatMinutesToHours(summary.totalLateMinutes)}
               </div>
-              <div className="text-xs text-gray-400">Total Late</div>
+              <div className="text-xs" style={{ color: c.muted }}>Total Late</div>
             </div>
-            <div className="bg-gray-800 p-3 rounded-lg">
-              <div className="text-2xl font-bold text-blue-400">
+            <div className="p-3 rounded-lg" style={{ backgroundColor: '#fff', border: `1px solid ${c.border}` }}>
+              <div className="text-2xl font-bold" style={{ color: c.primary }}>
                 {formatMinutesToHours(summary.totalOvertimeMinutes)}
               </div>
-              <div className="text-xs text-gray-400">Total Overtime</div>
+              <div className="text-xs" style={{ color: c.muted }}>Total Overtime</div>
             </div>
           </div>
         )}
@@ -236,7 +283,10 @@ const ScheduleComparisonView = ({ staffId, staffName }) => {
 
       {/* Error */}
       {error && (
-        <div className="m-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+        <div 
+          className="m-4 p-3 rounded-lg text-sm"
+          style={{ backgroundColor: `${c.danger}10`, border: `1px solid ${c.danger}30`, color: c.danger }}
+        >
           {error}
         </div>
       )}
@@ -245,15 +295,15 @@ const ScheduleComparisonView = ({ staffId, staffName }) => {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="bg-gray-900/50">
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Date</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Scheduled</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Actual</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Variance</th>
+            <tr style={{ backgroundColor: `${c.muted}05` }}>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase" style={{ color: c.muted }}>Date</th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase" style={{ color: c.muted }}>Scheduled</th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase" style={{ color: c.muted }}>Actual</th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase" style={{ color: c.muted }}>Status</th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase" style={{ color: c.muted }}>Variance</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-700/50">
+          <tbody>
             {comparison.map((day, index) => {
               const date = new Date(day.date);
               const isToday = date.toDateString() === new Date().toDateString();
@@ -264,37 +314,36 @@ const ScheduleComparisonView = ({ staffId, staffName }) => {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.02 }}
-                  className={`
-                    hover:bg-gray-700/30
-                    ${isToday ? 'bg-blue-500/5' : ''}
-                    ${day.schedule.isHoliday ? 'bg-red-900/10' : ''}
-                  `}
+                  style={{ 
+                    borderBottom: `1px solid ${c.border}40`,
+                    backgroundColor: isToday ? `${c.primary}05` : day.schedule.isHoliday ? `${c.danger}05` : 'transparent'
+                  }}
                 >
                   {/* Date */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <div className={`text-sm font-medium ${isToday ? 'text-blue-400' : 'text-white'}`}>
+                      <div className="text-sm font-medium" style={{ color: isToday ? c.primary : c.text }}>
                         {date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                       </div>
                       {day.schedule.isHoliday && (
-                        <Flag className="w-3 h-3 text-red-400" title={day.schedule.holidayName} />
+                        <Flag className="w-3 h-3" style={{ color: c.danger }} title={day.schedule.holidayName} />
                       )}
                     </div>
                     {day.schedule.isHoliday && (
-                      <div className="text-xs text-red-400">{day.schedule.holidayName}</div>
+                      <div className="text-xs" style={{ color: c.danger }}>{day.schedule.holidayName}</div>
                     )}
                   </td>
 
                   {/* Scheduled */}
                   <td className="px-4 py-3">
                     {day.schedule.isRestDay ? (
-                      <span className="text-gray-500 text-sm">Rest Day</span>
+                      <span className="text-sm" style={{ color: c.muted }}>Rest Day</span>
                     ) : (
                       <div>
-                        <div className="text-sm text-white">{day.schedule.shiftName}</div>
-                        <div className="text-xs text-gray-400">
+                        <div className="text-sm" style={{ color: c.text }}>{day.schedule.shiftName}</div>
+                        <div className="text-xs" style={{ color: c.muted }}>
                           {day.schedule.startTime} - {day.schedule.endTime}
-                          <span className="ml-2 text-gray-500">
+                          <span className="ml-2" style={{ color: `${c.muted}80` }}>
                             ({day.schedule.expectedHours}h)
                           </span>
                         </div>
@@ -306,20 +355,20 @@ const ScheduleComparisonView = ({ staffId, staffName }) => {
                   <td className="px-4 py-3">
                     {day.actual.clockIn ? (
                       <div>
-                        <div className="text-sm text-white">
+                        <div className="text-sm" style={{ color: c.text }}>
                           {formatTime(day.actual.clockIn)} - {formatTime(day.actual.clockOut)}
                         </div>
-                        <div className="text-xs text-gray-400">
+                        <div className="text-xs" style={{ color: c.muted }}>
                           {day.actual.hoursWorked?.toFixed(1)}h worked
                           {day.actual.clockMethod && (
-                            <span className="ml-2 text-gray-500">
+                            <span className="ml-2" style={{ color: `${c.muted}80` }}>
                               via {day.actual.clockMethod}
                             </span>
                           )}
                         </div>
                       </div>
                     ) : (
-                      <span className="text-gray-500 text-sm">-</span>
+                      <span className="text-sm" style={{ color: c.muted }}>-</span>
                     )}
                   </td>
 
@@ -332,19 +381,19 @@ const ScheduleComparisonView = ({ staffId, staffName }) => {
                   <td className="px-4 py-3">
                     <div className="space-y-1">
                       {day.variance.lateMinutes > 0 && (
-                        <div className="flex items-center gap-1 text-xs text-amber-400">
+                        <div className="flex items-center gap-1 text-xs" style={{ color: c.warning }}>
                           <TrendingDown className="w-3 h-3" />
                           Late: {formatMinutesToHours(day.variance.lateMinutes)}
                         </div>
                       )}
                       {day.variance.overtimeMinutes > 0 && (
-                        <div className="flex items-center gap-1 text-xs text-green-400">
+                        <div className="flex items-center gap-1 text-xs" style={{ color: c.success }}>
                           <TrendingUp className="w-3 h-3" />
                           OT: {formatMinutesToHours(day.variance.overtimeMinutes)}
                         </div>
                       )}
                       {day.variance.undertimeMinutes > 0 && (
-                        <div className="flex items-center gap-1 text-xs text-red-400">
+                        <div className="flex items-center gap-1 text-xs" style={{ color: c.danger }}>
                           <TrendingDown className="w-3 h-3" />
                           Under: {formatMinutesToHours(day.variance.undertimeMinutes)}
                         </div>
@@ -354,7 +403,7 @@ const ScheduleComparisonView = ({ staffId, staffName }) => {
                        day.variance.undertimeMinutes === 0 &&
                        day.variance.status !== 'rest' &&
                        day.variance.status !== 'scheduled' && (
-                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <div className="flex items-center gap-1 text-xs" style={{ color: c.muted }}>
                           <Minus className="w-3 h-3" />
                           On time
                         </div>
@@ -368,7 +417,7 @@ const ScheduleComparisonView = ({ staffId, staffName }) => {
         </table>
 
         {comparison.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12" style={{ color: c.muted }}>
             <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p>No schedule data for this period</p>
           </div>

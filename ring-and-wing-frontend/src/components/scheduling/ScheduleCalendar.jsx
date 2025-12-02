@@ -14,27 +14,40 @@ import {
   Calendar,
   Users,
   Copy,
-  Lock,
-  Unlock,
-  Sun,
-  Moon,
-  Coffee,
   Send,
   AlertCircle,
   Loader2,
-  Filter
+  LayoutGrid,
+  List
 } from 'lucide-react';
-import api from '../../utils/api';
+import api from '../../services/api';
 import ShiftTemplateManager from './ShiftTemplateManager';
 import ScheduleCell from './ScheduleCell';
 import DraggableShift from './DraggableShift';
 import DroppableDay from './DroppableDay';
+
+// Theme colors matching the app
+const theme = {
+  primary: '#2e0304',
+  accent: '#f1670f',
+  accentHover: '#d55a0d',
+  muted: '#ac9c9b',
+  background: '#fefdfd',
+  cardBg: '#fff',
+  border: '#e5e0df',
+  textPrimary: '#2e0304',
+  textSecondary: '#6b5c5b',
+  success: '#10b981',
+  warning: '#f59e0b',
+  danger: '#ef4444'
+};
 
 const ScheduleCalendar = () => {
   // Date state
   const [currentDate, setCurrentDate] = useState(new Date());
   const [year, setYear] = useState(currentDate.getFullYear());
   const [month, setMonth] = useState(currentDate.getMonth() + 1);
+  const [weekOffset, setWeekOffset] = useState(0);
 
   // Data state
   const [schedules, setSchedules] = useState([]);
@@ -47,9 +60,8 @@ const ScheduleCalendar = () => {
 
   // UI state
   const [activeId, setActiveId] = useState(null);
-  const [selectedCells, setSelectedCells] = useState([]);
+  const [viewMode, setViewMode] = useState('week'); // 'week' or 'month'
   const [filterPosition, setFilterPosition] = useState('all');
-  const [showWeekends, setShowWeekends] = useState(true);
 
   // Drag sensors
   const sensors = useSensors(
@@ -63,7 +75,6 @@ const ScheduleCalendar = () => {
   // Generate days in month
   const daysInMonth = useMemo(() => {
     const days = [];
-    const firstDay = new Date(year, month - 1, 1);
     const lastDay = new Date(year, month, 0);
     
     for (let d = 1; d <= lastDay.getDate(); d++) {
@@ -79,11 +90,34 @@ const ScheduleCalendar = () => {
     return days;
   }, [year, month]);
 
-  // Filter days based on weekend visibility
+  // Get current week's days
+  const currentWeekDays = useMemo(() => {
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay() + (weekOffset * 7));
+    
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(startOfWeek);
+      date.setDate(startOfWeek.getDate() + i);
+      days.push({
+        date,
+        dayOfWeek: date.getDay(),
+        dayNumber: date.getDate(),
+        isWeekend: date.getDay() === 0 || date.getDay() === 6,
+        dateString: date.toISOString().split('T')[0],
+        isToday: date.toDateString() === today.toDateString(),
+        month: date.getMonth() + 1,
+        year: date.getFullYear()
+      });
+    }
+    return days;
+  }, [weekOffset]);
+
+  // Visible days based on view mode
   const visibleDays = useMemo(() => {
-    if (showWeekends) return daysInMonth;
-    return daysInMonth.filter(d => !d.isWeekend);
-  }, [daysInMonth, showWeekends]);
+    return viewMode === 'week' ? currentWeekDays : daysInMonth;
+  }, [viewMode, currentWeekDays, daysInMonth]);
 
   // Filter staff by position
   const filteredStaff = useMemo(() => {
@@ -102,20 +136,26 @@ const ScheduleCalendar = () => {
       setLoading(true);
       setError(null);
       
-      const response = await api.get(`/schedules/month/${year}/${month}`);
+      const fetchYear = viewMode === 'week' ? currentWeekDays[0]?.year : year;
+      const fetchMonth = viewMode === 'week' ? currentWeekDays[0]?.month : month;
+      
+      const response = await api.get(`/api/schedules/month/${fetchYear}/${fetchMonth}`);
       
       if (response.data.success) {
-        setSchedules(response.data.data.schedules);
-        setStaff(response.data.data.staff);
-        setHolidays(response.data.data.holidays);
+        setSchedules(response.data.data.schedules || []);
+        setStaff(response.data.data.staff || []);
+        setHolidays(response.data.data.holidays || []);
       }
     } catch (err) {
       console.error('Error fetching schedule:', err);
-      setError('Failed to load schedule data');
+      setError('Failed to load schedule data. Make sure the backend is running.');
+      setSchedules([]);
+      setStaff([]);
+      setHolidays([]);
     } finally {
       setLoading(false);
     }
-  }, [year, month]);
+  }, [year, month, viewMode, currentWeekDays]);
 
   useEffect(() => {
     fetchScheduleData();
@@ -141,11 +181,10 @@ const ScheduleCalendar = () => {
     return staffMember.restDays?.includes(dayOfWeek);
   }, []);
 
-  // Handle cell click (for manual assignment)
+  // Handle cell click
   const handleCellClick = async (staffId, dateString, dayOfWeek) => {
     if (!selectedTemplate) return;
 
-    // Check if it's a rest day
     const staffMember = staff.find(s => s._id === staffId);
     if (isRestDay(staffMember, dayOfWeek)) {
       if (!confirm('This is a rest day for this employee. Assign shift anyway?')) {
@@ -158,8 +197,7 @@ const ScheduleCalendar = () => {
       const existing = getSchedule(staffId, dateString);
 
       if (existing) {
-        // Update existing
-        const response = await api.put(`/schedules/${existing._id}`, {
+        const response = await api.put(`/api/schedules/${existing._id}`, {
           shiftTemplateId: selectedTemplate._id,
           isRestDay: false
         });
@@ -169,8 +207,7 @@ const ScheduleCalendar = () => {
           ));
         }
       } else {
-        // Create new
-        const response = await api.post('/schedules', {
+        const response = await api.post('/api/schedules', {
           staffId,
           date: dateString,
           shiftTemplateId: selectedTemplate._id
@@ -193,7 +230,7 @@ const ScheduleCalendar = () => {
       const existing = getSchedule(staffId, dateString);
 
       if (existing) {
-        const response = await api.put(`/schedules/${existing._id}`, {
+        const response = await api.put(`/api/schedules/${existing._id}`, {
           isRestDay: true,
           shiftTemplateId: null
         });
@@ -203,7 +240,7 @@ const ScheduleCalendar = () => {
           ));
         }
       } else {
-        const response = await api.post('/schedules', {
+        const response = await api.post('/api/schedules', {
           staffId,
           date: dateString,
           isRestDay: true
@@ -223,7 +260,7 @@ const ScheduleCalendar = () => {
   const handleDeleteSchedule = async (scheduleId) => {
     try {
       setSaving(true);
-      await api.delete(`/schedules/${scheduleId}`);
+      await api.delete(`/api/schedules/${scheduleId}`);
       setSchedules(schedules.filter(s => s._id !== scheduleId));
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to delete schedule');
@@ -232,7 +269,7 @@ const ScheduleCalendar = () => {
     }
   };
 
-  // Handle apply template to staff for the month
+  // Handle apply template
   const handleApplyTemplate = async (staffId) => {
     if (!selectedTemplate) {
       alert('Please select a shift template first');
@@ -244,7 +281,7 @@ const ScheduleCalendar = () => {
 
     try {
       setSaving(true);
-      const response = await api.post('/schedules/apply-template', {
+      const response = await api.post('/api/schedules/apply-template', {
         staffId,
         shiftTemplateId: selectedTemplate._id,
         startDate: startDate.toISOString(),
@@ -255,7 +292,7 @@ const ScheduleCalendar = () => {
       });
 
       if (response.data.success) {
-        fetchScheduleData(); // Refresh data
+        fetchScheduleData();
         alert(`Applied template: ${response.data.message}`);
       }
     } catch (err) {
@@ -265,7 +302,7 @@ const ScheduleCalendar = () => {
     }
   };
 
-  // Handle publish schedules
+  // Handle publish
   const handlePublishSchedules = async () => {
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0);
@@ -273,7 +310,7 @@ const ScheduleCalendar = () => {
 
     try {
       setSaving(true);
-      const response = await api.post('/schedule-notifications/publish', {
+      const response = await api.post('/api/schedule-notifications/publish', {
         staffIds,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString()
@@ -289,22 +326,30 @@ const ScheduleCalendar = () => {
     }
   };
 
-  // Navigate months
-  const goToPrevMonth = () => {
-    if (month === 1) {
-      setMonth(12);
-      setYear(year - 1);
+  // Navigation
+  const goToPrevious = () => {
+    if (viewMode === 'week') {
+      setWeekOffset(prev => prev - 1);
     } else {
-      setMonth(month - 1);
+      if (month === 1) {
+        setMonth(12);
+        setYear(year - 1);
+      } else {
+        setMonth(month - 1);
+      }
     }
   };
 
-  const goToNextMonth = () => {
-    if (month === 12) {
-      setMonth(1);
-      setYear(year + 1);
+  const goToNext = () => {
+    if (viewMode === 'week') {
+      setWeekOffset(prev => prev + 1);
     } else {
-      setMonth(month + 1);
+      if (month === 12) {
+        setMonth(1);
+        setYear(year + 1);
+      } else {
+        setMonth(month + 1);
+      }
     }
   };
 
@@ -312,28 +357,20 @@ const ScheduleCalendar = () => {
     const today = new Date();
     setYear(today.getFullYear());
     setMonth(today.getMonth() + 1);
+    setWeekOffset(0);
   };
 
-  // Day name headers
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-
-  // Handle drag start
+  // Drag handlers
   const handleDragStart = (event) => {
     setActiveId(event.active.id);
   };
 
-  // Handle drag end
   const handleDragEnd = async (event) => {
     const { active, over } = event;
     setActiveId(null);
 
     if (!over) return;
 
-    // Parse the drop target
     const [targetStaffId, targetDate] = over.id.split('_');
     const sourceSchedule = schedules.find(s => s._id === active.id);
 
@@ -343,7 +380,6 @@ const ScheduleCalendar = () => {
       return;
     }
 
-    // If dropping on same cell, do nothing
     const sourceDate = new Date(sourceSchedule.date).toISOString().split('T')[0];
     if (sourceSchedule.staffId._id === targetStaffId && sourceDate === targetDate) {
       return;
@@ -351,12 +387,9 @@ const ScheduleCalendar = () => {
 
     try {
       setSaving(true);
+      await api.delete(`/api/schedules/${sourceSchedule._id}`);
       
-      // Delete old schedule
-      await api.delete(`/schedules/${sourceSchedule._id}`);
-      
-      // Create new at target location
-      const response = await api.post('/schedules', {
+      const response = await api.post('/api/schedules', {
         staffId: targetStaffId,
         date: targetDate,
         shiftTemplateId: sourceSchedule.shiftTemplateId?._id,
@@ -372,46 +405,101 @@ const ScheduleCalendar = () => {
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to move schedule');
-      fetchScheduleData(); // Refresh to restore state
+      fetchScheduleData();
     } finally {
       setSaving(false);
     }
   };
 
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const getNavigationTitle = () => {
+    if (viewMode === 'week') {
+      const firstDay = currentWeekDays[0];
+      const lastDay = currentWeekDays[6];
+      if (firstDay.month === lastDay.month) {
+        return `${monthNames[firstDay.month - 1]} ${firstDay.dayNumber} - ${lastDay.dayNumber}, ${firstDay.year}`;
+      }
+      return `${monthNames[firstDay.month - 1]} ${firstDay.dayNumber} - ${monthNames[lastDay.month - 1]} ${lastDay.dayNumber}`;
+    }
+    return `${monthNames[month - 1]} ${year}`;
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      <div className="flex items-center justify-center h-96" style={{ backgroundColor: theme.background }}>
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: theme.accent }} />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-900">
+    <div className="flex flex-col h-full" style={{ backgroundColor: theme.background }}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-700">
+      <div 
+        className="flex flex-wrap items-center justify-between gap-4 p-4 border-b"
+        style={{ backgroundColor: theme.cardBg, borderColor: theme.border }}
+      >
         <div className="flex items-center gap-4">
-          <Calendar className="w-6 h-6 text-blue-400" />
-          <h1 className="text-xl font-semibold text-white">Staff Scheduling</h1>
+          <Calendar className="w-6 h-6" style={{ color: theme.accent }} />
+          <h1 className="text-xl font-semibold" style={{ color: theme.textPrimary }}>
+            Staff Scheduling
+          </h1>
         </div>
 
-        {/* Month navigation */}
+        {/* View mode toggle */}
+        <div 
+          className="flex rounded-lg p-1"
+          style={{ backgroundColor: theme.background }}
+        >
+          <button
+            onClick={() => setViewMode('week')}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+            style={{ 
+              backgroundColor: viewMode === 'week' ? theme.accent : 'transparent',
+              color: viewMode === 'week' ? 'white' : theme.textSecondary
+            }}
+          >
+            <List className="w-4 h-4" />
+            Week
+          </button>
+          <button
+            onClick={() => setViewMode('month')}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+            style={{ 
+              backgroundColor: viewMode === 'month' ? theme.accent : 'transparent',
+              color: viewMode === 'month' ? 'white' : theme.textSecondary
+            }}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            Month
+          </button>
+        </div>
+
+        {/* Navigation */}
         <div className="flex items-center gap-2">
           <button
-            onClick={goToPrevMonth}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+            onClick={goToPrevious}
+            className="p-2 rounded-lg transition-colors hover:bg-gray-100"
+            style={{ color: theme.textSecondary }}
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <button
             onClick={goToToday}
-            className="px-4 py-2 text-white font-medium bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+            className="px-4 py-2 rounded-lg font-medium transition-colors hover:bg-gray-100"
+            style={{ color: theme.textPrimary }}
           >
-            {monthNames[month - 1]} {year}
+            {getNavigationTitle()}
           </button>
           <button
-            onClick={goToNextMonth}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+            onClick={goToNext}
+            className="p-2 rounded-lg transition-colors hover:bg-gray-100"
+            style={{ color: theme.textSecondary }}
           >
             <ChevronRight className="w-5 h-5" />
           </button>
@@ -419,20 +507,15 @@ const ScheduleCalendar = () => {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2 text-sm text-gray-400">
-            <input
-              type="checkbox"
-              checked={showWeekends}
-              onChange={(e) => setShowWeekends(e.target.checked)}
-              className="rounded border-gray-600 bg-gray-700 text-blue-500"
-            />
-            Weekends
-          </label>
-
           <select
             value={filterPosition}
             onChange={(e) => setFilterPosition(e.target.value)}
-            className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+            className="px-3 py-2 rounded-lg text-sm border"
+            style={{ 
+              backgroundColor: theme.cardBg, 
+              borderColor: theme.border,
+              color: theme.textPrimary 
+            }}
           >
             <option value="all">All Positions</option>
             {positions.map(pos => (
@@ -443,7 +526,8 @@ const ScheduleCalendar = () => {
           <button
             onClick={handlePublishSchedules}
             disabled={saving}
-            className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+            className="px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-white"
+            style={{ backgroundColor: theme.success }}
           >
             <Send className="w-4 h-4" />
             Publish
@@ -458,13 +542,15 @@ const ScheduleCalendar = () => {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="bg-red-500/10 border-b border-red-500/30 px-4 py-2 flex items-center gap-2"
+            className="px-4 py-2 flex items-center gap-2 border-b"
+            style={{ backgroundColor: `${theme.danger}10`, borderColor: `${theme.danger}30` }}
           >
-            <AlertCircle className="w-4 h-4 text-red-400" />
-            <span className="text-red-400 text-sm">{error}</span>
+            <AlertCircle className="w-4 h-4" style={{ color: theme.danger }} />
+            <span className="text-sm" style={{ color: theme.danger }}>{error}</span>
             <button
               onClick={() => setError(null)}
-              className="ml-auto text-red-400 hover:text-red-300"
+              className="ml-auto"
+              style={{ color: theme.danger }}
             >
               ×
             </button>
@@ -474,20 +560,30 @@ const ScheduleCalendar = () => {
 
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar - Shift templates */}
-        <div className="w-72 border-r border-gray-700 p-4 overflow-y-auto">
+        {/* Sidebar */}
+        <div 
+          className="w-64 border-r p-4 overflow-y-auto flex-shrink-0"
+          style={{ borderColor: theme.border, backgroundColor: theme.cardBg }}
+        >
           <ShiftTemplateManager
             onTemplateSelect={setSelectedTemplate}
             selectedTemplateId={selectedTemplate?._id}
+            theme={theme}
           />
 
           {selectedTemplate && (
-            <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-              <p className="text-sm text-blue-400">
+            <div 
+              className="mt-4 p-3 rounded-lg border"
+              style={{ 
+                backgroundColor: `${theme.accent}10`, 
+                borderColor: `${theme.accent}30` 
+              }}
+            >
+              <p className="text-sm" style={{ color: theme.accent }}>
                 <strong>Selected:</strong> {selectedTemplate.name}
               </p>
-              <p className="text-xs text-gray-400 mt-1">
-                Click on any cell to assign this shift, or drag to move existing shifts.
+              <p className="text-xs mt-1" style={{ color: theme.textSecondary }}>
+                Click on any cell to assign this shift.
               </p>
             </div>
           )}
@@ -501,12 +597,20 @@ const ScheduleCalendar = () => {
           onDragEnd={handleDragEnd}
         >
           <div className="flex-1 overflow-auto">
-            <div className="min-w-max">
+            <div className={viewMode === 'month' ? 'min-w-max' : ''}>
               {/* Day headers */}
-              <div className="sticky top-0 z-10 flex bg-gray-800 border-b border-gray-700">
-                <div className="w-48 min-w-[12rem] p-3 border-r border-gray-700 flex items-center">
-                  <Users className="w-4 h-4 text-gray-400 mr-2" />
-                  <span className="text-sm font-medium text-gray-300">Staff</span>
+              <div 
+                className="sticky top-0 z-10 flex border-b"
+                style={{ backgroundColor: theme.cardBg, borderColor: theme.border }}
+              >
+                <div 
+                  className="w-48 min-w-[12rem] p-3 border-r flex items-center flex-shrink-0"
+                  style={{ borderColor: theme.border }}
+                >
+                  <Users className="w-4 h-4 mr-2" style={{ color: theme.textSecondary }} />
+                  <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>
+                    Staff ({filteredStaff.length})
+                  </span>
                 </div>
                 {visibleDays.map((day) => {
                   const holiday = getHoliday(day.dateString);
@@ -515,21 +619,32 @@ const ScheduleCalendar = () => {
                   return (
                     <div
                       key={day.dateString}
-                      className={`
-                        w-28 min-w-[7rem] p-2 border-r border-gray-700 text-center
-                        ${day.isWeekend ? 'bg-gray-800/50' : ''}
-                        ${holiday ? 'bg-red-900/20' : ''}
-                        ${isToday ? 'bg-blue-900/20' : ''}
-                      `}
+                      className={`p-2 border-r text-center flex-shrink-0 ${
+                        viewMode === 'week' ? 'flex-1 min-w-[100px]' : 'w-24 min-w-[6rem]'
+                      }`}
+                      style={{ 
+                        borderColor: theme.border,
+                        backgroundColor: holiday ? `${theme.danger}08` : isToday ? `${theme.accent}08` : 'transparent'
+                      }}
                     >
-                      <div className={`text-xs ${day.isWeekend ? 'text-amber-400' : 'text-gray-400'}`}>
+                      <div 
+                        className="text-xs font-medium"
+                        style={{ color: day.isWeekend ? theme.warning : theme.textSecondary }}
+                      >
                         {dayNames[day.dayOfWeek]}
                       </div>
-                      <div className={`text-lg font-medium ${isToday ? 'text-blue-400' : 'text-white'}`}>
+                      <div 
+                        className="text-lg font-semibold"
+                        style={{ color: isToday ? theme.accent : theme.textPrimary }}
+                      >
                         {day.dayNumber}
                       </div>
                       {holiday && (
-                        <div className="text-[10px] text-red-400 truncate" title={holiday.name}>
+                        <div 
+                          className="text-[10px] truncate" 
+                          title={holiday.name}
+                          style={{ color: theme.danger }}
+                        >
                           {holiday.name}
                         </div>
                       )}
@@ -539,70 +654,101 @@ const ScheduleCalendar = () => {
               </div>
 
               {/* Staff rows */}
-              {filteredStaff.map((staffMember) => (
-                <div key={staffMember._id} className="flex border-b border-gray-700/50 hover:bg-gray-800/30">
-                  {/* Staff info */}
-                  <div className="w-48 min-w-[12rem] p-2 border-r border-gray-700 flex items-center gap-2">
-                    {staffMember.profilePicture ? (
-                      <img
-                        src={staffMember.profilePicture}
-                        alt={staffMember.name}
-                        className="w-8 h-8 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-white text-sm">
-                        {staffMember.name?.charAt(0)}
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-white truncate">
-                        {staffMember.name}
-                      </div>
-                      <div className="text-xs text-gray-400 truncate">
-                        {staffMember.position}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleApplyTemplate(staffMember._id)}
-                      disabled={!selectedTemplate || saving}
-                      className="p-1 text-gray-400 hover:text-blue-400 hover:bg-blue-400/10 rounded transition-colors disabled:opacity-50"
-                      title="Apply template to all workdays"
+              {filteredStaff.length === 0 ? (
+                <div 
+                  className="p-8 text-center"
+                  style={{ color: theme.textSecondary }}
+                >
+                  <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No staff members found</p>
+                  <p className="text-sm">Add staff in Employee Management first.</p>
+                </div>
+              ) : (
+                filteredStaff.map((staffMember) => (
+                  <div 
+                    key={staffMember._id} 
+                    className="flex border-b hover:bg-gray-50"
+                    style={{ borderColor: theme.border }}
+                  >
+                    {/* Staff info */}
+                    <div 
+                      className="w-48 min-w-[12rem] p-2 border-r flex items-center gap-2 flex-shrink-0"
+                      style={{ borderColor: theme.border, backgroundColor: theme.cardBg }}
                     >
-                      <Copy className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* Day cells */}
-                  {visibleDays.map((day) => {
-                    const schedule = getSchedule(staffMember._id, day.dateString);
-                    const isStaffRestDay = isRestDay(staffMember, day.dayOfWeek);
-                    const holiday = getHoliday(day.dateString);
-
-                    return (
-                      <DroppableDay
-                        key={`${staffMember._id}_${day.dateString}`}
-                        id={`${staffMember._id}_${day.dateString}`}
-                        staffId={staffMember._id}
-                        date={day.dateString}
-                        isWeekend={day.isWeekend}
-                        isHoliday={!!holiday}
-                        isRestDay={isStaffRestDay}
+                      {staffMember.profilePicture ? (
+                        <img
+                          src={staffMember.profilePicture}
+                          alt={staffMember.name}
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div 
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm"
+                          style={{ backgroundColor: theme.accent }}
+                        >
+                          {staffMember.name?.charAt(0)}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div 
+                          className="text-sm font-medium truncate"
+                          style={{ color: theme.textPrimary }}
+                        >
+                          {staffMember.name}
+                        </div>
+                        <div 
+                          className="text-xs truncate"
+                          style={{ color: theme.textSecondary }}
+                        >
+                          {staffMember.position}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleApplyTemplate(staffMember._id)}
+                        disabled={!selectedTemplate || saving}
+                        className="p-1 rounded transition-colors hover:bg-gray-100 disabled:opacity-50"
+                        style={{ color: theme.textSecondary }}
+                        title="Apply template to all workdays"
                       >
-                        <ScheduleCell
-                          schedule={schedule}
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Day cells */}
+                    {visibleDays.map((day) => {
+                      const schedule = getSchedule(staffMember._id, day.dateString);
+                      const isStaffRestDay = isRestDay(staffMember, day.dayOfWeek);
+                      const holiday = getHoliday(day.dateString);
+
+                      return (
+                        <DroppableDay
+                          key={`${staffMember._id}_${day.dateString}`}
+                          id={`${staffMember._id}_${day.dateString}`}
+                          staffId={staffMember._id}
+                          date={day.dateString}
                           isWeekend={day.isWeekend}
                           isHoliday={!!holiday}
-                          holidayName={holiday?.name}
-                          isStaffRestDay={isStaffRestDay}
-                          onClick={() => handleCellClick(staffMember._id, day.dateString, day.dayOfWeek)}
-                          onSetRestDay={() => handleSetRestDay(staffMember._id, day.dateString)}
-                          onDelete={() => schedule && handleDeleteSchedule(schedule._id)}
-                        />
-                      </DroppableDay>
-                    );
-                  })}
-                </div>
-              ))}
+                          isRestDay={isStaffRestDay}
+                          theme={theme}
+                          viewMode={viewMode}
+                        >
+                          <ScheduleCell
+                            schedule={schedule}
+                            isWeekend={day.isWeekend}
+                            isHoliday={!!holiday}
+                            holidayName={holiday?.name}
+                            isStaffRestDay={isStaffRestDay}
+                            onClick={() => handleCellClick(staffMember._id, day.dateString, day.dayOfWeek)}
+                            onSetRestDay={() => handleSetRestDay(staffMember._id, day.dateString)}
+                            onDelete={() => schedule && handleDeleteSchedule(schedule._id)}
+                            theme={theme}
+                          />
+                        </DroppableDay>
+                      );
+                    })}
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -612,6 +758,7 @@ const ScheduleCalendar = () => {
               <DraggableShift
                 schedule={schedules.find(s => s._id === activeId)}
                 isDragging
+                theme={theme}
               />
             )}
           </DragOverlay>
@@ -625,7 +772,8 @@ const ScheduleCalendar = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2"
+            className="fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 text-white"
+            style={{ backgroundColor: theme.accent }}
           >
             <Loader2 className="w-4 h-4 animate-spin" />
             Saving...

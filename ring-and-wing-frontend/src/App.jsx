@@ -25,6 +25,7 @@ import OrderNotificationContainer from './components/OrderNotificationContainer'
 import { useOrderNotifications } from './hooks/useOrderNotifications';
 import PayrollSystem from './PayrollSystem';
 import EmployeeManagement from "./EmployeeManagement";
+import StaffScheduler from './components/StaffScheduler';
 import StaffPayslip from './StaffPayslip';
 import StaffExpenseRequests from './StaffExpenseRequests';
 import GovernmentConfigManagement from './GovernmentConfigManagement';
@@ -441,6 +442,11 @@ function App() {
                   <Route path="/employees" element={
                     <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
                       <EmployeeManagement colors={colors} />
+                    </PositionProtectedRoute>
+                  } />
+                  <Route path="/staff-scheduler" element={
+                    <PositionProtectedRoute requiredPositions={['shift_manager', 'general_manager', 'admin']}>
+                      <StaffScheduler />
                     </PositionProtectedRoute>
                   } />
                   <Route path="/payroll" element={

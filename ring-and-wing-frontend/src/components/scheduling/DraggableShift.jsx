@@ -1,9 +1,9 @@
 import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { motion } from 'framer-motion';
-import { GripVertical, Lock, Moon, Sun, Coffee } from 'lucide-react';
+import { GripVertical, Lock, Moon } from 'lucide-react';
 
-const DraggableShift = ({ schedule, isDragging = false }) => {
+const DraggableShift = ({ schedule, isDragging = false, theme = {}, viewMode = 'week' }) => {
   const {
     attributes,
     listeners,
@@ -14,6 +14,18 @@ const DraggableShift = ({ schedule, isDragging = false }) => {
     id: schedule?._id || 'temp',
     disabled: schedule?.isLocked
   });
+
+  const defaultTheme = {
+    text: '#1a1a1a',
+    muted: '#6b7280',
+    border: '#e5e0df',
+    background: '#f9fafb',
+    primary: '#f1670f',
+    accent: '#f1670f',
+    warning: '#f59e0b'
+  };
+
+  const t = { ...defaultTheme, ...theme };
 
   if (!schedule) return null;
 
@@ -42,10 +54,13 @@ const DraggableShift = ({ schedule, isDragging = false }) => {
     return (
       <div
         ref={setNodeRef}
-        style={style}
+        style={{
+          ...style,
+          backgroundColor: `${t.muted}15`,
+          color: t.muted
+        }}
         className={`
           flex items-center justify-center gap-1 p-1 rounded text-xs
-          bg-gray-600/30 text-gray-400
           ${isDragging || isDndDragging ? 'opacity-75 shadow-lg' : ''}
         `}
       >
@@ -55,10 +70,16 @@ const DraggableShift = ({ schedule, isDragging = false }) => {
     );
   }
 
+  const shiftColor = shiftTemplate?.color || t.primary;
+
   return (
     <motion.div
       ref={setNodeRef}
-      style={style}
+      style={{
+        ...style,
+        backgroundColor: `${shiftColor}15`,
+        border: `1px solid ${shiftColor}40`
+      }}
       layout
       className={`
         flex items-center gap-1 p-1.5 rounded text-xs
@@ -69,16 +90,16 @@ const DraggableShift = ({ schedule, isDragging = false }) => {
       {/* Color indicator */}
       <div
         className="w-1.5 h-full min-h-[20px] rounded-full flex-shrink-0"
-        style={{ backgroundColor: shiftTemplate?.color || '#6366F1' }}
+        style={{ backgroundColor: shiftColor }}
       />
 
       {/* Shift info */}
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-white truncate">
+        <div className="font-medium truncate" style={{ color: t.text }}>
           {shiftTemplate?.name || 'Custom'}
         </div>
         {startTime && endTime && (
-          <div className="text-gray-400 text-[10px]">
+          <div className="text-[10px]" style={{ color: t.muted }}>
             {formatTime(startTime)} - {formatTime(endTime)}
           </div>
         )}
@@ -87,11 +108,11 @@ const DraggableShift = ({ schedule, isDragging = false }) => {
       {/* Status icons */}
       <div className="flex items-center gap-0.5 flex-shrink-0">
         {isLocked && (
-          <Lock className="w-3 h-3 text-amber-400" />
+          <Lock className="w-3 h-3" style={{ color: t.warning }} />
         )}
         {!isLocked && (
           <div {...attributes} {...listeners}>
-            <GripVertical className="w-3 h-3 text-gray-500 hover:text-gray-300" />
+            <GripVertical className="w-3 h-3 hover:opacity-70" style={{ color: t.muted }} />
           </div>
         )}
       </div>

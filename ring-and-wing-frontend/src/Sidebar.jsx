@@ -28,6 +28,7 @@ import {
   FiUser,
   FiTablet,
   FiClock,
+  FiCalendar,
   FiLogOut,
   FiShield,
   FiSettings,
@@ -229,6 +230,12 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
           path: '/employees', 
           icon: <FiUser size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Employee Management',
+          positions: ['shift_manager', 'general_manager', 'admin']
+        },
+        { 
+          path: '/staff-scheduler', 
+          icon: <FiCalendar size={iconSize} style={{ color: colors.iconBrown }} />, 
+          label: 'Staff Scheduler',
           positions: ['shift_manager', 'general_manager', 'admin']
         },
         { 

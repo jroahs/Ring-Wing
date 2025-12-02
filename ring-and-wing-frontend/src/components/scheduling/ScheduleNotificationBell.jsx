@@ -7,24 +7,37 @@ import {
   Check,
   CheckCheck,
   Trash2,
-  X,
   Loader2,
   Clock
 } from 'lucide-react';
-import api from '../../utils/api';
+import api from '../../services/api';
 
-const ScheduleNotificationBell = () => {
+const ScheduleNotificationBell = ({ colors = {} }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
 
+  // Theme
+  const defaultColors = {
+    text: '#1a1a1a',
+    muted: '#6b7280',
+    border: '#e5e0df',
+    background: '#f9fafb',
+    primary: '#f1670f',
+    accent: '#f1670f',
+    danger: '#ef4444',
+    warning: '#f59e0b',
+    success: '#10b981'
+  };
+  const c = { ...defaultColors, ...colors };
+
   // Fetch notifications
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/schedule-notifications/my-notifications', {
+      const response = await api.get('/api/schedule-notifications/my-notifications', {
         params: { limit: 20 }
       });
       
@@ -42,7 +55,7 @@ const ScheduleNotificationBell = () => {
   // Fetch unread count periodically
   const fetchUnreadCount = async () => {
     try {
-      const response = await api.get('/schedule-notifications/unread-count');
+      const response = await api.get('/api/schedule-notifications/unread-count');
       if (response.data.success) {
         setUnreadCount(response.data.data.count);
       }
@@ -80,7 +93,7 @@ const ScheduleNotificationBell = () => {
   // Mark as read
   const handleMarkAsRead = async (notificationId) => {
     try {
-      await api.put(`/schedule-notifications/${notificationId}/read`);
+      await api.put(`/api/schedule-notifications/${notificationId}/read`);
       setNotifications(notifications.map(n =>
         n._id === notificationId ? { ...n, isRead: true } : n
       ));
@@ -93,7 +106,7 @@ const ScheduleNotificationBell = () => {
   // Mark all as read
   const handleMarkAllAsRead = async () => {
     try {
-      await api.put('/schedule-notifications/mark-all-read');
+      await api.put('/api/schedule-notifications/mark-all-read');
       setNotifications(notifications.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
     } catch (err) {
@@ -104,7 +117,7 @@ const ScheduleNotificationBell = () => {
   // Delete notification
   const handleDelete = async (notificationId) => {
     try {
-      await api.delete(`/schedule-notifications/${notificationId}`);
+      await api.delete(`/api/schedule-notifications/${notificationId}`);
       const notification = notifications.find(n => n._id === notificationId);
       setNotifications(notifications.filter(n => n._id !== notificationId));
       if (!notification?.isRead) {
@@ -119,17 +132,17 @@ const ScheduleNotificationBell = () => {
   const getNotificationIcon = (type) => {
     switch (type) {
       case 'schedule_created':
-        return <Calendar className="w-4 h-4 text-green-400" />;
+        return <Calendar className="w-4 h-4" style={{ color: c.success }} />;
       case 'schedule_updated':
-        return <Calendar className="w-4 h-4 text-blue-400" />;
+        return <Calendar className="w-4 h-4" style={{ color: c.primary }} />;
       case 'schedule_deleted':
-        return <Calendar className="w-4 h-4 text-red-400" />;
+        return <Calendar className="w-4 h-4" style={{ color: c.danger }} />;
       case 'rest_day_changed':
-        return <Moon className="w-4 h-4 text-amber-400" />;
+        return <Moon className="w-4 h-4" style={{ color: c.warning }} />;
       case 'schedule_published':
-        return <Calendar className="w-4 h-4 text-purple-400" />;
+        return <Calendar className="w-4 h-4" style={{ color: '#8b5cf6' }} />;
       default:
-        return <Bell className="w-4 h-4 text-gray-400" />;
+        return <Bell className="w-4 h-4" style={{ color: c.muted }} />;
     }
   };
 
@@ -162,7 +175,16 @@ const ScheduleNotificationBell = () => {
       {/* Bell button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+        className="relative p-2 rounded-lg transition-colors"
+        style={{ color: c.muted }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = c.text;
+          e.currentTarget.style.backgroundColor = `${c.muted}10`;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = c.muted;
+          e.currentTarget.style.backgroundColor = 'transparent';
+        }}
       >
         <Bell className="w-5 h-5" />
         
@@ -173,7 +195,8 @@ const ScheduleNotificationBell = () => {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               exit={{ scale: 0 }}
-              className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center"
+              className="absolute -top-1 -right-1 w-5 h-5 text-white text-xs font-bold rounded-full flex items-center justify-center"
+              style={{ backgroundColor: c.danger }}
             >
               {unreadCount > 9 ? '9+' : unreadCount}
             </motion.div>
@@ -189,18 +212,23 @@ const ScheduleNotificationBell = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded-xl shadow-xl overflow-hidden z-50"
+            className="absolute right-0 mt-2 w-80 rounded-xl shadow-xl overflow-hidden z-50"
+            style={{ backgroundColor: '#fff', border: `1px solid ${c.border}` }}
           >
             {/* Header */}
-            <div className="px-4 py-3 bg-gray-900 border-b border-gray-700 flex items-center justify-between">
-              <h3 className="font-medium text-white flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-blue-400" />
+            <div 
+              className="px-4 py-3 flex items-center justify-between"
+              style={{ backgroundColor: `${c.muted}05`, borderBottom: `1px solid ${c.border}` }}
+            >
+              <h3 className="font-medium flex items-center gap-2" style={{ color: c.text }}>
+                <Calendar className="w-4 h-4" style={{ color: c.primary }} />
                 Schedule Updates
               </h3>
               {unreadCount > 0 && (
                 <button
                   onClick={handleMarkAllAsRead}
-                  className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                  className="text-xs flex items-center gap-1"
+                  style={{ color: c.primary }}
                 >
                   <CheckCheck className="w-3 h-3" />
                   Mark all read
@@ -212,10 +240,10 @@ const ScheduleNotificationBell = () => {
             <div className="max-h-96 overflow-y-auto">
               {loading ? (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                  <Loader2 className="w-6 h-6 animate-spin" style={{ color: c.primary }} />
                 </div>
               ) : notifications.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8" style={{ color: c.muted }}>
                   <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">No notifications</p>
                 </div>
@@ -224,10 +252,11 @@ const ScheduleNotificationBell = () => {
                   <motion.div
                     key={notification._id}
                     layout
-                    className={`
-                      px-4 py-3 border-b border-gray-700/50 hover:bg-gray-700/30
-                      ${!notification.isRead ? 'bg-blue-500/5' : ''}
-                    `}
+                    className="px-4 py-3"
+                    style={{ 
+                      borderBottom: `1px solid ${c.border}40`,
+                      backgroundColor: !notification.isRead ? `${c.primary}05` : 'transparent'
+                    }}
                   >
                     <div className="flex gap-3">
                       {/* Icon */}
@@ -238,21 +267,24 @@ const ScheduleNotificationBell = () => {
                       {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm text-white font-medium">
+                          <p className="text-sm font-medium" style={{ color: c.text }}>
                             {notification.title}
                           </p>
                           {!notification.isRead && (
-                            <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1.5" />
+                            <div 
+                              className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5"
+                              style={{ backgroundColor: c.primary }}
+                            />
                           )}
                         </div>
                         
-                        <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">
+                        <p className="text-xs mt-0.5 line-clamp-2" style={{ color: c.muted }}>
                           {notification.message}
                         </p>
 
                         {/* Affected dates */}
                         {notification.affectedDates?.length > 0 && (
-                          <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                          <div className="flex items-center gap-1 text-xs mt-1" style={{ color: c.muted }}>
                             <Clock className="w-3 h-3" />
                             {formatAffectedDates(notification.affectedDates)}
                           </div>
@@ -260,7 +292,7 @@ const ScheduleNotificationBell = () => {
 
                         {/* Time and actions */}
                         <div className="flex items-center justify-between mt-2">
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs" style={{ color: c.muted }}>
                             {formatRelativeTime(notification.createdAt)}
                           </span>
                           
@@ -268,7 +300,16 @@ const ScheduleNotificationBell = () => {
                             {!notification.isRead && (
                               <button
                                 onClick={() => handleMarkAsRead(notification._id)}
-                                className="p-1 text-gray-400 hover:text-green-400 hover:bg-green-400/10 rounded transition-colors"
+                                className="p-1 rounded transition-colors"
+                                style={{ color: c.muted }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.color = c.success;
+                                  e.currentTarget.style.backgroundColor = `${c.success}10`;
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.color = c.muted;
+                                  e.currentTarget.style.backgroundColor = 'transparent';
+                                }}
                                 title="Mark as read"
                               >
                                 <Check className="w-3 h-3" />
@@ -276,7 +317,16 @@ const ScheduleNotificationBell = () => {
                             )}
                             <button
                               onClick={() => handleDelete(notification._id)}
-                              className="p-1 text-gray-400 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors"
+                              className="p-1 rounded transition-colors"
+                              style={{ color: c.muted }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.color = c.danger;
+                                e.currentTarget.style.backgroundColor = `${c.danger}10`;
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.color = c.muted;
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                              }}
                               title="Delete"
                             >
                               <Trash2 className="w-3 h-3" />
@@ -292,13 +342,16 @@ const ScheduleNotificationBell = () => {
 
             {/* Footer */}
             {notifications.length > 0 && (
-              <div className="px-4 py-2 bg-gray-900 border-t border-gray-700">
+              <div 
+                className="px-4 py-2"
+                style={{ backgroundColor: `${c.muted}05`, borderTop: `1px solid ${c.border}` }}
+              >
                 <button
                   onClick={() => {
-                    // Could navigate to full notifications page
                     setIsOpen(false);
                   }}
-                  className="text-xs text-blue-400 hover:text-blue-300"
+                  className="text-xs"
+                  style={{ color: c.primary }}
                 >
                   View all notifications
                 </button>

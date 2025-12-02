@@ -8,7 +8,9 @@ const DroppableDay = ({
   date, 
   isWeekend = false, 
   isHoliday = false,
-  isRestDay = false 
+  isRestDay = false,
+  theme = {},
+  viewMode = 'week'
 }) => {
   const { isOver, setNodeRef } = useDroppable({
     id,
@@ -21,17 +23,33 @@ const DroppableDay = ({
     }
   });
 
+  const defaultTheme = {
+    border: '#e5e0df',
+    danger: '#ef4444',
+    warning: '#f59e0b',
+    accent: '#f1670f'
+  };
+
+  const t = { ...defaultTheme, ...theme };
+
   return (
     <div
       ref={setNodeRef}
-      className={`
-        w-28 min-w-[7rem] min-h-[4rem] p-1 border-r border-gray-700/50
-        transition-colors duration-150
-        ${isWeekend ? 'bg-gray-800/30' : ''}
-        ${isHoliday ? 'bg-red-900/10' : ''}
-        ${isRestDay ? 'bg-amber-900/10' : ''}
-        ${isOver ? 'bg-blue-500/20 border-blue-500' : ''}
-      `}
+      className={`min-h-[4rem] p-1 border-r transition-colors duration-150 ${
+        viewMode === 'week' ? 'flex-1 min-w-[100px]' : 'w-24 min-w-[6rem] flex-shrink-0'
+      }`}
+      style={{
+        borderColor: t.border,
+        backgroundColor: isOver 
+          ? `${t.accent}20` 
+          : isHoliday 
+            ? `${t.danger}05` 
+            : isRestDay 
+              ? `${t.warning}05` 
+              : isWeekend 
+                ? '#f9f9f9' 
+                : 'transparent'
+      }}
     >
       {children}
     </div>
