@@ -945,6 +945,7 @@ const MenuPage = () => {
                   availabilityMap[id] = {
                     isAvailable: true,
                     hasIngredientTracking: false,
+                    manuallyDisabled: false,
                     insufficientIngredients: [],
                     timestamp: Date.now()
                   };
@@ -956,6 +957,7 @@ const MenuPage = () => {
                     availabilityMap[item.menuItemId] = {
                       isAvailable: item.isAvailable,
                       hasIngredientTracking: item.hasIngredientTracking || false,
+                      manuallyDisabled: item.manuallyDisabled || false, // Preserve manuallyDisabled flag
                       insufficientIngredients: item.insufficientIngredients || [],
                       timestamp: Date.now()
                     };
@@ -1816,9 +1818,20 @@ const MenuPage = () => {
         console.log('[MenuManagement] itemAvailability state:', itemAvailability);
         console.log('[MenuManagement] itemAvailability[itemId]:', itemAvailability[itemId]);
         
-        // If trying to enable an item that has insufficient ingredients, require admin password
-        if (newAvailability && itemAvailability[itemId] && !itemAvailability[itemId].isAvailable) {
+        // If trying to enable an item that has INSUFFICIENT INGREDIENTS (not just manually disabled), require admin password
+        // Only require override if:
+        // 1. Trying to enable (newAvailability = true)
+        // 2. Item has availability data
+        // 3. Item is currently unavailable
+        // 4. Item was NOT manually disabled (it's unavailable due to ingredient shortage)
+        // 5. Item has insufficient ingredients listed
+        const availData = itemAvailability[itemId];
+        const hasInsufficientIngredients = availData?.insufficientIngredients?.length > 0;
+        const wasManuallyDisabled = availData?.manuallyDisabled === true;
+        
+        if (newAvailability && availData && !availData.isAvailable && !wasManuallyDisabled && hasInsufficientIngredients) {
           console.log('[MenuManagement] Item has insufficient ingredients, requiring admin override');
+          console.log('[MenuManagement] Insufficient ingredients:', availData.insufficientIngredients);
           console.log('[MenuManagement] Setting showAdminOverrideModal to true');
           // Store the pending change and show admin modal
           setPendingAvailabilityChange({ itemId, newAvailability });
@@ -3311,7 +3324,14 @@ const MenuPage = () => {
             {selectedIngredients.length > 0 ? (
               <div className="space-y-2">
                 {selectedIngredients.map((ingredient, index) => {
-                  const cost = calculateIngredientCost(ingredient);
+                  // Get cost from API if available, otherwise calculate locally
+                  const itemId = currentFormItem?._id || selectedItem?._id;
+                  const apiCostAnalysis = itemId ? itemCostAnalysis[itemId] : null;
+                  const apiIngredientCost = apiCostAnalysis?.ingredientBreakdown?.find(
+                    ing => ing.name === ingredient.name
+                  );
+                  
+                  const cost = apiIngredientCost?.totalCost ?? calculateIngredientCost(ingredient);
                   const hasUnitMismatch = ingredient.inventoryUnit && ingredient.unit && 
                     !areUnitsCompatible(ingredient.unit, ingredient.inventoryUnit);
                   
@@ -3372,10 +3392,24 @@ const MenuPage = () => {
                 <div className="text-sm text-blue-700">
                   <p>Mapped Ingredients: {selectedIngredients.length}</p>
                   {(() => {
-                    const totalCost = selectedIngredients.reduce((sum, ing) => {
-                      const cost = calculateIngredientCost(ing);
-                      return sum + (cost !== null ? cost : 0);
-                    }, 0);
+                    // Use cost analysis from API if available (more accurate), otherwise calculate locally
+                    const itemId = currentFormItem?._id || selectedItem?._id;
+                    const apiCostAnalysis = itemId ? itemCostAnalysis[itemId] : null;
+                    
+                    let totalCost = 0;
+                    let useApiCost = false;
+                    
+                    if (apiCostAnalysis && apiCostAnalysis.totalCost !== undefined) {
+                      totalCost = apiCostAnalysis.totalCost;
+                      useApiCost = true;
+                    } else {
+                      // Fallback to local calculation
+                      totalCost = selectedIngredients.reduce((sum, ing) => {
+                        const cost = calculateIngredientCost(ing);
+                        return sum + (cost !== null ? cost : 0);
+                      }, 0);
+                    }
+                    
                     const hasWarnings = selectedIngredients.some(ing => 
                       ing.inventoryUnit && ing.unit && !areUnitsCompatible(ing.unit, ing.inventoryUnit)
                     );
@@ -3383,6 +3417,7 @@ const MenuPage = () => {
                       <>
                         <p className="font-medium mt-1">
                           Estimated Cost: ₱{totalCost.toFixed(2)}
+                          {useApiCost && <span className="text-xs ml-1 text-blue-500">(from API)</span>}
                         </p>
                         {hasWarnings && (
                           <p className="text-xs text-red-600 mt-1">

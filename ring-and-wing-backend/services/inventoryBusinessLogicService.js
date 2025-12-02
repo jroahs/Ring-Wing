@@ -675,9 +675,36 @@ class InventoryBusinessLogicService {
   static async getMenuItemIngredients(menuItemId) {
     try {
       const MenuItemIngredient = require('../models/MenuItemIngredient');
+      // Don't use .lean() so we can access virtuals like unitPrice
       const ingredients = await MenuItemIngredient.find({ menuItemId })
-        .populate('ingredientId', 'name unit category currentStock unitCost cost price totalQuantity')
-        .lean();
+        .populate('ingredientId', 'name unit category currentStock cost price totalQuantity initialPurchasedQuantity inventory');
+      
+      // Helper function to calculate unit price from inventory item
+      const calculateUnitPrice = (item) => {
+        if (!item) return 0;
+        
+        // First try to calculate from batches with their individual costs
+        if (item.inventory && Array.isArray(item.inventory)) {
+          const batchesWithCost = item.inventory.filter(b => b.batchCost && b.purchasedQuantity);
+          if (batchesWithCost.length > 0) {
+            const totalBatchCost = batchesWithCost.reduce((sum, b) => sum + b.batchCost, 0);
+            const totalBatchQty = batchesWithCost.reduce((sum, b) => sum + b.purchasedQuantity, 0);
+            if (totalBatchQty > 0) {
+              return totalBatchCost / totalBatchQty;
+            }
+          }
+        }
+        
+        // Fallback: use overall cost and initialPurchasedQuantity or totalQuantity
+        const purchasedQty = item.initialPurchasedQuantity || 
+          (item.inventory ? item.inventory.reduce((sum, b) => sum + (b.purchasedQuantity || b.quantity || 0), 0) : 0);
+        if (purchasedQty > 0 && item.cost > 0) {
+          return item.cost / purchasedQty;
+        }
+        
+        // Final fallback
+        return item.price || 0;
+      };
       
       return {
         menuItemId,
@@ -696,7 +723,9 @@ class InventoryBusinessLogicService {
             };
           }
           
-          // Normal case where populate worked
+          // Normal case where populate worked - calculate unit price properly
+          const unitPrice = calculateUnitPrice(ing.ingredientId);
+          
           return {
             inventoryItemId: ing.ingredientId._id,
             name: ing.ingredientId.name,
@@ -705,7 +734,7 @@ class InventoryBusinessLogicService {
             inventoryUnit: ing.ingredientId.unit, // The actual unit stored in inventory
             tolerance: ing.tolerance,
             currentStock: ing.ingredientId.currentStock || ing.ingredientId.totalQuantity || 0,
-            unitCost: ing.ingredientId.unitCost || ing.ingredientId.cost || ing.ingredientId.price || 0
+            unitCost: unitPrice // Use calculated unit price instead of total cost
           };
         }),
         totalIngredients: ingredients.length
