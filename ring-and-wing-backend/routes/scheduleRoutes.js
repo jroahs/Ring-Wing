@@ -600,6 +600,8 @@ router.get('/compare/:staffId', auth, async (req, res) => {
     const { staffId } = req.params;
     const { startDate, endDate } = req.query;
 
+    console.log('[Compare] Request:', { staffId, startDate, endDate });
+
     if (!startDate || !endDate) {
       return res.status(400).json({
         success: false,
@@ -608,7 +610,11 @@ router.get('/compare/:staffId', auth, async (req, res) => {
     }
 
     const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
     const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    console.log('[Compare] Date range:', { start, end });
 
     // Get schedules
     const schedules = await EmployeeSchedule.find({
@@ -616,12 +622,19 @@ router.get('/compare/:staffId', auth, async (req, res) => {
       date: { $gte: start, $lte: end }
     }).populate('shiftTemplateId', 'name startTime endTime workHours');
 
+    console.log('[Compare] Found schedules:', schedules.length);
+    if (schedules.length > 0) {
+      console.log('[Compare] First schedule date:', schedules[0].date);
+    }
+
     // Get time logs
     const TimeLog = require('../models/TimeLog');
     const timeLogs = await TimeLog.find({
       staffId,
       timestamp: { $gte: start, $lte: end }
     }).sort('timestamp');
+
+    console.log('[Compare] Found time logs:', timeLogs.length);
 
     // Get settings for grace period
     const Settings = require('../models/Settings');

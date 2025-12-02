@@ -13,6 +13,7 @@ import {
   ScheduleNotificationBell,
   ShiftTemplateManager
 } from './scheduling';
+import api from '../services/api';
 
 const tabs = [
   { id: 'calendar', label: 'Schedule', icon: Calendar },
@@ -39,6 +40,7 @@ const StaffScheduler = () => {
   const [selectedStaffName, setSelectedStaffName] = useState('');
 
   const handleStaffSelect = (staffId, staffName) => {
+    console.log('[StaffScheduler] Selected staff:', { staffId, staffName });
     setSelectedStaffId(staffId);
     setSelectedStaffName(staffName);
     setActiveTab('comparison');
@@ -168,19 +170,29 @@ const StaffScheduler = () => {
 const StaffSelectionList = ({ onSelect, colors = {} }) => {
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const c = { ...themeColors, ...colors };
 
   React.useEffect(() => {
     const fetchStaff = async () => {
       try {
-        const api = (await import('../services/api')).default;
-        const response = await api.get('/api/staff');
-        if (response.data.success) {
-          setStaff(response.data.data.filter(s => s.status === 'Active'));
-        }
+        console.log('[StaffSelectionList] Fetching staff from schedules endpoint...');
+        // Use the schedules endpoint which reliably returns staff
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+        const response = await api.get(`/api/schedules/month/${year}/${month}`);
+        console.log('[StaffSelectionList] Response:', response.data);
+        
+        // Handle both wrapped and unwrapped response formats
+        const data = response.data?.data || response.data || {};
+        const staffList = Array.isArray(data.staff) ? data.staff : [];
+        console.log('[StaffSelectionList] Staff list:', staffList.length, 'total');
+        setStaff(staffList);
       } catch (err) {
-        console.error('Error fetching staff:', err);
+        console.error('[StaffSelectionList] Error fetching staff:', err);
+        setError(err.message);
       } finally {
         setLoading(false);
       }
@@ -199,52 +211,72 @@ const StaffSelectionList = ({ onSelect, colors = {} }) => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <Users className="w-12 h-12 mx-auto mb-4" style={{ color: c.danger }} />
+        <p className="text-lg font-medium" style={{ color: c.text }}>Error Loading Staff</p>
+        <p className="text-sm mt-1" style={{ color: c.muted }}>{error}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       <h2 className="text-xl font-semibold mb-6" style={{ color: c.text }}>
         Select Staff Member
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {staff.map((member) => (
-          <motion.button
-            key={member._id}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => onSelect(member._id, member.name)}
-            className="p-4 rounded-xl text-left transition-colors group"
-            style={{ 
-              backgroundColor: '#fff', 
-              border: `1px solid ${c.border}` 
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.borderColor = c.primary}
-            onMouseLeave={(e) => e.currentTarget.style.borderColor = c.border}
-          >
-            <div className="flex items-center gap-3">
-              {member.profilePicture ? (
-                <img
-                  src={member.profilePicture}
-                  alt={member.name}
-                  className="w-12 h-12 rounded-full object-cover"
-                />
-              ) : (
-                <div 
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg"
-                  style={{ backgroundColor: c.primary }}
-                >
-                  {member.name?.charAt(0)}
+      {staff.length === 0 ? (
+        <div className="text-center py-12">
+          <Users className="w-12 h-12 mx-auto mb-4" style={{ color: c.muted }} />
+          <p className="text-lg font-medium" style={{ color: c.text }}>No Active Staff Found</p>
+          <p className="text-sm mt-1" style={{ color: c.muted }}>
+            Add staff members or ensure some are marked as "Active" status
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {staff.map((member) => (
+            <motion.button
+              key={member._id}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onSelect(member._id, member.name)}
+              className="p-4 rounded-xl text-left transition-colors group"
+              style={{ 
+                backgroundColor: '#fff', 
+                border: `1px solid ${c.border}` 
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = c.primary}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = c.border}
+            >
+              <div className="flex items-center gap-3">
+                {member.profilePicture ? (
+                  <img
+                    src={member.profilePicture}
+                    alt={member.name}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                ) : (
+                  <div 
+                    className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg"
+                    style={{ backgroundColor: c.primary }}
+                  >
+                    {member.name?.charAt(0)}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate" style={{ color: c.text }}>
+                    {member.name}
+                  </div>
+                  <div className="text-sm" style={{ color: c.muted }}>{member.position}</div>
                 </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="font-medium truncate" style={{ color: c.text }}>
-                  {member.name}
-                </div>
-                <div className="text-sm" style={{ color: c.muted }}>{member.position}</div>
+                <ChevronRight className="w-5 h-5" style={{ color: c.muted }} />
               </div>
-              <ChevronRight className="w-5 h-5" style={{ color: c.muted }} />
-            </div>
-          </motion.button>
-        ))}
-      </div>
+            </motion.button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

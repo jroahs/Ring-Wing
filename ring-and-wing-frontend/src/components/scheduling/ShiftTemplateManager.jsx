@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useDraggable } from '@dnd-kit/core';
 import {
   Plus,
   Edit2,
@@ -11,9 +12,104 @@ import {
   ChevronUp,
   Check,
   X,
-  AlertCircle
+  AlertCircle,
+  GripVertical
 } from 'lucide-react';
 import api from '../../services/api';
+
+// Draggable Template Card Component
+const DraggableTemplateCard = ({ template, isSelected, onSelect, onEdit, onDelete, colors }) => {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `template_${template._id}`,
+    data: { type: 'template', template }
+  });
+
+  const c = colors;
+  
+  const formatTime = (time) => {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  const style = transform ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    zIndex: isDragging ? 1000 : 1,
+    opacity: isDragging ? 0.8 : 1,
+  } : undefined;
+
+  return (
+    <motion.div
+      ref={setNodeRef}
+      style={style}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`p-3 rounded-xl cursor-grab active:cursor-grabbing transition-all ${
+        isSelected ? 'ring-2' : ''
+      } ${isDragging ? 'shadow-lg' : ''}`}
+      onClick={() => onSelect(template)}
+      {...attributes}
+      {...listeners}
+    >
+      <div 
+        className="rounded-xl p-3"
+        style={{ 
+          backgroundColor: isSelected ? `${c.primary}15` : '#fff',
+          border: `2px solid ${isSelected ? c.primary : c.border}`,
+        }}
+      >
+        <div className="flex items-center gap-2 mb-2">
+          <GripVertical className="w-4 h-4 flex-shrink-0" style={{ color: c.muted }} />
+          <div
+            className="w-3 h-3 rounded-full flex-shrink-0"
+            style={{ backgroundColor: template.color }}
+          />
+          <span className="font-medium text-sm flex-1 truncate" style={{ color: c.text }}>
+            {template.name}
+          </span>
+        </div>
+        
+        <div className="flex items-center gap-2 text-xs mb-2" style={{ color: c.muted }}>
+          <Clock className="w-3 h-3" />
+          <span>{formatTime(template.startTime)} - {formatTime(template.endTime)}</span>
+        </div>
+        
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1 text-xs" style={{ color: c.muted }}>
+            <Coffee className="w-3 h-3" />
+            <span>{template.breakMinutes}min break</span>
+          </div>
+          
+          <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={(e) => { e.stopPropagation(); onEdit(template); }}
+              className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+              title="Edit"
+            >
+              <Edit2 className="w-3.5 h-3.5" style={{ color: c.muted }} />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(template._id); }}
+              className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+              title="Delete"
+            >
+              <Trash2 className="w-3.5 h-3.5" style={{ color: c.danger }} />
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      {isDragging && (
+        <div className="text-xs text-center mt-1" style={{ color: c.primary }}>
+          Drop on calendar cell
+        </div>
+      )}
+    </motion.div>
+  );
+};
 
 // Time Picker Modal Component
 const TimePickerModal = ({ isOpen, onClose, value, onChange, label, colors }) => {
@@ -273,12 +369,14 @@ const TemplateFormModal = ({ isOpen, onClose, template, onSave, colors }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('[TemplateFormModal] Submitting form with data:', formData);
     setSaving(true);
     try {
       await onSave(formData, template?._id);
+      console.log('[TemplateFormModal] Save successful');
       onClose();
     } catch (err) {
-      console.error('Save error:', err);
+      console.error('[TemplateFormModal] Save error:', err);
     } finally {
       setSaving(false);
     }
@@ -574,7 +672,7 @@ const TemplateFormModal = ({ isOpen, onClose, template, onSave, colors }) => {
 };
 
 // Main Component
-const ShiftTemplateManager = ({ onTemplateSelect, selectedTemplateId, colors = {} }) => {
+const ShiftTemplateManager = ({ onTemplateSelect, selectedTemplateId, colors = {}, onTemplatesLoaded }) => {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showFormModal, setShowFormModal] = useState(false);
@@ -596,17 +694,31 @@ const ShiftTemplateManager = ({ onTemplateSelect, selectedTemplateId, colors = {
   useEffect(() => {
     fetchTemplates();
   }, []);
+  
+  // Notify parent when templates change
+  useEffect(() => {
+    if (onTemplatesLoaded) {
+      onTemplatesLoaded(templates);
+    }
+  }, [templates, onTemplatesLoaded]);
 
   const fetchTemplates = async () => {
     try {
       setLoading(true);
+      console.log('[ShiftTemplateManager] Fetching templates...');
       const response = await api.get('/api/shift-templates');
-      if (response.data.success) {
-        setTemplates(response.data.data);
-      }
+      console.log('[ShiftTemplateManager] Full response:', response);
+      console.log('[ShiftTemplateManager] response.data:', response.data);
+      console.log('[ShiftTemplateManager] response.data.success:', response.data?.success);
+      console.log('[ShiftTemplateManager] response.data.data:', response.data?.data);
+      
+      // Handle both wrapped and unwrapped responses
+      const templates = response.data?.data || (Array.isArray(response.data) ? response.data : []);
+      setTemplates(templates);
+      console.log('[ShiftTemplateManager] Templates loaded:', templates.length);
     } catch (err) {
       setError('Failed to load shift templates');
-      console.error('Error fetching templates:', err);
+      console.error('[ShiftTemplateManager] Error fetching templates:', err);
     } finally {
       setLoading(false);
     }
@@ -614,20 +726,22 @@ const ShiftTemplateManager = ({ onTemplateSelect, selectedTemplateId, colors = {
 
   const handleSave = async (formData, templateId) => {
     try {
+      console.log('[ShiftTemplateManager] Saving template:', { formData, templateId });
       if (templateId) {
         const response = await api.put(`/api/shift-templates/${templateId}`, formData);
-        if (response.data.success) {
-          setTemplates(templates.map(t => 
-            t._id === templateId ? response.data.data : t
-          ));
-        }
+        console.log('[ShiftTemplateManager] Update response:', response.data);
+        const updatedTemplate = response.data?.data || response.data;
+        setTemplates(prev => prev.map(t => 
+          t._id === templateId ? updatedTemplate : t
+        ));
       } else {
         const response = await api.post('/api/shift-templates', formData);
-        if (response.data.success) {
-          setTemplates([...templates, response.data.data]);
-        }
+        console.log('[ShiftTemplateManager] Create response:', response.data);
+        const newTemplate = response.data?.data || response.data;
+        setTemplates(prev => [...prev, newTemplate]);
       }
     } catch (err) {
+      console.error('[ShiftTemplateManager] Save error:', err);
       setError(err.response?.data?.message || 'Failed to save template');
       throw err;
     }
@@ -649,12 +763,10 @@ const ShiftTemplateManager = ({ onTemplateSelect, selectedTemplateId, colors = {
 
   const handleReactivate = async (templateId) => {
     try {
-      const response = await api.put(`/api/shift-templates/${templateId}/reactivate`);
-      if (response.data.success) {
-        setTemplates(templates.map(t => 
-          t._id === templateId ? { ...t, isActive: true } : t
-        ));
-      }
+      await api.put(`/api/shift-templates/${templateId}/reactivate`);
+      setTemplates(prev => prev.map(t => 
+        t._id === templateId ? { ...t, isActive: true } : t
+      ));
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to reactivate template');
     }
@@ -737,65 +849,29 @@ const ShiftTemplateManager = ({ onTemplateSelect, selectedTemplateId, colors = {
                   </div>
                 )}
 
-                {/* Template list */}
+                {/* Drag hint */}
+                <div 
+                  className="text-xs text-center py-2 px-3 rounded-lg mb-2"
+                  style={{ backgroundColor: `${c.primary}10`, color: c.primary }}
+                >
+                  💡 Drag templates to calendar cells to assign shifts
+                </div>
+
+                {/* Template list - Now draggable */}
                 <div className="space-y-2 max-h-72 overflow-y-auto">
                   {templates.filter(t => t.isActive).map((template) => (
-                    <motion.div
+                    <DraggableTemplateCard
                       key={template._id}
-                      layout
-                      className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all"
-                      style={{
-                        backgroundColor: selectedTemplateId === template._id ? `${c.primary}10` : `${c.muted}05`,
-                        border: `2px solid ${selectedTemplateId === template._id ? c.primary : 'transparent'}`
+                      template={template}
+                      isSelected={selectedTemplateId === template._id}
+                      onSelect={(t) => onTemplateSelect?.(t)}
+                      onEdit={(t) => {
+                        setEditingTemplate(t);
+                        setShowFormModal(true);
                       }}
-                      onClick={() => onTemplateSelect?.(template)}
-                    >
-                      <div
-                        className="w-1.5 h-12 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: template.color }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate" style={{ color: c.text }}>
-                          {template.name}
-                        </div>
-                        <div className="text-sm" style={{ color: c.muted }}>
-                          {formatTime(template.startTime)} - {formatTime(template.endTime)}
-                          <span className="mx-2">•</span>
-                          {template.workHours}h
-                          {template.allowSplitShift && (
-                            <span 
-                              className="ml-2 px-1.5 py-0.5 rounded text-xs"
-                              style={{ backgroundColor: '#f59e0b20', color: '#f59e0b' }}
-                            >
-                              Split
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingTemplate(template);
-                            setShowFormModal(true);
-                          }}
-                          className="p-2 rounded-lg transition-colors hover:bg-gray-100"
-                          style={{ color: c.muted }}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(template._id);
-                          }}
-                          className="p-2 rounded-lg transition-colors hover:bg-red-50"
-                          style={{ color: c.muted }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </motion.div>
+                      onDelete={handleDelete}
+                      colors={c}
+                    />
                   ))}
                 </div>
 

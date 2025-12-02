@@ -65,11 +65,11 @@ const StaffScheduleView = () => {
           }
         });
 
-        if (response.data.success) {
-          setSchedules(response.data.data.schedules);
-          setHolidays(response.data.data.holidays || []);
-          setRestDays(response.data.data.restDays || []);
-        }
+        console.log('[StaffScheduleView] API response:', response.data);
+        const data = response.data?.data || response.data;
+        setSchedules(data.schedules || []);
+        setHolidays(data.holidays || []);
+        setRestDays(data.restDays || []);
       } catch (err) {
         console.error('Error fetching schedule:', err);
         setError('Failed to load your schedule');

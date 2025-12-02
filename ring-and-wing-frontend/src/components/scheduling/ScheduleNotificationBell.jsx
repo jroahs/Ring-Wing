@@ -41,10 +41,9 @@ const ScheduleNotificationBell = ({ colors = {} }) => {
         params: { limit: 20 }
       });
       
-      if (response.data.success) {
-        setNotifications(response.data.data.notifications);
-        setUnreadCount(response.data.data.unreadCount);
-      }
+      const data = response.data?.data || response.data;
+      setNotifications(data.notifications || []);
+      setUnreadCount(data.unreadCount || 0);
     } catch (err) {
       console.error('Error fetching notifications:', err);
     } finally {
@@ -56,9 +55,8 @@ const ScheduleNotificationBell = ({ colors = {} }) => {
   const fetchUnreadCount = async () => {
     try {
       const response = await api.get('/api/schedule-notifications/unread-count');
-      if (response.data.success) {
-        setUnreadCount(response.data.data.count);
-      }
+      const data = response.data?.data || response.data;
+      setUnreadCount(data.count || 0);
     } catch (err) {
       console.error('Error fetching unread count:', err);
     }

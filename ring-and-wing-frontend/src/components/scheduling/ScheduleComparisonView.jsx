@@ -61,13 +61,23 @@ const ScheduleComparisonView = ({ staffId, staffName, colors = {} }) => {
         setLoading(true);
         setError(null);
 
+        console.log('[ScheduleComparisonView] Fetching comparison for:', staffId, dateRange);
         const response = await api.get(`/api/schedules/compare/${staffId}`, {
           params: dateRange
         });
 
-        if (response.data.success) {
-          setComparison(response.data.data.comparison);
-          setSummary(response.data.data.summary);
+        console.log('[ScheduleComparisonView] Response:', response.data);
+        
+        // Handle both wrapped and unwrapped response formats
+        const data = response.data?.data || response.data;
+        console.log('[ScheduleComparisonView] Parsed data:', {
+          comparisonCount: data?.comparison?.length,
+          summary: data?.summary
+        });
+        
+        if (data) {
+          setComparison(data.comparison || []);
+          setSummary(data.summary || null);
         }
       } catch (err) {
         console.error('Error fetching comparison:', err);

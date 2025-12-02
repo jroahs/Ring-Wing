@@ -47,9 +47,8 @@ const TimeLogCorrectionForm = ({ staffId, onSuccess, onCancel }) => {
         }
       });
       
-      if (response.data.success) {
-        setExistingLogs(response.data.data || []);
-      }
+      const data = response.data?.data || response.data;
+      setExistingLogs(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error fetching time logs:', err);
     } finally {
@@ -113,9 +112,8 @@ const TimeLogCorrectionForm = ({ staffId, onSuccess, onCancel }) => {
 
       const response = await api.post('/api/time-log-corrections', payload);
 
-      if (response.data.success) {
-        onSuccess?.(response.data.data);
-      }
+      const data = response.data?.data || response.data;
+      onSuccess?.(data);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to submit correction request');
     } finally {

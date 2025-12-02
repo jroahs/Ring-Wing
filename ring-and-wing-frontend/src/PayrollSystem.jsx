@@ -72,7 +72,12 @@ const PayrollSystem = () => {
   const [thirteenthMonthData, setThirteenthMonthData] = useState(null);
   const [showHolidayDetails, setShowHolidayDetails] = useState(false);
   const [includeHolidayPay, setIncludeHolidayPay] = useState(true);
-  const [include13thMonth, setInclude13thMonth] = useState(false);  const [manualBonuses, setManualBonuses] = useState({
+  const [include13thMonth, setInclude13thMonth] = useState(false);
+  
+  // Schedule attendance data
+  const [scheduleAttendance, setScheduleAttendance] = useState(null);
+  
+  const [manualBonuses, setManualBonuses] = useState({
     performance: 0,
     other: 0
   });
@@ -205,6 +210,41 @@ const PayrollSystem = () => {
       setAttendance({ totalHoursWorked: '0', overtimeHours: '0' });
     }
   };
+
+  // Fetch schedule-based attendance data (absences, late minutes) from schedules
+  const fetchScheduleAttendance = async (staffId, startDate, endDate) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const config = {
+        headers: { 
+          'Authorization': `Bearer ${token}`
+        }
+      };
+      
+      const response = await api.get(`/api/schedules/compare/${staffId}`, {
+        params: {
+          startDate: new Date(startDate).toISOString().split('T')[0],
+          endDate: new Date(endDate).toISOString().split('T')[0]
+        },
+        ...config
+      });
+      
+      const data = response.data?.data || response.data;
+      if (data?.summary) {
+        setScheduleAttendance(data.summary);
+        // Auto-populate absences and late minutes from schedule data
+        setDeductions(prev => ({
+          ...prev,
+          absences: data.summary.absentDays || 0,
+          lateMinutes: data.summary.totalLateMinutes || 0
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching schedule attendance:', error);
+      setScheduleAttendance(null);
+    }
+  };
+
   // Salary calculation with flexible hours and bonuses
   const calculateNetSalary = () => {
     if (!selectedEmployee) return { netPay: 0 };
@@ -550,6 +590,9 @@ const PayrollSystem = () => {
       
       fetchTimeLogs(selectedEmployee._id, startDate, endDate);
       
+      // Fetch schedule-based attendance (absences, late minutes)
+      fetchScheduleAttendance(selectedEmployee._id, startDate, endDate);
+      
       // Fetch holiday data for the current period
       fetchHolidayData(selectedEmployee._id, startDate, endDate);
       
@@ -856,6 +899,11 @@ const PayrollSystem = () => {
                           <h3 className="font-medium mb-3" style={{ color: colors.secondary }}>
                             <FiFileText className="inline mr-2" />
                             Deductions
+                            {scheduleAttendance && (
+                              <span className="text-xs font-normal ml-2" style={{ color: colors.accent }}>
+                                (from schedules)
+                              </span>
+                            )}
                           </h3>
                           <div className="space-y-3">
                             <div className="flex justify-between items-center">

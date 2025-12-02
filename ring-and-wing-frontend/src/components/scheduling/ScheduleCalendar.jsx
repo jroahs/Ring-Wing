@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   DndContext,
   DragOverlay,
@@ -18,7 +19,8 @@ import {
   AlertCircle,
   Loader2,
   LayoutGrid,
-  List
+  List,
+  UserPlus
 } from 'lucide-react';
 import api from '../../services/api';
 import ShiftTemplateManager from './ShiftTemplateManager';
@@ -43,6 +45,8 @@ const theme = {
 };
 
 const ScheduleCalendar = () => {
+  const navigate = useNavigate();
+  
   // Date state
   const [currentDate, setCurrentDate] = useState(new Date());
   const [year, setYear] = useState(currentDate.getFullYear());
@@ -60,8 +64,11 @@ const ScheduleCalendar = () => {
 
   // UI state
   const [activeId, setActiveId] = useState(null);
+  const [activeDragType, setActiveDragType] = useState(null); // 'schedule' or 'template'
+  const [draggedTemplate, setDraggedTemplate] = useState(null);
   const [viewMode, setViewMode] = useState('week'); // 'week' or 'month'
   const [filterPosition, setFilterPosition] = useState('all');
+  const [templates, setTemplates] = useState([]); // Store templates for drag overlay
 
   // Drag sensors
   const sensors = useSensors(
@@ -136,18 +143,79 @@ const ScheduleCalendar = () => {
       setLoading(true);
       setError(null);
       
-      const fetchYear = viewMode === 'week' ? currentWeekDays[0]?.year : year;
-      const fetchMonth = viewMode === 'week' ? currentWeekDays[0]?.month : month;
-      
-      const response = await api.get(`/api/schedules/month/${fetchYear}/${fetchMonth}`);
-      
-      if (response.data.success) {
-        setSchedules(response.data.data.schedules || []);
-        setStaff(response.data.data.staff || []);
-        setHolidays(response.data.data.holidays || []);
+      if (viewMode === 'week') {
+        // Week view might span two months, fetch both if needed
+        const startMonth = currentWeekDays[0]?.month;
+        const endMonth = currentWeekDays[6]?.month;
+        const startYear = currentWeekDays[0]?.year;
+        const endYear = currentWeekDays[6]?.year;
+        
+        console.log('[ScheduleCalendar] Week view fetching:', { startYear, startMonth, endYear, endMonth });
+        
+        const responses = await Promise.all([
+          api.get(`/api/schedules/month/${startYear}/${startMonth}`),
+          // Only fetch second month if different
+          startMonth !== endMonth || startYear !== endYear
+            ? api.get(`/api/schedules/month/${endYear}/${endMonth}`)
+            : null
+        ].filter(Boolean));
+        
+        console.log('[ScheduleCalendar] Raw responses:', responses.map(r => r.data));
+        
+        // Merge schedules from both months
+        let allSchedules = [];
+        let allHolidays = [];
+        let staffList = [];
+        
+        responses.forEach((response, idx) => {
+          const data = response.data?.data || response.data;
+          console.log('[ScheduleCalendar] Processing response', idx, ':', {
+            success: response.data?.success,
+            hasData: !!data,
+            dataKeys: data ? Object.keys(data) : [],
+            staffCount: data?.staff?.length,
+            schedulesCount: data?.schedules?.length
+          });
+          
+          if (data && (data.schedules || data.staff)) {
+            allSchedules = [...allSchedules, ...(data.schedules || [])];
+            allHolidays = [...allHolidays, ...(data.holidays || [])];
+            if (idx === 0) {
+              staffList = data.staff || [];
+            }
+          }
+        });
+        
+        // Dedupe schedules by ID
+        const uniqueSchedules = allSchedules.filter((s, i, arr) => 
+          arr.findIndex(x => x._id === s._id) === i
+        );
+        
+        console.log('[ScheduleCalendar] Combined response:', { 
+          schedules: uniqueSchedules.length, 
+          staff: staffList.length 
+        });
+        
+        setSchedules(uniqueSchedules);
+        setStaff(staffList);
+        setHolidays(allHolidays);
+      } else {
+        // Month view - single fetch
+        console.log('[ScheduleCalendar] Fetching schedule for:', year, month);
+        const response = await api.get(`/api/schedules/month/${year}/${month}`);
+        console.log('[ScheduleCalendar] Response:', response.data);
+        
+        const data = response.data?.data || response.data;
+        if (data && (data.schedules || data.staff)) {
+          const staffList = data.staff || [];
+          console.log('[ScheduleCalendar] Staff count:', staffList.length);
+          setSchedules(data.schedules || []);
+          setStaff(staffList);
+          setHolidays(data.holidays || []);
+        }
       }
     } catch (err) {
-      console.error('Error fetching schedule:', err);
+      console.error('[ScheduleCalendar] Error fetching schedule:', err);
       setError('Failed to load schedule data. Make sure the backend is running.');
       setSchedules([]);
       setStaff([]);
@@ -201,9 +269,11 @@ const ScheduleCalendar = () => {
           shiftTemplateId: selectedTemplate._id,
           isRestDay: false
         });
-        if (response.data.success) {
-          setSchedules(schedules.map(s => 
-            s._id === existing._id ? response.data.data : s
+        const updatedSchedule = response.data?.data || response.data;
+        console.log('[ScheduleCalendar] Updated schedule:', updatedSchedule);
+        if (updatedSchedule?._id) {
+          setSchedules(prev => prev.map(s => 
+            s._id === existing._id ? updatedSchedule : s
           ));
         }
       } else {
@@ -212,11 +282,14 @@ const ScheduleCalendar = () => {
           date: dateString,
           shiftTemplateId: selectedTemplate._id
         });
-        if (response.data.success) {
-          setSchedules([...schedules, response.data.data]);
+        const newSchedule = response.data?.data || response.data;
+        console.log('[ScheduleCalendar] New schedule created:', newSchedule);
+        if (newSchedule?._id) {
+          setSchedules(prev => [...prev, newSchedule]);
         }
       }
     } catch (err) {
+      console.error('[ScheduleCalendar] Error assigning schedule:', err);
       setError(err.response?.data?.message || 'Failed to assign schedule');
     } finally {
       setSaving(false);
@@ -234,9 +307,10 @@ const ScheduleCalendar = () => {
           isRestDay: true,
           shiftTemplateId: null
         });
-        if (response.data.success) {
-          setSchedules(schedules.map(s => 
-            s._id === existing._id ? response.data.data : s
+        const updatedSchedule = response.data?.data || response.data;
+        if (updatedSchedule?._id) {
+          setSchedules(prev => prev.map(s => 
+            s._id === existing._id ? updatedSchedule : s
           ));
         }
       } else {
@@ -245,8 +319,9 @@ const ScheduleCalendar = () => {
           date: dateString,
           isRestDay: true
         });
-        if (response.data.success) {
-          setSchedules([...schedules, response.data.data]);
+        const newSchedule = response.data?.data || response.data;
+        if (newSchedule?._id) {
+          setSchedules(prev => [...prev, newSchedule]);
         }
       }
     } catch (err) {
@@ -261,7 +336,8 @@ const ScheduleCalendar = () => {
     try {
       setSaving(true);
       await api.delete(`/api/schedules/${scheduleId}`);
-      setSchedules(schedules.filter(s => s._id !== scheduleId));
+      setSchedules(prev => prev.filter(s => s._id !== scheduleId));
+      console.log('[ScheduleCalendar] Deleted schedule:', scheduleId);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to delete schedule');
     } finally {
@@ -291,10 +367,9 @@ const ScheduleCalendar = () => {
         overwriteExisting: false
       });
 
-      if (response.data.success) {
-        fetchScheduleData();
-        alert(`Applied template: ${response.data.message}`);
-      }
+      const result = response.data?.data || response.data;
+      fetchScheduleData();
+      alert(result?.message || 'Template applied successfully');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to apply template');
     } finally {
@@ -316,9 +391,8 @@ const ScheduleCalendar = () => {
         endDate: endDate.toISOString()
       });
 
-      if (response.data.success) {
-        alert(`Schedule published! ${response.data.data.notified} staff notified.`);
-      }
+      const result = response.data?.data || response.data;
+      alert(`Schedule published! ${result?.notified || 0} staff notified.`);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to publish schedule');
     } finally {
@@ -362,15 +436,82 @@ const ScheduleCalendar = () => {
 
   // Drag handlers
   const handleDragStart = (event) => {
-    setActiveId(event.active.id);
+    const { active } = event;
+    setActiveId(active.id);
+    
+    // Check if dragging a template (starts with 'template_')
+    if (String(active.id).startsWith('template_')) {
+      setActiveDragType('template');
+      const templateId = String(active.id).replace('template_', '');
+      const template = templates.find(t => t._id === templateId);
+      setDraggedTemplate(template);
+      console.log('[ScheduleCalendar] Dragging template:', template?.name);
+    } else {
+      setActiveDragType('schedule');
+      setDraggedTemplate(null);
+    }
   };
 
   const handleDragEnd = async (event) => {
     const { active, over } = event;
+    const dragType = activeDragType;
+    
+    // Reset drag state
     setActiveId(null);
+    setActiveDragType(null);
+    setDraggedTemplate(null);
 
     if (!over) return;
 
+    // Handle template drop
+    if (dragType === 'template') {
+      const templateId = String(active.id).replace('template_', '');
+      const template = templates.find(t => t._id === templateId);
+      if (!template) return;
+      
+      const [targetStaffId, targetDate] = over.id.split('_');
+      if (!targetStaffId || !targetDate) return;
+      
+      console.log('[ScheduleCalendar] Dropping template', template.name, 'on', targetStaffId, targetDate);
+      
+      try {
+        setSaving(true);
+        const existing = getSchedule(targetStaffId, targetDate);
+        
+        if (existing) {
+          // Update existing schedule
+          const response = await api.put(`/api/schedules/${existing._id}`, {
+            shiftTemplateId: template._id,
+            isRestDay: false
+          });
+          const updatedSchedule = response.data?.data || response.data;
+          if (updatedSchedule?._id) {
+            setSchedules(prev => prev.map(s => 
+              s._id === existing._id ? updatedSchedule : s
+            ));
+          }
+        } else {
+          // Create new schedule
+          const response = await api.post('/api/schedules', {
+            staffId: targetStaffId,
+            date: targetDate,
+            shiftTemplateId: template._id
+          });
+          const newSchedule = response.data?.data || response.data;
+          if (newSchedule?._id) {
+            setSchedules(prev => [...prev, newSchedule]);
+          }
+        }
+      } catch (err) {
+        console.error('[ScheduleCalendar] Error dropping template:', err);
+        setError(err.response?.data?.message || 'Failed to assign schedule');
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
+    // Handle schedule move (existing logic)
     const [targetStaffId, targetDate] = over.id.split('_');
     const sourceSchedule = schedules.find(s => s._id === active.id);
 
@@ -387,6 +528,11 @@ const ScheduleCalendar = () => {
 
     try {
       setSaving(true);
+      console.log('[ScheduleCalendar] Drag: Moving schedule from', sourceSchedule._id, 'to', targetStaffId, targetDate);
+      
+      // First remove from UI optimistically
+      setSchedules(prev => prev.filter(s => s._id !== sourceSchedule._id));
+      
       await api.delete(`/api/schedules/${sourceSchedule._id}`);
       
       const response = await api.post('/api/schedules', {
@@ -397,13 +543,17 @@ const ScheduleCalendar = () => {
         customEndTime: sourceSchedule.customEndTime
       });
 
-      if (response.data.success) {
-        setSchedules([
-          ...schedules.filter(s => s._id !== sourceSchedule._id),
-          response.data.data
-        ]);
+      const newSchedule = response.data?.data || response.data;
+      console.log('[ScheduleCalendar] Drag: New schedule created:', newSchedule);
+      
+      if (newSchedule?._id) {
+        setSchedules(prev => [...prev, newSchedule]);
+      } else {
+        // Refetch if we couldn't parse the response
+        fetchScheduleData();
       }
     } catch (err) {
+      console.error('[ScheduleCalendar] Drag error:', err);
       setError(err.response?.data?.message || 'Failed to move schedule');
       fetchScheduleData();
     } finally {
@@ -558,44 +708,45 @@ const ScheduleCalendar = () => {
         )}
       </AnimatePresence>
 
-      {/* Main content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <div 
-          className="w-64 border-r p-4 overflow-y-auto flex-shrink-0"
-          style={{ borderColor: theme.border, backgroundColor: theme.cardBg }}
-        >
-          <ShiftTemplateManager
-            onTemplateSelect={setSelectedTemplate}
-            selectedTemplateId={selectedTemplate?._id}
-            theme={theme}
-          />
+      {/* Main content - wrapped in DndContext for drag-drop */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex flex-1 overflow-hidden">
+          {/* Sidebar */}
+          <div 
+            className="w-64 border-r p-4 overflow-y-auto flex-shrink-0"
+            style={{ borderColor: theme.border, backgroundColor: theme.cardBg }}
+          >
+            <ShiftTemplateManager
+              onTemplateSelect={setSelectedTemplate}
+              selectedTemplateId={selectedTemplate?._id}
+              colors={theme}
+              onTemplatesLoaded={setTemplates}
+            />
 
-          {selectedTemplate && (
-            <div 
-              className="mt-4 p-3 rounded-lg border"
-              style={{ 
-                backgroundColor: `${theme.accent}10`, 
-                borderColor: `${theme.accent}30` 
-              }}
-            >
-              <p className="text-sm" style={{ color: theme.accent }}>
-                <strong>Selected:</strong> {selectedTemplate.name}
-              </p>
-              <p className="text-xs mt-1" style={{ color: theme.textSecondary }}>
-                Click on any cell to assign this shift.
-              </p>
-            </div>
-          )}
-        </div>
+            {selectedTemplate && (
+              <div 
+                className="mt-4 p-3 rounded-lg border"
+                style={{ 
+                  backgroundColor: `${theme.accent}10`, 
+                  borderColor: `${theme.accent}30` 
+                }}
+              >
+                <p className="text-sm" style={{ color: theme.accent }}>
+                  <strong>Selected:</strong> {selectedTemplate.name}
+                </p>
+                <p className="text-xs mt-1" style={{ color: theme.textSecondary }}>
+                  Click on any cell or drag templates to assign shifts.
+                </p>
+              </div>
+            )}
+          </div>
 
-        {/* Calendar grid */}
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
+          {/* Calendar grid */}
           <div className="flex-1 overflow-auto">
             <div className={viewMode === 'month' ? 'min-w-max' : ''}>
               {/* Day headers */}
@@ -656,12 +807,26 @@ const ScheduleCalendar = () => {
               {/* Staff rows */}
               {filteredStaff.length === 0 ? (
                 <div 
-                  className="p-8 text-center"
+                  className="p-12 text-center"
                   style={{ color: theme.textSecondary }}
                 >
-                  <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No staff members found</p>
-                  <p className="text-sm">Add staff in Employee Management first.</p>
+                  <Users className="w-16 h-16 mx-auto mb-4 opacity-40" />
+                  <p className="text-lg font-medium mb-2" style={{ color: theme.textPrimary }}>
+                    No staff members found
+                  </p>
+                  <p className="text-sm mb-6">
+                    Add staff in Employee Management first to create schedules.
+                  </p>
+                  <button
+                    onClick={() => navigate('/employees')}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white transition-colors"
+                    style={{ backgroundColor: theme.accent }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = theme.accentHover}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = theme.accent}
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    Add Staff Members
+                  </button>
                 </div>
               ) : (
                 filteredStaff.map((staffMember) => (
@@ -754,16 +919,24 @@ const ScheduleCalendar = () => {
 
           {/* Drag overlay */}
           <DragOverlay>
-            {activeId && (
+            {activeId && activeDragType === 'schedule' && (
               <DraggableShift
                 schedule={schedules.find(s => s._id === activeId)}
                 isDragging
                 theme={theme}
               />
             )}
+            {activeId && activeDragType === 'template' && draggedTemplate && (
+              <div 
+                className="px-3 py-2 rounded-lg shadow-lg text-white text-sm font-medium"
+                style={{ backgroundColor: draggedTemplate.color || theme.accent }}
+              >
+                {draggedTemplate.name}
+              </div>
+            )}
           </DragOverlay>
-        </DndContext>
-      </div>
+        </div>
+      </DndContext>
 
       {/* Saving indicator */}
       <AnimatePresence>
