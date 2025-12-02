@@ -242,41 +242,62 @@ InventoryReservationSchema.statics.findExpiringReservations = function(minutesFr
 
 // Static method to get reservation summary for ingredient
 InventoryReservationSchema.statics.getReservationSummary = async function(ingredientId) {
-  const pipeline = [
-    {
-      $match: {
-        'reservations.ingredientId': new mongoose.Types.ObjectId(ingredientId),
-        status: { $in: ['active', 'partial'] },
-        expiresAt: { $gt: new Date() }
-      }
-    },
-    {
-      $unwind: '$reservations'
-    },
-    {
-      $match: {
-        'reservations.ingredientId': new mongoose.Types.ObjectId(ingredientId),
-        'reservations.status': 'reserved'
-      }
-    },
-    {
-      $group: {
-        _id: '$reservations.ingredientId',
-        totalReserved: { $sum: '$reservations.quantityReserved' },
-        reservationCount: { $sum: 1 },
-        totalValue: { $sum: '$reservations.totalCost' },
-        unit: { $first: '$reservations.unit' }
-      }
-    }
-  ];
+  // Validate ingredientId before creating ObjectId
+  if (!ingredientId || !mongoose.Types.ObjectId.isValid(ingredientId)) {
+    console.warn(`Invalid ingredientId for reservation summary: ${ingredientId}`);
+    return {
+      totalReserved: 0,
+      reservationCount: 0,
+      totalValue: 0,
+      unit: null
+    };
+  }
   
-  const result = await this.aggregate(pipeline);
-  return result[0] || {
-    totalReserved: 0,
-    reservationCount: 0,
-    totalValue: 0,
-    unit: null
-  };
+  try {
+    const pipeline = [
+      {
+        $match: {
+          'reservations.ingredientId': new mongoose.Types.ObjectId(ingredientId),
+          status: { $in: ['active', 'partial'] },
+          expiresAt: { $gt: new Date() }
+        }
+      },
+      {
+        $unwind: '$reservations'
+      },
+      {
+        $match: {
+          'reservations.ingredientId': new mongoose.Types.ObjectId(ingredientId),
+          'reservations.status': 'reserved'
+        }
+      },
+      {
+        $group: {
+          _id: '$reservations.ingredientId',
+          totalReserved: { $sum: '$reservations.quantityReserved' },
+          reservationCount: { $sum: 1 },
+          totalValue: { $sum: '$reservations.totalCost' },
+          unit: { $first: '$reservations.unit' }
+        }
+      }
+    ];
+    
+    const result = await this.aggregate(pipeline);
+    return result[0] || {
+      totalReserved: 0,
+      reservationCount: 0,
+      totalValue: 0,
+      unit: null
+    };
+  } catch (error) {
+    console.error(`Error getting reservation summary for ${ingredientId}:`, error.message);
+    return {
+      totalReserved: 0,
+      reservationCount: 0,
+      totalValue: 0,
+      unit: null
+    };
+  }
 };
 
 // Instance method to extend expiration

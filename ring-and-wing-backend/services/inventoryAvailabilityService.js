@@ -72,14 +72,53 @@ class InventoryAvailabilityService {
    */
   static async getIngredientAvailability(ingredientId) {
     try {
+      // Validate ingredientId
+      const mongoose = require('mongoose');
+      if (!ingredientId || !mongoose.Types.ObjectId.isValid(ingredientId)) {
+        console.warn(`Invalid ingredientId provided: ${ingredientId}`);
+        return {
+          ingredientId,
+          ingredientName: 'Unknown Ingredient',
+          unit: 'pieces',
+          totalStock: 0,
+          reservedQuantity: 0,
+          availableStock: 0,
+          reservationCount: 0,
+          reservedValue: 0,
+          isAvailable: false,
+          lowStock: true,
+          error: 'Invalid ingredient ID',
+          lastUpdated: new Date()
+        };
+      }
+      
       // Get ingredient details
       const ingredient = await Item.findById(ingredientId);
       if (!ingredient) {
-        throw new Error('Ingredient not found');
+        console.warn(`Ingredient not found: ${ingredientId}`);
+        return {
+          ingredientId,
+          ingredientName: 'Deleted Ingredient',
+          unit: 'pieces',
+          totalStock: 0,
+          reservedQuantity: 0,
+          availableStock: 0,
+          reservationCount: 0,
+          reservedValue: 0,
+          isAvailable: false,
+          lowStock: true,
+          error: 'Ingredient not found',
+          lastUpdated: new Date()
+        };
       }
       
-      // Get current reservations for this ingredient
-      const reservationSummary = await InventoryReservation.getReservationSummary(ingredientId);
+      // Get current reservations for this ingredient (with error handling)
+      let reservationSummary = { totalReserved: 0, reservationCount: 0, totalValue: 0 };
+      try {
+        reservationSummary = await InventoryReservation.getReservationSummary(ingredientId);
+      } catch (reservationError) {
+        console.warn(`Failed to get reservation summary for ${ingredientId}:`, reservationError.message);
+      }
       
       // Calculate available stock (total - reserved)
       const totalStock = ingredient.totalQuantity || ingredient.currentStock || 0;
@@ -102,7 +141,21 @@ class InventoryAvailabilityService {
       
     } catch (error) {
       console.error('Error calculating ingredient availability:', error);
-      throw error;
+      // Return safe fallback instead of throwing
+      return {
+        ingredientId,
+        ingredientName: 'Error',
+        unit: 'pieces',
+        totalStock: 0,
+        reservedQuantity: 0,
+        availableStock: 0,
+        reservationCount: 0,
+        reservedValue: 0,
+        isAvailable: false,
+        lowStock: true,
+        error: error.message,
+        lastUpdated: new Date()
+      };
     }
   }
   
@@ -277,7 +330,18 @@ class InventoryAvailabilityService {
       
     } catch (error) {
       console.error('Error checking menu item availability:', error);
-      throw error;
+      // Return safe fallback for this menu item instead of crashing
+      return {
+        menuItemId,
+        quantity,
+        isAvailable: true, // Default to available if check fails
+        hasIngredientTracking: false,
+        ingredientChecks: [],
+        insufficientIngredients: [],
+        substitutionOptions: [],
+        error: error.message,
+        lastUpdated: new Date()
+      };
     }
   }
   
@@ -386,7 +450,30 @@ class InventoryAvailabilityService {
       
     } catch (error) {
       console.error('Error checking order availability:', error);
-      throw error;
+      // Return safe fallback instead of throwing
+      return {
+        orderItems,
+        isAvailable: true, // Default to available if check fails
+        hasIngredientTracking: false,
+        ingredientChecks: [],
+        insufficientIngredients: [],
+        substitutionOptions: [],
+        itemAvailabilities: orderItems.map(item => ({
+          menuItemId: item.menuItemId,
+          quantity: item.quantity,
+          isAvailable: true,
+          hasIngredientTracking: false,
+          error: error.message
+        })),
+        summary: {
+          totalIngredients: 0,
+          sufficientIngredients: 0,
+          insufficientCount: 0,
+          substitutionOptionsAvailable: 0
+        },
+        error: error.message,
+        lastUpdated: new Date()
+      };
     }
   }
   

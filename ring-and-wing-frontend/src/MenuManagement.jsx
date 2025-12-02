@@ -262,6 +262,7 @@ const MenuPage = () => {
   const [showIngredientModal, setShowIngredientModal] = useState(false);
   const [itemCostAnalysis, setItemCostAnalysis] = useState({});
   const [itemAvailability, setItemAvailability] = useState({});
+  const [isRefreshingAvailability, setIsRefreshingAvailability] = useState(false);
   
   // Helper: Check if units are compatible
   const areUnitsCompatible = (unit1, unit2) => {
@@ -625,9 +626,19 @@ const MenuPage = () => {
             // Extract itemAvailabilities array from response
             const itemAvailabilities = result.data?.itemAvailabilities || result.itemAvailabilities || [];
             
+            // Build availability map - start with defaults for all items
+            const availabilityMap = {};
+            menuItemIds.forEach(id => {
+              availabilityMap[id] = {
+                isAvailable: true,
+                hasIngredientTracking: false,
+                insufficientIngredients: [],
+                timestamp: Date.now()
+              };
+            });
+            
+            // Override with actual API results
             if (itemAvailabilities.length > 0) {
-              // Build availability map from itemAvailabilities array
-              const availabilityMap = {};
               itemAvailabilities.forEach(item => {
                 availabilityMap[item.menuItemId] = {
                   isAvailable: item.isAvailable,
@@ -636,11 +647,14 @@ const MenuPage = () => {
                   timestamp: Date.now()
                 };
               });
-              setItemAvailability(availabilityMap);
-              console.log(`[MenuManagement] Loaded availability for ${Object.keys(availabilityMap).length} items`);
-              
-              // Fetch cost analysis for items with ingredient tracking (batched, 5 at a time)
-              const trackedItems = itemAvailabilities.filter(item => item.hasIngredientTracking);
+            }
+            
+            setItemAvailability(availabilityMap);
+            console.log(`[MenuManagement] Loaded availability for ${Object.keys(availabilityMap).length} items (${itemAvailabilities.length} from API)`);
+            
+            // Fetch cost analysis for items with ingredient tracking (batched, 5 at a time)
+            const trackedItems = itemAvailabilities.filter(item => item.hasIngredientTracking);
+            if (trackedItems.length > 0) {
               console.log(`[MenuManagement] Fetching cost analysis for ${trackedItems.length} tracked items...`);
               
               const batchSize = 5;
@@ -652,12 +666,34 @@ const MenuPage = () => {
                   });
                 }, (i / batchSize) * 500); // 500ms delay between batches
               }
-            } else {
-              console.warn('[MenuManagement] No itemAvailabilities in response');
             }
+          } else {
+            // API error - set all as available with no tracking
+            console.warn('[MenuManagement] Availability API error:', response.status);
+            const availabilityMap = {};
+            menuItemIds.forEach(id => {
+              availabilityMap[id] = {
+                isAvailable: true,
+                hasIngredientTracking: false,
+                insufficientIngredients: [],
+                timestamp: Date.now()
+              };
+            });
+            setItemAvailability(availabilityMap);
           }
         } catch (error) {
           console.warn('[MenuManagement] Batch availability check failed:', error.message);
+          // On error - set all as available with no tracking
+          const availabilityMap = {};
+          menuItemIds.forEach(id => {
+            availabilityMap[id] = {
+              isAvailable: true,
+              hasIngredientTracking: false,
+              insufficientIngredients: [],
+              timestamp: Date.now()
+            };
+          });
+          setItemAvailability(availabilityMap);
         }
       }
       
@@ -898,10 +934,24 @@ const MenuPage = () => {
               
               if (response.ok) {
                 const result = await response.json();
+                console.log('[MenuManagement] Batch availability response:', result);
                 const itemAvailabilities = result.data?.itemAvailabilities || result.itemAvailabilities || [];
                 
+                // Build availability map from API response
+                const availabilityMap = {};
+                
+                // First, set all items as "available with no tracking" as default
+                menuItemIds.forEach(id => {
+                  availabilityMap[id] = {
+                    isAvailable: true,
+                    hasIngredientTracking: false,
+                    insufficientIngredients: [],
+                    timestamp: Date.now()
+                  };
+                });
+                
+                // Then override with actual API results
                 if (itemAvailabilities.length > 0) {
-                  const availabilityMap = {};
                   itemAvailabilities.forEach(item => {
                     availabilityMap[item.menuItemId] = {
                       isAvailable: item.isAvailable,
@@ -910,11 +960,14 @@ const MenuPage = () => {
                       timestamp: Date.now()
                     };
                   });
-                  setItemAvailability(availabilityMap);
-                  console.log(`[MenuManagement] Loaded availability for ${Object.keys(availabilityMap).length} items`);
-                  
-                  // Fetch cost analysis for tracked items
-                  const trackedItems = itemAvailabilities.filter(item => item.hasIngredientTracking);
+                }
+                
+                setItemAvailability(availabilityMap);
+                console.log(`[MenuManagement] Loaded availability for ${Object.keys(availabilityMap).length} items (${itemAvailabilities.length} from API)`);
+                
+                // Fetch cost analysis for tracked items
+                const trackedItems = itemAvailabilities.filter(item => item.hasIngredientTracking);
+                if (trackedItems.length > 0) {
                   console.log(`[MenuManagement] Fetching cost analysis for ${trackedItems.length} tracked items...`);
                   
                   const batchSize = 5;
@@ -927,9 +980,33 @@ const MenuPage = () => {
                     }, i * 100);
                   }
                 }
+              } else {
+                // API returned error - set all as available (no tracking) as fallback
+                console.warn('[MenuManagement] Availability check returned non-OK:', response.status);
+                const availabilityMap = {};
+                menuItemIds.forEach(id => {
+                  availabilityMap[id] = {
+                    isAvailable: true,
+                    hasIngredientTracking: false,
+                    insufficientIngredients: [],
+                    timestamp: Date.now()
+                  };
+                });
+                setItemAvailability(availabilityMap);
               }
             } catch (err) {
               console.warn('[MenuManagement] Batch availability check failed:', err);
+              // On error, set all as available (no tracking) as fallback
+              const availabilityMap = {};
+              menuItemIds.forEach(id => {
+                availabilityMap[id] = {
+                  isAvailable: true,
+                  hasIngredientTracking: false,
+                  insufficientIngredients: [],
+                  timestamp: Date.now()
+                };
+              });
+              setItemAvailability(availabilityMap);
             }
           }
         }
@@ -1260,14 +1337,36 @@ const MenuPage = () => {
         })
       });
       if (response.ok) {
-        const data = await response.json();
-        setItemAvailability(prev => ({
-          ...prev,
-          [menuItemId]: {
-            ...(data.success ? data.data : data),
-            timestamp: Date.now() // Add timestamp for caching
-          }
-        }));
+        const result = await response.json();
+        console.log(`[MenuManagement] Single item availability check for ${menuItemId}:`, result);
+        
+        // Extract the individual item availability from the response
+        const responseData = result.success ? result.data : result;
+        const itemAvailabilities = responseData.itemAvailabilities || [];
+        const itemResult = itemAvailabilities.find(item => item.menuItemId === menuItemId) || itemAvailabilities[0];
+        
+        if (itemResult) {
+          setItemAvailability(prev => ({
+            ...prev,
+            [menuItemId]: {
+              isAvailable: itemResult.isAvailable,
+              hasIngredientTracking: itemResult.hasIngredientTracking || false,
+              insufficientIngredients: itemResult.insufficientIngredients || [],
+              ingredientChecks: itemResult.ingredientChecks || [],
+              timestamp: Date.now()
+            }
+          }));
+        } else {
+          // No availability data returned - mark as available (no tracking)
+          setItemAvailability(prev => ({
+            ...prev,
+            [menuItemId]: { 
+              isAvailable: true, 
+              hasIngredientTracking: false,
+              timestamp: Date.now()
+            }
+          }));
+        }
       } else {
         console.warn(`Availability check failed for item ${menuItemId}`);
         // Set default availability when service is unavailable
@@ -1306,6 +1405,73 @@ const MenuPage = () => {
         fetchCostAnalysis(itemId);
       }, index * 500); // Stagger requests by 500ms each
     });
+  };
+
+  // Batch refresh ALL menu items availability
+  const refreshAllAvailability = async () => {
+    if (isRefreshingAvailability) return;
+    
+    const itemIds = menuItems.map(item => item._id).filter(Boolean);
+    if (itemIds.length === 0) {
+      console.warn('[MenuManagement] No menu items to refresh');
+      return;
+    }
+    
+    setIsRefreshingAvailability(true);
+    console.log(`[MenuManagement] Refreshing availability for ${itemIds.length} items...`);
+    
+    try {
+      const response = await fetch(`${API_URL}/api/menu/check-availability`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          menuItems: itemIds.map(id => ({ menuItemId: id, quantity: 1 }))
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('[MenuManagement] Batch refresh response:', result);
+        const itemAvailabilities = result.data?.itemAvailabilities || result.itemAvailabilities || [];
+        
+        // Build availability map
+        const availabilityMap = {};
+        
+        // Set defaults first
+        itemIds.forEach(id => {
+          availabilityMap[id] = {
+            isAvailable: true,
+            hasIngredientTracking: false,
+            insufficientIngredients: [],
+            timestamp: Date.now()
+          };
+        });
+        
+        // Override with API results
+        itemAvailabilities.forEach(item => {
+          availabilityMap[item.menuItemId] = {
+            isAvailable: item.isAvailable,
+            hasIngredientTracking: item.hasIngredientTracking || false,
+            insufficientIngredients: item.insufficientIngredients || [],
+            ingredientChecks: item.ingredientChecks || [],
+            timestamp: Date.now()
+          };
+        });
+        
+        setItemAvailability(availabilityMap);
+        console.log(`[MenuManagement] Refreshed availability for ${Object.keys(availabilityMap).length} items`);
+        
+        // Also refresh cost analysis for tracked items
+        const trackedItems = itemAvailabilities.filter(item => item.hasIngredientTracking);
+        trackedItems.forEach((item, idx) => {
+          setTimeout(() => fetchCostAnalysis(item.menuItemId), idx * 100);
+        });
+      }
+    } catch (error) {
+      console.error('[MenuManagement] Batch refresh failed:', error);
+    } finally {
+      setIsRefreshingAvailability(false);
+    }
   };
 
   const addIngredientToMenu = (ingredient, quantity = 1, unit = 'pieces') => {
@@ -2317,7 +2483,21 @@ const MenuPage = () => {
                 <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Code</th>
                 <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Item</th>
                 <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Category</th>
-                <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Availability</th>
+                <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>
+                  <div className="flex items-center gap-2">
+                    <span>Availability</span>
+                    <button
+                      onClick={refreshAllAvailability}
+                      disabled={isRefreshingAvailability}
+                      className={`p-1 rounded hover:bg-white/50 transition-colors ${isRefreshingAvailability ? 'animate-spin' : ''}`}
+                      title="Refresh all availability status"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </button>
+                  </div>
+                </th>
                 <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Price</th>
                 <th className="p-4 text-left text-sm font-semibold" style={{ color: colors.primary }}>Actions</th>
               </tr>

@@ -168,8 +168,9 @@ MenuItemIngredientSchema.statics.findByMenuItem = function(menuItemId, includeIn
   
   console.log(`Query being executed:`, JSON.stringify(query, null, 2));
   
+  // Populate full ingredient document to get virtuals like unitPrice, totalQuantity
   return this.find(query)
-    .populate('ingredientId', 'name category unit currentStock price')
+    .populate('ingredientId')
     .populate('substitutions', 'name category unit currentStock price')
     .sort({ createdAt: 1 });
 };
@@ -207,7 +208,9 @@ MenuItemIngredientSchema.statics.getRequirementsForOrder = async function(orderI
         continue; // Skip this ingredient
       }
       
-      const key = ingredient.ingredientId.toString();
+      // Handle both populated object and ObjectId
+      const ingredientIdValue = ingredient.ingredientId._id || ingredient.ingredientId;
+      const key = ingredientIdValue.toString();
       const requiredQuantity = ingredient.quantity * orderItem.quantity;
       
       if (requirements.has(key)) {
@@ -217,8 +220,8 @@ MenuItemIngredientSchema.statics.getRequirementsForOrder = async function(orderI
         });
       } else {
         requirements.set(key, {
-          ingredientId: ingredient.ingredientId,
-          ingredient: ingredient.ingredientId, // Will be populated
+          ingredientId: ingredientIdValue,
+          ingredient: ingredient.ingredientId, // The populated object (or ObjectId)
           totalRequired: requiredQuantity,
           unit: ingredient.unit,
           isRequired: ingredient.isRequired,
