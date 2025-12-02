@@ -192,6 +192,46 @@ class InventoryAvailabilityService {
       const objectId = ObjectId.isValid(menuItemId) ? new ObjectId(menuItemId) : menuItemId;
       console.log(`🔧 ObjectId conversion: ${menuItemId} -> ${objectId} (valid: ${ObjectId.isValid(menuItemId)})`);
       
+      // CRITICAL FIX: First check the menu item's own isAvailable flag
+      const MenuItem = require('../models/MenuItem');
+      const menuItem = await MenuItem.findById(objectId);
+      
+      if (!menuItem) {
+        console.log('⚠️ Menu item not found');
+        return {
+          menuItemId,
+          quantity,
+          isAvailable: false,
+          hasIngredientTracking: false,
+          manuallyDisabled: false,
+          ingredientChecks: [],
+          insufficientIngredients: [],
+          substitutionOptions: [],
+          error: 'Menu item not found'
+        };
+      }
+      
+      // If the menu item is manually disabled, return unavailable regardless of ingredients
+      if (menuItem.isAvailable === false) {
+        console.log('❌ Menu item is manually disabled (isAvailable=false)');
+        
+        // Check if the item has ingredient mappings to set hasIngredientTracking correctly
+        const hasIngredientMappings = await MenuItemIngredient.findByMenuItem(objectId);
+        const hasTracking = hasIngredientMappings.length > 0;
+        
+        return {
+          menuItemId,
+          quantity,
+          isAvailable: false,
+          hasIngredientTracking: hasTracking, // Only true if item actually has ingredient mappings
+          manuallyDisabled: true,
+          ingredientChecks: [],
+          insufficientIngredients: [],
+          substitutionOptions: [],
+          reason: 'Manually disabled by staff'
+        };
+      }
+      
       // First try to get ingredient mappings from the MenuItemIngredient collection
       let mappings = await MenuItemIngredient.findByMenuItem(objectId);
       console.log(`📋 Found ${mappings.length} ingredient mappings in MenuItemIngredient collection`);
@@ -199,10 +239,8 @@ class InventoryAvailabilityService {
       // If no mappings found in the collection, check the menu item's ingredients field
       if (mappings.length === 0) {
         console.log(`🔍 No mappings in collection, checking menu item's ingredients field...`);
-        const MenuItem = require('../models/MenuItem');
-        const menuItem = await MenuItem.findById(objectId);
         
-        if (menuItem && menuItem.ingredients && menuItem.ingredients.length > 0) {
+        if (menuItem.ingredients && menuItem.ingredients.length > 0) {
           console.log(`📋 Found ${menuItem.ingredients.length} ingredients in menu item document`);
           
           // Parse the ingredients from the menu item

@@ -688,6 +688,7 @@ class InventoryBusinessLogicService {
               ingredientId: ing.ingredientId,
               quantity: ing.quantity,
               unit: ing.unit,
+              inventoryUnit: ing.unit, // Fallback to same unit
               tolerance: ing.tolerance,
               name: 'Unknown Item (populate failed)',
               currentStock: 0,
@@ -701,6 +702,7 @@ class InventoryBusinessLogicService {
             name: ing.ingredientId.name,
             quantity: ing.quantity,
             unit: ing.unit || ing.ingredientId.unit,
+            inventoryUnit: ing.ingredientId.unit, // The actual unit stored in inventory
             tolerance: ing.tolerance,
             currentStock: ing.ingredientId.currentStock || ing.ingredientId.totalQuantity || 0,
             unitCost: ing.ingredientId.unitCost || ing.ingredientId.cost || ing.ingredientId.price || 0

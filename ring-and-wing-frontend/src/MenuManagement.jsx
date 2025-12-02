@@ -1106,16 +1106,31 @@ const MenuPage = () => {
       console.log('[MenuManagement] Menu availability changed:', data);
       if (data.menuItemId) {
         // Update availability state immediately from socket data (NO API CALL)
-        setItemAvailability(prev => ({
-          ...prev,
-          [data.menuItemId]: {
-            isAvailable: data.isAvailable,
-            reason: data.reason,
-            insufficientIngredients: data.insufficientIngredients || [],
-            hasIngredientTracking: (data.insufficientIngredients && data.insufficientIngredients.length > 0) || false,
-            timestamp: Date.now()
-          }
-        }));
+        setItemAvailability(prev => {
+          const existing = prev[data.menuItemId] || {};
+          // Preserve hasIngredientTracking if it was true before (don't reset on manual toggle)
+          const hasTracking = data.hasIngredientTracking !== undefined 
+            ? data.hasIngredientTracking 
+            : existing.hasIngredientTracking || (data.insufficientIngredients && data.insufficientIngredients.length > 0);
+          
+          // Determine if manually disabled based on the reason
+          const isManuallyDisabled = data.manuallyDisabled !== undefined 
+            ? data.manuallyDisabled 
+            : (data.reason?.toLowerCase().includes('manually disabled') && !data.isAvailable);
+          
+          return {
+            ...prev,
+            [data.menuItemId]: {
+              ...existing, // Preserve existing properties
+              isAvailable: data.isAvailable,
+              manuallyDisabled: isManuallyDisabled,
+              reason: data.reason,
+              insufficientIngredients: data.insufficientIngredients || existing.insufficientIngredients || [],
+              hasIngredientTracking: hasTracking,
+              timestamp: Date.now()
+            }
+          };
+        });
         console.log(`[MenuManagement] Availability updated from socket for ${data.menuItemId}:`, data.isAvailable);
         
         // Update menuItems list
@@ -1221,6 +1236,8 @@ const MenuPage = () => {
               quantityNeeded: ing.quantity,
               quantity: ing.quantity,
               unit: ing.unit,
+              inventoryUnit: ing.inventoryUnit || ing.unit, // Store inventory unit for comparison
+              unitPrice: ing.unitCost || ing.unitPrice || 0, // Use unitCost from API, fallback to unitPrice
               tolerance: ing.tolerance || 0.1,
               isRequired: ing.isRequired !== false,
               notes: ing.notes || '',
@@ -1827,12 +1844,24 @@ const MenuPage = () => {
         const result = await response.json();
         console.log('Availability updated successfully:', result);
         
-        // Update local state
+        // Update local state for menu items list
         setMenuItems(prev => 
           prev.map(item => 
             item._id === itemId ? { ...item, isAvailable: newAvailability } : item
           )
         );
+        
+        // CRITICAL FIX: Update itemAvailability state (this is what the table reads from)
+        setItemAvailability(prev => ({
+          ...prev,
+          [itemId]: {
+            ...prev[itemId], // Preserve hasIngredientTracking and other properties
+            isAvailable: newAvailability,
+            manuallyDisabled: !newAvailability, // Track if manually disabled
+            reason: newAvailability ? 'Manually enabled' : 'Manually disabled',
+            timestamp: Date.now()
+          }
+        }));
         
         // Update selected item if it's the one being edited
         if (selectedItem?._id === itemId) {
@@ -1847,7 +1876,7 @@ const MenuPage = () => {
         }
       }
     }, 500), // 500ms debounce
-    [selectedItem, setMenuItems, reset, itemAvailability, setValue, setPendingAvailabilityChange, setShowAdminOverrideModal]
+    [selectedItem, setMenuItems, setItemAvailability, reset, itemAvailability, setValue, setPendingAvailabilityChange, setShowAdminOverrideModal]
   );
 
   // Handle admin override for availability
@@ -1911,6 +1940,18 @@ const MenuPage = () => {
           item._id === itemId ? { ...item, isAvailable: newAvailability } : item
         )
       );
+      
+      // CRITICAL FIX: Update itemAvailability state (this is what the table reads from)
+      setItemAvailability(prev => ({
+        ...prev,
+        [itemId]: {
+          ...prev[itemId], // Preserve hasIngredientTracking and other properties
+          isAvailable: newAvailability,
+          manuallyDisabled: false, // Admin override means manually enabled
+          reason: 'Admin override: Manually enabled despite insufficient ingredients',
+          timestamp: Date.now()
+        }
+      }));
       
       // Update selected item and form
       if (selectedItem?._id === itemId) {
@@ -2570,7 +2611,9 @@ const MenuPage = () => {
                               <span className={`text-xs font-medium ${
                                 itemAvailability[item._id].isAvailable ? 'text-green-700' : 'text-red-700'
                               }`}>
-                                {itemAvailability[item._id].isAvailable ? 'Available' : 'Out of Stock'}
+                                {itemAvailability[item._id].isAvailable 
+                                  ? 'Available' 
+                                  : (itemAvailability[item._id].manuallyDisabled ? 'Disabled' : 'Out of Stock')}
                               </span>
                             </>
                           ) : (
