@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { API_URL } from '../App';
+import io from 'socket.io-client';
 
 // Fallback categories (matches SelfCheckout exact logic)
 const FALLBACK_CATEGORIES = [
@@ -52,6 +53,15 @@ export const useMenu = () => {
   const [addOns, setAddOns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const socketRef = useRef(null);
+  const socketInitializedRef = useRef(false);
+
+  // Update menu item availability (for socket events)
+  const updateItemAvailability = useCallback((menuItemId, isAvailable) => {
+    setMenuItems(prev => prev.map(item =>
+      item._id === menuItemId ? { ...item, isAvailable } : item
+    ));
+  }, []);
 
   // Fetch menu items only (for refreshes)
   const fetchMenuItems = useCallback(async () => {
@@ -230,6 +240,57 @@ export const useMenu = () => {
     };
   }, [refreshMenu]);
 
+  // Socket.io connection for real-time menu availability updates
+  useEffect(() => {
+    // Prevent duplicate initialization in Strict Mode
+    if (socketInitializedRef.current) {
+      return;
+    }
+    
+    console.log('[useMenu] Initializing socket connection for menu updates...');
+    socketInitializedRef.current = true;
+    
+    const socket = io(API_URL, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
+    });
+    
+    socketRef.current = socket;
+    
+    socket.on('connect', () => {
+      console.log('[useMenu] Socket connected:', socket.id);
+    });
+    
+    socket.on('disconnect', (reason) => {
+      console.log('[useMenu] Socket disconnected:', reason);
+    });
+    
+    // Listen for menu availability changes
+    socket.on('menuAvailabilityChanged', (data) => {
+      console.log('[useMenu] Menu availability changed:', data);
+      if (data.menuItemId) {
+        updateItemAvailability(data.menuItemId, data.isAvailable);
+      }
+    });
+    
+    // Listen for stock level changes that might affect availability
+    socket.on('stockLevelChanged', (data) => {
+      console.log('[useMenu] Stock level changed:', data);
+      // Could trigger a refresh if needed
+    });
+    
+    return () => {
+      console.log('[useMenu] Cleaning up socket connection');
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      socketInitializedRef.current = false;
+    };
+  }, [updateItemAvailability]);
+
   return {
     menuItems,
     categories,
@@ -237,7 +298,8 @@ export const useMenu = () => {
     loading,
     error,
     refreshMenu,
-    refreshAll
+    refreshAll,
+    updateItemAvailability
   };
 };
 

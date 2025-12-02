@@ -1331,24 +1331,52 @@ class InventoryBusinessLogicService {
           };
         }
         
-        const unitCost = ing.ingredientId.unitCost || ing.ingredientId.cost || ing.ingredientId.price || 0;
+        // Use unitPrice (batch-based) with fallback to legacy fields
+        const unitCost = ing.ingredientId.unitPrice || ing.ingredientId.unitCost || ing.ingredientId.cost || ing.ingredientId.price || 0;
         const quantity = ing.quantity || 0;
         
         // Handle unit conversion for cost calculation
         let convertedQuantity = quantity;
-        const inventoryUnit = ing.ingredientId.unit;
-        const recipeUnit = ing.unit;
+        const inventoryUnit = (ing.ingredientId.unit || '').toLowerCase().trim();
+        const recipeUnit = (ing.unit || '').toLowerCase().trim();
+        let unitWarning = null;
         
         if (inventoryUnit && recipeUnit && inventoryUnit !== recipeUnit) {
-          // Convert recipe quantity to inventory unit for cost calculation
-          convertedQuantity = this.convertUnits(quantity, recipeUnit, inventoryUnit);
-          logger.debug(`[COST_ANALYSIS] Unit conversion applied:`, {
-            name: ing.ingredientId.name,
-            originalQuantity: quantity,
-            originalUnit: recipeUnit,
-            convertedQuantity: convertedQuantity,
-            convertedUnit: inventoryUnit
-          });
+          // Check if units are compatible before converting
+          const weightUnits = ['grams', 'g', 'kg', 'kilograms', 'ounces', 'oz', 'pounds', 'lbs'];
+          const volumeUnits = ['ml', 'milliliters', 'liters', 'l', 'cups', 'tablespoons', 'tbsp', 'teaspoons', 'tsp'];
+          const countUnits = ['pieces', 'piece', 'pcs', 'pc', 'units', 'unit'];
+          
+          const inventoryIsWeight = weightUnits.includes(inventoryUnit);
+          const inventoryIsVolume = volumeUnits.includes(inventoryUnit);
+          const inventoryIsCount = countUnits.includes(inventoryUnit);
+          
+          const recipeIsWeight = weightUnits.includes(recipeUnit);
+          const recipeIsVolume = volumeUnits.includes(recipeUnit);
+          const recipeIsCount = countUnits.includes(recipeUnit);
+          
+          // Check for incompatible unit types
+          if ((inventoryIsWeight && !recipeIsWeight) ||
+              (inventoryIsVolume && !recipeIsVolume) ||
+              (inventoryIsCount && !recipeIsCount)) {
+            // Incompatible units - can't convert, use raw quantity with warning
+            unitWarning = `Incompatible units: ingredient stored as "${inventoryUnit}" but recipe uses "${recipeUnit}". Please update the ingredient or recipe to use compatible units.`;
+            logger.warn(`[COST_ANALYSIS] Unit mismatch for ${ing.ingredientId.name}:`, {
+              inventoryUnit,
+              recipeUnit,
+              message: 'Cannot convert between incompatible unit types'
+            });
+          } else {
+            // Convert recipe quantity to inventory unit for cost calculation
+            convertedQuantity = this.convertUnits(quantity, recipeUnit, inventoryUnit);
+            logger.debug(`[COST_ANALYSIS] Unit conversion applied:`, {
+              name: ing.ingredientId.name,
+              originalQuantity: quantity,
+              originalUnit: recipeUnit,
+              convertedQuantity: convertedQuantity,
+              convertedUnit: inventoryUnit
+            });
+          }
         }
         
         const cost = unitCost * convertedQuantity;
@@ -1366,13 +1394,20 @@ class InventoryBusinessLogicService {
           totalCostSoFar: totalCost
         });
         
-        return {
+        const result = {
           name: ing.ingredientId.name || 'Unknown',
           quantity: quantity,
           unit: ing.unit || ing.ingredientId.unit,
+          inventoryUnit: inventoryUnit,
           unitCost: unitCost,
           totalCost: cost
         };
+        
+        if (unitWarning) {
+          result.warning = unitWarning;
+        }
+        
+        return result;
       });
       
       const sellingPrice = menuItem ? parseFloat(menuItem.price) : 0;

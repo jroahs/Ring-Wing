@@ -263,6 +263,55 @@ const MenuPage = () => {
   const [itemCostAnalysis, setItemCostAnalysis] = useState({});
   const [itemAvailability, setItemAvailability] = useState({});
   
+  // Helper: Check if units are compatible
+  const areUnitsCompatible = (unit1, unit2) => {
+    if (!unit1 || !unit2) return false;
+    const u1 = unit1.toLowerCase().trim();
+    const u2 = unit2.toLowerCase().trim();
+    if (u1 === u2) return true;
+    
+    const weightUnits = ['grams', 'g', 'kg', 'kilograms', 'ounces', 'oz', 'pounds', 'lbs'];
+    const volumeUnits = ['ml', 'milliliters', 'liters', 'l', 'cups', 'tablespoons', 'tbsp', 'teaspoons', 'tsp'];
+    const countUnits = ['pieces', 'piece', 'pcs', 'pc', 'units', 'unit'];
+    
+    const u1IsWeight = weightUnits.includes(u1);
+    const u1IsVolume = volumeUnits.includes(u1);
+    const u1IsCount = countUnits.includes(u1);
+    
+    const u2IsWeight = weightUnits.includes(u2);
+    const u2IsVolume = volumeUnits.includes(u2);
+    const u2IsCount = countUnits.includes(u2);
+    
+    return (u1IsWeight && u2IsWeight) || (u1IsVolume && u2IsVolume) || (u1IsCount && u2IsCount);
+  };
+  
+  // Helper: Convert units for cost calculation
+  const convertUnitsForCost = (quantity, fromUnit, toUnit) => {
+    if (!quantity || !fromUnit || !toUnit) return quantity;
+    const from = fromUnit.toLowerCase().trim();
+    const to = toUnit.toLowerCase().trim();
+    if (from === to) return quantity;
+    
+    const weightConversions = { 'grams': 1, 'g': 1, 'kg': 1000, 'kilograms': 1000 };
+    const volumeConversions = { 'ml': 1, 'milliliters': 1, 'liters': 1000, 'l': 1000 };
+    
+    if (weightConversions[from] && weightConversions[to]) {
+      return (quantity * weightConversions[from]) / weightConversions[to];
+    }
+    if (volumeConversions[from] && volumeConversions[to]) {
+      return (quantity * volumeConversions[from]) / volumeConversions[to];
+    }
+    return quantity;
+  };
+  
+  // Helper: Calculate ingredient cost
+  const calculateIngredientCost = (ingredient) => {
+    if (!ingredient.unitPrice || !ingredient.quantityNeeded) return 0;
+    if (!areUnitsCompatible(ingredient.unit, ingredient.inventoryUnit)) return null; // Incompatible
+    const convertedQty = convertUnitsForCost(ingredient.quantityNeeded, ingredient.unit, ingredient.inventoryUnit);
+    return convertedQty * ingredient.unitPrice;
+  };
+  
   // Admin override state
   const [showAdminOverrideModal, setShowAdminOverrideModal] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
@@ -1264,7 +1313,9 @@ const MenuPage = () => {
       ingredientId: ingredient._id,
       name: ingredient.name,
       quantityNeeded: quantity,
-      unit: unit
+      unit: unit,
+      inventoryUnit: ingredient.unit, // Store the inventory unit for comparison
+      unitPrice: ingredient.unitPrice || ingredient.price || 0 // Store unit price for cost calculation
     };
     
     setSelectedIngredients(prev => {
@@ -1272,7 +1323,7 @@ const MenuPage = () => {
       if (existing) {
         return prev.map(ing => 
           ing.ingredientId === ingredient._id 
-            ? { ...ing, quantityNeeded: quantity, unit }
+            ? { ...ing, quantityNeeded: quantity, unit, inventoryUnit: ingredient.unit, unitPrice: ingredient.unitPrice || ingredient.price || 0 }
             : ing
         );
       }
@@ -3036,23 +3087,47 @@ const MenuPage = () => {
           <div className="p-4 rounded-lg border" style={{ borderColor: colors.muted, backgroundColor: colors.background }}>
             {selectedIngredients.length > 0 ? (
               <div className="space-y-2">
-                {selectedIngredients.map((ingredient, index) => (
-                  <div key={ingredient.ingredientId} className="flex items-center justify-between p-2 border rounded" style={{ borderColor: colors.muted }}>
-                    <div className="flex-1">
-                      <span className="font-medium">{ingredient.name}</span>
-                      <span className="text-sm text-gray-500 ml-2">
-                        Qty: {ingredient.quantityNeeded} {ingredient.unit}
-                      </span>
+                {selectedIngredients.map((ingredient, index) => {
+                  const cost = calculateIngredientCost(ingredient);
+                  const hasUnitMismatch = ingredient.inventoryUnit && ingredient.unit && 
+                    !areUnitsCompatible(ingredient.unit, ingredient.inventoryUnit);
+                  
+                  return (
+                    <div key={ingredient.ingredientId} className={`p-2 border rounded ${hasUnitMismatch ? 'border-red-300 bg-red-50' : ''}`} style={{ borderColor: hasUnitMismatch ? undefined : colors.muted }}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <span className="font-medium">{ingredient.name}</span>
+                          <span className="text-sm text-gray-500 ml-2">
+                            Qty: {ingredient.quantityNeeded} {ingredient.unit}
+                          </span>
+                          {ingredient.inventoryUnit && ingredient.unit !== ingredient.inventoryUnit && (
+                            <span className="text-xs text-gray-400 ml-1">
+                              (stored as {ingredient.inventoryUnit})
+                            </span>
+                          )}
+                          {cost !== null && cost > 0 && (
+                            <span className="text-sm text-green-600 ml-2">
+                              ≈ ₱{cost.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeIngredientFromMenu(ingredient.ingredientId)}
+                          className="text-red-600 hover:text-red-800 p-1"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {hasUnitMismatch && (
+                        <div className="mt-1 text-xs text-red-600">
+                          ⚠️ Unit mismatch: Recipe uses "{ingredient.unit}" but ingredient is stored as "{ingredient.inventoryUnit}". 
+                          Please use compatible units (e.g., grams↔kilograms, ml↔liters).
+                        </div>
+                      )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeIngredientFromMenu(ingredient.ingredientId)}
-                      className="text-red-600 hover:text-red-800 p-1"
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
@@ -3069,19 +3144,31 @@ const MenuPage = () => {
             {selectedIngredients.length > 0 && (
               <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <h4 className="font-medium text-blue-900 mb-2">
-                  {currentFormItem || (selectedItem && selectedItem._id) 
-                    ? 'Cost Analysis Preview' 
-                    : 'Ingredients Ready for Mapping'
-                  }
+                  Cost Analysis Preview
                 </h4>
                 <div className="text-sm text-blue-700">
                   <p>Mapped Ingredients: {selectedIngredients.length}</p>
-                  <p className="text-xs mt-1">
-                    {currentFormItem || (selectedItem && selectedItem._id)
-                      ? 'Cost analysis will be calculated after saving the ingredients'
-                      : 'These ingredients will be automatically mapped when you save the menu item'
-                    }
-                  </p>
+                  {(() => {
+                    const totalCost = selectedIngredients.reduce((sum, ing) => {
+                      const cost = calculateIngredientCost(ing);
+                      return sum + (cost !== null ? cost : 0);
+                    }, 0);
+                    const hasWarnings = selectedIngredients.some(ing => 
+                      ing.inventoryUnit && ing.unit && !areUnitsCompatible(ing.unit, ing.inventoryUnit)
+                    );
+                    return (
+                      <>
+                        <p className="font-medium mt-1">
+                          Estimated Cost: ₱{totalCost.toFixed(2)}
+                        </p>
+                        {hasWarnings && (
+                          <p className="text-xs text-red-600 mt-1">
+                            ⚠️ Some ingredients have unit mismatches - costs may be inaccurate
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             )}

@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
+import io from 'socket.io-client';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -22,9 +23,20 @@ export const DataCoordinatorProvider = ({ children }) => {
   const [paymentSettings, setPaymentSettings] = useState(null);
   const [systemConfig, setSystemConfig] = useState(null);
   
+  // Socket refs
+  const socketRef = useRef(null);
+  const socketInitializedRef = useRef(false);
+  
   // Cache metadata
   const [lastFetchTime, setLastFetchTime] = useState(null);
   const CACHE_VALIDITY = 5 * 60 * 1000; // 5 minutes
+
+  // Update menu item availability (for socket events)
+  const updateMenuItemAvailability = useCallback((menuItemId, isAvailable) => {
+    setMenuItems(prev => prev.map(item =>
+      item._id === menuItemId ? { ...item, isAvailable } : item
+    ));
+  }, []);
 
   /**
    * Delay utility for rate limiting
@@ -324,6 +336,53 @@ export const DataCoordinatorProvider = ({ children }) => {
     initializeCriticalData();
   }, [initializeCriticalData]);
 
+  /**
+   * Socket.io connection for real-time updates
+   */
+  useEffect(() => {
+    // Prevent duplicate initialization in Strict Mode
+    if (socketInitializedRef.current) {
+      return;
+    }
+    
+    console.log('[DataCoordinator] Initializing socket connection for real-time updates...');
+    socketInitializedRef.current = true;
+    
+    const socket = io(API_URL, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
+    });
+    
+    socketRef.current = socket;
+    
+    socket.on('connect', () => {
+      console.log('[DataCoordinator] Socket connected:', socket.id);
+    });
+    
+    socket.on('disconnect', (reason) => {
+      console.log('[DataCoordinator] Socket disconnected:', reason);
+    });
+    
+    // Listen for menu availability changes
+    socket.on('menuAvailabilityChanged', (data) => {
+      console.log('[DataCoordinator] Menu availability changed:', data);
+      if (data.menuItemId) {
+        updateMenuItemAvailability(data.menuItemId, data.isAvailable);
+      }
+    });
+    
+    return () => {
+      console.log('[DataCoordinator] Cleaning up socket connection');
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      socketInitializedRef.current = false;
+    };
+  }, [updateMenuItemAvailability]);
+
   const value = {
     // State
     ready,
@@ -343,6 +402,7 @@ export const DataCoordinatorProvider = ({ children }) => {
     refreshPaymentSettings,
     refreshAll,
     isCacheValid,
+    updateMenuItemAvailability,
     
     // Metadata
     lastFetchTime
