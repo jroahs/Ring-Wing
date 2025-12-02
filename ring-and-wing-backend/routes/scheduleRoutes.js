@@ -642,30 +642,33 @@ router.get('/compare/:staffId', auth, async (req, res) => {
     const gracePeriodMinutes = settings.scheduling?.gracePeriodMinutes || 15;
 
     // Compare each scheduled day
-    // Use Philippines timezone (UTC+8) for all time comparisons
-    const PHT_OFFSET = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
+    // Schedule dates and times are stored/expected in Philippine Time (UTC+8)
+    // Server runs in UTC, so we need to handle timezone conversions
+    const PHT_OFFSET_MS = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
     const now = new Date();
-    const nowPHT = new Date(now.getTime() + PHT_OFFSET); // Adjust to PHT for comparisons
+    
+    // Get current time in PHT for display purposes
+    const nowInPHT = new Date(now.getTime() + PHT_OFFSET_MS);
     
     console.log('[Compare] Timezone debug:', {
-      serverNow: now.toISOString(),
-      serverNowLocal: now.toLocaleString(),
-      phtNow: nowPHT.toISOString(),
-      phtHours: nowPHT.getUTCHours() + ':' + nowPHT.getUTCMinutes()
+      serverNowUTC: now.toISOString(),
+      phtTimeDisplay: `${nowInPHT.getUTCHours()}:${String(nowInPHT.getUTCMinutes()).padStart(2, '0')}`
     });
     
     const comparison = schedules.map(schedule => {
       const scheduleDate = new Date(schedule.date);
-      // Create day boundaries in PHT
-      const dayStart = new Date(scheduleDate);
-      dayStart.setUTCHours(0, 0, 0, 0); // Midnight PHT (stored dates are local)
-      const dayEnd = new Date(scheduleDate);
-      dayEnd.setUTCHours(23, 59, 59, 999); // End of day PHT
+      
+      // The schedule date is stored as UTC midnight (e.g., 2025-01-17T00:00:00.000Z)
+      // This represents January 17 in the local business timezone (PHT)
+      // Day boundaries for PHT day (midnight to 11:59:59 PM PHT in UTC):
+      // PHT midnight = UTC 16:00 previous day
+      const dayStartUTC = new Date(scheduleDate.getTime() - PHT_OFFSET_MS);
+      const dayEndUTC = new Date(scheduleDate.getTime() - PHT_OFFSET_MS + (24 * 60 * 60 * 1000) - 1);
 
-      // Find time logs for this day
+      // Find time logs for this day (time logs are in UTC)
       const dayLogs = timeLogs.filter(log => {
         const logDate = new Date(log.timestamp);
-        return logDate >= dayStart && logDate <= dayEnd;
+        return logDate >= dayStartUTC && logDate <= dayEndUTC;
       });
 
       const clockIn = dayLogs.find(l => l.type === 'clockIn');
@@ -682,30 +685,36 @@ router.get('/compare/:staffId', auth, async (req, res) => {
       const scheduledEnd = schedule.customEndTime || schedule.shiftTemplateId?.endTime;
       const expectedHours = schedule.expectedHours;
 
-      // Calculate scheduled start time for today's real-time checks
-      // Use UTC methods since stored dates/times are in local (PHT) format
-      let scheduledStartTime = null;
-      let scheduledEndTime = null;
+      // Calculate scheduled start time in UTC
+      // Shift time "03:16" is 3:16 AM PHT = (3:16 - 8 hours) UTC = previous day 19:16 UTC
+      let scheduledStartTimeUTC = null;
+      let scheduledEndTimeUTC = null;
       if (scheduledStart) {
         const [schedHour, schedMin] = scheduledStart.split(':').map(Number);
-        scheduledStartTime = new Date(scheduleDate);
-        scheduledStartTime.setUTCHours(schedHour, schedMin, 0, 0);
+        // Create time in PHT then convert to UTC
+        scheduledStartTimeUTC = new Date(scheduleDate);
+        scheduledStartTimeUTC.setUTCHours(schedHour, schedMin, 0, 0);
+        scheduledStartTimeUTC = new Date(scheduledStartTimeUTC.getTime() - PHT_OFFSET_MS);
       }
       if (scheduledEnd) {
         const [endHour, endMin] = scheduledEnd.split(':').map(Number);
-        scheduledEndTime = new Date(scheduleDate);
-        scheduledEndTime.setUTCHours(endHour, endMin, 0, 0);
+        scheduledEndTimeUTC = new Date(scheduleDate);
+        scheduledEndTimeUTC.setUTCHours(endHour, endMin, 0, 0);
+        scheduledEndTimeUTC = new Date(scheduledEndTimeUTC.getTime() - PHT_OFFSET_MS);
       }
 
-      // For "today" check, we compare using PHT-adjusted time
-      const isToday = dayStart <= nowPHT && nowPHT <= dayEnd;
-      const isPast = dayEnd < nowPHT;
+      // Check if today's date in PHT matches schedule date
+      const todayPHT = new Date(now.getTime() + PHT_OFFSET_MS);
+      const scheduleDateStr = scheduleDate.toISOString().split('T')[0];
+      const todayPHTStr = todayPHT.toISOString().split('T')[0];
+      const isToday = scheduleDateStr === todayPHTStr;
+      const isPast = scheduleDate < new Date(todayPHTStr);
 
       console.log('[Compare] Schedule check:', {
-        date: schedule.date,
+        scheduleDateStr,
+        todayPHTStr,
         scheduledStart,
-        scheduledStartTime: scheduledStartTime?.toISOString(),
-        nowPHT: nowPHT.toISOString(),
+        scheduledStartTimeUTC: scheduledStartTimeUTC?.toISOString(),
         nowUTC: now.toISOString(),
         isToday,
         isPast,
@@ -718,22 +727,22 @@ router.get('/compare/:staffId', auth, async (req, res) => {
         if (isPast) {
           // Day has passed with no clock-in = absent
           status = 'absent';
-        } else if (isToday && scheduledStartTime) {
+        } else if (isToday && scheduledStartTimeUTC) {
           // Check if we're past the scheduled start + grace period
-          // Compare using PHT-adjusted time since schedule times are in PHT
-          const graceEndTime = new Date(scheduledStartTime.getTime() + gracePeriodMinutes * 60 * 1000);
+          // All times are now in UTC for comparison
+          const graceEndTimeUTC = new Date(scheduledStartTimeUTC.getTime() + gracePeriodMinutes * 60 * 1000);
           console.log('[Compare] Grace check:', {
-            scheduledStartTimeISO: scheduledStartTime.toISOString(),
-            graceEndTime: graceEndTime.toISOString(),
-            nowPHTISO: nowPHT.toISOString(),
-            nowPastGrace: nowPHT > graceEndTime,
-            nowPastStart: nowPHT > scheduledStartTime
+            scheduledStartTimeUTC: scheduledStartTimeUTC.toISOString(),
+            graceEndTimeUTC: graceEndTimeUTC.toISOString(),
+            nowUTC: now.toISOString(),
+            nowPastGrace: now > graceEndTimeUTC,
+            nowPastStart: now > scheduledStartTimeUTC
           });
-          if (nowPHT > graceEndTime) {
+          if (now > graceEndTimeUTC) {
             // Past grace period with no clock-in = late (not clocked in)
             status = 'late-no-clockin';
-            lateMinutes = Math.round((nowPHT - scheduledStartTime) / (1000 * 60));
-          } else if (nowPHT > scheduledStartTime) {
+            lateMinutes = Math.round((now - scheduledStartTimeUTC) / (1000 * 60));
+          } else if (now > scheduledStartTimeUTC) {
             // Within grace period but shift started
             status = 'pending-clockin';
           } else {
@@ -746,8 +755,8 @@ router.get('/compare/:staffId', auth, async (req, res) => {
         status = clockOut ? 'worked' : 'partial';
 
         // Calculate late minutes
-        if (clockIn && scheduledStartTime) {
-          const diffMinutes = (clockIn.timestamp - scheduledStartTime) / (1000 * 60);
+        if (clockIn && scheduledStartTimeUTC) {
+          const diffMinutes = (new Date(clockIn.timestamp) - scheduledStartTimeUTC) / (1000 * 60);
           if (diffMinutes > gracePeriodMinutes) {
             lateMinutes = Math.round(diffMinutes - gracePeriodMinutes);
           }
