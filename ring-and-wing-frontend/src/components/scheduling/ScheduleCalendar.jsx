@@ -28,6 +28,14 @@ import ScheduleCell from './ScheduleCell';
 import DraggableShift from './DraggableShift';
 import DroppableDay from './DroppableDay';
 
+// Helper to format date as local YYYY-MM-DD (avoids timezone issues)
+const formatLocalDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // Theme colors matching the app
 const theme = {
   primary: '#2e0304',
@@ -91,7 +99,7 @@ const ScheduleCalendar = () => {
         dayOfWeek: date.getDay(),
         dayNumber: d,
         isWeekend: date.getDay() === 0 || date.getDay() === 6,
-        dateString: date.toISOString().split('T')[0]
+        dateString: formatLocalDate(date)
       });
     }
     return days;
@@ -112,7 +120,7 @@ const ScheduleCalendar = () => {
         dayOfWeek: date.getDay(),
         dayNumber: date.getDate(),
         isWeekend: date.getDay() === 0 || date.getDay() === 6,
-        dateString: date.toISOString().split('T')[0],
+        dateString: formatLocalDate(date),
         isToday: date.toDateString() === today.toDateString(),
         month: date.getMonth() + 1,
         year: date.getFullYear()
@@ -233,14 +241,14 @@ const ScheduleCalendar = () => {
   const getSchedule = useCallback((staffId, dateString) => {
     return schedules.find(s => 
       s.staffId?._id === staffId && 
-      new Date(s.date).toISOString().split('T')[0] === dateString
+      formatLocalDate(new Date(s.date)) === dateString
     );
   }, [schedules]);
 
   // Get holiday for a specific date
   const getHoliday = useCallback((dateString) => {
     return holidays.find(h => 
-      new Date(h.date).toISOString().split('T')[0] === dateString
+      formatLocalDate(new Date(h.date)) === dateString
     );
   }, [holidays]);
 
@@ -521,7 +529,7 @@ const ScheduleCalendar = () => {
       return;
     }
 
-    const sourceDate = new Date(sourceSchedule.date).toISOString().split('T')[0];
+    const sourceDate = formatLocalDate(new Date(sourceSchedule.date));
     if (sourceSchedule.staffId._id === targetStaffId && sourceDate === targetDate) {
       return;
     }
@@ -765,7 +773,7 @@ const ScheduleCalendar = () => {
                 </div>
                 {visibleDays.map((day) => {
                   const holiday = getHoliday(day.dateString);
-                  const isToday = day.dateString === new Date().toISOString().split('T')[0];
+                  const isToday = day.dateString === formatLocalDate(new Date());
                   
                   return (
                     <div

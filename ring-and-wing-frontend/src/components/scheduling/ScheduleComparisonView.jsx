@@ -18,14 +18,22 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 
+// Helper to format date as local YYYY-MM-DD (avoids timezone issues)
+const formatLocalDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const ScheduleComparisonView = ({ staffId, staffName, colors = {} }) => {
   const [comparison, setComparison] = useState([]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [dateRange, setDateRange] = useState({
-    startDate: getFirstDayOfMonth(),
-    endDate: getLastDayOfMonth()
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
   });
 
   // Theme
@@ -42,21 +50,22 @@ const ScheduleComparisonView = ({ staffId, staffName, colors = {} }) => {
   };
   const c = { ...defaultColors, ...colors };
 
-  function getFirstDayOfMonth() {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
-  }
-
-  function getLastDayOfMonth() {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
-  }
+  // Compute date range from currentMonth
+  const dateRange = useMemo(() => {
+    const firstDay = new Date(currentMonth.year, currentMonth.month, 1);
+    const lastDay = new Date(currentMonth.year, currentMonth.month + 1, 0);
+    return {
+      startDate: formatLocalDate(firstDay),
+      endDate: formatLocalDate(lastDay)
+    };
+  }, [currentMonth]);
 
   // Fetch comparison data
   useEffect(() => {
-    const fetchComparison = async () => {
-      if (!staffId) return;
+    // Skip if no staffId
+    if (!staffId) return;
 
+    const fetchComparison = async () => {
       try {
         setLoading(true);
         setError(null);
@@ -88,7 +97,7 @@ const ScheduleComparisonView = ({ staffId, staffName, colors = {} }) => {
     };
 
     fetchComparison();
-  }, [staffId, dateRange]);
+  }, [staffId]); // Only re-fetch when staffId changes
 
   // Calculate attendance rate
   const attendanceRate = useMemo(() => {
@@ -175,22 +184,22 @@ const ScheduleComparisonView = ({ staffId, staffName, colors = {} }) => {
 
   // Navigate date range
   const goToPreviousMonth = () => {
-    const start = new Date(dateRange.startDate);
-    start.setMonth(start.getMonth() - 1);
-    const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
-    setDateRange({
-      startDate: start.toISOString().split('T')[0],
-      endDate: end.toISOString().split('T')[0]
+    setCurrentMonth(prev => {
+      const newMonth = prev.month - 1;
+      if (newMonth < 0) {
+        return { year: prev.year - 1, month: 11 };
+      }
+      return { year: prev.year, month: newMonth };
     });
   };
 
   const goToNextMonth = () => {
-    const start = new Date(dateRange.startDate);
-    start.setMonth(start.getMonth() + 1);
-    const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
-    setDateRange({
-      startDate: start.toISOString().split('T')[0],
-      endDate: end.toISOString().split('T')[0]
+    setCurrentMonth(prev => {
+      const newMonth = prev.month + 1;
+      if (newMonth > 11) {
+        return { year: prev.year + 1, month: 0 };
+      }
+      return { year: prev.year, month: newMonth };
     });
   };
 
@@ -240,7 +249,7 @@ const ScheduleComparisonView = ({ staffId, staffName, colors = {} }) => {
               <ChevronLeft className="w-5 h-5" />
             </button>
             <span className="font-medium px-3" style={{ color: c.text }}>
-              {new Date(dateRange.startDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              {new Date(currentMonth.year, currentMonth.month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
             </span>
             <button
               onClick={goToNextMonth}
