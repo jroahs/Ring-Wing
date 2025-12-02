@@ -240,7 +240,8 @@ const InventorySystem = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [restockData, setRestockData] = useState({
     quantity: '',
-    expirationDate: ''
+    expirationDate: '',
+    cost: ''
   });
 
   // State for bulk end-of-day inventory
@@ -397,12 +398,18 @@ const InventorySystem = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [itemsRes, vendorsRes] = await Promise.all([
+        const [itemsRes, vendorsRes, auditLogsRes] = await Promise.all([
           axios.get(`${API_URL}/api/items`),
-          axios.get(`${API_URL}/api/vendors`)
+          axios.get(`${API_URL}/api/vendors`),
+          axios.get(`${API_URL}/api/inventory-audit-logs`)
         ]);
         setItems(itemsRes.data);
         setVendors(vendorsRes.data);
+        
+        // Load persisted audit logs
+        if (auditLogsRes.data?.logs) {
+          setAuditLog(auditLogsRes.data.logs);
+        }
         
         // Fetch new inventory features
         await fetchInventoryReservations();
@@ -889,15 +896,48 @@ const InventorySystem = () => {
     return matchesSearch && matchesCategory;
   });
 
-  // Audit log actions
-  const logAction = (action, itemId) => {
-    setAuditLog([...auditLog, {
-      id: auditLog.length + 1,
-      action,
-      itemId,
-      user: 'admin',
-      timestamp: new Date().toISOString()
-    }]);
+  // Audit log actions - persist to database
+  const logAction = async (action, description, itemId = null, itemName = null, batchId = null, details = null) => {
+    try {
+      // For backward compatibility, if called with old signature (action, itemId)
+      if (typeof description === 'string' && description.length === 24 && !itemId) {
+        // Old format: logAction(action, itemId)
+        const legacyItemId = description;
+        description = action;
+        action = 'other';
+        itemId = legacyItemId;
+      }
+      
+      const logEntry = {
+        action: action || 'other',
+        description: description || action,
+        itemId,
+        itemName,
+        batchId,
+        user: 'admin', // TODO: Get from auth context
+        details
+      };
+      
+      // Persist to database
+      const { data: savedLog } = await axios.post(`${API_URL}/api/inventory-audit-logs`, logEntry);
+      
+      // Update local state
+      setAuditLog(prevLogs => [...prevLogs, savedLog]);
+    } catch (err) {
+      console.error('Failed to save audit log:', err);
+      // Still add to local state even if API fails
+      setAuditLog(prevLogs => [...prevLogs, {
+        id: Date.now(),
+        action: action || 'other',
+        description: description || action,
+        itemId,
+        itemName,
+        batchId,
+        user: 'admin',
+        timestamp: new Date().toISOString(),
+        details
+      }]);
+    }
   };
 
   // Updated consumption function for daily inventory tracking
@@ -905,14 +945,15 @@ const InventorySystem = () => {
     try {
       const { data } = await axios.patch(`${API_URL}/api/items/${itemId}/sell`, { quantity });
       
-      setItems(items.map(item => 
-        item._id === itemId ? { 
+      const item = items.find(i => i._id === itemId);
+      setItems(items.map(i => 
+        i._id === itemId ? { 
           ...data,
           status: calculateStatus(data.totalQuantity) 
-        } : item
+        } : i
       ));
       
-      logAction(`Consumed ${quantity} units`, itemId);
+      logAction('consumption', `Consumed ${quantity} ${item?.unit || 'units'}`, itemId, item?.name, null, { quantity });
     } catch (err) {
       setError('Failed to process consumption: ' + (err.response?.data?.message || err.message));
     }
@@ -958,7 +999,8 @@ const InventorySystem = () => {
       };
 
       const payload = {
-        ...restockData,
+        quantity: parseFloat(restockData.quantity),
+        cost: parseFloat(restockData.cost),
         expirationDate: adjustForPHTime(restockData.expirationDate)
       };
 
@@ -972,8 +1014,18 @@ const InventorySystem = () => {
       ));
 
       setShowRestockModal(false);
-      setRestockData({ quantity: '', expirationDate: '' });
-      logAction(`Restocked ${restockData.quantity} units`, selectedItem._id);
+      setRestockData({ quantity: '', expirationDate: '', cost: '' });
+      
+      // Calculate unit price for log
+      const unitPrice = payload.quantity > 0 ? (payload.cost / payload.quantity).toFixed(4) : 0;
+      logAction(
+        'restock',
+        `Restocked ${restockData.quantity} ${selectedItem.unit} @ ₱${restockData.cost} (₱${unitPrice}/${selectedItem.unit})`,
+        selectedItem._id,
+        selectedItem.name,
+        data.newBatchId,
+        { quantity: payload.quantity, cost: payload.cost, unitPrice: parseFloat(unitPrice) }
+      );
     } catch (err) {
       setError('Failed to restock item: ' + (err.response?.data?.message || err.message));
     }
@@ -1008,7 +1060,7 @@ const InventorySystem = () => {
       setSelectedItemForEndDay(null);
       setEndDayQuantities([]);
       
-      logAction(`Updated end-of-day quantities`, selectedItemForEndDay._id);
+      logAction('end_day_count', `Updated end-of-day quantities`, selectedItemForEndDay._id, selectedItemForEndDay.name);
     } catch (err) {
       // Display error message without crashing the component
       console.error('End day update error:', err);
@@ -1047,7 +1099,7 @@ const InventorySystem = () => {
         setSelectedItems([]);
         setBulkEndDayQuantities([]);
         
-        logAction(`Updated end-of-day quantities for ${data.updated.length} items`, 'bulk');
+        logAction('end_day_count', `Updated end-of-day quantities for ${data.updated.length} items`, null, 'bulk');
       } else {
         setError(`Some items failed to update: ${data.message}`);
       }
@@ -1068,7 +1120,7 @@ const InventorySystem = () => {
       const { data } = await axios.get(`${API_URL}/api/items`);
       setItems(data);
       
-      logAction('Started day - recorded beginning inventory', 'all');
+      logAction('other', 'Started day - recorded beginning inventory', null, 'all');
     } catch (err) {
       setError('Failed to record starting inventory: ' + (err.response?.data?.message || err.message));
     }
@@ -1077,8 +1129,12 @@ const InventorySystem = () => {
   // Handle deletion
   const handleDelete = async (itemId) => {
     try {
+      const itemToDelete = items.find(item => item._id === itemId);
       await axios.delete(`${API_URL}/api/items/${itemId}`);
       setItems(items.filter(item => item._id !== itemId));
+      
+      // Log item deletion
+      logAction('delete_item', `Deleted item: ${itemToDelete?.name || itemId}`, itemId, itemToDelete?.name);
     } catch (err) {
       setError('Failed to delete item: ' + (err.response?.data?.message || err.message));
     }
@@ -1099,12 +1155,13 @@ const InventorySystem = () => {
         { batchIds: [batchId] }
       );
       
+      const itemName = items.find(i => i._id === itemId)?.name;
       setItems(items.map(item => 
         item._id === itemId ? { ...data } : item
       ));
       
       toast.success("Successfully disposed of expired batch");
-      logAction(`Disposed expired batch`, itemId);
+      logAction('dispose', `Disposed expired batch`, itemId, itemName, batchId);
     } catch (err) {
       toast.error('Failed to dispose expired batch: ' + (err.response?.data?.message || err.message));
     }
@@ -1203,7 +1260,15 @@ const InventorySystem = () => {
         const { data } = await axios.post(`${API_URL}/api/items`, itemToSubmit);
       setItems([...items, data]);
       setShowAddModal(false);
-      resetForm();} catch (err) {
+      resetForm();
+      
+      // Log item creation
+      logAction('add_item', `Added new item: ${data.name}`, data._id, data.name, null, { 
+        cost: data.cost, 
+        quantity: data.totalQuantity,
+        unit: data.unit
+      });
+    } catch (err) {
       setError('Failed to add new item: ' + (err.response?.data?.message || err.message));
     }
   };
@@ -1261,7 +1326,7 @@ const InventorySystem = () => {
       setShowEditModal(false);
       resetForm();
       
-      logAction(`Updated item: ${data.name}`, editingItem._id);
+      logAction('edit_item', `Updated item: ${data.name}`, editingItem._id, data.name);
     } catch (err) {
       setError('Failed to update item: ' + (err.response?.data?.message || err.message));
     }
@@ -2109,18 +2174,42 @@ const InventorySystem = () => {
       <form onSubmit={handleRestock}>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm mb-1">Quantity</label>
+            <label className="block text-sm mb-1">Quantity ({selectedItem?.unit})</label>
             <input
               type="number"
               required
-              min="1"
+              min="0.01"
               step={selectedItem?.unit === 'kilograms' || selectedItem?.unit === 'liters' ? '0.1' : '1'}
               value={restockData.quantity}
               onChange={(e) => setRestockData({...restockData, quantity: e.target.value})}
               className="w-full p-2 border rounded"
               style={{ borderColor: colors.muted }}
+              placeholder={`Enter quantity in ${selectedItem?.unit}`}
             />
           </div>
+          <div>
+            <label className="block text-sm mb-1">Batch Cost (₱) *</label>
+            <input
+              type="number"
+              required
+              min="0.01"
+              step="0.01"
+              value={restockData.cost}
+              onChange={(e) => setRestockData({...restockData, cost: e.target.value})}
+              className="w-full p-2 border rounded"
+              style={{ borderColor: colors.muted }}
+              placeholder="Total cost for this batch"
+            />
+            <small className="text-xs text-gray-500">Enter the total cost you paid for this restock batch</small>
+          </div>
+          {restockData.quantity && restockData.cost && parseFloat(restockData.quantity) > 0 && (
+            <div className="p-3 rounded bg-gray-50">
+              <label className="block text-sm mb-1 text-gray-600">Calculated Unit Price</label>
+              <div className="text-lg font-semibold" style={{ color: colors.primary }}>
+                ₱{(parseFloat(restockData.cost) / parseFloat(restockData.quantity)).toFixed(4)} per {selectedItem?.unit}
+              </div>
+            </div>
+          )}
           <div>
             <label className="block text-sm mb-1">Expiration Date</label>
             <input
@@ -2134,7 +2223,10 @@ const InventorySystem = () => {
           </div>
         </div>        <div className="flex justify-end gap-2 mt-6">
           <Button
-            onClick={() => setShowRestockModal(false)}
+            onClick={() => {
+              setShowRestockModal(false);
+              setRestockData({ quantity: '', expirationDate: '', cost: '' });
+            }}
             variant="secondary"
           >
             Cancel
@@ -2517,7 +2609,7 @@ const InventorySystem = () => {
 
         {showAuditLog && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
-            <div className="bg-white p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-white p-6 rounded-lg w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold" style={{ color: colors.primary }}>Audit Log</h2>
                 <button
@@ -2532,29 +2624,50 @@ const InventorySystem = () => {
                 <table className="w-full text-sm">
                   <thead className="sticky top-0" style={{ backgroundColor: colors.primary, color: 'white' }}>
                     <tr>
-                      <th className="px-4 py-3 text-left">Timestamp</th>
-                      <th className="px-4 py-3 text-left">Action</th>
-                      <th className="px-4 py-3 text-left">User</th>
-                      <th className="px-4 py-3 text-left">Item ID</th>
+                      <th className="px-3 py-3 text-left">Timestamp</th>
+                      <th className="px-3 py-3 text-left">Action</th>
+                      <th className="px-3 py-3 text-left">Description</th>
+                      <th className="px-3 py-3 text-left">Item</th>
+                      <th className="px-3 py-3 text-left">User</th>
+                      <th className="px-3 py-3 text-left">Batch ID</th>
                     </tr>
                   </thead>
                   <tbody>
                     {auditLog.length > 0 ? (
                       auditLog.slice().reverse().map((log, index) => (
                         <tr 
-                          key={log.id} 
+                          key={log._id || log.id || index} 
                           className="border-t"
                           style={{ backgroundColor: index % 2 === 0 ? 'white' : colors.muted + '10' }}
                         >
-                          <td className="px-4 py-3">{new Date(log.timestamp).toLocaleString()}</td>
-                          <td className="px-4 py-3 font-medium">{log.action}</td>
-                          <td className="px-4 py-3">{log.user}</td>
-                          <td className="px-4 py-3 font-mono text-xs">{log.itemId}</td>
+                          <td className="px-3 py-3 text-xs">{new Date(log.timestamp).toLocaleString()}</td>
+                          <td className="px-3 py-3">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              log.action === 'restock' ? 'bg-green-100 text-green-800' :
+                              log.action === 'add_item' ? 'bg-blue-100 text-blue-800' :
+                              log.action === 'delete_item' ? 'bg-red-100 text-red-800' :
+                              log.action === 'edit_item' ? 'bg-yellow-100 text-yellow-800' :
+                              log.action === 'consumption' ? 'bg-orange-100 text-orange-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {log.action?.replace('_', ' ').toUpperCase() || 'OTHER'}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 text-sm max-w-xs truncate" title={log.description}>
+                            {log.description || log.action}
+                          </td>
+                          <td className="px-3 py-3 text-sm">
+                            {log.itemName || (log.itemId ? log.itemId.substring(0, 8) + '...' : '-')}
+                          </td>
+                          <td className="px-3 py-3 text-sm">{log.user}</td>
+                          <td className="px-3 py-3 font-mono text-xs">
+                            {log.batchId ? log.batchId.substring(0, 8) + '...' : '-'}
+                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="4" className="px-4 py-8 text-center text-gray-500">
+                        <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
                           No audit log entries yet. Actions will appear here as you perform inventory operations.
                         </td>
                       </tr>

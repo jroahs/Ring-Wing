@@ -203,10 +203,14 @@ router.delete('/:id', async (req, res) => {
 // Restock item
 router.patch('/:id/restock', async (req, res) => {
   try {
-    const { quantity, expirationDate } = req.body;
+    const { quantity, expirationDate, cost } = req.body;
     
     if (!quantity || !expirationDate) {
       return res.status(400).json({ message: 'Quantity and expiration date are required' });
+    }
+    
+    if (cost === undefined || cost === null || cost < 0) {
+      return res.status(400).json({ message: 'Cost is required for restock' });
     }
 
     const expDate = new Date(expirationDate);
@@ -221,16 +225,29 @@ router.patch('/:id/restock', async (req, res) => {
 
     // Store previous quantity for socket emission
     const previousQuantity = item.totalQuantity;
+    
+    // Calculate unit price for this batch
+    const batchQuantity = Number(quantity);
+    const batchCost = Number(cost);
+    const batchUnitPrice = batchQuantity > 0 ? batchCost / batchQuantity : 0;
 
-    item.inventory.push({
-      quantity: Number(quantity),
+    // Create new batch with its own cost
+    const newBatch = {
+      quantity: batchQuantity,
+      purchasedQuantity: batchQuantity, // Track original purchased quantity
+      batchCost: batchCost, // Store batch cost for unit price calculation
       expirationDate: expDate,
-      dailyStartQuantity: Number(quantity),
+      dailyStartQuantity: batchQuantity,
       lastTallied: new Date()
-    });
+    };
+    
+    item.inventory.push(newBatch);
 
     const updatedItem = await item.save();
     const newQuantity = updatedItem.totalQuantity;
+    
+    // Get the newly created batch ID
+    const newBatchId = updatedItem.inventory[updatedItem.inventory.length - 1]._id;
     
     // 🔥 Emit socket event for stock level change (Sprint 22)
     const io = req.app.get('io');
@@ -253,7 +270,9 @@ router.patch('/:id/restock', async (req, res) => {
     res.json({
       ...updatedItem.toObject(),
       totalQuantity: newQuantity,
-      status: updatedItem.status
+      status: updatedItem.status,
+      newBatchId: newBatchId,
+      newBatchUnitPrice: batchUnitPrice
     });
   } catch (err) {
     res.status(400).json({ message: 'Restock Error: ' + err.message });
