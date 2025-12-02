@@ -610,7 +610,7 @@ const MenuPage = () => {
         
         try {
           // Call batch API ONCE for all items
-          const response = await fetch('${API_URL}/api/menu/check-availability', {
+          const response = await fetch(`${API_URL}/api/menu/check-availability`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1698,7 +1698,7 @@ const MenuPage = () => {
       const token = localStorage.getItem('token') || localStorage.getItem('authToken');
       
       // Verify admin password
-      const authResponse = await fetch('${API_URL}/api/auth/verify-admin', {
+      const authResponse = await fetch(`${API_URL}/api/auth/verify-admin`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

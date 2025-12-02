@@ -1307,15 +1307,49 @@ class InventoryBusinessLogicService {
       
       logCostAnalysisConnectionState('before-find-ingredients-query');
       
+      // Populate full ingredient document (without .lean()) to get virtual unitPrice
       const ingredients = await MenuItemIngredient.find({ menuItemId })
-        .populate('ingredientId', 'name unitCost cost price')
-        .lean();
+        .populate('ingredientId');
       
       logCostAnalysisConnectionState('after-find-ingredients-query');
       
       const menuItem = await MenuItem.findById(menuItemId);
       
       logCostAnalysisConnectionState('after-find-menu-item-query');
+      
+      // Helper function to calculate unitPrice from inventory batches
+      const calculateUnitPrice = (ingredient) => {
+        if (!ingredient) return 0;
+        
+        // First try the virtual (if document is not lean)
+        if (typeof ingredient.unitPrice === 'number' && ingredient.unitPrice > 0) {
+          return ingredient.unitPrice;
+        }
+        
+        // Manual calculation from batches
+        if (ingredient.inventory && Array.isArray(ingredient.inventory)) {
+          const batchesWithCost = ingredient.inventory.filter(b => b.batchCost && b.purchasedQuantity);
+          if (batchesWithCost.length > 0) {
+            const totalBatchCost = batchesWithCost.reduce((sum, b) => sum + b.batchCost, 0);
+            const totalBatchQty = batchesWithCost.reduce((sum, b) => sum + b.purchasedQuantity, 0);
+            if (totalBatchQty > 0) {
+              return totalBatchCost / totalBatchQty;
+            }
+          }
+        }
+        
+        // Fallback: use overall cost and initialPurchasedQuantity or total quantity
+        const totalQty = ingredient.inventory 
+          ? ingredient.inventory.reduce((sum, b) => sum + (b.purchasedQuantity || b.quantity || 0), 0)
+          : 0;
+        const purchasedQty = ingredient.initialPurchasedQuantity || totalQty;
+        if (purchasedQty > 0 && ingredient.cost > 0) {
+          return ingredient.cost / purchasedQty;
+        }
+        
+        // Final fallback
+        return ingredient.unitCost || ingredient.price || 0;
+      };
       
       let totalCost = 0;
       const ingredientCosts = ingredients.map(ing => {
@@ -1331,8 +1365,8 @@ class InventoryBusinessLogicService {
           };
         }
         
-        // Use unitPrice (batch-based) with fallback to legacy fields
-        const unitCost = ing.ingredientId.unitPrice || ing.ingredientId.unitCost || ing.ingredientId.cost || ing.ingredientId.price || 0;
+        // Calculate unitPrice from batches with fallback to legacy fields
+        const unitCost = calculateUnitPrice(ing.ingredientId);
         const quantity = ing.quantity || 0;
         
         // Handle unit conversion for cost calculation
