@@ -449,6 +449,13 @@ logger.info('[Setup] Time-log routes registered');
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/payroll-schedules', payrollScheduleRoutes);
 app.use('/api/staff', staffRoutes);
+
+// Scheduling routes
+app.use('/api/shift-templates', require('./routes/shiftTemplateRoutes'));
+app.use('/api/schedules', require('./routes/scheduleRoutes'));
+app.use('/api/schedule-notifications', require('./routes/scheduleNotificationRoutes'));
+app.use('/api/time-log-corrections', require('./routes/timeLogCorrectionRoutes'));
+
 app.use('/api/government-config', require('./routes/governmentConfigRoutes'));
 app.use('/api/expenses', require('./routes/expenseRoutes'));
 app.use('/api/auth', require('./routes/authRoutes'));
@@ -471,6 +478,12 @@ app.use('/api/settings', require('./routes/settingsRoutes'));
 app.use('/api/inventory', require('./routes/inventoryRoutes'));
 app.use('/api/inventory-audit-logs', require('./routes/inventoryAuditLogRoutes'));
 app.use('/api/paymongo', require('./routes/paymongoRoutes'));
+
+// Scheduling routes
+app.use('/api/shift-templates', require('./routes/shiftTemplateRoutes'));
+app.use('/api/schedules', require('./routes/scheduleRoutes'));
+app.use('/api/schedule-notifications', require('./routes/scheduleNotificationRoutes'));
+app.use('/api/time-log-corrections', require('./routes/timeLogCorrectionRoutes'));
 
 // Health routes for server monitoring
 app.use('/api/health', healthRoutes);

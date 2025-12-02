@@ -191,6 +191,61 @@ const settingsSchema = new mongoose.Schema({
       }
     }
   },
+
+  // NEW: Staff Scheduling Configuration
+  scheduling: {
+    enabled: {
+      type: Boolean,
+      default: true
+    },
+    gracePeriodMinutes: {
+      type: Number,
+      default: 15,
+      min: 0,
+      max: 60
+    },
+    roundingRule: {
+      type: String,
+      enum: ['none', '5min', '15min', '30min'],
+      default: 'none'
+    },
+    maxOvertimeHoursDaily: {
+      type: Number,
+      default: 4,
+      min: 0,
+      max: 8
+    },
+    requireScheduleForPayroll: {
+      type: Boolean,
+      default: false // When true, payroll requires schedule data
+    },
+    allowSplitShifts: {
+      type: Boolean,
+      default: true
+    },
+    defaultRestDays: {
+      type: [Number],
+      default: [0] // Sunday by default
+    },
+    autoGenerateSchedule: {
+      type: Boolean,
+      default: false // When true, generate schedules from staff defaults
+    },
+    notifyOnScheduleChange: {
+      type: Boolean,
+      default: true
+    },
+    allowStaffViewSchedule: {
+      type: Boolean,
+      default: true
+    },
+    schedulePublishDaysBefore: {
+      type: Number,
+      default: 7, // Publish schedule 7 days before
+      min: 1,
+      max: 30
+    }
+  },
   
   // Metadata
   createdAt: { 

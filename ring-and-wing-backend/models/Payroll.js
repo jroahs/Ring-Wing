@@ -133,6 +133,50 @@ const payrollSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 0
+  },
+  // Finalization status - locks associated schedules
+  isFinalized: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  finalizedAt: {
+    type: Date
+  },
+  finalizedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  // Schedule-based attendance summary
+  scheduleSummary: {
+    scheduledDays: {
+      type: Number,
+      default: 0
+    },
+    workedDays: {
+      type: Number,
+      default: 0
+    },
+    absentDays: {
+      type: Number,
+      default: 0
+    },
+    restDays: {
+      type: Number,
+      default: 0
+    },
+    holidayDays: {
+      type: Number,
+      default: 0
+    },
+    totalLateMinutes: {
+      type: Number,
+      default: 0
+    },
+    totalUndertimeMinutes: {
+      type: Number,
+      default: 0
+    }
   }
 }, { 
   timestamps: true,
@@ -197,5 +241,59 @@ payrollSchema.pre('save', function(next) {
   }
   next();
 });
+
+// Post-save middleware to lock associated schedules when finalized
+payrollSchema.post('save', async function(doc) {
+  if (doc.isFinalized && doc.finalizedAt) {
+    try {
+      const EmployeeSchedule = mongoose.model('EmployeeSchedule');
+      
+      // Determine the payroll period dates
+      const periodStart = new Date(doc.payrollPeriod);
+      periodStart.setDate(1); // First day of month
+      const periodEnd = new Date(periodStart);
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+      periodEnd.setDate(0); // Last day of month
+      
+      // Lock all schedules in this period
+      await EmployeeSchedule.lockForPayroll(
+        doc.staffId,
+        periodStart,
+        periodEnd,
+        doc._id,
+        doc.finalizedBy
+      );
+      
+      console.log(`[Payroll] Locked schedules for staff ${doc.staffId} from ${periodStart.toISOString()} to ${periodEnd.toISOString()}`);
+    } catch (error) {
+      console.error('[Payroll] Error locking schedules:', error);
+    }
+  }
+});
+
+// Method to finalize payroll
+payrollSchema.methods.finalize = async function(userId) {
+  this.isFinalized = true;
+  this.finalizedAt = new Date();
+  this.finalizedBy = userId;
+  return this.save();
+};
+
+// Static method to check if a period is finalized for a staff
+payrollSchema.statics.isPeriodFinalized = async function(staffId, date) {
+  const periodStart = new Date(date);
+  periodStart.setDate(1);
+  const periodEnd = new Date(periodStart);
+  periodEnd.setMonth(periodEnd.getMonth() + 1);
+  periodEnd.setDate(0);
+  
+  const payroll = await this.findOne({
+    staffId,
+    payrollPeriod: { $gte: periodStart, $lte: periodEnd },
+    isFinalized: true
+  });
+  
+  return !!payroll;
+};
 
 module.exports = mongoose.model('Payroll', payrollSchema);

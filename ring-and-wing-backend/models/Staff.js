@@ -132,6 +132,46 @@ const staffSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'PayrollSchedule',
     required: false
+  },
+  // Default shift template for this staff member
+  defaultShiftTemplateId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ShiftTemplate',
+    required: false
+  },
+  // Rest days configuration (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+  restDays: {
+    type: [Number],
+    default: [0], // Default: Sunday is rest day
+    validate: {
+      validator: function(v) {
+        return v.every(day => day >= 0 && day <= 6);
+      },
+      message: 'Rest days must be between 0 (Sunday) and 6 (Saturday)'
+    }
+  },
+  // Preferred working hours (for scheduling suggestions)
+  preferredSchedule: {
+    preferredShiftStart: {
+      type: String,
+      match: [/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Time must be in HH:MM format']
+    },
+    preferredShiftEnd: {
+      type: String,
+      match: [/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Time must be in HH:MM format']
+    },
+    maxHoursPerDay: {
+      type: Number,
+      default: 8,
+      min: 4,
+      max: 12
+    },
+    maxHoursPerWeek: {
+      type: Number,
+      default: 48,
+      min: 20,
+      max: 60
+    }
   }
 }, { 
   timestamps: true,
@@ -149,5 +189,26 @@ staffSchema.virtual('payrollRecords', {
   localField: '_id',
   foreignField: 'staffId'
 });
+
+// Virtual for schedule records
+staffSchema.virtual('schedules', {
+  ref: 'EmployeeSchedule',
+  localField: '_id',
+  foreignField: 'staffId'
+});
+
+// Virtual for default shift template
+staffSchema.virtual('defaultShift', {
+  ref: 'ShiftTemplate',
+  localField: 'defaultShiftTemplateId',
+  foreignField: '_id',
+  justOne: true
+});
+
+// Method to check if a specific day is a rest day for this staff
+staffSchema.methods.isRestDay = function(date) {
+  const dayOfWeek = new Date(date).getDay();
+  return this.restDays.includes(dayOfWeek);
+};
 
 module.exports = mongoose.model('Staff', staffSchema);
