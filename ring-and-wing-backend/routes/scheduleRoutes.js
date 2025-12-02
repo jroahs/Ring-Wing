@@ -642,6 +642,7 @@ router.get('/compare/:staffId', auth, async (req, res) => {
     const gracePeriodMinutes = settings.scheduling?.gracePeriodMinutes || 15;
 
     // Compare each scheduled day
+    const now = new Date();
     const comparison = schedules.map(schedule => {
       const scheduleDate = new Date(schedule.date);
       const dayStart = new Date(scheduleDate);
@@ -669,19 +670,50 @@ router.get('/compare/:staffId', auth, async (req, res) => {
       const scheduledEnd = schedule.customEndTime || schedule.shiftTemplateId?.endTime;
       const expectedHours = schedule.expectedHours;
 
+      // Calculate scheduled start time for today's real-time checks
+      let scheduledStartTime = null;
+      let scheduledEndTime = null;
+      if (scheduledStart) {
+        const [schedHour, schedMin] = scheduledStart.split(':').map(Number);
+        scheduledStartTime = new Date(scheduleDate);
+        scheduledStartTime.setHours(schedHour, schedMin, 0, 0);
+      }
+      if (scheduledEnd) {
+        const [endHour, endMin] = scheduledEnd.split(':').map(Number);
+        scheduledEndTime = new Date(scheduleDate);
+        scheduledEndTime.setHours(endHour, endMin, 0, 0);
+      }
+
+      const isToday = dayStart <= now && now <= dayEnd;
+      const isPast = dayEnd < now;
+
       if (schedule.isRestDay) {
         status = 'rest';
       } else if (!clockIn && !clockOut) {
-        status = dayEnd < new Date() ? 'absent' : 'scheduled';
+        if (isPast) {
+          // Day has passed with no clock-in = absent
+          status = 'absent';
+        } else if (isToday && scheduledStartTime) {
+          // Check if we're past the scheduled start + grace period
+          const graceEndTime = new Date(scheduledStartTime.getTime() + gracePeriodMinutes * 60 * 1000);
+          if (now > graceEndTime) {
+            // Past grace period with no clock-in = late (not clocked in)
+            status = 'late-no-clockin';
+            lateMinutes = Math.round((now - scheduledStartTime) / (1000 * 60));
+          } else if (now > scheduledStartTime) {
+            // Within grace period but shift started
+            status = 'pending-clockin';
+          } else {
+            status = 'scheduled';
+          }
+        } else {
+          status = 'scheduled';
+        }
       } else {
         status = clockOut ? 'worked' : 'partial';
 
         // Calculate late minutes
-        if (clockIn && scheduledStart) {
-          const [schedHour, schedMin] = scheduledStart.split(':').map(Number);
-          const scheduledStartTime = new Date(scheduleDate);
-          scheduledStartTime.setHours(schedHour, schedMin, 0, 0);
-
+        if (clockIn && scheduledStartTime) {
           const diffMinutes = (clockIn.timestamp - scheduledStartTime) / (1000 * 60);
           if (diffMinutes > gracePeriodMinutes) {
             lateMinutes = Math.round(diffMinutes - gracePeriodMinutes);
@@ -733,6 +765,8 @@ router.get('/compare/:staffId', auth, async (req, res) => {
       totalScheduledDays: comparison.filter(c => !c.schedule.isRestDay).length,
       workedDays: comparison.filter(c => c.variance.status === 'worked').length,
       absentDays: comparison.filter(c => c.variance.status === 'absent').length,
+      lateNoClockin: comparison.filter(c => c.variance.status === 'late-no-clockin').length,
+      pendingClockin: comparison.filter(c => c.variance.status === 'pending-clockin').length,
       restDays: comparison.filter(c => c.schedule.isRestDay).length,
       totalLateMinutes: comparison.reduce((sum, c) => sum + c.variance.lateMinutes, 0),
       totalOvertimeMinutes: comparison.reduce((sum, c) => sum + c.variance.overtimeMinutes, 0),

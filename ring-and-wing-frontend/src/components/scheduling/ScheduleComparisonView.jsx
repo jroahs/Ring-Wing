@@ -97,7 +97,7 @@ const ScheduleComparisonView = ({ staffId, staffName, colors = {} }) => {
     };
 
     fetchComparison();
-  }, [staffId]); // Only re-fetch when staffId changes
+  }, [staffId, dateRange.startDate, dateRange.endDate]); // Re-fetch when staffId or month changes
 
   // Calculate attendance rate
   const attendanceRate = useMemo(() => {
@@ -145,6 +145,26 @@ const ScheduleComparisonView = ({ staffId, staffName, colors = {} }) => {
           >
             <XCircle className="w-3 h-3" />
             Absent
+          </span>
+        );
+      case 'late-no-clockin':
+        return (
+          <span 
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs animate-pulse"
+            style={{ backgroundColor: `${c.danger}20`, color: c.danger }}
+          >
+            <AlertTriangle className="w-3 h-3" />
+            Late (No Clock-in)
+          </span>
+        );
+      case 'pending-clockin':
+        return (
+          <span 
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
+            style={{ backgroundColor: `${c.warning}15`, color: c.warning }}
+          >
+            <Clock className="w-3 h-3" />
+            Awaiting Clock-in
           </span>
         );
       case 'partial':
@@ -271,7 +291,7 @@ const ScheduleComparisonView = ({ staffId, staffName, colors = {} }) => {
 
         {/* Summary stats */}
         {summary && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             <div className="p-3 rounded-lg" style={{ backgroundColor: '#fff', border: `1px solid ${c.border}` }}>
               <div className="text-2xl font-bold" style={{ color: c.text }}>{attendanceRate}%</div>
               <div className="text-xs" style={{ color: c.muted }}>Attendance Rate</div>
@@ -284,6 +304,12 @@ const ScheduleComparisonView = ({ staffId, staffName, colors = {} }) => {
               <div className="text-2xl font-bold" style={{ color: c.danger }}>{summary.absentDays}</div>
               <div className="text-xs" style={{ color: c.muted }}>Days Absent</div>
             </div>
+            {(summary.lateNoClockin > 0 || summary.pendingClockin > 0) && (
+              <div className="p-3 rounded-lg" style={{ backgroundColor: `${c.danger}10`, border: `1px solid ${c.danger}30` }}>
+                <div className="text-2xl font-bold" style={{ color: c.danger }}>{summary.lateNoClockin}</div>
+                <div className="text-xs" style={{ color: c.danger }}>Late (No Clock-in)</div>
+              </div>
+            )}
             <div className="p-3 rounded-lg" style={{ backgroundColor: '#fff', border: `1px solid ${c.border}` }}>
               <div className="text-2xl font-bold" style={{ color: c.warning }}>
                 {formatMinutesToHours(summary.totalLateMinutes)}
