@@ -642,13 +642,25 @@ router.get('/compare/:staffId', auth, async (req, res) => {
     const gracePeriodMinutes = settings.scheduling?.gracePeriodMinutes || 15;
 
     // Compare each scheduled day
+    // Use Philippines timezone (UTC+8) for all time comparisons
+    const PHT_OFFSET = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
     const now = new Date();
+    const nowPHT = new Date(now.getTime() + PHT_OFFSET); // Adjust to PHT for comparisons
+    
+    console.log('[Compare] Timezone debug:', {
+      serverNow: now.toISOString(),
+      serverNowLocal: now.toLocaleString(),
+      phtNow: nowPHT.toISOString(),
+      phtHours: nowPHT.getUTCHours() + ':' + nowPHT.getUTCMinutes()
+    });
+    
     const comparison = schedules.map(schedule => {
       const scheduleDate = new Date(schedule.date);
+      // Create day boundaries in PHT
       const dayStart = new Date(scheduleDate);
-      dayStart.setHours(0, 0, 0, 0);
+      dayStart.setUTCHours(0, 0, 0, 0); // Midnight PHT (stored dates are local)
       const dayEnd = new Date(scheduleDate);
-      dayEnd.setHours(23, 59, 59, 999);
+      dayEnd.setUTCHours(23, 59, 59, 999); // End of day PHT
 
       // Find time logs for this day
       const dayLogs = timeLogs.filter(log => {
@@ -671,21 +683,34 @@ router.get('/compare/:staffId', auth, async (req, res) => {
       const expectedHours = schedule.expectedHours;
 
       // Calculate scheduled start time for today's real-time checks
+      // Use UTC methods since stored dates/times are in local (PHT) format
       let scheduledStartTime = null;
       let scheduledEndTime = null;
       if (scheduledStart) {
         const [schedHour, schedMin] = scheduledStart.split(':').map(Number);
         scheduledStartTime = new Date(scheduleDate);
-        scheduledStartTime.setHours(schedHour, schedMin, 0, 0);
+        scheduledStartTime.setUTCHours(schedHour, schedMin, 0, 0);
       }
       if (scheduledEnd) {
         const [endHour, endMin] = scheduledEnd.split(':').map(Number);
         scheduledEndTime = new Date(scheduleDate);
-        scheduledEndTime.setHours(endHour, endMin, 0, 0);
+        scheduledEndTime.setUTCHours(endHour, endMin, 0, 0);
       }
 
-      const isToday = dayStart <= now && now <= dayEnd;
-      const isPast = dayEnd < now;
+      // For "today" check, we compare using PHT-adjusted time
+      const isToday = dayStart <= nowPHT && nowPHT <= dayEnd;
+      const isPast = dayEnd < nowPHT;
+
+      console.log('[Compare] Schedule check:', {
+        date: schedule.date,
+        scheduledStart,
+        scheduledStartTime: scheduledStartTime?.toISOString(),
+        nowPHT: nowPHT.toISOString(),
+        nowUTC: now.toISOString(),
+        isToday,
+        isPast,
+        hasClockIn: !!clockIn
+      });
 
       if (schedule.isRestDay) {
         status = 'rest';
@@ -695,12 +720,20 @@ router.get('/compare/:staffId', auth, async (req, res) => {
           status = 'absent';
         } else if (isToday && scheduledStartTime) {
           // Check if we're past the scheduled start + grace period
+          // Compare using PHT-adjusted time since schedule times are in PHT
           const graceEndTime = new Date(scheduledStartTime.getTime() + gracePeriodMinutes * 60 * 1000);
-          if (now > graceEndTime) {
+          console.log('[Compare] Grace check:', {
+            scheduledStartTimeISO: scheduledStartTime.toISOString(),
+            graceEndTime: graceEndTime.toISOString(),
+            nowPHTISO: nowPHT.toISOString(),
+            nowPastGrace: nowPHT > graceEndTime,
+            nowPastStart: nowPHT > scheduledStartTime
+          });
+          if (nowPHT > graceEndTime) {
             // Past grace period with no clock-in = late (not clocked in)
             status = 'late-no-clockin';
-            lateMinutes = Math.round((now - scheduledStartTime) / (1000 * 60));
-          } else if (now > scheduledStartTime) {
+            lateMinutes = Math.round((nowPHT - scheduledStartTime) / (1000 * 60));
+          } else if (nowPHT > scheduledStartTime) {
             // Within grace period but shift started
             status = 'pending-clockin';
           } else {
