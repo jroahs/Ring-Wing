@@ -53,8 +53,9 @@ const CostAnalysisPanel = ({ className = "" }) => {
         const ingredientsData = await ingredientsResponse.json();
         const costsMap = {};
         (ingredientsData.data || []).forEach(ingredient => {
+          // Use unitPrice (auto-calculated) with fallback to price (legacy)
           costsMap[ingredient._id] = {
-            price: ingredient.price || 0,
+            price: ingredient.unitPrice || ingredient.price || 0,
             unit: ingredient.unit,
             name: ingredient.name
           };
@@ -73,8 +74,50 @@ const CostAnalysisPanel = ({ className = "" }) => {
     fetchCostData();
   }, [selectedTimeframe]);
 
+  // Unit conversion helper - convert mapping unit to ingredient unit
+  const convertUnits = (quantity, fromUnit, toUnit) => {
+    if (!quantity || !fromUnit || !toUnit) return quantity;
+    
+    fromUnit = fromUnit.toLowerCase().trim();
+    toUnit = toUnit.toLowerCase().trim();
+    
+    if (fromUnit === toUnit) return quantity;
+    
+    // Weight conversions (to grams as base)
+    const weightConversions = {
+      'grams': 1, 'g': 1,
+      'kg': 1000, 'kilograms': 1000,
+      'ounces': 28.35, 'oz': 28.35,
+      'pounds': 453.59, 'lbs': 453.59
+    };
+    
+    // Volume conversions (to ml as base)
+    const volumeConversions = {
+      'ml': 1, 'milliliters': 1,
+      'liters': 1000, 'l': 1000,
+      'cups': 237,
+      'tablespoons': 15, 'tbsp': 15,
+      'teaspoons': 5, 'tsp': 5
+    };
+    
+    // Check if both units are weight units
+    if (weightConversions[fromUnit] && weightConversions[toUnit]) {
+      const baseQuantity = quantity * weightConversions[fromUnit];
+      return baseQuantity / weightConversions[toUnit];
+    }
+    
+    // Check if both units are volume units
+    if (volumeConversions[fromUnit] && volumeConversions[toUnit]) {
+      const baseQuantity = quantity * volumeConversions[fromUnit];
+      return baseQuantity / volumeConversions[toUnit];
+    }
+    
+    // If units are not compatible, return original quantity
+    return quantity;
+  };
+
   /**
-   * Calculate ingredient cost for a menu item
+   * Calculate ingredient cost for a menu item with unit conversion
    */
   const calculateIngredientCost = (menuItem) => {
     if (!menuItem.ingredientMappings || !menuItem.ingredientMappings.length) {
@@ -84,7 +127,9 @@ const CostAnalysisPanel = ({ className = "" }) => {
     return menuItem.ingredientMappings.reduce((total, mapping) => {
       const ingredient = ingredientCosts[mapping.ingredientId];
       if (ingredient && ingredient.price) {
-        return total + (mapping.quantity * ingredient.price);
+        // Convert mapping quantity to ingredient's unit for accurate cost
+        const convertedQty = convertUnits(mapping.quantity, mapping.unit, ingredient.unit);
+        return total + (convertedQty * ingredient.price);
       }
       return total;
     }, 0);

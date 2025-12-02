@@ -1112,21 +1112,35 @@ const InventorySystem = () => {
 
   // Inventory batch management
   const addBatch = () => {
+    const newInventory = [...newItem.inventory, { quantity: 0, expirationDate: '' }];
+    const totalQty = newInventory.reduce((sum, b) => sum + (parseFloat(b.quantity) || 0), 0);
+    const unitPrice = totalQty > 0 ? (newItem.cost / totalQty).toFixed(4) : 0;
     setNewItem({
       ...newItem,
-      inventory: [...newItem.inventory, { quantity: 0, expirationDate: '' }]
+      inventory: newInventory,
+      price: parseFloat(unitPrice)
     });
   };
 
   const removeBatch = (index) => {
     const newInventory = newItem.inventory.filter((_, i) => i !== index);
-    setNewItem({ ...newItem, inventory: newInventory });
+    const totalQty = newInventory.reduce((sum, b) => sum + (parseFloat(b.quantity) || 0), 0);
+    const unitPrice = totalQty > 0 ? (newItem.cost / totalQty).toFixed(4) : 0;
+    setNewItem({ ...newItem, inventory: newInventory, price: parseFloat(unitPrice) });
   };
 
   const handleBatchChange = (index, field, value) => {
     const newInventory = [...newItem.inventory];
     newInventory[index][field] = value;
-    setNewItem({ ...newItem, inventory: newInventory });
+    
+    // If quantity changed, recalculate unit price
+    if (field === 'quantity') {
+      const totalQty = newInventory.reduce((sum, b) => sum + (parseFloat(b.quantity) || 0), 0);
+      const unitPrice = totalQty > 0 ? (newItem.cost / totalQty).toFixed(4) : 0;
+      setNewItem({ ...newItem, inventory: newInventory, price: parseFloat(unitPrice) });
+    } else {
+      setNewItem({ ...newItem, inventory: newInventory });
+    }
   };
   // Update a batch quantity in bulk end-day mode
   const updateBulkEndDayQuantity = (itemIndex, batchIndex, newQuantity) => {
@@ -1699,31 +1713,39 @@ const InventorySystem = () => {
 
                   {/* Cost & Price */}
                   <div>
-                    <label className="block text-sm mb-1">Cost (₱) *</label>
+                    <label className="block text-sm mb-1">Total Batch Cost (₱) *</label>
                     <input
                       type="number"
                       step="0.01"
                       required
                       min="0"
                       value={newItem.cost}
-                      onChange={(e) => setNewItem({...newItem, cost: parseFloat(e.target.value)})}
+                      onChange={(e) => {
+                        const cost = parseFloat(e.target.value) || 0;
+                        const totalQty = newItem.inventory.reduce((sum, b) => sum + (parseFloat(b.quantity) || 0), 0);
+                        const unitPrice = totalQty > 0 ? (cost / totalQty).toFixed(4) : 0;
+                        setNewItem({...newItem, cost, price: parseFloat(unitPrice)});
+                      }}
                       className="w-full p-2 border rounded"
                       style={{ borderColor: colors.muted }}
                     />
+                    <small className="text-xs text-gray-500">Enter the total cost of all batches combined</small>
                   </div>
                   
                   <div>
-                    <label className="block text-sm mb-1">Price (₱) *</label>
+                    <label className="block text-sm mb-1">Unit Price (₱) - Auto-calculated</label>
                     <input
                       type="number"
-                      step="0.01"
-                      required
-                      min="0"
-                      value={newItem.price}
-                      onChange={(e) => setNewItem({...newItem, price: parseFloat(e.target.value)})}
-                      className="w-full p-2 border rounded"
+                      step="0.0001"
+                      readOnly
+                      value={(() => {
+                        const totalQty = newItem.inventory.reduce((sum, b) => sum + (parseFloat(b.quantity) || 0), 0);
+                        return totalQty > 0 ? ((newItem.cost || 0) / totalQty).toFixed(4) : '0.0000';
+                      })()}
+                      className="w-full p-2 border rounded bg-gray-100 cursor-not-allowed"
                       style={{ borderColor: colors.muted }}
                     />
+                    <small className="text-xs text-gray-500">Unit Price = Total Cost ÷ Total Quantity</small>
                   </div>
                 </div>
 
@@ -1954,31 +1976,39 @@ const InventorySystem = () => {
 
                   {/* Cost & Price */}
                   <div>
-                    <label className="block text-sm mb-1">Cost (₱) *</label>
+                    <label className="block text-sm mb-1">Total Batch Cost (₱) *</label>
                     <input
                       type="number"
                       step="0.01"
                       required
                       min="0"
                       value={newItem.cost}
-                      onChange={(e) => setNewItem({...newItem, cost: parseFloat(e.target.value)})}
+                      onChange={(e) => {
+                        const cost = parseFloat(e.target.value) || 0;
+                        const totalQty = newItem.inventory.reduce((sum, b) => sum + (parseFloat(b.quantity) || 0), 0);
+                        const unitPrice = totalQty > 0 ? (cost / totalQty).toFixed(4) : 0;
+                        setNewItem({...newItem, cost, price: parseFloat(unitPrice)});
+                      }}
                       className="w-full p-2 border rounded"
                       style={{ borderColor: colors.muted }}
                     />
+                    <small className="text-xs text-gray-500">Enter the total cost of all batches combined</small>
                   </div>
                   
                   <div>
-                    <label className="block text-sm mb-1">Price (₱) *</label>
+                    <label className="block text-sm mb-1">Unit Price (₱) - Auto-calculated</label>
                     <input
                       type="number"
-                      step="0.01"
-                      required
-                      min="0"
-                      value={newItem.price}
-                      onChange={(e) => setNewItem({...newItem, price: parseFloat(e.target.value)})}
-                      className="w-full p-2 border rounded"
+                      step="0.0001"
+                      readOnly
+                      value={(() => {
+                        const totalQty = newItem.inventory.reduce((sum, b) => sum + (parseFloat(b.quantity) || 0), 0);
+                        return totalQty > 0 ? ((newItem.cost || 0) / totalQty).toFixed(4) : '0.0000';
+                      })()}
+                      className="w-full p-2 border rounded bg-gray-100 cursor-not-allowed"
                       style={{ borderColor: colors.muted }}
                     />
+                    <small className="text-xs text-gray-500">Unit Price = Total Cost ÷ Total Quantity</small>
                   </div>
                 </div>
 

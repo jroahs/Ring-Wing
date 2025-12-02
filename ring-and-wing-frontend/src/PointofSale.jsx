@@ -2102,12 +2102,12 @@ const PointOfSale = () => {
 
             {/* Order Panel */}
             <div
-              className="w-full md:w-[45vw] lg:w-[35vw] xl:w-[30vw] max-w-3xl rounded-t-3xl md:rounded-3xl m-0 md:m-4 p-4 md:p-6 shadow-2xl order-1 md:order-2 flex flex-col"
+              className="w-full md:w-[45vw] lg:w-[35vw] xl:w-[30vw] max-w-3xl rounded-t-3xl md:rounded-3xl m-0 md:m-4 p-4 md:p-6 shadow-2xl order-1 md:order-2 flex flex-col overflow-visible"
               style={{ backgroundColor: theme.colors.background, maxHeight: 'calc(100vh - 48px)' }}
             >
-              <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
+              <div className="flex-1 min-h-0 flex flex-col">
                 {/* Order View Toggle - three tabs now */}
-                <div className="flex justify-center mb-2 gap-2">
+                <div className="flex justify-center mb-2 gap-2 overflow-visible pt-2">
                   <button
                     className={`px-4 py-1 rounded-lg font-semibold text-sm transition-colors relative`}
                     style={{
@@ -2124,7 +2124,7 @@ const PointOfSale = () => {
                     Ready Orders
                   </button>
                   <button
-                    className={`px-4 py-1 rounded-lg font-semibold text-sm transition-colors relative`}
+                    className={`px-4 py-1 rounded-lg font-semibold text-sm transition-colors relative overflow-visible`}
                     style={{
                       backgroundColor: orderViewType === 'pending' ? theme.colors.accentLight : '#f3f4f6',
                       color: orderViewType === 'pending' ? theme.colors.accent : '#6b7280'
@@ -2161,7 +2161,7 @@ const PointOfSale = () => {
                     )}
                   </button>
                   <button
-                    className={`px-4 py-1 rounded-lg font-semibold text-sm transition-colors relative`}
+                    className={`px-4 py-1 rounded-lg font-semibold text-sm transition-colors relative overflow-visible`}
                     style={{
                       backgroundColor: orderViewType === 'dineTakeout' ? theme.colors.accentLight : '#f3f4f6',
                       color: orderViewType === 'dineTakeout' ? theme.colors.accent : '#6b7280'

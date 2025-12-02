@@ -126,44 +126,74 @@ const TabletLayout = ({
       <div key={categoryName} className={`p-6 ${!isLast ? 'border-b border-gray-100' : ''}`}>
         <h3 className="text-xl font-bold mb-4 text-orange-600">{categoryName}</h3>
         <div className="grid grid-cols-3 gap-4">
-          {categoryItems.map(item => (
-            <button
-              key={item._id}
-              onClick={() => handleItemClick(item)}
-              className={`p-4 rounded-xl text-left transition-all duration-200 transform hover:scale-[1.02] ${
-                item.isAvailable === false 
-                  ? 'bg-gray-100 border border-gray-200' 
-                  : 'bg-white shadow-md hover:shadow-lg border border-gray-100'
-              }`}
-              style={{ minHeight: '180px' }} // Larger touch targets for tablet
-            >
-              <div className="w-full h-24 rounded-lg overflow-hidden mb-3">
-                <img 
-                  src={item.image || (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png')}
-                  alt={item.name}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <h4 className={`font-semibold text-base mb-1 ${
-                item.isAvailable === false ? 'text-gray-400' : 'text-gray-800'
-              }`}>
-                {item.name}
-              </h4>
-              <p className={`text-sm mb-2 ${
-                item.isAvailable === false ? 'text-gray-400' : 'text-gray-500'
-              }`}>
-                {item.code}
-              </p>
-              <p className={`font-bold text-base ${
-                item.isAvailable === false ? 'text-gray-400' : 'text-orange-600'
-              }`}>
-                ₱{Object.values(item.pricing)[0]?.toFixed(2) || '0.00'}
-                {item.isAvailable === false && (
-                  <span className="block text-sm text-red-500 mt-1">See Alternatives</span>
+          {categoryItems.map(item => {
+            const isUnavailable = item.isAvailable === false;
+            return (
+              <button
+                key={item._id}
+                onClick={() => handleItemClick(item)}
+                className={`relative p-4 rounded-xl text-left transition-all duration-200 transform hover:scale-[1.02] overflow-hidden ${
+                  isUnavailable 
+                    ? 'bg-gray-100 border border-gray-200' 
+                    : 'bg-white shadow-md hover:shadow-lg border border-gray-100'
+                }`}
+                style={{ minHeight: '180px' }} // Larger touch targets for tablet
+              >
+                {/* Unavailable overlay and banner */}
+                {isUnavailable && (
+                  <>
+                    {/* Gray overlay */}
+                    <div className="absolute inset-0 bg-gray-500/30 z-[1] rounded-xl"></div>
+                    
+                    {/* Orange banner with UNAVAILABLE text */}
+                    <div 
+                      className="absolute inset-x-0 z-[2] flex items-center justify-center"
+                      style={{ 
+                        top: '50%', 
+                        transform: 'translateY(-50%)',
+                        height: '32px',
+                        backgroundColor: colors.primary
+                      }}
+                    >
+                      <span className="text-white font-bold text-sm tracking-wide">
+                        UNAVAILABLE
+                      </span>
+                    </div>
+                  </>
                 )}
-              </p>
-            </button>
-          ))}
+                
+                <div className="w-full h-24 rounded-lg overflow-hidden mb-3">
+                  <img 
+                    src={item.image || (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png')}
+                    alt={item.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <h4 className={`font-semibold text-base mb-1 ${
+                  isUnavailable ? 'text-gray-400' : 'text-gray-800'
+                }`}>
+                  {item.name}
+                </h4>
+                <p className={`text-sm mb-2 ${
+                  isUnavailable ? 'text-gray-400' : 'text-gray-500'
+                }`}>
+                  {item.code}
+                </p>
+                <div className="flex items-center justify-between">
+                  <p className={`font-bold text-base ${
+                    isUnavailable ? 'text-gray-400' : 'text-orange-600'
+                  }`}>
+                    ₱{Object.values(item.pricing)[0]?.toFixed(2) || '0.00'}
+                  </p>
+                  {isUnavailable && (
+                    <span className="text-xs text-white bg-orange-500 px-2 py-1 rounded-full font-medium">
+                      See Alternatives
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
     );

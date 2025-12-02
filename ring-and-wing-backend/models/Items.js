@@ -6,6 +6,18 @@ const inventoryBatchSchema = new mongoose.Schema({
     required: [true, 'Quantity is required'],
     min: [0, 'Quantity cannot be negative']
   },
+  // Track the original purchased quantity for accurate unit price calculation
+  purchasedQuantity: {
+    type: Number,
+    required: false, // Will be set from quantity on creation if not provided
+    min: [0, 'Purchased quantity cannot be negative']
+  },
+  // Track the cost of this specific batch for accurate unit price calculation
+  batchCost: {
+    type: Number,
+    required: false,
+    min: [0, 'Batch cost cannot be negative']
+  },
   expirationDate: { 
     type: Date, 
     required: [true, 'Expiration date is required'] 
@@ -25,6 +37,14 @@ const inventoryBatchSchema = new mongoose.Schema({
   lastTallied: {
     type: Date
   }
+});
+
+// Pre-save hook for batch to set purchasedQuantity if not set
+inventoryBatchSchema.pre('save', function(next) {
+  if (!this.purchasedQuantity) {
+    this.purchasedQuantity = this.quantity;
+  }
+  next();
 });
 
 const itemSchema = new mongoose.Schema({
@@ -52,12 +72,20 @@ const itemSchema = new mongoose.Schema({
   cost: { 
     type: Number, 
     required: [true, 'Cost is required'],
-    min: [0, 'Cost cannot be negative']
+    min: [0, 'Cost cannot be negative'],
+    default: 0
+  },
+  // Store initial purchased quantity for the first batch (for calculating unitPrice)
+  initialPurchasedQuantity: {
+    type: Number,
+    required: false,
+    min: [0, 'Initial purchased quantity cannot be negative']
   },
   price: { 
     type: Number, 
-    required: [true, 'Price is required'],
-    min: [0, 'Price cannot be negative']
+    required: false, // No longer required - will be auto-calculated
+    min: [0, 'Price cannot be negative'],
+    default: 0
   },
   vendor: { 
     type: String, 
@@ -85,6 +113,38 @@ const itemSchema = new mongoose.Schema({
 // Virtual fields
 itemSchema.virtual('totalQuantity').get(function() {
   return this.inventory && Array.isArray(this.inventory) ? this.inventory.reduce((sum, batch) => sum + batch.quantity, 0) : 0;
+});
+
+// Total purchased quantity across all batches
+itemSchema.virtual('totalPurchasedQuantity').get(function() {
+  return this.inventory && Array.isArray(this.inventory) 
+    ? this.inventory.reduce((sum, batch) => sum + (batch.purchasedQuantity || batch.quantity), 0) 
+    : 0;
+});
+
+// Auto-calculated unit price based on cost and purchased quantity
+// Formula: unitPrice = totalCost / totalPurchasedQuantity
+itemSchema.virtual('unitPrice').get(function() {
+  // First try to calculate from batches with their individual costs
+  if (this.inventory && Array.isArray(this.inventory)) {
+    const batchesWithCost = this.inventory.filter(b => b.batchCost && b.purchasedQuantity);
+    if (batchesWithCost.length > 0) {
+      const totalBatchCost = batchesWithCost.reduce((sum, b) => sum + b.batchCost, 0);
+      const totalBatchQty = batchesWithCost.reduce((sum, b) => sum + b.purchasedQuantity, 0);
+      if (totalBatchQty > 0) {
+        return totalBatchCost / totalBatchQty;
+      }
+    }
+  }
+  
+  // Fallback: use overall cost and initialPurchasedQuantity or totalPurchasedQuantity
+  const purchasedQty = this.initialPurchasedQuantity || this.totalPurchasedQuantity;
+  if (purchasedQty > 0 && this.cost > 0) {
+    return this.cost / purchasedQty;
+  }
+  
+  // Final fallback: use the stored price field if it exists
+  return this.price || 0;
 });
 
 // Daily usage tracking

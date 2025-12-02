@@ -210,6 +210,7 @@ const DesktopLayout = ({
   const renderMenuItem = (item, index) => {
     const isSelected = keyboardMode && selectedItemIndex === index;
     const isHovered = hoveredItem === item._id;
+    const isUnavailable = item.isAvailable === false;
     
     return (
       <div
@@ -220,8 +221,8 @@ const DesktopLayout = ({
           if (!keyboardMode) setSelectedItemIndex(index);
         }}
         onMouseLeave={() => setHoveredItem(null)}
-        className={`group p-4 rounded-xl cursor-pointer transition-all duration-200 border-2 ${
-          item.isAvailable === false 
+        className={`group relative p-4 rounded-xl cursor-pointer transition-all duration-200 border-2 overflow-hidden ${
+          isUnavailable 
             ? 'bg-gray-50 border-gray-200' 
             : isSelected || isHovered
               ? 'bg-orange-50 border-orange-200 shadow-lg transform scale-[1.02]'
@@ -229,37 +230,60 @@ const DesktopLayout = ({
         }`}
         style={{ minHeight: '200px' }} // Consistent card height
       >
+        {/* Unavailable overlay and banner */}
+        {isUnavailable && (
+          <>
+            {/* Gray overlay */}
+            <div className="absolute inset-0 bg-gray-500/30 z-[1] rounded-xl"></div>
+            
+            {/* Orange banner with UNAVAILABLE text */}
+            <div 
+              className="absolute inset-x-0 z-[2] flex items-center justify-center"
+              style={{ 
+                top: '50%', 
+                transform: 'translateY(-50%)',
+                height: '32px',
+                backgroundColor: colors.primary
+              }}
+            >
+              <span className="text-white font-bold text-sm tracking-wide">
+                UNAVAILABLE
+              </span>
+            </div>
+          </>
+        )}
+        
         <div className="w-full h-32 rounded-lg overflow-hidden mb-3">
           <img 
             src={item.image || (item.category === 'Beverages' ? '/placeholders/drinks.png' : '/placeholders/meal.png')}
             alt={item.name}
             className={`w-full h-full object-cover transition-transform duration-200 ${
-              (isHovered || isSelected) && item.isAvailable !== false ? 'scale-110' : ''
+              (isHovered || isSelected) && !isUnavailable ? 'scale-110' : ''
             }`}
           />
         </div>
         <h4 className={`font-semibold text-base mb-2 line-clamp-2 ${
-          item.isAvailable === false ? 'text-gray-400' : 'text-gray-800'
+          isUnavailable ? 'text-gray-400' : 'text-gray-800'
         }`}>
           {item.name}
         </h4>
         <p className={`text-sm mb-2 ${
-          item.isAvailable === false ? 'text-gray-400' : 'text-gray-500'
+          isUnavailable ? 'text-gray-400' : 'text-gray-500'
         }`}>
           {item.code}
         </p>
         <div className="flex items-center justify-between mt-auto">
           <p className={`font-bold text-lg ${
-            item.isAvailable === false ? 'text-gray-400' : 'text-orange-600'
+            isUnavailable ? 'text-gray-400' : 'text-orange-600'
           }`}>
             ₱{Object.values(item.pricing)[0]?.toFixed(2) || '0.00'}
           </p>
-          {item.isAvailable === false && (
-            <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded-full">
+          {isUnavailable && (
+            <span className="text-xs text-white bg-orange-500 px-2 py-1 rounded-full font-medium">
               See Alternatives
             </span>
           )}
-          {(isHovered || isSelected) && item.isAvailable !== false && (
+          {(isHovered || isSelected) && !isUnavailable && (
             <div className="text-orange-600 transform transition-transform group-hover:translate-x-1">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />

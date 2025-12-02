@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Minus, Check } from 'lucide-react';
+import { X, Plus, Minus, Check, ChevronDown, ChevronUp } from 'lucide-react';
 
 /**
  * ItemCustomizationModal - Modal for selecting item size, variants/flavors, and add-ons before adding to cart
  * This modal consolidates size selection, variant/flavor selection, and add-on selection into one flow
+ * 
+ * UPDATED: Now supports per-quantity variant selection - each unit can have a different flavor
  */
 const ItemCustomizationModal = ({ 
   item, 
@@ -19,9 +21,16 @@ const ItemCustomizationModal = ({
   }
 }) => {
   const [selectedSize, setSelectedSize] = useState(null);
-  const [selectedVariant, setSelectedVariant] = useState(null);
   const [selectedAddOns, setSelectedAddOns] = useState([]);
   const [quantity, setQuantity] = useState(1);
+  
+  // Per-quantity variant selection - array of variants, one per quantity unit
+  const [variantsPerUnit, setVariantsPerUnit] = useState([]);
+  const [expandedVariantUnits, setExpandedVariantUnits] = useState(true);
+
+  // Get variants/flavors
+  const variants = item?.variants || [];
+  const hasVariants = variants.length > 0;
 
   // Auto-select size if only one option
   useEffect(() => {
@@ -30,22 +39,40 @@ const ItemCustomizationModal = ({
       if (sizes.length === 1) {
         setSelectedSize(sizes[0]);
       }
-      // Auto-select first variant if only one exists
-      if (item.variants?.length === 1) {
-        setSelectedVariant(item.variants[0]);
+      // Initialize variants per unit with first variant or null
+      if (hasVariants) {
+        const defaultVariant = variants.length === 1 ? variants[0] : null;
+        setVariantsPerUnit([defaultVariant]);
       }
     }
   }, [item]);
+
+  // Sync variantsPerUnit array with quantity changes
+  useEffect(() => {
+    if (hasVariants) {
+      setVariantsPerUnit(prev => {
+        const newVariants = [...prev];
+        // If quantity increased, add default variants for new units
+        while (newVariants.length < quantity) {
+          // Copy the last selected variant or use first variant if only one exists
+          const lastVariant = newVariants[newVariants.length - 1];
+          const defaultVariant = variants.length === 1 ? variants[0] : (lastVariant || null);
+          newVariants.push(defaultVariant);
+        }
+        // If quantity decreased, trim the array
+        while (newVariants.length > quantity) {
+          newVariants.pop();
+        }
+        return newVariants;
+      });
+    }
+  }, [quantity, hasVariants, variants]);
 
   if (!item) return null;
 
   // Get all available sizes and prices
   const sizes = Object.keys(item.pricing || {}).filter(key => key !== '_id');
   const hasSizes = sizes.length > 1;
-
-  // Get variants/flavors
-  const variants = item.variants || [];
-  const hasVariants = variants.length > 0;
 
   // Filter add-ons relevant to this item's category
   const relevantAddOns = addOns.filter(addon => 
@@ -58,21 +85,62 @@ const ItemCustomizationModal = ({
   const calculateTotal = () => {
     let total = 0;
     
-    // Base price from size
+    // Base price from size (per unit)
     const sizeToUse = selectedSize || sizes[0] || 'base';
-    total += item.pricing[sizeToUse] || item.pricing.base || 0;
+    const baseUnitPrice = item.pricing[sizeToUse] || item.pricing.base || 0;
     
-    // Add variant price adjustment
-    if (selectedVariant?.priceAdjustment) {
-      total += selectedVariant.priceAdjustment;
+    // Calculate price for each unit including its variant
+    if (hasVariants && variantsPerUnit.length > 0) {
+      variantsPerUnit.forEach(variant => {
+        total += baseUnitPrice + (variant?.priceAdjustment || 0);
+      });
+    } else {
+      total = baseUnitPrice * quantity;
     }
     
-    // Add add-ons prices
+    // Add add-ons prices (applied per order, not per unit)
     selectedAddOns.forEach(addon => {
-      total += addon.price || 0;
+      total += (addon.price || 0) * quantity;
     });
     
-    return total * quantity;
+    return total;
+  };
+
+  // Set variant for a specific unit
+  const setVariantForUnit = (unitIndex, variant) => {
+    setVariantsPerUnit(prev => {
+      const newVariants = [...prev];
+      newVariants[unitIndex] = variant;
+      return newVariants;
+    });
+  };
+
+  // Set same variant for all units
+  const setAllVariantsToSame = (variant) => {
+    setVariantsPerUnit(Array(quantity).fill(variant));
+  };
+
+  // Check if all variants are selected
+  const allVariantsSelected = () => {
+    if (!hasVariants) return true;
+    return variantsPerUnit.every(v => v !== null);
+  };
+
+  // Get summary of selected variants
+  const getVariantsSummary = () => {
+    if (!hasVariants || variantsPerUnit.length === 0) return null;
+    
+    const variantCounts = {};
+    variantsPerUnit.forEach(v => {
+      if (v) {
+        const name = v.name;
+        variantCounts[name] = (variantCounts[name] || 0) + 1;
+      }
+    });
+    
+    return Object.entries(variantCounts).map(([name, count]) => 
+      count > 1 ? `${count}x ${name}` : name
+    ).join(', ');
   };
 
   const handleConfirm = () => {
@@ -81,26 +149,72 @@ const ItemCustomizationModal = ({
       return;
     }
 
-    if (hasVariants && !selectedVariant) {
-      alert('Please select a variant/flavor');
+    if (hasVariants && !allVariantsSelected()) {
+      alert('Please select a flavor for each item');
       return;
     }
 
     const sizeToUse = selectedSize || sizes[0] || 'base';
     const basePrice = item.pricing[sizeToUse] || item.pricing.base || 0;
-    const variantAdjustment = selectedVariant?.priceAdjustment || 0;
     const addOnsTotal = selectedAddOns.reduce((sum, addon) => sum + (addon.price || 0), 0);
 
-    onConfirm({
-      ...item,
-      selectedSize: sizeToUse,
-      price: basePrice + variantAdjustment + addOnsTotal,
-      basePrice: basePrice,
-      availableSizes: sizes.length > 0 ? sizes : ['base'],
-      selectedVariant: selectedVariant,
-      selectedAddOns: selectedAddOns,
-      quantity: quantity
-    });
+    // If multiple different variants, add each as separate cart item
+    if (hasVariants && quantity > 1) {
+      // Group items by variant
+      const variantGroups = {};
+      variantsPerUnit.forEach(variant => {
+        const key = variant?.name || 'none';
+        if (!variantGroups[key]) {
+          variantGroups[key] = { variant, count: 0 };
+        }
+        variantGroups[key].count++;
+      });
+
+      // If all same variant, submit as single item
+      if (Object.keys(variantGroups).length === 1) {
+        const variant = variantsPerUnit[0];
+        const variantAdjustment = variant?.priceAdjustment || 0;
+        onConfirm({
+          ...item,
+          selectedSize: sizeToUse,
+          price: basePrice + variantAdjustment + addOnsTotal,
+          basePrice: basePrice,
+          availableSizes: sizes.length > 0 ? sizes : ['base'],
+          selectedVariant: variant,
+          selectedAddOns: selectedAddOns,
+          quantity: quantity
+        });
+      } else {
+        // Multiple different variants - add each group separately
+        Object.values(variantGroups).forEach(({ variant, count }) => {
+          const variantAdjustment = variant?.priceAdjustment || 0;
+          onConfirm({
+            ...item,
+            selectedSize: sizeToUse,
+            price: basePrice + variantAdjustment + addOnsTotal,
+            basePrice: basePrice,
+            availableSizes: sizes.length > 0 ? sizes : ['base'],
+            selectedVariant: variant,
+            selectedAddOns: selectedAddOns,
+            quantity: count
+          });
+        });
+      }
+    } else {
+      // Single item or no variants
+      const variant = variantsPerUnit[0] || null;
+      const variantAdjustment = variant?.priceAdjustment || 0;
+      onConfirm({
+        ...item,
+        selectedSize: sizeToUse,
+        price: basePrice + variantAdjustment + addOnsTotal,
+        basePrice: basePrice,
+        availableSizes: sizes.length > 0 ? sizes : ['base'],
+        selectedVariant: variant,
+        selectedAddOns: selectedAddOns,
+        quantity: quantity
+      });
+    }
   };
 
   const toggleAddOn = (addon) => {
@@ -223,41 +337,126 @@ const ItemCustomizationModal = ({
                 </div>
               )}
 
-              {/* Variant/Flavor Selection */}
+              {/* Quantity Selector - Moved before variants for better UX */}
+              <div>
+                <label className="block text-sm font-semibold mb-3" style={{ color: colors.primary }}>
+                  Quantity
+                </label>
+                <div className="flex items-center justify-center gap-4">
+                  <button
+                    onClick={decrementQuantity}
+                    className="w-12 h-12 rounded-full border-2 font-bold text-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    style={{ borderColor: colors.muted, color: colors.primary }}
+                    disabled={quantity <= 1}
+                  >
+                    <Minus size={20} />
+                  </button>
+                  <span className="text-2xl font-bold w-12 text-center" style={{ color: colors.primary }}>
+                    {quantity}
+                  </span>
+                  <button
+                    onClick={incrementQuantity}
+                    className="w-12 h-12 rounded-full border-2 font-bold text-xl transition-colors flex items-center justify-center"
+                    style={{ borderColor: colors.accent, color: colors.accent }}
+                  >
+                    <Plus size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Per-Quantity Variant/Flavor Selection */}
               {hasVariants && (
                 <div>
-                  <label className="block text-sm font-semibold mb-3" style={{ color: colors.primary }}>
-                    Select Flavor/Variant <span className="text-red-500">*</span>
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {variants.map((variant, index) => {
-                      const isSelected = selectedVariant?.name === variant.name;
-                      
-                      return (
-                        <button
-                          key={index}
-                          onClick={() => setSelectedVariant(variant)}
-                          className={`px-4 py-3 rounded-xl border-2 transition-all duration-200`}
-                          style={{
-                            borderColor: isSelected ? colors.accent : colors.muted + '40',
-                            backgroundColor: isSelected ? colors.accent + '10' : 'transparent'
-                          }}
-                        >
-                          <div className="flex items-center gap-2">
-                            {isSelected && <Check size={16} style={{ color: colors.accent }} />}
-                            <span className="font-medium" style={{ color: isSelected ? colors.accent : colors.primary }}>
-                              {variant.name}
-                            </span>
-                            {variant.priceAdjustment > 0 && (
-                              <span className="text-sm" style={{ color: colors.muted }}>
-                                +₱{variant.priceAdjustment.toFixed(2)}
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      );
-                    })}
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-sm font-semibold" style={{ color: colors.primary }}>
+                      Select Flavor/Variant {quantity > 1 ? `for Each (${quantity} items)` : ''} <span className="text-red-500">*</span>
+                    </label>
+                    {quantity > 1 && (
+                      <button
+                        onClick={() => setExpandedVariantUnits(!expandedVariantUnits)}
+                        className="text-xs flex items-center gap-1 px-2 py-1 rounded"
+                        style={{ color: colors.accent }}
+                      >
+                        {expandedVariantUnits ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        {expandedVariantUnits ? 'Collapse' : 'Expand'}
+                      </button>
+                    )}
                   </div>
+
+                  {/* Quick select: Apply same flavor to all */}
+                  {quantity > 1 && (
+                    <div className="mb-4 p-3 rounded-lg" style={{ backgroundColor: colors.muted + '15' }}>
+                      <p className="text-xs mb-2" style={{ color: colors.muted }}>Quick Select - Same flavor for all:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {variants.map((variant, index) => (
+                          <button
+                            key={index}
+                            onClick={() => setAllVariantsToSame(variant)}
+                            className="px-3 py-1.5 rounded-lg border text-sm transition-all"
+                            style={{
+                              borderColor: colors.muted + '40',
+                              color: colors.primary
+                            }}
+                          >
+                            All {variant.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Individual unit variant selection */}
+                  {(quantity === 1 || expandedVariantUnits) && (
+                    <div className="space-y-3">
+                      {variantsPerUnit.map((selectedVar, unitIndex) => (
+                        <div key={unitIndex} className="p-3 rounded-lg border" style={{ borderColor: colors.muted + '30' }}>
+                          {quantity > 1 && (
+                            <p className="text-xs font-semibold mb-2" style={{ color: colors.muted }}>
+                              Item #{unitIndex + 1}
+                            </p>
+                          )}
+                          <div className="flex flex-wrap gap-2">
+                            {variants.map((variant, variantIndex) => {
+                              const isSelected = selectedVar?.name === variant.name;
+                              
+                              return (
+                                <button
+                                  key={variantIndex}
+                                  onClick={() => setVariantForUnit(unitIndex, variant)}
+                                  className={`px-3 py-2 rounded-xl border-2 transition-all duration-200`}
+                                  style={{
+                                    borderColor: isSelected ? colors.accent : colors.muted + '40',
+                                    backgroundColor: isSelected ? colors.accent + '10' : 'transparent'
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    {isSelected && <Check size={14} style={{ color: colors.accent }} />}
+                                    <span className="font-medium text-sm" style={{ color: isSelected ? colors.accent : colors.primary }}>
+                                      {variant.name}
+                                    </span>
+                                    {variant.priceAdjustment > 0 && (
+                                      <span className="text-xs" style={{ color: colors.muted }}>
+                                        +₱{variant.priceAdjustment.toFixed(2)}
+                                      </span>
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Collapsed summary */}
+                  {quantity > 1 && !expandedVariantUnits && getVariantsSummary() && (
+                    <div className="p-3 rounded-lg" style={{ backgroundColor: colors.accent + '15' }}>
+                      <p className="text-sm" style={{ color: colors.primary }}>
+                        <strong>Selected:</strong> {getVariantsSummary()}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -265,7 +464,7 @@ const ItemCustomizationModal = ({
               {hasAddOns && (
                 <div>
                   <label className="block text-sm font-semibold mb-3" style={{ color: colors.primary }}>
-                    Add-ons (Optional)
+                    Add-ons (Optional) {quantity > 1 && <span className="font-normal text-xs" style={{ color: colors.muted }}>- Applied to each item</span>}
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {relevantAddOns.map((addon) => {
@@ -306,43 +505,16 @@ const ItemCustomizationModal = ({
                   </div>
                 </div>
               )}
-
-              {/* Quantity Selector */}
-              <div>
-                <label className="block text-sm font-semibold mb-3" style={{ color: colors.primary }}>
-                  Quantity
-                </label>
-                <div className="flex items-center justify-center gap-4">
-                  <button
-                    onClick={decrementQuantity}
-                    className="w-12 h-12 rounded-full border-2 font-bold text-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                    style={{ borderColor: colors.muted, color: colors.primary }}
-                    disabled={quantity <= 1}
-                  >
-                    <Minus size={20} />
-                  </button>
-                  <span className="text-2xl font-bold w-12 text-center" style={{ color: colors.primary }}>
-                    {quantity}
-                  </span>
-                  <button
-                    onClick={incrementQuantity}
-                    className="w-12 h-12 rounded-full border-2 font-bold text-xl transition-colors flex items-center justify-center"
-                    style={{ borderColor: colors.accent, color: colors.accent }}
-                  >
-                    <Plus size={20} />
-                  </button>
-                </div>
-              </div>
             </div>
 
             {/* Footer - Add to Cart Button */}
             <div className="p-4 md:p-6 border-t" style={{ borderColor: colors.muted + '30', backgroundColor: colors.muted + '10' }}>
               {/* Selected Options Summary */}
-              {(selectedVariant || selectedAddOns.length > 0) && (
+              {(getVariantsSummary() || selectedAddOns.length > 0) && (
                 <div className="mb-3 text-sm" style={{ color: colors.muted }}>
-                  {selectedVariant && (
+                  {getVariantsSummary() && (
                     <span className="inline-block px-2 py-1 rounded mr-2 mb-1" style={{ backgroundColor: colors.accent + '20' }}>
-                      {selectedVariant.name}
+                      {getVariantsSummary()}
                     </span>
                   )}
                   {selectedAddOns.map(addon => (
@@ -355,12 +527,12 @@ const ItemCustomizationModal = ({
               
               <button
                 onClick={handleConfirm}
-                disabled={(!selectedSize && hasSizes) || (hasVariants && !selectedVariant)}
+                disabled={(!selectedSize && hasSizes) || (hasVariants && !allVariantsSelected())}
                 className="w-full py-4 rounded-xl font-bold text-lg transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ 
                   backgroundColor: colors.accent, 
                   color: colors.background,
-                  opacity: ((!selectedSize && hasSizes) || (hasVariants && !selectedVariant)) ? 0.5 : 1
+                  opacity: ((!selectedSize && hasSizes) || (hasVariants && !allVariantsSelected())) ? 0.5 : 1
                 }}
               >
                 <span className="flex items-center justify-center gap-2">
