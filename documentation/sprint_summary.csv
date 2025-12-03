@@ -1,0 +1,39 @@
+Risk,Sprint,Sprint Goal,Start Date,End Date,Duration,Responsible,Status
+Medium,1,Project setup and initial architecture,Jan 5 2025,Jan 18 2025,2 weeks,Uriarte,Completed
+Medium,2,Core user functionality,Jan 19 2025,Feb 1 2025,2 weeks,Uriarte,Completed
+High,3,Order processing and kitchen display,Feb 2 2025,Feb 15 2025,2 weeks,Uriarte,Completed
+High,4,Financial systems,Feb 16 2025,Mar 1 2025,2 weeks,Uriarte,Completed
+Medium,5,Inventory and add-on management,Mar 2 2025,Mar 15 2025,2 weeks,Uriarte,Completed
+High,6,Self-checkout and customer experience,Mar 16 2025,Mar 29 2025,2 weeks,Uriarte,Completed
+Medium,7,Reporting and analytics,Mar 30 2025,Apr 12 2025,2 weeks,Uriarte,Completed
+Medium,8,System optimization and monitoring,Apr 13 2025,Apr 26 2025,2 weeks,Uriarte,Completed
+Low,9,Core features and development progress,Apr 27 2025,May 10 2025,2 weeks,Uriarte,Completed
+Low,10,Completing core functionality,May 11 2025,May 24 2025,2 weeks,Uriarte,Completed
+High,11,Advanced POS System Enhancement,May 25 2025,Jun 7 2025,2 weeks,Uriarte,Completed
+High,12,Staff Management System Overhaul,Jun 8 2025,Jun 21 2025,2 weeks,Uriarte,Completed
+High,13,AI Chatbot Integration and Customer Experience,Jun 22 2025,Jul 5 2025,2 weeks,Uriarte,Completed
+Medium,14,Advanced Menu Management and Theme System,Jul 6 2025,Jul 19 2025,2 weeks,Uriarte,Completed
+Medium,15,Advanced Analytics and Dashboard Enhancement,Jul 20 2025,Aug 2 2025,2 weeks,Uriarte,Completed
+Medium,16,Mobile Optimization and System Finalization,Aug 3 2025,Aug 16 2025,2 weeks,Uriarte,Completed
+Critical,17,Production Deployment and System Maintenance,Aug 17 2025,Sep 7 2025,3 weeks,Uriarte,Completed
+High,18,Menu Availability System & Database-Driven Category,Sep 8 2025,Sep 21 2025,2 weeks,Uriarte,Completed
+Medium,19,Menu Availability Feature Implementation,Sep 8 2025,Sep 11 2025,4 days,Uriarte,Completed
+Critical,20,Critical Bug Fixes,Sep 11 2025,Sep 11 2025,1 day,Uriarte,Completed
+High,21,Database-Driven Category System Migration,Sep 12 2025,Sep 13 2025,2 days,Uriarte,Completed
+High,22,Architecture Transformation,Sep 15 2025,Sep 15 2025,1 day,Uriarte,Completed
+Medium,23,Performance Optimization,Sep 16 2025,Sep 17 2025,2 days,Uriarte,Completed
+Medium,24,Inventory Integration,Oct 2 2025,Oct 2 2025,1 day,Uriarte,Completed
+Low,25,Inventory System Cleanup,Oct 3 2025,Oct 3 2025,1 day,Uriarte,Completed
+Low,26,Receipt Number Fix,Oct 3 2025,Oct 3 2025,1 day,Uriarte,Completed
+High,27,Database Connection Pool Optimization,Oct 4 2025,Oct 4 2025,1 day,Uriarte,Completed
+High,28,Payment Verification System,Oct 10 2025,Oct 14 2025,5 days,Uriarte,Completed
+Medium,29,Socket.io Authentication Fix,Oct 15 2025,Oct 15 2025,1 day,Uriarte,Completed
+Medium,30,Real-Time Inventory System,Oct 15 2025,Oct 15 2025,1 day,Uriarte,Completed
+Medium,31,Dynamic Size Management System,Oct 16 2025,Oct 16 2025,1 day,Uriarte,Completed
+Critical,32,PayMongo GCash Integration,Nov 5 2025,Nov 9 2025,5 days,Uriarte,Completed
+High,33,Supabase Storage Migration,Nov 19 2025,Nov 23 2025,5 days,Uriarte,Completed
+Low,34,Frontend URL Handling Fixes,Nov 19 2025,Nov 21 2025,3 days,Uriarte,Completed
+High,35,Payroll Enhancement System,Nov 20 2025,Nov 25 2025,6 days,Uriarte,Completed
+Medium,36,Government Deductions Implementation,Nov 24 2025,Nov 24 2025,1 day,Uriarte,Completed
+Medium,37,Role-Based Expense Workflow System,Nov 25 2025,Nov 25 2025,1 day,Uriarte,Completed
+High,38,Staff Scheduling System with Drag-Drop Calendar,Dec 1 2025,Dec 4 2025,4 days,Uriarte,Completed

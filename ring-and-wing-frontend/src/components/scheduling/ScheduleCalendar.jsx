@@ -247,12 +247,15 @@ const ScheduleCalendar = () => {
       try {
         const response = await api.get('/api/settings/scheduling');
         const data = response.data?.data || response.data;
+        console.log('[ScheduleCalendar] Raw settings response:', response.data);
         if (data) {
-          setSchedulingSettings({
-            defaultRestDays: data.defaultRestDays || [0],
+          const restDays = Array.isArray(data.defaultRestDays) ? data.defaultRestDays : [0];
+          console.log('[ScheduleCalendar] Setting defaultRestDays to:', restDays);
+          setSchedulingSettings(prev => ({
+            ...prev,
+            defaultRestDays: restDays,
             gracePeriodMinutes: data.gracePeriodMinutes || 15
-          });
-          console.log('[ScheduleCalendar] Loaded scheduling settings:', data);
+          }));
         }
       } catch (err) {
         console.error('[ScheduleCalendar] Error fetching scheduling settings:', err);
@@ -277,14 +280,20 @@ const ScheduleCalendar = () => {
     );
   }, [holidays]);
 
-  // Check if a day is a rest day for staff (uses settings default or staff-specific)
+  // Check if a day is a rest day for staff (uses settings default unless staff has custom rest days)
   const isRestDay = useCallback((staffMember, dayOfWeek) => {
-    // Staff-specific rest days take precedence
-    if (staffMember?.restDays && staffMember.restDays.length > 0) {
+    // Staff-specific rest days only take precedence if explicitly marked as custom
+    const hasCustomRestDays = staffMember?.hasCustomRestDays === true;
+    if (hasCustomRestDays && staffMember?.restDays?.length > 0) {
       return staffMember.restDays.includes(dayOfWeek);
     }
     // Fall back to default rest days from settings
-    return schedulingSettings.defaultRestDays.includes(dayOfWeek);
+    const result = schedulingSettings.defaultRestDays.includes(dayOfWeek);
+    // Debug logging
+    if (dayOfWeek === 0 || dayOfWeek === 1 || dayOfWeek === 4) {
+      console.log(`[isRestDay] Day ${dayOfWeek}, defaultRestDays: [${schedulingSettings.defaultRestDays}], result: ${result}`);
+    }
+    return result;
   }, [schedulingSettings.defaultRestDays]);
 
   // Handle cell click
@@ -804,6 +813,8 @@ const ScheduleCalendar = () => {
                 {visibleDays.map((day) => {
                   const holiday = getHoliday(day.dateString);
                   const isToday = day.dateString === formatLocalDate(new Date());
+                  // Check if this day is a default rest day based on settings
+                  const isDefaultRestDay = schedulingSettings.defaultRestDays.includes(day.dayOfWeek);
                   
                   return (
                     <div
@@ -813,12 +824,12 @@ const ScheduleCalendar = () => {
                       }`}
                       style={{ 
                         borderColor: theme.border,
-                        backgroundColor: holiday ? `${theme.danger}08` : isToday ? `${theme.accent}08` : 'transparent'
+                        backgroundColor: holiday ? `${theme.danger}08` : isToday ? `${theme.accent}08` : isDefaultRestDay ? `${theme.warning}08` : 'transparent'
                       }}
                     >
                       <div 
                         className="text-xs font-medium"
-                        style={{ color: day.isWeekend ? theme.warning : theme.textSecondary }}
+                        style={{ color: isDefaultRestDay ? theme.warning : theme.textSecondary }}
                       >
                         {dayNames[day.dayOfWeek]}
                       </div>
@@ -920,12 +931,22 @@ const ScheduleCalendar = () => {
                     {/* Day cells */}
                     {visibleDays.map((day) => {
                       const schedule = getSchedule(staffMember._id, day.dateString);
-                      const isStaffRestDay = isRestDay(staffMember, day.dayOfWeek);
+                      // Calculate rest day - use default settings unless staff has explicitly customized their rest days
+                      // Staff must have `hasCustomRestDays: true` to override defaults
+                      const hasCustomRestDays = staffMember?.hasCustomRestDays === true;
+                      const isStaffRestDay = hasCustomRestDays && staffMember?.restDays?.length > 0
+                        ? staffMember.restDays.includes(day.dayOfWeek)
+                        : schedulingSettings.defaultRestDays.includes(day.dayOfWeek);
                       const holiday = getHoliday(day.dateString);
+                      
+                      // Debug: log for first staff, specific days
+                      if (staffMember._id === filteredStaff[0]?._id && (day.dayOfWeek === 0 || day.dayOfWeek === 1 || day.dayOfWeek === 4)) {
+                        console.log(`[RENDER] Staff: ${staffMember.name}, Day: ${day.dayOfWeek}, hasCustom: ${hasCustomRestDays}, staffRestDays: [${staffMember?.restDays || []}], defaultRestDays: [${schedulingSettings.defaultRestDays}], isStaffRestDay: ${isStaffRestDay}`);
+                      }
 
                       return (
                         <DroppableDay
-                          key={`${staffMember._id}_${day.dateString}`}
+                          key={`${staffMember._id}_${day.dateString}_${schedulingSettings.defaultRestDays.join(',')}`}
                           id={`${staffMember._id}_${day.dateString}`}
                           staffId={staffMember._id}
                           date={day.dateString}

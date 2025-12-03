@@ -1,9 +1,60 @@
-# Ring-Wing Project - Scrum Development Process Documentation
+﻿# Ring-Wing Project - Scrum Development Process Documentation
 
 ## Project Overview
-**Team Members:** [Uriarte], [Viray], [Rejuso]  
-**Project Timeline:** January 2025 - May 2025  
+**Team Members:** [Uriarte], [Viray], [Rejuso] 
+**Project Timeline:** January 2025 - December 2025 
 **Scrum Master/Product Owner:** [Uriarte]
+
+---
+
+## Sprint Summary Table
+
+| Risk | Sprint | Sprint Goal | Start Date | End Date | Duration | Responsible | Status |
+|:----:|:------:|:------------|:-----------|:---------|:--------:|:-----------:|:------:|
+| - | 1 | Project setup and initial architecture | Jan 5, 2025 | Jan 18, 2025 | 2 weeks | Uriarte | Completed |
+| - | 2 | Core user functionality | Jan 19, 2025 | Feb 1, 2025 | 2 weeks | Uriarte | Completed |
+| - | 3 | Order processing and kitchen display | Feb 2, 2025 | Feb 15, 2025 | 2 weeks | Uriarte | Completed |
+| - | 4 | Financial systems | Feb 16, 2025 | Mar 1, 2025 | 2 weeks | Uriarte | Completed |
+| - | 5 | Inventory and add-on management | Mar 2, 2025 | Mar 15, 2025 | 2 weeks | Uriarte | Completed |
+| - | 6 | Self-checkout and customer experience | Mar 16, 2025 | Mar 29, 2025 | 2 weeks | Uriarte | Completed |
+| - | 7 | Reporting and analytics | Mar 30, 2025 | Apr 12, 2025 | 2 weeks | Uriarte | Completed |
+| - | 8 | System optimization and monitoring | Apr 13, 2025 | Apr 26, 2025 | 2 weeks | Uriarte | Completed |
+| - | 9 | Core features and development progress | Apr 27, 2025 | May 10, 2025 | 2 weeks | Uriarte | Completed |
+| - | 10 | Completing core functionality | May 11, 2025 | May 24, 2025 | 2 weeks | Uriarte | Completed |
+| - | 11 | Advanced POS System Enhancement | May 25, 2025 | Jun 7, 2025 | 2 weeks | Uriarte | Completed |
+| - | 12 | Staff Management System Overhaul | Jun 8, 2025 | Jun 21, 2025 | 2 weeks | Uriarte | Completed |
+| - | 13 | AI Chatbot Integration and Customer Experience | Jun 22, 2025 | Jul 5, 2025 | 2 weeks | Uriarte | Completed |
+| - | 14 | Advanced Menu Management and Theme System | Jul 6, 2025 | Jul 19, 2025 | 2 weeks | Uriarte | Completed |
+| - | 15 | Advanced Analytics and Dashboard Enhancement | Jul 20, 2025 | Aug 2, 2025 | 2 weeks | Uriarte | Completed |
+| - | 16 | Mobile Optimization and System Finalization | Aug 3, 2025 | Aug 16, 2025 | 2 weeks | Uriarte | Completed |
+| - | 17 | Production Deployment and System Maintenance | Aug 17, 2025 | Sep 7, 2025 | 3 weeks | Uriarte | Completed |
+| - | 18 | Menu Availability System & Database-Driven Category | Sep 8, 2025 | Sep 21, 2025 | 2 weeks | Uriarte | Completed |
+| - | 19 | Menu Availability Feature Implementation | Sep 8, 2025 | Sep 11, 2025 | 4 days | Uriarte | Completed |
+| - | 20 | Critical Bug Fixes | Sep 11, 2025 | Sep 11, 2025 | 1 day | Uriarte | Completed |
+| - | 21 | Database-Driven Category System Migration | Sep 12, 2025 | Sep 13, 2025 | 2 days | Uriarte | Completed |
+| - | 22 | Architecture Transformation | Sep 15, 2025 | Sep 15, 2025 | 1 day | Uriarte | Completed |
+| - | 23 | Performance Optimization | Sep 16, 2025 | Sep 17, 2025 | 2 days | Uriarte | Completed |
+| - | 24 | Inventory Integration | Oct 2, 2025 | Oct 2, 2025 | 1 day | Uriarte | Completed |
+| - | 25 | Inventory System Cleanup | Oct 3, 2025 | Oct 3, 2025 | 1 day | Uriarte | Completed |
+| - | 26 | Receipt Number Fix | Oct 3, 2025 | Oct 3, 2025 | 1 day | Uriarte | Completed |
+| - | 27 | Database Connection Pool Optimization | Oct 4, 2025 | Oct 4, 2025 | 1 day | Uriarte | Completed |
+| - | 28 | Payment Verification System | Oct 10, 2025 | Oct 14, 2025 | 5 days | Uriarte | Completed |
+| - | 29 | Socket.io Authentication Fix | Oct 15, 2025 | Oct 15, 2025 | 1 day | Uriarte | Completed |
+| - | 30 | Real-Time Inventory System | Oct 15, 2025 | Oct 15, 2025 | 1 day | Uriarte | Completed |
+| - | 31 | Dynamic Size Management System | Oct 16, 2025 | Oct 16, 2025 | 1 day | Uriarte | Completed |
+| - | 32 | PayMongo GCash Integration | Nov 5, 2025 | Nov 9, 2025 | 5 days | Uriarte | Completed |
+| - | 33 | Supabase Storage Migration | Nov 19, 2025 | Nov 23, 2025 | 5 days | Uriarte | Completed |
+| - | 34 | Frontend URL Handling Fixes | Nov 19, 2025 | Nov 21, 2025 | 3 days | Uriarte | Completed |
+| - | 35 | Payroll Enhancement System | Nov 20, 2025 | Nov 25, 2025 | 6 days | Uriarte | Completed |
+| - | 36 | Government Deductions Implementation | Nov 24, 2025 | Nov 24, 2025 | 1 day | Uriarte | Completed |
+| - | 37 | Role-Based Expense Workflow System | Nov 25, 2025 | Nov 25, 2025 | 1 day | Uriarte | Completed |
+| - | 38 | Staff Scheduling System with Drag-Drop Calendar | Dec 1, 2025 | Dec 4, 2025 | 4 days | Uriarte | Completed |
+
+**Total Sprints:** 38
+**Project Duration:** January 5, 2025 - December 4, 2025 (11 months)
+**Overall Status:** On Track
+
+---
 
 ## Sprint History
 
@@ -21,16 +72,16 @@
 **Burndown Chart:**
 ```
 Story Points |
-    36 |\
-       | \
-       |  \
-       |   \
-       |    \
-    18 |     \
-       |      \
-       |       \
-     0 |________\_____
-       0   1   2  Weeks
+ 36 |\
+ | \
+ | \
+ | \
+ | \
+ 18 | \
+ | \
+ | \
+ 0 |________\_____
+ 0 1 2 Weeks
 ```
 
 **Retrospective Notes:**
@@ -54,16 +105,16 @@ Story Points |
 **Burndown Chart:**
 ```
 Story Points |
-    42 |\
-       | \
-       |  \
-       |   \
-    21 |    \
-       |     \
-       |      \
-       |       \____
-     0 |____________
-       0   1   2  Weeks
+ 42 |\
+ | \
+ | \
+ | \
+ 21 | \
+ | \
+ | \
+ | \____
+ 0 |____________
+ 0 1 2 Weeks
 ```
 
 **Retrospective Notes:**
@@ -87,16 +138,16 @@ Story Points |
 **Burndown Chart:**
 ```
 Story Points |
-    40 |\
-       | \
-       |  \
-       |   \
-    20 |    \___
-       |        \
-       |         \
-       |          \
-     0 |___________\
-       0   1   2  Weeks
+ 40 |\
+ | \
+ | \
+ | \
+ 20 | \___
+ | \
+ | \
+ | \
+ 0 |___________\
+ 0 1 2 Weeks
 ```
 
 **Retrospective Notes:**
@@ -120,16 +171,16 @@ Story Points |
 **Burndown Chart:**
 ```
 Story Points |
-    46 |\
-       | \
-       |  \
-       |   \
-    23 |    \
-       |     \
-       |      \
-       |       \___
-     0 |___________\
-       0   1   2  Weeks
+ 46 |\
+ | \
+ | \
+ | \
+ 23 | \
+ | \
+ | \
+ | \___
+ 0 |___________\
+ 0 1 2 Weeks
 ```
 
 **Retrospective Notes:**
@@ -153,15 +204,15 @@ Story Points |
 **Burndown Chart:**
 ```
 Story Points |
-    38 |\
-       | \
-       |  \
-    19 |   \____
-       |        \
-       |         \
-       |          \
-     0 |___________\
-       0   1   2  Weeks
+ 38 |\
+ | \
+ | \
+ 19 | \____
+ | \
+ | \
+ | \
+ 0 |___________\
+ 0 1 2 Weeks
 ```
 
 **Retrospective Notes:**
@@ -185,16 +236,16 @@ Story Points |
 **Burndown Chart:**
 ```
 Story Points |
-    45 |\
-       | \
-       |  \
-       |   \
-    22 |    \
-       |     \____
-       |          \
-       |           \
-     0 |____________\
-       0   1   2  Weeks
+ 45 |\
+ | \
+ | \
+ | \
+ 22 | \
+ | \____
+ | \
+ | \
+ 0 |____________\
+ 0 1 2 Weeks
 ```
 
 **Retrospective Notes:**
@@ -218,16 +269,16 @@ Story Points |
 **Burndown Chart:**
 ```
 Story Points |
-    40 |\
-       | \
-       |  \
-       |   \
-    20 |    \
-       |     \
-       |      \___
-       |          \
-     0 |___________\
-       0   1   2  Weeks
+ 40 |\
+ | \
+ | \
+ | \
+ 20 | \
+ | \
+ | \___
+ | \
+ 0 |___________\
+ 0 1 2 Weeks
 ```
 
 **Retrospective Notes:**
@@ -251,16 +302,16 @@ Story Points |
 **Burndown Chart:**
 ```
 Story Points |
-    35 |\
-       | \
-       |  \___
-       |      \
-    17 |       \
-       |        \
-       |         \
-       |          \
-     0 |___________\
-       0   1   2  Weeks
+ 35 |\
+ | \
+ | \___
+ | \
+ 17 | \
+ | \
+ | \
+ | \
+ 0 |___________\
+ 0 1 2 Weeks
 ```
 
 **Retrospective Notes:**
@@ -284,16 +335,16 @@ Story Points |
 **Burndown Chart:**
 ```
 Story Points |
-    36 |\
-       | \
-       |  \
-       |   \___
-    18 |       \
-       |        \
-       |         \
-       |          \
-     0 |___________\
-       0   1   2  Weeks
+ 36 |\
+ | \
+ | \
+ | \___
+ 18 | \
+ | \
+ | \
+ | \
+ 0 |___________\
+ 0 1 2 Weeks
 ```
 
 **Retrospective Notes:**
@@ -331,16 +382,16 @@ Story Points |
 **Burndown Chart:**
 ```
 Story Points |
-    40 |\
-       | \
-       |  \
-       |   \
-    20 |    \
-       |     \
-       |      \
-       |       \
-     0 |________\____
-       0   1   2  Weeks
+ 40 |\
+ | \
+ | \
+ | \
+ 20 | \
+ | \
+ | \
+ | \
+ 0 |________\____
+ 0 1 2 Weeks
 ```
 
 **Retrospective Notes:**
@@ -376,11 +427,11 @@ Story Points |
 - Enhanced order status tracking (received/preparing/ready/completed)
 
 **Bug Fixes:**
-- [FIXED] ✓ Order item quantity update synchronization issues
-- [FIXED] ✓ Cash float calculation errors during daily resets
-- [FIXED] ✓ Order modification conflicts when switching between pending orders
-- [FIXED] ✓ Receipt generation errors for orders with multiple item sizes
-- [FIXED] ✓ Memory leaks in order processing components
+- [FIXED] Order item quantity update synchronization issues
+- [FIXED] Cash float calculation errors during daily resets
+- [FIXED] Order modification conflicts when switching between pending orders
+- [FIXED] Receipt generation errors for orders with multiple item sizes
+- [FIXED] Memory leaks in order processing components
 
 **Code Quality Enhancements:**
 - Refactored PointofSale.jsx for better performance (1600+ lines optimized)
@@ -391,16 +442,16 @@ Story Points |
 **Burndown Chart:**
 ```
 Story Points |
-    48 |\
-       | \
-       |  \
-       |   \
-    24 |    \
-       |     \
-       |      \___
-       |          \
-     0 |___________\
-       0   1   2  Weeks
+ 48 |\
+ | \
+ | \
+ | \
+ 24 | \
+ | \
+ | \___
+ | \
+ 0 |___________\
+ 0 1 2 Weeks
 ```
 
 **Retrospective Notes:**
@@ -443,13 +494,13 @@ Story Points |
 - Added comprehensive logging for staff management actions
 
 **Bug Fixes:**
-- [FIXED] ✓ Staff creation duplicate validation errors
-- [FIXED] ✓ Profile picture upload and deletion synchronization issues
-- [FIXED] ✓ PIN code authentication timing vulnerabilities
-- [FIXED] ✓ Staff status update propagation delays
-- [FIXED] ✓ Payroll schedule assignment conflicts
-- [FIXED] ✓ Image cleanup during staff record updates
-- [FIXED] ✓ Position hierarchy permission mapping errors
+- [FIXED] Staff creation duplicate validation errors
+- [FIXED] Profile picture upload and deletion synchronization issues
+- [FIXED] PIN code authentication timing vulnerabilities
+- [FIXED] Staff status update propagation delays
+- [FIXED] Payroll schedule assignment conflicts
+- [FIXED] Image cleanup during staff record updates
+- [FIXED] Position hierarchy permission mapping errors
 
 **Database Optimizations:**
 - Enhanced Staff model with comprehensive validation rules
@@ -468,16 +519,16 @@ Story Points |
 **Burndown Chart:**
 ```
 Story Points |
-    54 |\
-       | \
-       |  \
-       |   \
-    27 |    \
-       |     \___
-       |         \
-       |          \
-     0 |___________\
-       0   1   2  Weeks
+ 54 |\
+ | \
+ | \
+ | \
+ 27 | \
+ | \___
+ | \
+ | \
+ 0 |___________\
+ 0 1 2 Weeks
 ```
 
 **Retrospective Notes:**
@@ -527,13 +578,13 @@ Story Points |
 - **Order History:** Persistent order history with status tracking
 
 **Bug Fixes:**
-- [FIXED] ✓ Chatbot API rate limiting edge cases
-- [FIXED] ✓ Menu item recognition accuracy improvements
-- [FIXED] ✓ Order processing timeout handling
-- [FIXED] ✓ Memory leaks in conversation history
-- [FIXED] ✓ Customer information validation errors
-- [FIXED] ✓ Order status synchronization issues
-- [FIXED] ✓ Mobile responsiveness on smaller screens
+- [FIXED] Chatbot API rate limiting edge cases
+- [FIXED] Menu item recognition accuracy improvements
+- [FIXED] Order processing timeout handling
+- [FIXED] Memory leaks in conversation history
+- [FIXED] Customer information validation errors
+- [FIXED] Order status synchronization issues
+- [FIXED] Mobile responsiveness on smaller screens
 
 **Performance Optimizations:**
 - Implemented message batching for API efficiency
@@ -552,16 +603,16 @@ Story Points |
 **Burndown Chart:**
 ```
 Story Points |
-    46 |\
-       | \
-       |  \
-       |   \___
-    23 |       \
-       |        \
-       |         \
-       |          \
-     0 |___________\
-       0   1   2  Weeks
+ 46 |\
+ | \
+ | \
+ | \___
+ 23 | \
+ | \
+ | \
+ | \
+ 0 |___________\
+ 0 1 2 Weeks
 ```
 
 **Retrospective Notes:**
@@ -617,16 +668,16 @@ Story Points |
 - **Component Integration:** Seamless integration across all application components
 
 **Bug Fixes:**
-- [FIXED] ✓ Menu image upload validation errors
-- [FIXED] ✓ Modifier assignment synchronization issues
-- [FIXED] ✓ Category filtering edge cases
-- [FIXED] ✓ Image deletion during menu item updates
-- [FIXED] ✓ Pricing validation for multiple size formats
-- [FIXED] ✓ Menu item code uniqueness validation
-- [FIXED] ✓ File path security vulnerabilities
-- [FIXED] ✓ Memory leaks in image processing
-- [FIXED] ✓ Theme consistency across components
-- [FIXED] ✓ Scrollbar rendering on different screen sizes
+- [FIXED] Menu image upload validation errors
+- [FIXED] Modifier assignment synchronization issues
+- [FIXED] Category filtering edge cases
+- [FIXED] Image deletion during menu item updates
+- [FIXED] Pricing validation for multiple size formats
+- [FIXED] Menu item code uniqueness validation
+- [FIXED] File path security vulnerabilities
+- [FIXED] Memory leaks in image processing
+- [FIXED] Theme consistency across components
+- [FIXED] Scrollbar rendering on different screen sizes
 
 **Performance Enhancements:**
 - Implemented lazy loading for menu images
@@ -645,16 +696,16 @@ Story Points |
 **Burndown Chart:**
 ```
 Story Points |
-    50 |\
-       | \
-       |  \
-       |   \
-    25 |    \___
-       |        \
-       |         \
-       |          \
-     0 |___________\
-       0   1   2  Weeks
+ 50 |\
+ | \
+ | \
+ | \
+ 25 | \___
+ | \
+ | \
+ | \
+ 0 |___________\
+ 0 1 2 Weeks
 ```
 
 **Retrospective Notes:**
@@ -711,16 +762,16 @@ Story Points |
 - **Export System:** Advanced export functionality for inventory reports and audits
 
 **Bug Fixes:**
-- [FIXED] ✓ Dashboard data refresh synchronization issues
-- [FIXED] ✓ Revenue calculation edge cases for complex orders
-- [FIXED] ✓ Chart rendering performance on large datasets
-- [FIXED] ✓ Order status update propagation delays
-- [FIXED] ✓ Kitchen display timer accuracy issues
-- [FIXED] ✓ Inventory audit log memory optimization
-- [FIXED] ✓ Export functionality timeout errors
-- [FIXED] ✓ Dashboard responsiveness on mobile devices
-- [FIXED] ✓ Real-time update conflicts during high traffic
-- [FIXED] ✓ Staff performance calculation inconsistencies
+- [FIXED] Dashboard data refresh synchronization issues
+- [FIXED] Revenue calculation edge cases for complex orders
+- [FIXED] Chart rendering performance on large datasets
+- [FIXED] Order status update propagation delays
+- [FIXED] Kitchen display timer accuracy issues
+- [FIXED] Inventory audit log memory optimization
+- [FIXED] Export functionality timeout errors
+- [FIXED] Dashboard responsiveness on mobile devices
+- [FIXED] Real-time update conflicts during high traffic
+- [FIXED] Staff performance calculation inconsistencies
 
 **Performance Optimizations:**
 - Implemented efficient data caching for dashboard metrics
@@ -739,16 +790,16 @@ Story Points |
 **Burndown Chart:**
 ```
 Story Points |
-    44 |\
-       | \
-       |  \
-       |   \___
-    22 |       \
-       |        \
-       |         \
-       |          \
-     0 |___________\
-       0   1   2  Weeks
+ 44 |\
+ | \
+ | \
+ | \___
+ 22 | \
+ | \
+ | \
+ | \
+ 0 |___________\
+ 0 1 2 Weeks
 ```
 
 **Retrospective Notes:**
@@ -805,16 +856,16 @@ Story Points |
 - **Monitoring Dashboard:** System health monitoring with alert mechanisms
 
 **Bug Fixes (Final Sprint):**
-- [FIXED] ✓ Mobile menu navigation edge cases
-- [FIXED] ✓ Touch gesture conflicts on tablets
-- [FIXED] ✓ Memory leaks in long-running sessions
-- [FIXED] ✓ Database connection pool optimization
-- [FIXED] ✓ Real-time update synchronization issues
-- [FIXED] ✓ Image loading optimization on slow connections
-- [FIXED] ✓ Form validation consistency across devices
-- [FIXED] ✓ Chart responsiveness on small screens
-- [FIXED] ✓ Authentication token refresh edge cases
-- [FIXED] ✓ Cross-browser compatibility issues
+- [FIXED] Mobile menu navigation edge cases
+- [FIXED] Touch gesture conflicts on tablets
+- [FIXED] Memory leaks in long-running sessions
+- [FIXED] Database connection pool optimization
+- [FIXED] Real-time update synchronization issues
+- [FIXED] Image loading optimization on slow connections
+- [FIXED] Form validation consistency across devices
+- [FIXED] Chart responsiveness on small screens
+- [FIXED] Authentication token refresh edge cases
+- [FIXED] Cross-browser compatibility issues
 
 **Quality Assurance:**
 - Comprehensive end-to-end testing across all user flows
@@ -833,16 +884,16 @@ Story Points |
 **Burndown Chart:**
 ```
 Story Points |
-    42 |\
-       | \
-       |  \___
-       |      \
-    21 |       \
-       |        \
-       |         \
-       |          \
-     0 |___________\
-       0   1   2  Weeks
+ 42 |\
+ | \
+ | \___
+ | \
+ 21 | \
+ | \
+ | \
+ | \
+ 0 |___________\
+ 0 1 2 Weeks
 ```
 
 **Retrospective Notes:**
@@ -852,7 +903,7 @@ Story Points |
 
 ---
 
-### Current Sprint (Aug 17 - Sep 7, 2025) [COMPLETED]
+### Sprint 17 (Aug 17 - Sep 7, 2025) [COMPLETED]
 **Sprint Goal:** Production Deployment and System Maintenance
 **Story Points Completed:** 38/38
 
@@ -883,25 +934,25 @@ Story Points |
 - Enhanced error handling and state management in dashboard components
 
 **Bug Fixes (September 2025):**
-- [FIXED] ✓ JavaScript initialization error in DashboardMinimal.jsx
-- [FIXED] ✓ Discount calculation edge cases for PWD/Senior discounts
-- [FIXED] ✓ Mobile navigation and touch interface optimizations
-- [FIXED] ✓ Database connection monitoring false positives
-- [FIXED] ✓ Self-checkout mobile layout and responsiveness
+- [FIXED] JavaScript initialization error in DashboardMinimal.jsx
+- [FIXED] Discount calculation edge cases for PWD/Senior discounts
+- [FIXED] Mobile navigation and touch interface optimizations
+- [FIXED] Database connection monitoring false positives
+- [FIXED] Self-checkout mobile layout and responsiveness
 
 **Burndown Chart:**
 ```
 Story Points |
-    38 |\
-       | \
-       |  \
-       |   \
-    19 |    \
-       |     \
-       |      \___
-       |          \
-     0 |___________\
-       0   1   2  Weeks
+ 38 |\
+ | \
+ | \
+ | \
+ 19 | \
+ | \
+ | \___
+ | \
+ 0 |___________\
+ 0 1 2 Weeks
 ```
 
 **Retrospective Notes:**
@@ -911,7 +962,7 @@ Story Points |
 
 ---
 
-### Current Sprint (Sep 8 - Sep 21, 2025) [COMPLETED]
+### Sprint 18 (Sep 8 - Sep 21, 2025) [COMPLETED]
 **Sprint Goal:** Menu Availability System & Database-Driven Category Architecture
 **Story Points Planned:** 50
 **Story Points Completed:** 50/50
@@ -1001,8 +1052,8 @@ This migration represents a perfect example of why hard-coded configurations sho
 ```javascript
 // BEFORE (Hard-coded - What Not To Do):
 const MENU_CONFIG = {
-  Beverages: { subCategories: { 'Coffee': { sizes: [...] } } },
-  Meals: { subCategories: { 'Breakfast All Day': { sizes: [] } } }
+ Beverages: { subCategories: { 'Coffee': { sizes: [...] } } },
+ Meals: { subCategories: { 'Breakfast All Day': { sizes: [] } } }
 };
 
 // AFTER (Database-driven - Best Practice):
@@ -1050,16 +1101,16 @@ Initially, our SelfCheckout system followed the industry-standard "mobile-first"
 // BEFORE (Mobile-First - What Went Wrong):
 // Single responsive component trying to serve all devices
 const SelfCheckout = () => {
-  const isMobile = window.innerWidth < 768; // Primitive detection
-  return (
-    <div className="mobile-optimized-layout">
-      {isMobile ? <BottomTabs /> : <BottomTabs />} {/* Same mobile UI everywhere */}
-      <div className="flex-col"> {/* Vertical layout forced on desktop */}
-        <MenuGrid />
-        <Cart className="bottom-fixed" />
-      </div>
-    </div>
-  );
+ const isMobile = window.innerWidth < 768; // Primitive detection
+ return (
+ <div className="mobile-optimized-layout">
+ {isMobile ? <BottomTabs /> : <BottomTabs />} {/* Same mobile UI everywhere */}
+ <div className="flex-col"> {/* Vertical layout forced on desktop */}
+ <MenuGrid />
+ <Cart className="bottom-fixed" />
+ </div>
+ </div>
+ );
 };
 ```
 
@@ -1067,17 +1118,17 @@ const SelfCheckout = () => {
 ```javascript
 // AFTER (Multi-Device Architecture - Best Practice):
 const SelfCheckout = () => {
-  const { isMobile, isTablet, isDesktop } = useBreakpoint();
-  
-  return (
-    <CartProvider>
-      <MenuProvider>
-        {isMobile && <MobileLayout />}    // Bottom tabs, touch-optimized
-        {isTablet && <TabletLayout />}     // Side-by-side, larger targets
-        {isDesktop && <DesktopLayout />}   // Persistent sidebar, keyboard nav
-      </MenuProvider>
-    </CartProvider>
-  );
+ const { isMobile, isTablet, isDesktop } = useBreakpoint();
+ 
+ return (
+ <CartProvider>
+ <MenuProvider>
+ {isMobile && <MobileLayout />} // Bottom tabs, touch-optimized
+ {isTablet && <TabletLayout />} // Side-by-side, larger targets
+ {isDesktop && <DesktopLayout />} // Persistent sidebar, keyboard nav
+ </MenuProvider>
+ </CartProvider>
+ );
 };
 ```
 
@@ -1096,7 +1147,7 @@ const SelfCheckout = () => {
 - Right-click context menus for advanced actions
 - Multi-column layouts utilizing screen real estate
 
-**Tablet Needs:**  
+**Tablet Needs:** 
 - Side-by-side menu and cart layout
 - Larger touch targets for finger navigation
 - Swipe gestures for category navigation
@@ -1127,17 +1178,17 @@ Instead of "mobile-first," we should have implemented "device-context-first" fro
 // SHOULD HAVE BEEN (Device-Context-First):
 // Plan multiple layouts from day one
 const layouts = {
-  mobile: () => <MobileOptimizedLayout />,    // Touch-first, bottom navigation
-  tablet: () => <TabletOptimizedLayout />,     // Mixed interaction, side panels  
-  desktop: () => <DesktopOptimizedLayout />   // Mouse/keyboard, persistent UI
+ mobile: () => <MobileOptimizedLayout />, // Touch-first, bottom navigation
+ tablet: () => <TabletOptimizedLayout />, // Mixed interaction, side panels 
+ desktop: () => <DesktopOptimizedLayout /> // Mouse/keyboard, persistent UI
 };
 ```
 
 **Lessons for Future Projects:**
 
-**✅ DO:**
+** DO:**
 - Research actual device usage patterns in your specific domain
-- Plan multiple layout strategies from project inception  
+- Plan multiple layout strategies from project inception 
 - Design device-specific interaction patterns and user flows
 - Create modular, composable layout systems
 - Implement proper breakpoint detection (matchMedia, not window.innerWidth)
@@ -1159,7 +1210,7 @@ This lesson demonstrates that following popular design philosophies blindly can 
 
 ---
 
-### Sprint 17 (Oct 10 - Oct 14, 2025) [COMPLETED]
+### Sprint 28 (Oct 10 - Oct 14, 2025) [COMPLETED]
 **Sprint Goal:** Payment Verification System for Self-Checkout Orders
 **Story Points Planned:** 42
 **Story Points Completed:** 42/42
@@ -1185,47 +1236,47 @@ Self-checkout customers using e-wallet payments (GCash/PayMaya) need to upload p
 
 **1. Database Schema Enhancement**
 - Enhanced Order model with comprehensive `proofOfPayment` object:
-  ```javascript
-  proofOfPayment: {
-    imageUrl: String,                    // Uploaded screenshot path
-    transactionReference: String,        // Manual reference entry
-    accountName: String,                 // E-wallet account holder
-    verificationStatus: {                // Separate from order status
-      enum: ['pending', 'verified', 'rejected'],
-      default: 'pending'
-    },
-    verifiedBy: ObjectId,               // Staff who verified
-    verifiedAt: Date,
-    rejectionReason: String,
-    expiresAt: Date,                    // Auto-cancel timeout
-    uploadedAt: Date
-  }
-  ```
+ ```javascript
+ proofOfPayment: {
+ imageUrl: String, // Uploaded screenshot path
+ transactionReference: String, // Manual reference entry
+ accountName: String, // E-wallet account holder
+ verificationStatus: { // Separate from order status
+ enum: ['pending', 'verified', 'rejected'],
+ default: 'pending'
+ },
+ verifiedBy: ObjectId, // Staff who verified
+ verifiedAt: Date,
+ rejectionReason: String,
+ expiresAt: Date, // Auto-cancel timeout
+ uploadedAt: Date
+ }
+ ```
 
 - Order status workflow enhancement:
-  ```javascript
-  status: {
-    enum: ['pending', 'pending_payment', 'received', 'preparing', 
-           'ready', 'completed', 'cancelled'],
-    default: 'received'
-  }
-  ```
+ ```javascript
+ status: {
+ enum: ['pending', 'pending_payment', 'received', 'preparing', 
+ 'ready', 'completed', 'cancelled'],
+ default: 'received'
+ }
+ ```
 
 **2. Payment Verification Controller** (`paymentVerificationController.js`)
 - **`uploadProof()`**: Multer-based image upload with 5MB limit, JPEG/PNG validation
 - **`verifyPayment()`**: Manager/cashier verification with audit trail
-  - Changes order status: `pending_payment` → `received`
-  - Updates verification status: `pending` → `verified`
-  - Emits Socket.io events to all connected clients
-  - Validates payment not expired before verification
+ - Changes order status: `pending_payment` → `received`
+ - Updates verification status: `pending` → `verified`
+ - Emits Socket.io events to all connected clients
+ - Validates payment not expired before verification
 - **`rejectPayment()`**: Rejection workflow with reason tracking
-  - Changes order status to `cancelled`
-  - Updates verification status to `rejected`
-  - Notifies customer via Socket.io
+ - Changes order status to `cancelled`
+ - Updates verification status to `rejected`
+ - Notifies customer via Socket.io
 - **`getPendingVerification()`**: Query endpoint with intelligent filtering
-  - Supports filtering by `verificationStatus` (pending/verified/rejected)
-  - Handles multiple order statuses correctly
-  - Calculates time remaining and urgency indicators
+ - Supports filtering by `verificationStatus` (pending/verified/rejected)
+ - Handles multiple order statuses correctly
+ - Calculates time remaining and urgency indicators
 
 **3. API Endpoints**
 - `POST /api/orders/:id/upload-proof` - Image upload with validation
@@ -1239,60 +1290,60 @@ Self-checkout customers using e-wallet payments (GCash/PayMaya) need to upload p
 - Path validation and security measures
 - Image optimization and compression
 
-#### 🖥️ Frontend Payment Verification Integration
-**Story Points:** 24 - **STATUS: ✅ COMPLETED**
+#### Frontend Payment Verification Integration
+**Story Points:** 24 - **STATUS: COMPLETED**
 
 **1. POS "Dine/Take-outs" Tab Implementation**
 - **New Tab Button**: Third tab added to POS order view switcher
 - **Real-time Order List**: Displays pending payment verification orders
-  - Compact card design with essential payment details
-  - Payment proof thumbnail preview (inline display)
-  - Expiration timer with color-coded urgency (yellow warning, red expired)
-  - Order type indicator (🚗 Delivery / 🥡 Takeout)
+ - Compact card design with essential payment details
+ - Payment proof thumbnail preview (inline display)
+ - Expiration timer with color-coded urgency (yellow warning, red expired)
+ - Order type indicator ( Delivery / Takeout)
 - **Socket.io Integration**:
-  - Listens for `newPaymentOrder` events
-  - Updates list on `paymentVerified` and `paymentRejected` events
-  - Auto-refresh every 30 seconds as fallback
+ - Listens for `newPaymentOrder` events
+ - Updates list on `paymentVerified` and `paymentRejected` events
+ - Auto-refresh every 30 seconds as fallback
 
 **2. Payment Verification Modal**
 - **Header Section**:
-  - Order number display with 1x1 thumbnail (80×80px, top right)
-  - Click thumbnail to expand image in full-screen overlay
+ - Order number display with 1x1 thumbnail (80×80px, top right)
+ - Click thumbnail to expand image in full-screen overlay
 - **Payment Details Section** (Prominent Display):
-  - Blue-bordered box highlighting account name and reference number
-  - Large readable fonts for critical verification data
+ - Blue-bordered box highlighting account name and reference number
+ - Large readable fonts for critical verification data
 - **Order Summary**:
-  - Total amount, payment method (GCash/Maya), fulfillment type
-  - Order timestamp for verification context
+ - Total amount, payment method (GCash/Maya), fulfillment type
+ - Order timestamp for verification context
 - **Items List**: Complete order items with quantities and prices
 - **Modal Footer** (Fixed positioning):
-  - "✓ Verify Payment" button (green, full-width)
-  - "✗ Reject Payment" button (red, full-width)
-  - Negative margins for edge-to-edge button layout
-  - Content scrolling constrained to prevent overlap
+ - " Verify Payment" button (green, full-width)
+ - " Reject Payment" button (red, full-width)
+ - Negative margins for edge-to-edge button layout
+ - Content scrolling constrained to prevent overlap
 
 **3. Post-Verification Workflow**
 - **handleQuickVerify() Enhancement**:
-  ```javascript
-  // Multi-step verification process:
-  1. Call /api/orders/:id/verify-payment (payment verification)
-  2. Fetch full order details for receipt
-  3. Generate and print receipt automatically
-  4. Remove from verification list
-  5. Refresh active orders (appears in Ready Orders)
-  ```
+ ```javascript
+ // Multi-step verification process:
+ 1. Call /api/orders/:id/verify-payment (payment verification)
+ 2. Fetch full order details for receipt
+ 3. Generate and print receipt automatically
+ 4. Remove from verification list
+ 5. Refresh active orders (appears in Ready Orders)
+ ```
 - **Receipt Generation**: Adapts existing POS receipt system for verified orders
 - **Order Status Transition**: `pending_payment` → `received` → staff processes normally
 
 **4. Real-time Synchronization**
 - **Socket.io Room Management**:
-  - POS joins 'staff' room on connection
-  - Receives instant notifications for new payment uploads
-  - Automatic UI updates without page refresh
+ - POS joins 'staff' room on connection
+ - Receives instant notifications for new payment uploads
+ - Automatic UI updates without page refresh
 - **fetchTakeoutOrders()**: Dedicated query for pending verification
-  - Filters by `fulfillmentType` (takeout/delivery)
-  - Sorts by expiration time (urgent orders first)
-  - Updates every 30 seconds + on Socket.io events
+ - Filters by `fulfillmentType` (takeout/delivery)
+ - Sorts by expiration time (urgent orders first)
+ - Updates every 30 seconds + on Socket.io events
 
 #### Critical Bug Fixes and Optimizations (Oct 10-14, 2025)
 **Story Points:** Included in main implementation
@@ -1301,10 +1352,10 @@ Self-checkout customers using e-wallet payments (GCash/PayMaya) need to upload p
 - **Problem**: Initial design conflated payment verification with order workflow
 - **Root Cause**: Used `order.status = 'payment_verified'` which conflicted with normal workflow
 - **Solution**: 
-  - Payment verification tracked in `proofOfPayment.verificationStatus`
-  - Order workflow uses standard status enum (`received` → `preparing` → `ready`)
-  - Payment Verification Dashboard filters by `verificationStatus`
-  - Order Management filters by `order.status`
+ - Payment verification tracked in `proofOfPayment.verificationStatus`
+ - Order workflow uses standard status enum (`received` → `preparing` → `ready`)
+ - Payment Verification Dashboard filters by `verificationStatus`
+ - Order Management filters by `order.status`
 - **Impact**: Clean separation allows verified orders to flow through normal kitchen workflow
 
 **2. Backend Query Logic Fix**
@@ -1317,28 +1368,28 @@ Self-checkout customers using e-wallet payments (GCash/PayMaya) need to upload p
 - **Problem**: Changed default order status broke existing POS orders
 - **Root Cause**: Order model required 'received' but validation rejected it
 - **Solution**: 
-  - Added `'received'` back to status enum in Order model
-  - POS orders start as `'received'` (immediate payment)
-  - Self-checkout orders start as `'pending_payment'` (awaiting verification)
+ - Added `'received'` back to status enum in Order model
+ - POS orders start as `'received'` (immediate payment)
+ - Self-checkout orders start as `'pending_payment'` (awaiting verification)
 - **Impact**: Both order types now work correctly with different starting statuses
 
 **4. Modal Button Layout Resolution (15+ iterations)**
 - **Problem**: Modal footer buttons getting cut off or scrolling with content
 - **Root Cause**: Modal component uses React Portal with isolated rendering context
 - **Solution**: 
-  - Use Modal's `footer` prop instead of separate rendering
-  - Apply negative margins: `-mx-4 -my-14` to extend beyond padding
-  - Set explicit width: `calc(100% + 2rem)` for full-width buttons
-  - Constrain content: `max-h-[calc(90vh-180px)] overflow-y-auto`
+ - Use Modal's `footer` prop instead of separate rendering
+ - Apply negative margins: `-mx-4 -my-14` to extend beyond padding
+ - Set explicit width: `calc(100% + 2rem)` for full-width buttons
+ - Constrain content: `max-h-[calc(90vh-180px)] overflow-y-auto`
 - **Impact**: Fixed positioning with professional appearance, content scrolls properly
 
 **5. Receipt Generation for Verified Orders**
 - **Problem**: Verified orders didn't generate receipts like normal POS orders
 - **Solution**: 
-  - Integrated existing receipt system with verification workflow
-  - Fetch full order details after verification
-  - Auto-generate and print receipt
-  - Use saved order data for consistent receipt display
+ - Integrated existing receipt system with verification workflow
+ - Fetch full order details after verification
+ - Auto-generate and print receipt
+ - Use saved order data for consistent receipt display
 - **Impact**: Seamless receipt generation maintains consistent user experience
 
 #### Technical Implementation Details
@@ -1352,43 +1403,43 @@ io.to('staff').emit('newPaymentOrder', { ... });
 
 // Frontend listeners (POS):
 socket.on('newPaymentOrder', (data) => {
-  setTakeoutOrders(prev => [...prev, data.order]);
+ setTakeoutOrders(prev => [...prev, data.order]);
 });
 socket.on('paymentVerified', (data) => {
-  setTakeoutOrders(prev => prev.filter(o => o._id !== data.orderId));
+ setTakeoutOrders(prev => prev.filter(o => o._id !== data.orderId));
 });
 ```
 
 **State Management Architecture:**
 ```javascript
 // POS Component State (PointofSale.jsx):
-const [takeoutOrders, setTakeoutOrders] = useState([]);           // Verification list
+const [takeoutOrders, setTakeoutOrders] = useState([]); // Verification list
 const [selectedVerificationOrder, setSelectedVerificationOrder] = useState(null);
 const [showVerificationModal, setShowVerificationModal] = useState(false);
-const [expandedImage, setExpandedImage] = useState(false);        // Image overlay
-const [socket, setSocket] = useState(null);                       // Socket.io connection
+const [expandedImage, setExpandedImage] = useState(false); // Image overlay
+const [socket, setSocket] = useState(null); // Socket.io connection
 ```
 
 **API Integration Patterns:**
 ```javascript
 // Verification API call:
 const response = await fetch(`${API_URL}/api/orders/${orderId}/verify-payment`, {
-  method: 'PUT',
-  headers: {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`
-  },
-  body: JSON.stringify({ notes })
+ method: 'PUT',
+ headers: {
+ 'Content-Type': 'application/json',
+ Authorization: `Bearer ${token}`
+ },
+ body: JSON.stringify({ notes })
 });
 
 // Query pending orders:
 const response = await fetch(
-  `${API_URL}/api/orders/pending-verification?verificationStatus=pending`,
-  { headers: { Authorization: `Bearer ${token}` } }
+ `${API_URL}/api/orders/pending-verification?verificationStatus=pending`,
+ { headers: { Authorization: `Bearer ${token}` } }
 );
 ```
 
-#### 🎨 UI/UX Design Decisions
+#### UI/UX Design Decisions
 
 **1. Compact Card Design**
 - Minimizes space while showing essential verification data
@@ -1408,7 +1459,7 @@ const response = await fetch(
 - Badge counter shows pending verification count
 - Hides cart/menu when verification tab active (orders are locked)
 
-#### 📈 Performance Metrics
+#### Performance Metrics
 
 **Development Velocity:**
 - **5-day sprint**: Completed 42 story points (8.4 points/day average)
@@ -1467,16 +1518,16 @@ const response = await fetch(
 **Burndown Chart:**
 ```
 Story Points |
-    42 |●
-       | \
-       |  \
-       |   \
-    21 |    ●
-       |     \
-       |      \___●
-       |          \●
-     0 |___________●
-       Day1 Day2 Day3 Day4 Day5
+ 42 |●
+ | \
+ | \
+ | \
+ 21 | ●
+ | \
+ | \___●
+ | \●
+ 0 |___________●
+ Day1 Day2 Day3 Day4 Day5
 ```
 
 **Story Point Breakdown:**
@@ -1505,8 +1556,8 @@ Story Points |
 **What Went Exceptionally Well:**
 - Leveraged existing Socket.io infrastructure for instant notifications
 - Modal component reuse saved significant development time
-- ✅ Clean separation between verification and workflow statuses
-- ✅ Completed in accelerated 5-day sprint without compromising quality
+- Clean separation between verification and workflow statuses
+- Completed in accelerated 5-day sprint without compromising quality
 
 **Challenges Overcome:**
 - Modal button layout required extensive iteration (15+ attempts)
@@ -1515,19 +1566,19 @@ Story Points |
 - React Portal rendering required understanding component isolation
 
 **Action Items for Future Sprints:**
-- 📋 Document modal component usage patterns for complex layouts
-- 📋 Add comprehensive testing for payment verification workflow
-- 📋 Monitor Socket.io performance under high concurrent load
-- 📋 Consider adding payment verification analytics to dashboard
-- 📋 Plan Phase 4.3-4.8: Testing, edge cases, documentation
+- Document modal component usage patterns for complex layouts
+- Add comprehensive testing for payment verification workflow
+- Monitor Socket.io performance under high concurrent load
+- Consider adding payment verification analytics to dashboard
+- Plan Phase 4.3-4.8: Testing, edge cases, documentation
 
 **Team Velocity Impact:**
 This sprint demonstrates the team's ability to execute accelerated development cycles when required. The 5-day completion of 42 story points (vs normal 14-day sprints) shows strong technical capability and effective use of existing system architecture.
 
 **Technical Debt Assessment:**
-- ✅ Minimal technical debt introduced
-- ✅ Clean integration with existing systems
-- ✅ Comprehensive error handling implemented
+- Minimal technical debt introduced
+- Clean integration with existing systems
+- Comprehensive error handling implemented
 - Testing coverage should be expanded in next sprint
 - Edge case handling needs validation through QA testing
 
@@ -1540,7 +1591,7 @@ This sprint demonstrates the team's ability to execute accelerated development c
 
 ---
 
-### Sprint 18 (Nov 5 - Nov 9, 2025) [COMPLETED]
+### Sprint 32 (Nov 5 - Nov 9, 2025) [COMPLETED]
 **Sprint Goal:** PayMongo Integration for Automated GCash/PayMaya Processing
 **Story Points Planned:** 46
 **Story Points Completed:** 46/46
@@ -1572,31 +1623,31 @@ Integrate PayMongo payment gateway to provide seamless GCash and PayMaya payment
 
 **2. Order Model Enhancements** (`Order.js`)
 - Enhanced payment method enum with PayMongo options:
-  ```javascript
-  paymentMethod: {
-    type: String,
-    enum: ['cash', 'card', 'e-wallet', 'paymongo_gcash', 'paymongo_paymaya'],
-    required: true
-  }
-  ```
+ ```javascript
+ paymentMethod: {
+ type: String,
+ enum: ['cash', 'card', 'e-wallet', 'paymongo_gcash', 'paymongo_paymaya'],
+ required: true
+ }
+ ```
 - New order status for PayMongo workflow:
-  ```javascript
-  status: {
-    type: String,
-    enum: ['pending', 'pending_payment', 'paymongo_verified', 'received', 'preparing', 'ready', 'completed', 'cancelled'],
-    default: 'pending'
-  }
-  ```
+ ```javascript
+ status: {
+ type: String,
+ enum: ['pending', 'pending_payment', 'paymongo_verified', 'received', 'preparing', 'ready', 'completed', 'cancelled'],
+ default: 'pending'
+ }
+ ```
 - PayMongo gateway tracking fields:
-  ```javascript
-  paymentGateway: {
-    provider: String,
-    sessionId: String,
-    paymentIntentId: String,
-    paidAt: Date,
-    webhookReceived: Boolean
-  }
-  ```
+ ```javascript
+ paymentGateway: {
+ provider: String,
+ sessionId: String,
+ paymentIntentId: String,
+ paidAt: Date,
+ webhookReceived: Boolean
+ }
+ ```
 
 **3. PayMongo Service Layer** (`services/paymongoService.js`)
 - **createCheckoutSession()**: Creates PayMongo checkout sessions with line items
@@ -1640,17 +1691,17 @@ Integrate PayMongo payment gateway to provide seamless GCash and PayMaya payment
 
 **4. Real-time Notification System**
 - **Socket.io Event Handling**:
-  ```javascript
-  socket.on('newPaymentOrder', (data) => {
-    // Handle new PayMongo order notifications
-    setTakeoutOrders(prev => [...prev, data.order]);
-  });
-  
-  socket.on('paymentVerified', (data) => {
-    // Handle PayMongo payment confirmations
-    updateOrderStatus(data.orderId, 'paymongo_verified');
-  });
-  ```
+ ```javascript
+ socket.on('newPaymentOrder', (data) => {
+ // Handle new PayMongo order notifications
+ setTakeoutOrders(prev => [...prev, data.order]);
+ });
+ 
+ socket.on('paymentVerified', (data) => {
+ // Handle PayMongo payment confirmations
+ updateOrderStatus(data.orderId, 'paymongo_verified');
+ });
+ ```
 - **Cross-POS Synchronization**: Both main POS and tablet POS receive identical notifications
 - **Order State Management**: Consistent order state updates across all interfaces
 
@@ -1682,11 +1733,11 @@ PayMongo Sends Webhook → Signature Verification → Event Processing
 ```javascript
 // Ensures webhook authenticity and prevents fraudulent payment confirmations
 const verifyWebhook = (payload, signature) => {
-  const computedSignature = crypto
-    .createHmac('sha256', process.env.PAYMONGO_WEBHOOK_SECRET)
-    .update(JSON.stringify(payload))
-    .digest('hex');
-  return computedSignature === signature;
+ const computedSignature = crypto
+ .createHmac('sha256', process.env.PAYMONGO_WEBHOOK_SECRET)
+ .update(JSON.stringify(payload))
+ .digest('hex');
+ return computedSignature === signature;
 };
 ```
 
@@ -1694,13 +1745,13 @@ const verifyWebhook = (payload, signature) => {
 ```javascript
 // Order lifecycle with PayMongo integration
 const orderStatuses = {
-  'pending_payment': 'Awaiting manual verification (GCash/Maya screenshot)',
-  'paymongo_pending': 'PayMongo checkout session created, awaiting payment',
-  'paymongo_verified': 'PayMongo payment confirmed, ready for kitchen processing',
-  'received': 'Order received by staff, ready for preparation',
-  'preparing': 'Kitchen is preparing the order',
-  'ready': 'Order ready for pickup/delivery',
-  'completed': 'Order fulfilled and completed'
+ 'pending_payment': 'Awaiting manual verification (GCash/Maya screenshot)',
+ 'paymongo_pending': 'PayMongo checkout session created, awaiting payment',
+ 'paymongo_verified': 'PayMongo payment confirmed, ready for kitchen processing',
+ 'received': 'Order received by staff, ready for preparation',
+ 'preparing': 'Kitchen is preparing the order',
+ 'ready': 'Order ready for pickup/delivery',
+ 'completed': 'Order fulfilled and completed'
 };
 ```
 
@@ -1708,11 +1759,11 @@ const orderStatuses = {
 ```javascript
 // Socket.io events for PayMongo orders
 io.to('staff').emit('newPaymongoOrder', {
-  orderId: order._id,
-  orderNumber: order.orderNumber,
-  totalAmount: order.totalAmount,
-  paymentMethod: order.paymentMethod,
-  gatewayTransactionId: order.gatewayTransactionId
+ orderId: order._id,
+ orderNumber: order.orderNumber,
+ totalAmount: order.totalAmount,
+ paymentMethod: order.paymentMethod,
+ gatewayTransactionId: order.gatewayTransactionId
 });
 ```
 
@@ -1759,14 +1810,14 @@ io.to('staff').emit('newPaymongoOrder', {
 #### Integration Testing Results
 
 **Test Scenarios Completed:**
-- ✅ Successful PayMongo checkout flow from self-checkout
-- ✅ Webhook receipt and signature verification
-- ✅ Order status updates across multiple POS interfaces
-- ✅ Receipt generation for PayMongo orders
-- ✅ Kitchen workflow integration after processing
-- ✅ Failed payment handling and order cancellation
-- ✅ Concurrent PayMongo order processing
-- ✅ Socket.io notification delivery to all connected staff
+- Successful PayMongo checkout flow from self-checkout
+- Webhook receipt and signature verification
+- Order status updates across multiple POS interfaces
+- Receipt generation for PayMongo orders
+- Kitchen workflow integration after processing
+- Failed payment handling and order cancellation
+- Concurrent PayMongo order processing
+- Socket.io notification delivery to all connected staff
 
 **Edge Cases Handled:**
 - Webhook replay attack prevention with signature validation
@@ -1823,12 +1874,12 @@ io.to('staff').emit('newPaymongoOrder', {
 **Burndown Chart:**
 ```
 Story Points |
-    46 |●
-       |  ●●
-       |     ●●●
-       |        ●●●
-       |0__________
-         Day 1-5
+ 46 |●
+ | ●●
+ | ●●●
+ | ●●●
+ |0__________
+ Day 1-5
 ```
 
 **Story Point Breakdown:**
@@ -1875,11 +1926,11 @@ Story Points |
 #### Retrospective Notes
 
 **What Went Exceptionally Well:**
-- ✅ PayMongo integration completed ahead of schedule
-- ✅ Webhook security implemented with comprehensive signature verification
-- ✅ Socket.io integration provided instant staff notifications
-- ✅ Clean separation between automated and manual payment verification
-- ✅ Professional checkout experience with Ring & Wing branding
+- PayMongo integration completed ahead of schedule
+- Webhook security implemented with comprehensive signature verification
+- Socket.io integration provided instant staff notifications
+- Clean separation between automated and manual payment verification
+- Professional checkout experience with Ring & Wing branding
 
 **Challenges Overcome:**
 - Webhook signature verification required careful cryptographic implementation
@@ -1888,20 +1939,20 @@ Story Points |
 - Receipt generation needed adaptation for PayMongo transaction format
 
 **Action Items for Future Sprints:**
-- 📋 Monitor PayMongo transaction success rates and failure patterns
-- 📋 Add comprehensive analytics for payment method preferences
-- 📋 Consider adding PayMongo card payment support
-- 📋 Implement automated payment reconciliation reports
-- 📋 Add customer payment history and receipt access portal
+- Monitor PayMongo transaction success rates and failure patterns
+- Add comprehensive analytics for payment method preferences
+- Consider adding PayMongo card payment support
+- Implement automated payment reconciliation reports
+- Add customer payment history and receipt access portal
 
 **Team Velocity Impact:**
 This sprint demonstrates strong execution of complex payment gateway integration. The 5-day completion of 46 story points (highest velocity sprint) shows excellent technical capability and efficient use of modern payment APIs. The PayMongo integration significantly enhances the self-checkout experience and reduces operational burden on staff.
 
 **Technical Debt Assessment:**
-- ✅ Minimal technical debt introduced
-- ✅ Clean integration with existing order and payment systems
-- ✅ Comprehensive error handling and security measures
-- ✅ Well-documented API integration patterns
+- Minimal technical debt introduced
+- Clean integration with existing order and payment systems
+- Comprehensive error handling and security measures
+- Well-documented API integration patterns
 - Future enhancement: Consider adding payment analytics dashboard
 - Future enhancement: Automated payment reconciliation reporting
 
@@ -1914,7 +1965,7 @@ This sprint demonstrates strong execution of complex payment gateway integration
 
 ---
 
-### Sprint 25 (Nov 20 - Nov 25, 2025) [COMPLETED]
+### Sprint 35 (Nov 20 - Nov 25, 2025) [COMPLETED]
 **Sprint Goal:** Enterprise Payroll System with Government Compliance
 **Story Points Planned:** 58
 **Story Points Completed:** 58/58
@@ -1940,7 +1991,7 @@ Implement enterprise-grade payroll system with full Philippine government compli
 ---
 
 #### Phase 1: Database Schema & Government Deductions Backend
-**Story Points:** 8 - **STATUS: ✅ COMPLETED (Nov 20, 2025)**
+**Story Points:** 8 - **STATUS: COMPLETED (Nov 20, 2025)**
 
 **1. Database Models Implementation**
 
@@ -1948,10 +1999,10 @@ Implement enterprise-grade payroll system with full Philippine government compli
 ```javascript
 // Government-issued identification numbers
 governmentIds: {
-  sssNumber: { type: String, default: null },
-  philHealthNumber: { type: String, default: null },
-  pagIbigNumber: { type: String, default: null },
-  tinNumber: { type: String, default: null }
+ sssNumber: { type: String, default: null },
+ philHealthNumber: { type: String, default: null },
+ pagIbigNumber: { type: String, default: null },
+ tinNumber: { type: String, default: null }
 }
 ```
 
@@ -1959,17 +2010,17 @@ governmentIds: {
 ```javascript
 // Comprehensive payroll record structure
 {
-  staff: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff', required: true },
-  payrollPeriod: { startDate, endDate },
-  earnings: { basicPay, overtime, holiday, nightDifferential, bonus },
-  deductions: {
-    government: { sss, philHealth, pagIbig, withholding },
-    attendance: { lateDeductions, absentDeductions },
-    other: { cashAdvances, loans, otherDeductions }
-  },
-  netPay: { type: Number, required: true },
-  status: { type: String, enum: ['draft', 'approved', 'paid'] },
-  approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+ staff: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff', required: true },
+ payrollPeriod: { startDate, endDate },
+ earnings: { basicPay, overtime, holiday, nightDifferential, bonus },
+ deductions: {
+ government: { sss, philHealth, pagIbig, withholding },
+ attendance: { lateDeductions, absentDeductions },
+ other: { cashAdvances, loans, otherDeductions }
+ },
+ netPay: { type: Number, required: true },
+ status: { type: String, enum: ['draft', 'approved', 'paid'] },
+ approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }
 ```
 
@@ -1977,28 +2028,28 @@ governmentIds: {
 ```javascript
 // Database-driven government rate configuration
 {
-  year: { type: Number, required: true },
-  effectiveDate: { type: Date, required: true },
-  sss: {
-    employeeRate: { type: Number, default: 0.05 }, // 5% of MSC
-    mscBrackets: [{
-      minSalary: Number,
-      maxSalary: Number,
-      msc: Number,
-      employeeShare: Number,
-      employerShare: Number,
-      totalContribution: Number
-    }] // 45 brackets from ₱4,000 to ₱35,000
-  },
-  philHealth: {
-    rate: { type: Number, default: 0.025 }, // 2.5%
-    floor: { type: Number, default: 10000 },
-    ceiling: { type: Number, default: 100000 }
-  },
-  pagIbig: {
-    employeeRate: { type: Number, default: 0.02 }, // 2%
-    cap: { type: Number, default: 200 }
-  }
+ year: { type: Number, required: true },
+ effectiveDate: { type: Date, required: true },
+ sss: {
+ employeeRate: { type: Number, default: 0.05 }, // 5% of MSC
+ mscBrackets: [{
+ minSalary: Number,
+ maxSalary: Number,
+ msc: Number,
+ employeeShare: Number,
+ employerShare: Number,
+ totalContribution: Number
+ }] // 45 brackets from ₱4,000 to ₱35,000
+ },
+ philHealth: {
+ rate: { type: Number, default: 0.025 }, // 2.5%
+ floor: { type: Number, default: 10000 },
+ ceiling: { type: Number, default: 100000 }
+ },
+ pagIbig: {
+ employeeRate: { type: Number, default: 0.02 }, // 2%
+ cap: { type: Number, default: 200 }
+ }
 }
 ```
 
@@ -2008,25 +2059,25 @@ governmentIds: {
 ```javascript
 // SSS Calculation with 45-bracket MSC table
 calculateSSS(grossPay, hasSSS, config) {
-  if (!hasSSS) return 0;
-  const bracket = findSSSBracket(grossPay, config.sss.mscBrackets);
-  return bracket ? bracket.employeeShare : 0;
+ if (!hasSSS) return 0;
+ const bracket = findSSSBracket(grossPay, config.sss.mscBrackets);
+ return bracket ? bracket.employeeShare : 0;
 }
 
 // PhilHealth Calculation with floor and ceiling
 calculatePhilHealth(grossPay, hasPhilHealth, config) {
-  if (!hasPhilHealth) return 0;
-  const contributionBase = Math.max(
-    config.philHealth.floor,
-    Math.min(grossPay, config.philHealth.ceiling)
-  );
-  return (contributionBase * config.philHealth.rate) / 2;
+ if (!hasPhilHealth) return 0;
+ const contributionBase = Math.max(
+ config.philHealth.floor,
+ Math.min(grossPay, config.philHealth.ceiling)
+ );
+ return (contributionBase * config.philHealth.rate) / 2;
 }
 
 // Pag-IBIG Calculation with cap
 calculatePagIbig(grossPay, hasPagIbig, config) {
-  if (!hasPagIbig) return 0;
-  return Math.min(grossPay * config.pagIbig.employeeRate, config.pagIbig.cap);
+ if (!hasPagIbig) return 0;
+ return Math.min(grossPay * config.pagIbig.employeeRate, config.pagIbig.cap);
 }
 ```
 
@@ -2037,68 +2088,68 @@ let configCache = { data: null, timestamp: null };
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 async function getGovernmentConfig() {
-  if (configCache.data && Date.now() - configCache.timestamp < CACHE_DURATION) {
-    return configCache.data;
-  }
-  
-  const config = await GovernmentDeductionConfig.findOne({ isActive: true });
-  if (config) {
-    configCache = { data: config, timestamp: Date.now() };
-    return config;
-  }
-  
-  return FALLBACK_CONFIG; // 2024 hardcoded rates
+ if (configCache.data && Date.now() - configCache.timestamp < CACHE_DURATION) {
+ return configCache.data;
+ }
+ 
+ const config = await GovernmentDeductionConfig.findOne({ isActive: true });
+ if (config) {
+ configCache = { data: config, timestamp: Date.now() };
+ return config;
+ }
+ 
+ return FALLBACK_CONFIG; // 2024 hardcoded rates
 }
 ```
 
 ---
 
 #### Phase 2: Net Pay Calculation Integration
-**Story Points:** 6 - **STATUS: ✅ COMPLETED (Nov 20, 2025)**
+**Story Points:** 6 - **STATUS: COMPLETED (Nov 20, 2025)**
 
 **Enhanced Payroll Calculation Logic** (`routes/payrollRoutes.js`):
 
 ```javascript
 // Comprehensive net pay calculation
 router.post('/api/payroll', authMiddleware, isManager, async (req, res) => {
-  const { staff, payrollPeriod, earnings, deductions } = req.body;
-  
-  // Calculate gross pay
-  const grossPay = Object.values(earnings).reduce((sum, val) => sum + val, 0);
-  
-  // Get government config
-  const govConfig = await getGovernmentConfig();
-  
-  // Get staff government IDs
-  const staffRecord = await Staff.findById(staff);
-  
-  // Calculate government deductions
-  const governmentDeductions = {
-    sss: calculateSSS(grossPay, !!staffRecord.governmentIds.sssNumber, govConfig),
-    philHealth: calculatePhilHealth(grossPay, !!staffRecord.governmentIds.philHealthNumber, govConfig),
-    pagIbig: calculatePagIbig(grossPay, !!staffRecord.governmentIds.pagIbigNumber, govConfig),
-    withholding: 0 // Future implementation
-  };
-  
-  // Calculate total deductions
-  const totalDeductions = 
-    Object.values(governmentDeductions).reduce((sum, val) => sum + val, 0) +
-    Object.values(deductions.attendance || {}).reduce((sum, val) => sum + val, 0) +
-    Object.values(deductions.other || {}).reduce((sum, val) => sum + val, 0);
-  
-  // Calculate net pay
-  const netPay = grossPay - totalDeductions;
-  
-  // Create payroll record
-  const payroll = await Payroll.create({
-    staff, payrollPeriod, earnings,
-    deductions: { government: governmentDeductions, ...deductions },
-    netPay,
-    status: 'draft',
-    createdBy: req.user.id
-  });
-  
-  res.json(payroll);
+ const { staff, payrollPeriod, earnings, deductions } = req.body;
+ 
+ // Calculate gross pay
+ const grossPay = Object.values(earnings).reduce((sum, val) => sum + val, 0);
+ 
+ // Get government config
+ const govConfig = await getGovernmentConfig();
+ 
+ // Get staff government IDs
+ const staffRecord = await Staff.findById(staff);
+ 
+ // Calculate government deductions
+ const governmentDeductions = {
+ sss: calculateSSS(grossPay, !!staffRecord.governmentIds.sssNumber, govConfig),
+ philHealth: calculatePhilHealth(grossPay, !!staffRecord.governmentIds.philHealthNumber, govConfig),
+ pagIbig: calculatePagIbig(grossPay, !!staffRecord.governmentIds.pagIbigNumber, govConfig),
+ withholding: 0 // Future implementation
+ };
+ 
+ // Calculate total deductions
+ const totalDeductions = 
+ Object.values(governmentDeductions).reduce((sum, val) => sum + val, 0) +
+ Object.values(deductions.attendance || {}).reduce((sum, val) => sum + val, 0) +
+ Object.values(deductions.other || {}).reduce((sum, val) => sum + val, 0);
+ 
+ // Calculate net pay
+ const netPay = grossPay - totalDeductions;
+ 
+ // Create payroll record
+ const payroll = await Payroll.create({
+ staff, payrollPeriod, earnings,
+ deductions: { government: governmentDeductions, ...deductions },
+ netPay,
+ status: 'draft',
+ createdBy: req.user.id
+ });
+ 
+ res.json(payroll);
 });
 ```
 
@@ -2111,7 +2162,7 @@ router.post('/api/payroll', authMiddleware, isManager, async (req, res) => {
 ---
 
 #### Phase 3: Frontend Payroll UI Enhancement
-**Story Points:** 7 - **STATUS: ✅ COMPLETED (Nov 21, 2025)**
+**Story Points:** 7 - **STATUS: COMPLETED (Nov 21, 2025)**
 
 **Enhanced PayrollSystem Component** (`PayrollSystem.jsx`):
 
@@ -2126,80 +2177,80 @@ router.post('/api/payroll', authMiddleware, isManager, async (req, res) => {
 ```javascript
 // Government Deductions Section
 <div className="deduction-section">
-  <h4>Government Deductions</h4>
-  <table>
-    <tr>
-      <td>SSS:</td>
-      <td>₱{deductions.government?.sss?.toFixed(2) || '0.00'}</td>
-    </tr>
-    <tr>
-      <td>PhilHealth:</td>
-      <td>₱{deductions.government?.philHealth?.toFixed(2) || '0.00'}</td>
-    </tr>
-    <tr>
-      <td>Pag-IBIG:</td>
-      <td>₱{deductions.government?.pagIbig?.toFixed(2) || '0.00'}</td>
-    </tr>
-  </table>
+ <h4>Government Deductions</h4>
+ <table>
+ <tr>
+ <td>SSS:</td>
+ <td>₱{deductions.government?.sss?.toFixed(2) || '0.00'}</td>
+ </tr>
+ <tr>
+ <td>PhilHealth:</td>
+ <td>₱{deductions.government?.philHealth?.toFixed(2) || '0.00'}</td>
+ </tr>
+ <tr>
+ <td>Pag-IBIG:</td>
+ <td>₱{deductions.government?.pagIbig?.toFixed(2) || '0.00'}</td>
+ </tr>
+ </table>
 </div>
 
 // Attendance Deductions Section
 <div className="deduction-section">
-  <h4>Attendance Deductions</h4>
-  <table>
-    <tr>
-      <td>Late Deductions:</td>
-      <td>₱{deductions.attendance?.lateDeductions?.toFixed(2) || '0.00'}</td>
-    </tr>
-    <tr>
-      <td>Absent Deductions:</td>
-      <td>₱{deductions.attendance?.absentDeductions?.toFixed(2) || '0.00'}</td>
-    </tr>
-  </table>
+ <h4>Attendance Deductions</h4>
+ <table>
+ <tr>
+ <td>Late Deductions:</td>
+ <td>₱{deductions.attendance?.lateDeductions?.toFixed(2) || '0.00'}</td>
+ </tr>
+ <tr>
+ <td>Absent Deductions:</td>
+ <td>₱{deductions.attendance?.absentDeductions?.toFixed(2) || '0.00'}</td>
+ </tr>
+ </table>
 </div>
 ```
 
 ---
 
 #### Phase 4: Staff Payslip Backend API
-**Story Points:** 6 - **STATUS: ✅ COMPLETED (Nov 21, 2025)**
+**Story Points:** 6 - **STATUS: COMPLETED (Nov 21, 2025)**
 
 **Staff Payslip Endpoints** (`routes/payrollRoutes.js`):
 
 ```javascript
 // Get all payslips for authenticated staff
 router.get('/api/staff/:staffId/payslips', authMiddleware, async (req, res) => {
-  const { staffId } = req.params;
-  
-  // Authorization check
-  const staff = await Staff.findById(staffId).populate('userId');
-  if (!staff || staff.userId._id.toString() !== req.user.id) {
-    return res.status(403).json({ message: 'Access denied' });
-  }
-  
-  // Fetch payslips (only approved/paid)
-  const payslips = await Payroll.find({
-    staff: staffId,
-    status: { $in: ['approved', 'paid'] }
-  })
-  .sort({ 'payrollPeriod.endDate': -1 })
-  .populate('approvedBy', 'name');
-  
-  res.json(payslips);
+ const { staffId } = req.params;
+ 
+ // Authorization check
+ const staff = await Staff.findById(staffId).populate('userId');
+ if (!staff || staff.userId._id.toString() !== req.user.id) {
+ return res.status(403).json({ message: 'Access denied' });
+ }
+ 
+ // Fetch payslips (only approved/paid)
+ const payslips = await Payroll.find({
+ staff: staffId,
+ status: { $in: ['approved', 'paid'] }
+ })
+ .sort({ 'payrollPeriod.endDate': -1 })
+ .populate('approvedBy', 'name');
+ 
+ res.json(payslips);
 });
 
 // Get single payslip details
 router.get('/api/staff/payslip/:id', authMiddleware, async (req, res) => {
-  const payslip = await Payroll.findById(req.params.id)
-    .populate('staff')
-    .populate('approvedBy', 'name');
-  
-  // Authorization check
-  if (payslip.staff.userId.toString() !== req.user.id) {
-    return res.status(403).json({ message: 'Access denied' });
-  }
-  
-  res.json(payslip);
+ const payslip = await Payroll.findById(req.params.id)
+ .populate('staff')
+ .populate('approvedBy', 'name');
+ 
+ // Authorization check
+ if (payslip.staff.userId.toString() !== req.user.id) {
+ return res.status(403).json({ message: 'Access denied' });
+ }
+ 
+ res.json(payslip);
 });
 ```
 
@@ -2212,7 +2263,7 @@ router.get('/api/staff/payslip/:id', authMiddleware, async (req, res) => {
 ---
 
 #### Phase 5: Staff Payslip Frontend Component
-**Story Points:** 7 - **STATUS: ✅ COMPLETED (Nov 21, 2025)**
+**Story Points:** 7 - **STATUS: COMPLETED (Nov 21, 2025)**
 
 **StaffPayslip Component** (`StaffPayslip.jsx`):
 
@@ -2227,36 +2278,36 @@ router.get('/api/staff/payslip/:id', authMiddleware, async (req, res) => {
 **Component Structure:**
 ```javascript
 function StaffPayslip() {
-  const [payslips, setPayslips] = useState([]);
-  const [selectedPayslip, setSelectedPayslip] = useState(null);
-  const [loading, setLoading] = useState(true);
-  
-  // Fetch payslips on mount
-  useEffect(() => {
-    fetchPayslips();
-  }, []);
-  
-  // Payslip list view
-  if (!selectedPayslip) {
-    return (
-      <div className="payslip-list">
-        {payslips.map(payslip => (
-          <PayslipCard key={payslip._id} payslip={payslip} 
-                       onClick={() => setSelectedPayslip(payslip)} />
-        ))}
-      </div>
-    );
-  }
-  
-  // Detailed payslip view
-  return (
-    <div className="payslip-detail">
-      <EarningsTable earnings={selectedPayslip.earnings} />
-      <DeductionsTable deductions={selectedPayslip.deductions} />
-      <NetPaySummary netPay={selectedPayslip.netPay} />
-      <button onClick={() => downloadPDF(selectedPayslip)}>Download PDF</button>
-    </div>
-  );
+ const [payslips, setPayslips] = useState([]);
+ const [selectedPayslip, setSelectedPayslip] = useState(null);
+ const [loading, setLoading] = useState(true);
+ 
+ // Fetch payslips on mount
+ useEffect(() => {
+ fetchPayslips();
+ }, []);
+ 
+ // Payslip list view
+ if (!selectedPayslip) {
+ return (
+ <div className="payslip-list">
+ {payslips.map(payslip => (
+ <PayslipCard key={payslip._id} payslip={payslip} 
+ onClick={() => setSelectedPayslip(payslip)} />
+ ))}
+ </div>
+ );
+ }
+ 
+ // Detailed payslip view
+ return (
+ <div className="payslip-detail">
+ <EarningsTable earnings={selectedPayslip.earnings} />
+ <DeductionsTable deductions={selectedPayslip.deductions} />
+ <NetPaySummary netPay={selectedPayslip.netPay} />
+ <button onClick={() => downloadPDF(selectedPayslip)}>Download PDF</button>
+ </div>
+ );
 }
 ```
 
@@ -2268,7 +2319,7 @@ function StaffPayslip() {
 ---
 
 #### Phase 6: PDF Generation Enhancement
-**Story Points:** 6 - **STATUS: ✅ COMPLETED (Nov 22, 2025)**
+**Story Points:** 6 - **STATUS: COMPLETED (Nov 22, 2025)**
 
 **PDF Payslip Generator** (`utils/generatePayslipPDF.js`):
 
@@ -2278,52 +2329,52 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 export function generatePayslipPDF(payslip, staff) {
-  const doc = new jsPDF();
-  
-  // Header Section
-  doc.setFontSize(18);
-  doc.text('Ring & Wing Restaurant', 105, 20, { align: 'center' });
-  doc.setFontSize(14);
-  doc.text('Payslip', 105, 30, { align: 'center' });
-  
-  // Staff Information
-  doc.setFontSize(10);
-  doc.text(`Staff Name: ${staff.name}`, 20, 45);
-  doc.text(`Position: ${staff.position}`, 20, 52);
-  doc.text(`Period: ${formatPeriod(payslip.payrollPeriod)}`, 20, 59);
-  
-  // Earnings Table
-  doc.autoTable({
-    startY: 70,
-    head: [['Earnings', 'Amount']],
-    body: [
-      ['Basic Pay', formatCurrency(payslip.earnings.basicPay)],
-      ['Overtime', formatCurrency(payslip.earnings.overtime)],
-      ['Holiday Pay', formatCurrency(payslip.earnings.holiday)],
-      ['Night Differential', formatCurrency(payslip.earnings.nightDifferential)],
-      ['Bonus', formatCurrency(payslip.earnings.bonus)]
-    ]
-  });
-  
-  // Deductions Table
-  doc.autoTable({
-    startY: doc.lastAutoTable.finalY + 10,
-    head: [['Deductions', 'Amount']],
-    body: [
-      ['SSS', formatCurrency(payslip.deductions.government.sss)],
-      ['PhilHealth', formatCurrency(payslip.deductions.government.philHealth)],
-      ['Pag-IBIG', formatCurrency(payslip.deductions.government.pagIbig)],
-      ['Late Deductions', formatCurrency(payslip.deductions.attendance.lateDeductions)],
-      ['Absent Deductions', formatCurrency(payslip.deductions.attendance.absentDeductions)]
-    ]
-  });
-  
-  // Net Pay Summary
-  doc.setFontSize(12);
-  doc.text(`Net Pay: ${formatCurrency(payslip.netPay)}`, 20, doc.lastAutoTable.finalY + 20);
-  
-  // Download
-  doc.save(`Payslip_${staff.name}_${formatPeriod(payslip.payrollPeriod)}.pdf`);
+ const doc = new jsPDF();
+ 
+ // Header Section
+ doc.setFontSize(18);
+ doc.text('Ring & Wing Restaurant', 105, 20, { align: 'center' });
+ doc.setFontSize(14);
+ doc.text('Payslip', 105, 30, { align: 'center' });
+ 
+ // Staff Information
+ doc.setFontSize(10);
+ doc.text(`Staff Name: ${staff.name}`, 20, 45);
+ doc.text(`Position: ${staff.position}`, 20, 52);
+ doc.text(`Period: ${formatPeriod(payslip.payrollPeriod)}`, 20, 59);
+ 
+ // Earnings Table
+ doc.autoTable({
+ startY: 70,
+ head: [['Earnings', 'Amount']],
+ body: [
+ ['Basic Pay', formatCurrency(payslip.earnings.basicPay)],
+ ['Overtime', formatCurrency(payslip.earnings.overtime)],
+ ['Holiday Pay', formatCurrency(payslip.earnings.holiday)],
+ ['Night Differential', formatCurrency(payslip.earnings.nightDifferential)],
+ ['Bonus', formatCurrency(payslip.earnings.bonus)]
+ ]
+ });
+ 
+ // Deductions Table
+ doc.autoTable({
+ startY: doc.lastAutoTable.finalY + 10,
+ head: [['Deductions', 'Amount']],
+ body: [
+ ['SSS', formatCurrency(payslip.deductions.government.sss)],
+ ['PhilHealth', formatCurrency(payslip.deductions.government.philHealth)],
+ ['Pag-IBIG', formatCurrency(payslip.deductions.government.pagIbig)],
+ ['Late Deductions', formatCurrency(payslip.deductions.attendance.lateDeductions)],
+ ['Absent Deductions', formatCurrency(payslip.deductions.attendance.absentDeductions)]
+ ]
+ });
+ 
+ // Net Pay Summary
+ doc.setFontSize(12);
+ doc.text(`Net Pay: ${formatCurrency(payslip.netPay)}`, 20, doc.lastAutoTable.finalY + 20);
+ 
+ // Download
+ doc.save(`Payslip_${staff.name}_${formatPeriod(payslip.payrollPeriod)}.pdf`);
 }
 ```
 
@@ -2336,54 +2387,54 @@ export function generatePayslipPDF(payslip, staff) {
 ---
 
 #### Phase 7: Government Deduction Configuration Management
-**Story Points:** 10 - **STATUS: ✅ COMPLETED (Nov 22-23, 2025)**
+**Story Points:** 10 - **STATUS: COMPLETED (Nov 22-23, 2025)**
 
 **1. Configuration Management Routes** (`routes/governmentConfigRoutes.js`):
 
 ```javascript
 // Get active configuration
 router.get('/api/government-config', authMiddleware, async (req, res) => {
-  const config = await GovernmentDeductionConfig.findOne({ isActive: true });
-  res.json(config || FALLBACK_CONFIG);
+ const config = await GovernmentDeductionConfig.findOne({ isActive: true });
+ res.json(config || FALLBACK_CONFIG);
 });
 
 // Get configuration history
 router.get('/api/government-config/history', authMiddleware, isManager, async (req, res) => {
-  const configs = await GovernmentDeductionConfig.find()
-    .sort({ createdAt: -1 })
-    .limit(50);
-  res.json(configs);
+ const configs = await GovernmentDeductionConfig.find()
+ .sort({ createdAt: -1 })
+ .limit(50);
+ res.json(configs);
 });
 
 // Create new configuration
 router.post('/api/government-config', authMiddleware, isManager, async (req, res) => {
-  // Deactivate previous config
-  await GovernmentDeductionConfig.updateMany({}, { isActive: false });
-  
-  // Create new config
-  const config = await GovernmentDeductionConfig.create({
-    ...req.body,
-    isActive: true,
-    createdBy: req.user.id
-  });
-  
-  res.json(config);
+ // Deactivate previous config
+ await GovernmentDeductionConfig.updateMany({}, { isActive: false });
+ 
+ // Create new config
+ const config = await GovernmentDeductionConfig.create({
+ ...req.body,
+ isActive: true,
+ createdBy: req.user.id
+ });
+ 
+ res.json(config);
 });
 
 // Update existing configuration
 router.put('/api/government-config/:id', authMiddleware, isManager, async (req, res) => {
-  const config = await GovernmentDeductionConfig.findByIdAndUpdate(
-    req.params.id,
-    req.body,
-    { new: true }
-  );
-  res.json(config);
+ const config = await GovernmentDeductionConfig.findByIdAndUpdate(
+ req.params.id,
+ req.body,
+ { new: true }
+ );
+ res.json(config);
 });
 
 // Delete configuration
 router.delete('/api/government-config/:id', authMiddleware, isManager, async (req, res) => {
-  await GovernmentDeductionConfig.findByIdAndDelete(req.params.id);
-  res.json({ message: 'Configuration deleted' });
+ await GovernmentDeductionConfig.findByIdAndDelete(req.params.id);
+ res.json({ message: 'Configuration deleted' });
 });
 ```
 
@@ -2404,24 +2455,24 @@ router.delete('/api/government-config/:id', authMiddleware, isManager, async (re
 const [sssBrackets, setSssBrackets] = useState([]);
 
 const addSSSBracket = () => {
-  setSssBrackets([...sssBrackets, {
-    minSalary: 0,
-    maxSalary: 0,
-    msc: 0,
-    employeeShare: 0,
-    employerShare: 0,
-    totalContribution: 0
-  }]);
+ setSssBrackets([...sssBrackets, {
+ minSalary: 0,
+ maxSalary: 0,
+ msc: 0,
+ employeeShare: 0,
+ employerShare: 0,
+ totalContribution: 0
+ }]);
 };
 
 const removeSSSBracket = (index) => {
-  setSssBrackets(sssBrackets.filter((_, i) => i !== index));
+ setSssBrackets(sssBrackets.filter((_, i) => i !== index));
 };
 
 const updateSSSBracket = (index, field, value) => {
-  const updated = [...sssBrackets];
-  updated[index][field] = value;
-  setSssBrackets(updated);
+ const updated = [...sssBrackets];
+ updated[index][field] = value;
+ setSssBrackets(updated);
 };
 ```
 
@@ -2430,45 +2481,45 @@ const updateSSSBracket = (index, field, value) => {
 ```javascript
 // Automatic seeding on server startup
 async function autoSeedGovernmentConfig() {
-  try {
-    const existingConfig = await GovernmentDeductionConfig.findOne({ isActive: true });
-    if (existingConfig) {
-      logger.info('Active government config found, skipping seed');
-      return;
-    }
-    
-    logger.info('No active config found, creating 2024 rates...');
-    
-    // Create 2024 configuration with all 45 SSS brackets
-    const config = await GovernmentDeductionConfig.create({
-      year: 2024,
-      effectiveDate: new Date('2024-01-01'),
-      sss: {
-        employeeRate: 0.05,
-        mscBrackets: [
-          { minSalary: 4000, maxSalary: 4249.99, msc: 4000, employeeShare: 200, employerShare: 500, totalContribution: 700 },
-          { minSalary: 4250, maxSalary: 4749.99, msc: 4500, employeeShare: 225, employerShare: 562.50, totalContribution: 787.50 },
-          // ... 43 more brackets ...
-          { minSalary: 35000, maxSalary: 999999, msc: 35000, employeeShare: 1750, employerShare: 4375, totalContribution: 6125 }
-        ]
-      },
-      philHealth: {
-        rate: 0.025,
-        floor: 10000,
-        ceiling: 100000
-      },
-      pagIbig: {
-        employeeRate: 0.02,
-        cap: 200
-      },
-      isActive: true,
-      notes: 'Auto-seeded 2024 Philippine government deduction rates'
-    });
-    
-    logger.info('Government config seeded successfully');
-  } catch (error) {
-    logger.error('Auto-seed failed:', error);
-  }
+ try {
+ const existingConfig = await GovernmentDeductionConfig.findOne({ isActive: true });
+ if (existingConfig) {
+ logger.info('Active government config found, skipping seed');
+ return;
+ }
+ 
+ logger.info('No active config found, creating 2024 rates...');
+ 
+ // Create 2024 configuration with all 45 SSS brackets
+ const config = await GovernmentDeductionConfig.create({
+ year: 2024,
+ effectiveDate: new Date('2024-01-01'),
+ sss: {
+ employeeRate: 0.05,
+ mscBrackets: [
+ { minSalary: 4000, maxSalary: 4249.99, msc: 4000, employeeShare: 200, employerShare: 500, totalContribution: 700 },
+ { minSalary: 4250, maxSalary: 4749.99, msc: 4500, employeeShare: 225, employerShare: 562.50, totalContribution: 787.50 },
+ // ... 43 more brackets ...
+ { minSalary: 35000, maxSalary: 999999, msc: 35000, employeeShare: 1750, employerShare: 4375, totalContribution: 6125 }
+ ]
+ },
+ philHealth: {
+ rate: 0.025,
+ floor: 10000,
+ ceiling: 100000
+ },
+ pagIbig: {
+ employeeRate: 0.02,
+ cap: 200
+ },
+ isActive: true,
+ notes: 'Auto-seeded 2024 Philippine government deduction rates'
+ });
+ 
+ logger.info('Government config seeded successfully');
+ } catch (error) {
+ logger.error('Auto-seed failed:', error);
+ }
 }
 
 // Call during server startup
@@ -2488,99 +2539,99 @@ autoSeedGovernmentConfig();
 - **Problem**: Government config API calls failing with 404
 - **Root Cause**: Missing `/api` prefix in frontend calls
 - **Fix**: Updated 4 locations in GovernmentConfigManagement.jsx
-  - `/government-config` → `/api/government-config`
-  - `/government-config/history` → `/api/government-config/history`
+ - `/government-config` → `/api/government-config`
+ - `/government-config/history` → `/api/government-config/history`
 - **Impact**: API calls now route correctly through backend
 
 ---
 
 #### Phase 8: Monthly Summary Reports with Charts
-**Story Points:** 8 - **STATUS: ✅ COMPLETED (Nov 24-25, 2025)**
+**Story Points:** 8 - **STATUS: COMPLETED (Nov 24-25, 2025)**
 
 **1. Backend Aggregation Endpoint** (`routes/payrollRoutes.js`):
 
 ```javascript
 // Monthly payroll summary with aggregation
 router.get('/api/payroll/summary', authMiddleware, isManager, async (req, res) => {
-  const { month, year, startDate, endDate } = req.query;
-  
-  // Build date filter
-  let dateFilter = {};
-  if (month && year) {
-    const start = new Date(year, month - 1, 1);
-    const end = new Date(year, month, 0);
-    dateFilter = {
-      'payrollPeriod.endDate': { $gte: start, $lte: end }
-    };
-  } else if (startDate && endDate) {
-    dateFilter = {
-      'payrollPeriod.endDate': { 
-        $gte: new Date(startDate), 
-        $lte: new Date(endDate) 
-      }
-    };
-  }
-  
-  // MongoDB aggregation pipeline
-  const summary = await Payroll.aggregate([
-    { $match: { ...dateFilter, status: { $in: ['approved', 'paid'] } } },
-    {
-      $group: {
-        _id: null,
-        totalGrossPay: { $sum: {
-          $add: [
-            '$earnings.basicPay',
-            '$earnings.overtime',
-            '$earnings.holiday',
-            '$earnings.nightDifferential',
-            '$earnings.bonus'
-          ]
-        }},
-        totalNetPay: { $sum: '$netPay' },
-        totalSSS: { $sum: '$deductions.government.sss' },
-        totalPhilHealth: { $sum: '$deductions.government.philHealth' },
-        totalPagIbig: { $sum: '$deductions.government.pagIbig' },
-        totalLateDeductions: { $sum: '$deductions.attendance.lateDeductions' },
-        totalAbsentDeductions: { $sum: '$deductions.attendance.absentDeductions' },
-        employeeCount: { $addToSet: '$staff' },
-        payrollCount: { $sum: 1 }
-      }
-    },
-    {
-      $project: {
-        _id: 0,
-        totalGrossPay: 1,
-        totalNetPay: 1,
-        totalDeductions: {
-          $add: [
-            '$totalSSS',
-            '$totalPhilHealth',
-            '$totalPagIbig',
-            '$totalLateDeductions',
-            '$totalAbsentDeductions'
-          ]
-        },
-        breakdown: {
-          sss: '$totalSSS',
-          philHealth: '$totalPhilHealth',
-          pagIbig: '$totalPagIbig',
-          lateDeductions: '$totalLateDeductions',
-          absentDeductions: '$totalAbsentDeductions'
-        },
-        employeeCount: { $size: '$employeeCount' },
-        payrollCount: 1
-      }
-    }
-  ]);
-  
-  res.json(summary[0] || {
-    totalGrossPay: 0,
-    totalNetPay: 0,
-    totalDeductions: 0,
-    breakdown: {},
-    employeeCount: 0,
-    payrollCount: 0
-  });
+ const { month, year, startDate, endDate } = req.query;
+ 
+ // Build date filter
+ let dateFilter = {};
+ if (month && year) {
+ const start = new Date(year, month - 1, 1);
+ const end = new Date(year, month, 0);
+ dateFilter = {
+ 'payrollPeriod.endDate': { $gte: start, $lte: end }
+ };
+ } else if (startDate && endDate) {
+ dateFilter = {
+ 'payrollPeriod.endDate': { 
+ $gte: new Date(startDate), 
+ $lte: new Date(endDate) 
+ }
+ };
+ }
+ 
+ // MongoDB aggregation pipeline
+ const summary = await Payroll.aggregate([
+ { $match: { ...dateFilter, status: { $in: ['approved', 'paid'] } } },
+ {
+ $group: {
+ _id: null,
+ totalGrossPay: { $sum: {
+ $add: [
+ '$earnings.basicPay',
+ '$earnings.overtime',
+ '$earnings.holiday',
+ '$earnings.nightDifferential',
+ '$earnings.bonus'
+ ]
+ }},
+ totalNetPay: { $sum: '$netPay' },
+ totalSSS: { $sum: '$deductions.government.sss' },
+ totalPhilHealth: { $sum: '$deductions.government.philHealth' },
+ totalPagIbig: { $sum: '$deductions.government.pagIbig' },
+ totalLateDeductions: { $sum: '$deductions.attendance.lateDeductions' },
+ totalAbsentDeductions: { $sum: '$deductions.attendance.absentDeductions' },
+ employeeCount: { $addToSet: '$staff' },
+ payrollCount: { $sum: 1 }
+ }
+ },
+ {
+ $project: {
+ _id: 0,
+ totalGrossPay: 1,
+ totalNetPay: 1,
+ totalDeductions: {
+ $add: [
+ '$totalSSS',
+ '$totalPhilHealth',
+ '$totalPagIbig',
+ '$totalLateDeductions',
+ '$totalAbsentDeductions'
+ ]
+ },
+ breakdown: {
+ sss: '$totalSSS',
+ philHealth: '$totalPhilHealth',
+ pagIbig: '$totalPagIbig',
+ lateDeductions: '$totalLateDeductions',
+ absentDeductions: '$totalAbsentDeductions'
+ },
+ employeeCount: { $size: '$employeeCount' },
+ payrollCount: 1
+ }
+ }
+ ]);
+ 
+ res.json(summary[0] || {
+ totalGrossPay: 0,
+ totalNetPay: 0,
+ totalDeductions: 0,
+ breakdown: {},
+ employeeCount: 0,
+ payrollCount: 0
+ });
 });
 ```
 
@@ -2605,33 +2656,33 @@ ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarEle
 
 // Deductions Bar Chart Data
 const deductionsBarData = {
-  labels: ['SSS', 'PhilHealth', 'Pag-IBIG', 'Late', 'Absent'],
-  datasets: [{
-    label: 'Deductions',
-    data: [
-      summary.breakdown.sss,
-      summary.breakdown.philHealth,
-      summary.breakdown.pagIbig,
-      summary.breakdown.lateDeductions,
-      summary.breakdown.absentDeductions
-    ],
-    backgroundColor: [
-      'rgba(46, 3, 4, 0.8)',      // Primary
-      'rgba(241, 103, 15, 0.8)',  // Accent
-      'rgba(133, 54, 25, 0.8)',   // Secondary
-      'rgba(172, 156, 155, 0.8)', // Muted
-      'rgba(254, 253, 253, 0.8)'  // Background
-    ]
-  }]
+ labels: ['SSS', 'PhilHealth', 'Pag-IBIG', 'Late', 'Absent'],
+ datasets: [{
+ label: 'Deductions',
+ data: [
+ summary.breakdown.sss,
+ summary.breakdown.philHealth,
+ summary.breakdown.pagIbig,
+ summary.breakdown.lateDeductions,
+ summary.breakdown.absentDeductions
+ ],
+ backgroundColor: [
+ 'rgba(46, 3, 4, 0.8)', // Primary
+ 'rgba(241, 103, 15, 0.8)', // Accent
+ 'rgba(133, 54, 25, 0.8)', // Secondary
+ 'rgba(172, 156, 155, 0.8)', // Muted
+ 'rgba(254, 253, 253, 0.8)' // Background
+ ]
+ }]
 };
 
 // Earnings Pie Chart Data
 const earningsPieData = {
-  labels: ['Net Pay', 'Total Deductions'],
-  datasets: [{
-    data: [summary.totalNetPay, summary.totalDeductions],
-    backgroundColor: ['rgba(46, 3, 4, 0.8)', 'rgba(241, 103, 15, 0.8)']
-  }]
+ labels: ['Net Pay', 'Total Deductions'],
+ datasets: [{
+ data: [summary.totalNetPay, summary.totalDeductions],
+ backgroundColor: ['rgba(46, 3, 4, 0.8)', 'rgba(241, 103, 15, 0.8)']
+ }]
 };
 ```
 
@@ -2639,58 +2690,58 @@ const earningsPieData = {
 ```javascript
 // PDF Export
 const exportToPDF = () => {
-  const doc = new jsPDF();
-  doc.text('Ring & Wing Restaurant', 105, 20, { align: 'center' });
-  doc.text('Monthly Payroll Summary', 105, 30, { align: 'center' });
-  
-  // Summary statistics
-  doc.text(`Period: ${selectedMonth}/${selectedYear}`, 20, 50);
-  doc.text(`Total Gross Pay: ₱${summary.totalGrossPay.toLocaleString()}`, 20, 60);
-  doc.text(`Total Net Pay: ₱${summary.totalNetPay.toLocaleString()}`, 20, 70);
-  doc.text(`Total Deductions: ₱${summary.totalDeductions.toLocaleString()}`, 20, 80);
-  
-  // Deductions breakdown table
-  doc.autoTable({
-    startY: 95,
-    head: [['Category', 'Amount']],
-    body: [
-      ['SSS', `₱${summary.breakdown.sss.toLocaleString()}`],
-      ['PhilHealth', `₱${summary.breakdown.philHealth.toLocaleString()}`],
-      ['Pag-IBIG', `₱${summary.breakdown.pagIbig.toLocaleString()}`],
-      ['Late Deductions', `₱${summary.breakdown.lateDeductions.toLocaleString()}`],
-      ['Absent Deductions', `₱${summary.breakdown.absentDeductions.toLocaleString()}`]
-    ]
-  });
-  
-  doc.save(`Payroll_Summary_${selectedMonth}_${selectedYear}.pdf`);
+ const doc = new jsPDF();
+ doc.text('Ring & Wing Restaurant', 105, 20, { align: 'center' });
+ doc.text('Monthly Payroll Summary', 105, 30, { align: 'center' });
+ 
+ // Summary statistics
+ doc.text(`Period: ${selectedMonth}/${selectedYear}`, 20, 50);
+ doc.text(`Total Gross Pay: ₱${summary.totalGrossPay.toLocaleString()}`, 20, 60);
+ doc.text(`Total Net Pay: ₱${summary.totalNetPay.toLocaleString()}`, 20, 70);
+ doc.text(`Total Deductions: ₱${summary.totalDeductions.toLocaleString()}`, 20, 80);
+ 
+ // Deductions breakdown table
+ doc.autoTable({
+ startY: 95,
+ head: [['Category', 'Amount']],
+ body: [
+ ['SSS', `₱${summary.breakdown.sss.toLocaleString()}`],
+ ['PhilHealth', `₱${summary.breakdown.philHealth.toLocaleString()}`],
+ ['Pag-IBIG', `₱${summary.breakdown.pagIbig.toLocaleString()}`],
+ ['Late Deductions', `₱${summary.breakdown.lateDeductions.toLocaleString()}`],
+ ['Absent Deductions', `₱${summary.breakdown.absentDeductions.toLocaleString()}`]
+ ]
+ });
+ 
+ doc.save(`Payroll_Summary_${selectedMonth}_${selectedYear}.pdf`);
 };
 
 // Excel Export
 const exportToExcel = () => {
-  const workbook = XLSX.utils.book_new();
-  
-  const summaryData = [
-    ['Ring & Wing Restaurant - Monthly Payroll Summary'],
-    [`Period: ${selectedMonth}/${selectedYear}`],
-    [],
-    ['Summary'],
-    ['Total Gross Pay', summary.totalGrossPay],
-    ['Total Net Pay', summary.totalNetPay],
-    ['Total Deductions', summary.totalDeductions],
-    ['Employee Count', summary.employeeCount],
-    ['Payroll Count', summary.payrollCount],
-    [],
-    ['Deductions Breakdown'],
-    ['SSS', summary.breakdown.sss],
-    ['PhilHealth', summary.breakdown.philHealth],
-    ['Pag-IBIG', summary.breakdown.pagIbig],
-    ['Late Deductions', summary.breakdown.lateDeductions],
-    ['Absent Deductions', summary.breakdown.absentDeductions]
-  ];
-  
-  const worksheet = XLSX.utils.aoa_to_sheet(summaryData);
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Summary');
-  XLSX.writeFile(workbook, `Payroll_Summary_${selectedMonth}_${selectedYear}.xlsx`);
+ const workbook = XLSX.utils.book_new();
+ 
+ const summaryData = [
+ ['Ring & Wing Restaurant - Monthly Payroll Summary'],
+ [`Period: ${selectedMonth}/${selectedYear}`],
+ [],
+ ['Summary'],
+ ['Total Gross Pay', summary.totalGrossPay],
+ ['Total Net Pay', summary.totalNetPay],
+ ['Total Deductions', summary.totalDeductions],
+ ['Employee Count', summary.employeeCount],
+ ['Payroll Count', summary.payrollCount],
+ [],
+ ['Deductions Breakdown'],
+ ['SSS', summary.breakdown.sss],
+ ['PhilHealth', summary.breakdown.philHealth],
+ ['Pag-IBIG', summary.breakdown.pagIbig],
+ ['Late Deductions', summary.breakdown.lateDeductions],
+ ['Absent Deductions', summary.breakdown.absentDeductions]
+ ];
+ 
+ const worksheet = XLSX.utils.aoa_to_sheet(summaryData);
+ XLSX.utils.book_append_sheet(workbook, worksheet, 'Summary');
+ XLSX.writeFile(workbook, `Payroll_Summary_${selectedMonth}_${selectedYear}.xlsx`);
 };
 ```
 
@@ -2704,115 +2755,115 @@ const exportToExcel = () => {
 **Dependencies Installed:**
 ```json
 {
-  "chart.js": "^4.4.0",
-  "react-chartjs-2": "^5.2.0",
-  "xlsx": "^0.18.5"
+ "chart.js": "^4.4.0",
+ "react-chartjs-2": "^5.2.0",
+ "xlsx": "^0.18.5"
 }
 ```
 
 ---
 
 #### Phase 9: Comprehensive Documentation
-**Story Points:** 6 - **STATUS: ✅ COMPLETED (Nov 25, 2025)**
+**Story Points:** 6 - **STATUS: COMPLETED (Nov 25, 2025)**
 
 **Documentation File Created** (`docs/PAYROLL_ENHANCEMENT_COMPLETE.md`):
 
 **Document Structure (1,000+ lines):**
 1. **Executive Summary**
-   - Business impact metrics (90% time savings, 100% compliance)
-   - Key achievements summary
-   - Technology stack overview
+ - Business impact metrics (90% time savings, 100% compliance)
+ - Key achievements summary
+ - Technology stack overview
 
 2. **Features Overview**
-   - All 8 phases detailed descriptions
-   - User personas and use cases
-   - Feature matrix
+ - All 8 phases detailed descriptions
+ - User personas and use cases
+ - Feature matrix
 
 3. **Technical Architecture**
-   - System diagrams (backend, frontend, database)
-   - Data flow documentation
-   - Technology choices rationale
+ - System diagrams (backend, frontend, database)
+ - Data flow documentation
+ - Technology choices rationale
 
 4. **Database Schema Documentation**
-   - Staff model with government IDs
-   - Payroll model with comprehensive structure
-   - GovernmentDeductionConfig model with 45 SSS brackets
-   - Field descriptions and validation rules
+ - Staff model with government IDs
+ - Payroll model with comprehensive structure
+ - GovernmentDeductionConfig model with 45 SSS brackets
+ - Field descriptions and validation rules
 
 5. **API Endpoints Reference**
-   - Complete endpoint listing with HTTP methods
-   - Request/response examples
-   - Authentication requirements
-   - Error handling documentation
+ - Complete endpoint listing with HTTP methods
+ - Request/response examples
+ - Authentication requirements
+ - Error handling documentation
 
 6. **Government Deduction System**
-   - 2024 Philippine government rates documentation
-   - SSS: 5% of MSC with 45 brackets (₱4,000 - ₱35,000)
-   - PhilHealth: 2.5% with floor ₱10,000, ceiling ₱100,000
-   - Pag-IBIG: 2% capped at ₱200
-   - Calculation formulas with examples
-   - Conditional logic based on government ID presence
-   - Caching strategy (5-minute cache)
-   - Fallback mechanism documentation
+ - 2024 Philippine government rates documentation
+ - SSS: 5% of MSC with 45 brackets (₱4,000 - ₱35,000)
+ - PhilHealth: 2.5% with floor ₱10,000, ceiling ₱100,000
+ - Pag-IBIG: 2% capped at ₱200
+ - Calculation formulas with examples
+ - Conditional logic based on government ID presence
+ - Caching strategy (5-minute cache)
+ - Fallback mechanism documentation
 
 7. **Configuration Management**
-   - Admin workflow for rate updates
-   - Annual rate change process
-   - Configuration history tracking
-   - Auto-seed system documentation
+ - Admin workflow for rate updates
+ - Annual rate change process
+ - Configuration history tracking
+ - Auto-seed system documentation
 
 8. **User Interfaces**
-   - PayrollSystem component documentation
-   - StaffPayslip component documentation
-   - GovernmentConfigManagement component documentation
-   - MonthlyPayrollReport component documentation
-   - Screenshot placeholders
+ - PayrollSystem component documentation
+ - StaffPayslip component documentation
+ - GovernmentConfigManagement component documentation
+ - MonthlyPayrollReport component documentation
+ - Screenshot placeholders
 
 9. **Monthly Reporting Features**
-   - Aggregation query documentation
-   - Chart.js integration details
-   - PDF export implementation
-   - Excel export implementation
-   - Use cases and examples
+ - Aggregation query documentation
+ - Chart.js integration details
+ - PDF export implementation
+ - Excel export implementation
+ - Use cases and examples
 
 10. **Deployment Guide**
-    - Render.com setup instructions
-    - MongoDB Atlas configuration
-    - Environment variables reference
-    - Auto-seed verification steps
-    - Production deployment checklist
+ - Render.com setup instructions
+ - MongoDB Atlas configuration
+ - Environment variables reference
+ - Auto-seed verification steps
+ - Production deployment checklist
 
 11. **Admin Guide**
-    - Day-to-day operations
-    - Creating monthly payroll
-    - Approving payroll
-    - Handling government rate updates
-    - Annual maintenance timeline
+ - Day-to-day operations
+ - Creating monthly payroll
+ - Approving payroll
+ - Handling government rate updates
+ - Annual maintenance timeline
 
 12. **Troubleshooting**
-    - Common issues and solutions
-    - Deductions not calculating correctly
-    - Staff can't view payslips
-    - PDF generation errors
-    - Chart rendering issues
-    - Excel export problems
-    - Database connection issues
-    - CORS errors
-    - Authentication problems
+ - Common issues and solutions
+ - Deductions not calculating correctly
+ - Staff can't view payslips
+ - PDF generation errors
+ - Chart rendering issues
+ - Excel export problems
+ - Database connection issues
+ - CORS errors
+ - Authentication problems
 
 13. **Testing Checklist**
-    - Unit tests recommendations
-    - Integration tests recommendations
-    - UI tests recommendations
-    - Government deduction calculation tests
-    - Payslip access control tests
-    - PDF generation tests
-    - Report aggregation tests
+ - Unit tests recommendations
+ - Integration tests recommendations
+ - UI tests recommendations
+ - Government deduction calculation tests
+ - Payslip access control tests
+ - PDF generation tests
+ - Report aggregation tests
 
 14. **Appendix**
-    - Complete 2024 SSS MSC table (all 45 brackets)
-    - Environment variables reference
-    - Version history
+ - Complete 2024 SSS MSC table (all 45 brackets)
+ - Environment variables reference
+ - Version history
 
 **Documentation Highlights:**
 - Comprehensive technical reference for developers
@@ -2842,7 +2893,7 @@ const exportToExcel = () => {
 - **Impact**: Government config management completely non-functional
 - **Root Cause**: Missing `/api` prefix in 4 frontend API calls
 - **Resolution**: Updated GovernmentConfigManagement.jsx API calls
-  - `fetch('/government-config')` → `fetch('/api/government-config')`
+ - `fetch('/government-config')` → `fetch('/api/government-config')`
 - **Commit**: 2ef698ed
 
 **3. MongoDB Atlas Seeding Issue (Nov 22, 2025)**
@@ -2864,10 +2915,10 @@ const exportToExcel = () => {
 - **Severity**: MINOR
 - **Impact**: MonthlyPayrollReport didn't match Ring & Wing branding
 - **Resolution**: Applied complete theme overhaul
-  - Updated gradient cards with brand colors
-  - Styled buttons with #2e0304 (primary) and #f1670f (accent)
-  - Themed charts with brand color palette
-  - Applied custom scrollbar styling
+ - Updated gradient cards with brand colors
+ - Styled buttons with #2e0304 (primary) and #f1670f (accent)
+ - Themed charts with brand color palette
+ - Applied custom scrollbar styling
 - **Commit**: 0d7e697c
 
 ---
@@ -2996,13 +3047,13 @@ const exportToExcel = () => {
 **Burndown Chart:**
 ```
 Story Points |
-    58 |●
-       |  ●●●
-       |     ●●●●
-       |        ●●●●
-       |           ●●●
-       |0_____________
-         Day 1-6
+ 58 |●
+ | ●●●
+ | ●●●●
+ | ●●●●
+ | ●●●
+ |0_____________
+ Day 1-6
 ```
 
 **Story Point Breakdown by Phase:**
@@ -3036,11 +3087,11 @@ Story Points |
 **Dependencies Added:**
 - **Backend**: None (used existing Mongoose, Express, JWT)
 - **Frontend**: 
-  - `chart.js@^4.4.0` (data visualization)
-  - `react-chartjs-2@^5.2.0` (React Chart.js wrapper)
-  - `xlsx@^0.18.5` (Excel export)
-  - `jspdf@^2.5.1` (PDF generation - already installed)
-  - `jspdf-autotable@^3.8.2` (PDF tables - already installed)
+ - `chart.js@^4.4.0` (data visualization)
+ - `react-chartjs-2@^5.2.0` (React Chart.js wrapper)
+ - `xlsx@^0.18.5` (Excel export)
+ - `jspdf@^2.5.1` (PDF generation - already installed)
+ - `jspdf-autotable@^3.8.2` (PDF tables - already installed)
 
 #### Financial Impact Analysis
 
@@ -3071,15 +3122,15 @@ Story Points |
 #### Retrospective Notes
 
 **What Went Exceptionally Well:**
-- ✅ Comprehensive system covering all payroll aspects from calculation to reporting
-- ✅ Clean architecture with proper separation of concerns (database, API, UI)
-- ✅ Government deduction automation with 100% accuracy
-- ✅ Professional UI with consistent Ring & Wing branding throughout
-- ✅ Comprehensive documentation serving multiple audience types
-- ✅ Successful production deployment with auto-seeding functionality
-- ✅ Chart.js integration providing powerful visual analytics
-- ✅ PDF and Excel export capabilities for flexible reporting
-- ✅ Staff self-service portal reducing HR workload significantly
+- Comprehensive system covering all payroll aspects from calculation to reporting
+- Clean architecture with proper separation of concerns (database, API, UI)
+- Government deduction automation with 100% accuracy
+- Professional UI with consistent Ring & Wing branding throughout
+- Comprehensive documentation serving multiple audience types
+- Successful production deployment with auto-seeding functionality
+- Chart.js integration providing powerful visual analytics
+- PDF and Excel export capabilities for flexible reporting
+- Staff self-service portal reducing HR workload significantly
 
 **Challenges Overcome:**
 - **Case Sensitivity Bug**: Discovered and fixed critical cross-platform issue affecting entire production system
@@ -3089,45 +3140,45 @@ Story Points |
 - **Multi-Audience Documentation**: Created comprehensive docs serving developers, admins, and support
 
 **Action Items for Future Sprints:**
-- 📋 Implement automated testing suite for payroll calculations
-- 📋 Add withholding tax calculation (currently placeholder at ₱0)
-- 📋 Create payroll analytics dashboard with historical trends
-- 📋 Add email notifications for payslip availability
-- 📋 Implement bulk payroll generation for efficiency
-- 📋 Add payroll approval workflow with multi-level authorization
-- 📋 Create staff payroll history visualization with charts
-- 📋 Add payroll forecast based on attendance and salary data
-- 📋 Implement automated government report generation (BIR, SSS, PhilHealth, Pag-IBIG)
-- 📋 Add integration with bank payment systems for direct deposit
+- Implement automated testing suite for payroll calculations
+- Add withholding tax calculation (currently placeholder at ₱0)
+- Create payroll analytics dashboard with historical trends
+- Add email notifications for payslip availability
+- Implement bulk payroll generation for efficiency
+- Add payroll approval workflow with multi-level authorization
+- Create staff payroll history visualization with charts
+- Add payroll forecast based on attendance and salary data
+- Implement automated government report generation (BIR, SSS, PhilHealth, Pag-IBIG)
+- Add integration with bank payment systems for direct deposit
 
 **Team Velocity Impact:**
 This sprint represents the most comprehensive feature implementation in the project to date. The 58 story points completed in 6 days (9.7 points/day) demonstrates exceptional development velocity and strong technical execution. The payroll system is production-ready with enterprise-grade features and comprehensive documentation.
 
 **Technical Debt Assessment:**
-- ✅ Minimal technical debt introduced with clean architecture
-- ✅ Comprehensive error handling implemented throughout
-- ✅ Database schema designed for extensibility (future withholding tax, etc.)
-- ✅ Caching strategy optimizes performance without compromising accuracy
-- ⚠️ Testing coverage should be expanded with automated test suite
-- ⚠️ Withholding tax calculation placeholder needs future implementation
-- ⚠️ Email notification system not yet implemented (future enhancement)
+- Minimal technical debt introduced with clean architecture
+- Comprehensive error handling implemented throughout
+- Database schema designed for extensibility (future withholding tax, etc.)
+- Caching strategy optimizes performance without compromising accuracy
+- Testing coverage should be expanded with automated test suite
+- Withholding tax calculation placeholder needs future implementation
+- Email notification system not yet implemented (future enhancement)
 
 **Production Readiness:**
-- ✅ Successfully deployed to Render.com production environment
-- ✅ MongoDB Atlas database configured and seeded with 2024 rates
-- ✅ All critical bugs identified and resolved during sprint
-- ✅ Comprehensive documentation delivered for long-term maintenance
-- ✅ Security measures implemented (authentication, authorization, validation)
-- ✅ Performance optimized with caching and efficient queries
-- ✅ User interfaces tested and refined with Ring & Wing branding
-- ✅ Cross-platform compatibility verified (Windows dev, Linux production)
+- Successfully deployed to Render.com production environment
+- MongoDB Atlas database configured and seeded with 2024 rates
+- All critical bugs identified and resolved during sprint
+- Comprehensive documentation delivered for long-term maintenance
+- Security measures implemented (authentication, authorization, validation)
+- Performance optimized with caching and efficient queries
+- User interfaces tested and refined with Ring & Wing branding
+- Cross-platform compatibility verified (Windows dev, Linux production)
 
 **Knowledge Transfer:**
-- ✅ PAYROLL_ENHANCEMENT_COMPLETE.md provides complete technical reference
-- ✅ Inline code comments explain complex government deduction logic
-- ✅ API endpoint documentation with examples for future developers
-- ✅ Troubleshooting guide for common issues and solutions
-- ✅ Admin guide for day-to-day operations and annual maintenance
+- PAYROLL_ENHANCEMENT_COMPLETE.md provides complete technical reference
+- Inline code comments explain complex government deduction logic
+- API endpoint documentation with examples for future developers
+- Troubleshooting guide for common issues and solutions
+- Admin guide for day-to-day operations and annual maintenance
 
 **Next Sprint Focus:**
 - Monitor production payroll system performance and user feedback
@@ -3148,39 +3199,39 @@ Staff processes order → Moves to kitchen workflow
 ```javascript
 // 1. Create checkout session
 const session = await paymongoService.createCheckoutSession({
-  amount: totalAmount,
-  description: `Order ${receiptNumber}`,
-  currency: 'PHP'
+ amount: totalAmount,
+ description: `Order ${receiptNumber}`,
+ currency: 'PHP'
 });
 
 // 2. Handle webhook confirmation
 app.post('/api/paymongo/webhook', (req, res) => {
-  const event = paymongoService.verifyWebhook(req.body, req.headers);
-  if (event.type === 'checkout_session.payment.paid') {
-    await processPaymentSuccess(event.data);
-  }
+ const event = paymongoService.verifyWebhook(req.body, req.headers);
+ if (event.type === 'checkout_session.payment.paid') {
+ await processPaymentSuccess(event.data);
+ }
 });
 
 // 3. Update order status
 await Order.findByIdAndUpdate(orderId, {
-  status: 'paymongo_verified',
-  'paymentGateway.paidAt': new Date(),
-  'paymentGateway.webhookReceived': true
+ status: 'paymongo_verified',
+ 'paymentGateway.paidAt': new Date(),
+ 'paymentGateway.webhookReceived': true
 });
 ```
 
 **3. POS Processing Workflow**
 ```javascript
 const handleProcessPayMongoOrder = async (orderId) => {
-  // Move order from 'paymongo_verified' to 'preparing'
-  await fetch(`${API_URL}/api/orders/${orderId}/process-paymongo`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  
-  // Generate receipt and refresh orders
-  await generateReceipt(orderData);
-  fetchActiveOrders();
+ // Move order from 'paymongo_verified' to 'preparing'
+ await fetch(`${API_URL}/api/orders/${orderId}/process-paymongo`, {
+ method: 'POST',
+ headers: { Authorization: `Bearer ${token}` }
+ });
+ 
+ // Generate receipt and refresh orders
+ await generateReceipt(orderData);
+ fetchActiveOrders();
 };
 ```
 
@@ -3201,17 +3252,17 @@ const handleProcessPayMongoOrder = async (orderId) => {
 - **Problem**: PayMongo orders showing manual verification buttons instead of processing buttons
 - **Solution**: Added PayMongo order detection logic with different UI rendering
 - **Implementation**: 
-  ```javascript
-  const isPayMongoOrder = order.paymentMethod?.includes('paymongo') || 
-                         order.status === 'paymongo_verified';
-  ```
+ ```javascript
+ const isPayMongoOrder = order.paymentMethod?.includes('paymongo') || 
+ order.status === 'paymongo_verified';
+ ```
 - **Impact**: PayMongo orders display "Generate Receipt & Process" instead of "Verify Payment"
 
 **4. Status Workflow Conflicts**
 - **Problem**: PayMongo orders conflicting with manual verification workflow
 - **Solution**: Clear separation of order status handling:
-  - Manual payments: 'pending_payment' → manual verification → 'received'
-  - PayMongo payments: 'pending' → PayMongo webhook → 'paymongo_verified' → 'preparing'
+ - Manual payments: 'pending_payment' → manual verification → 'received'
+ - PayMongo payments: 'pending' → PayMongo webhook → 'paymongo_verified' → 'preparing'
 - **Result**: Clean workflow separation without status conflicts
 
 **5. Receipt Generation for PayMongo Orders**
@@ -3224,7 +3275,7 @@ const handleProcessPayMongoOrder = async (orderId) => {
 **Burndown Chart:**
 ```
 Story Points |
-    46 |●
+ 46 |●
 ```
 
 **Story Point Breakdown:**
@@ -3279,7 +3330,7 @@ This sprint demonstrates successful integration of complex third-party payment s
 
 ---
 
-### Sprint 19 (Nov 24, 2025) [IN PROGRESS]
+### Sprint 36 (Nov 24, 2025) [COMPLETED]
 **Sprint Goal:** Supabase Cloud Storage Migration and System-Wide Image Management
 **Story Points Planned:** 52
 **Story Points Completed:** 45/52 (87% complete)
@@ -3326,8 +3377,8 @@ Render's ephemeral filesystem deletes all uploaded files on every deployment, ca
 ```javascript
 // BEFORE (Ephemeral filesystem):
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
-  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
+ destination: (req, file, cb) => cb(null, 'uploads/'),
+ filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
 });
 
 // AFTER (Memory buffer for Supabase):
@@ -3336,13 +3387,13 @@ const storage = multer.memoryStorage(); // Buffers in memory for upload to Supab
 
 **4. Controller Integration - Menu Items** (`controllers/menuController.js`)
 - **Image Upload Flow**:
-  1. Multer captures file in memory buffer
-  2. Generate unique filename with `generateUniqueFilename()`
-  3. Upload to Supabase 'menu-items' bucket under 'images/' folder
-  4. Get public URL from Supabase
-  5. Save URL in MongoDB
+ 1. Multer captures file in memory buffer
+ 2. Generate unique filename with `generateUniqueFilename()`
+ 3. Upload to Supabase 'menu-items' bucket under 'images/' folder
+ 4. Get public URL from Supabase
+ 5. Save URL in MongoDB
 - **Image Deletion**: Automatic cleanup of old images when menu item updated/deleted
-- **Logging**: Comprehensive emoji-prefixed logging (🔍 📤 ☁️ ✅) for debugging
+- **Logging**: Comprehensive emoji-prefixed logging ( ) for debugging
 
 **5. Controller Integration - Staff Profiles** (`utils/imageUtils.js`)
 - **Profile Photo Upload**: Async upload to 'staff-profiles' bucket
@@ -3388,8 +3439,8 @@ const storage = multer.memoryStorage(); // Buffers in memory for upload to Supab
 **Critical Problem Discovered:**
 Frontend components were blindly concatenating `API_URL` to ALL image paths, causing double-prefixing of Supabase URLs:
 ```
-❌ WRONG: https://ring-wing-backend.onrender.comhttps//yvijfyoqzzyvnraofwfh.supabase.co/...
-✅ CORRECT: https://yvijfyoqzzyvnraofwfh.supabase.co/...
+ WRONG: https://ring-wing-backend.onrender.comhttps//yvijfyoqzzyvnraofwfh.supabase.co/...
+ CORRECT: https://yvijfyoqzzyvnraofwfh.supabase.co/...
 ```
 
 **1. Menu Items URL Fix** (`hooks/useMenu.js`)
@@ -3420,7 +3471,7 @@ image: item.image ? (item.image.startsWith('http') ? item.image : `${API_URL}${i
 
 **5. Payment Settings QR Code Fix** (`components/PaymentSettings.jsx`)
 - **GCash QR Code**: Added http check before prefixing API_URL
-- **PayMaya QR Code**: Added http check before prefixing API_URL  
+- **PayMaya QR Code**: Added http check before prefixing API_URL 
 - **Bug Fix**: Fixed `setSuccess is not defined` error (replaced with `toast.success`)
 - **Debug Logging**: Added image URL logging and onError handler for troubleshooting
 
@@ -3431,8 +3482,8 @@ src={`${import.meta.env.VITE_API_URL}${selectedMethodData.qrCodeUrl}`}
 
 // AFTER (Check for Supabase URLs):
 src={selectedMethodData.qrCodeUrl.startsWith('http')
-  ? selectedMethodData.qrCodeUrl
-  : `${import.meta.env.VITE_API_URL}${selectedMethodData.qrCodeUrl}`}
+ ? selectedMethodData.qrCodeUrl
+ : `${import.meta.env.VITE_API_URL}${selectedMethodData.qrCodeUrl}`}
 ```
 - **Impact**: Customers can now see merchant QR codes during checkout
 
@@ -3491,9 +3542,9 @@ src={selectedMethodData.qrCodeUrl.startsWith('http')
 - **Affected Components**: useMenu.js, DataCoordinatorContext, MenuManagement, POS systems, PaymentMethodSelector
 - **Solution**: Added `startsWith('http')` check before prefixing in 8 components
 - **Commits**: 
-  - db84f3dc "fix: Prevent useMenu from double-prefixing Supabase URLs"
-  - 93a26b35 "fix: Prevent URL double-prefixing for all Supabase uploads"
-  - 98699216 "fix: Prevent QR code URL double-prefixing in PaymentMethodSelector"
+ - db84f3dc "fix: Prevent useMenu from double-prefixing Supabase URLs"
+ - 93a26b35 "fix: Prevent URL double-prefixing for all Supabase uploads"
+ - 98699216 "fix: Prevent QR code URL double-prefixing in PaymentMethodSelector"
 
 **5. Merchant QR Code Bucket Access**
 - **Problem**: QR codes uploaded successfully but failed to load with 400 error
@@ -3521,11 +3572,11 @@ src={selectedMethodData.qrCodeUrl.startsWith('http')
 **Bucket Configuration:**
 | Bucket Name | Type | Purpose | Access Method | Status |
 |------------|------|---------|--------------|--------|
-| menu-items | Public | Menu item photos for customers | Public URL | ✅ Working |
-| merchant-qr-codes | Public | GCash/PayMaya QR codes | Public URL | ✅ Working |
-| staff-profiles | Private | Employee profile photos | Signed URL (1yr) | 🟡 Not tested |
-| payment-proofs | Private | Payment verification screenshots | Signed URL (1yr) | ✅ Working |
-| timelogs | Private | Clock-in/clock-out photos | Signed URL (1yr) | 🟡 Not tested |
+| menu-items | Public | Menu item photos for customers | Public URL | Working |
+| merchant-qr-codes | Public | GCash/PayMaya QR codes | Public URL | Working |
+| staff-profiles | Private | Employee profile photos | Signed URL (1yr) | Not tested |
+| payment-proofs | Private | Payment verification screenshots | Signed URL (1yr) | Working |
+| timelogs | Private | Clock-in/clock-out photos | Signed URL (1yr) | Not tested |
 
 **Files Migrated:**
 - Menu items: 2 images uploaded and tested
@@ -3567,14 +3618,14 @@ https://yvijfyoqzzyvnraofwfh.supabase.co/storage/v1/object/sign/payment-proofs/o
 **Backend Logging Strategy:**
 ```javascript
 // Menu controller logging with visual indicators:
-console.log('🔍 [Menu Controller] File received:', {
-  filename: req.file.originalname,
-  size: req.file.size,
-  mimetype: req.file.mimetype
+console.log(' [Menu Controller] File received:', {
+ filename: req.file.originalname,
+ size: req.file.size,
+ mimetype: req.file.mimetype
 });
-console.log('📤 [Menu Controller] Uploading to Supabase bucket: menu-items');
-console.log('☁️  [Menu Controller] Supabase upload successful');
-console.log('✅ [Menu Controller] Image URL:', imageUrl);
+console.log(' [Menu Controller] Uploading to Supabase bucket: menu-items');
+console.log(' [Menu Controller] Supabase upload successful');
+console.log(' [Menu Controller] Image URL:', imageUrl);
 ```
 
 #### Security Enhancements
@@ -3651,42 +3702,42 @@ console.log('✅ [Menu Controller] Image URL:', imageUrl);
 #### Testing Completed
 
 **Manual Testing:**
-- ✅ Menu item image upload via MenuManagement (2 successful uploads)
-- ✅ Menu item display in SelfCheckout layouts (Desktop/Tablet/Mobile)
-- ✅ Menu item display in POS system
-- ✅ Merchant QR code upload in PaymentSettings (4 successful uploads)
-- ✅ Merchant QR code display in SelfCheckout payment flow
-- ✅ Payment proof upload from SelfCheckout (backend fixed, pending full test)
-- ✅ Bucket access validation via test-bucket-access.js script
-- ✅ Database URL format validation via check-menu-images.js
+- Menu item image upload via MenuManagement (2 successful uploads)
+- Menu item display in SelfCheckout layouts (Desktop/Tablet/Mobile)
+- Menu item display in POS system
+- Merchant QR code upload in PaymentSettings (4 successful uploads)
+- Merchant QR code display in SelfCheckout payment flow
+- Payment proof upload from SelfCheckout (backend fixed, pending full test)
+- Bucket access validation via test-bucket-access.js script
+- Database URL format validation via check-menu-images.js
 
 **Automated Testing:**
-- ✅ Supabase connection test (test-supabase-storage.js)
-- ✅ Bucket accessibility test (test-bucket-access.js)
-- ✅ Upload pipeline investigation (investigate-storage.js)
+- Supabase connection test (test-supabase-storage.js)
+- Bucket accessibility test (test-bucket-access.js)
+- Upload pipeline investigation (investigate-storage.js)
 
 **Pending Testing:**
-- 🟡 Staff profile photo upload and display
-- 🟡 Time clock photo upload and display
-- 🟡 Payment proof display in POS verification interface
-- 🟡 File cleanup when deleting menu items/staff/orders
-- 🟡 Signed URL expiration and refresh behavior
+- Staff profile photo upload and display
+- Time clock photo upload and display
+- Payment proof display in POS verification interface
+- File cleanup when deleting menu items/staff/orders
+- Signed URL expiration and refresh behavior
 
 #### Sprint Metrics
 
 **Burndown Chart:**
 ```
 Story Points |
-    52 |●●●●●●●●●●●
-    45 |●●●●●●●●●● (87% complete)
+ 52 |●●●●●●●●●●●
+ 45 |●●●●●●●●●● (87% complete)
 ```
 
 **Story Point Breakdown:**
-- Supabase Backend Integration: 28 points ✅ COMPLETE
-- Frontend URL Handling Fixes: 17 points ✅ COMPLETE
-- Database Schema Updates: 2 points ✅ COMPLETE
-- Migration Scripts: 3 points ✅ COMPLETE
-- Documentation & Testing: 2 points 🟡 PARTIAL (awaiting production testing)
+- Supabase Backend Integration: 28 points COMPLETE
+- Frontend URL Handling Fixes: 17 points COMPLETE
+- Database Schema Updates: 2 points COMPLETE
+- Migration Scripts: 3 points COMPLETE
+- Documentation & Testing: 2 points PARTIAL (awaiting production testing)
 - **Total**: 45/52 points (7 points pending production validation)
 
 **Time Investment:**
@@ -3697,7 +3748,7 @@ Story Points |
 
 **Bug Statistics:**
 - Bugs discovered: 7
-- Bugs fixed: 7 ✅ (100% resolution rate)
+- Bugs fixed: 7 (100% resolution rate)
 - Critical bugs: 3 (menuRoutes bypass, bucket access, payment proof upload)
 - Major bugs: 3 (URL double-prefixing, secret key typo, auth middleware)
 - Minor bugs: 1 (setSuccess undefined)
@@ -3752,8 +3803,8 @@ Story Points |
 - **Mistake**: Created merchant-qr-codes as private bucket but used getPublicUrl()
 - **Learning**: Understand Supabase bucket types and appropriate access methods
 - **Best Practice**: Match bucket type to access pattern:
-  - Public buckets → getPublicUrl() for customer-facing content
-  - Private buckets → getSignedUrl() for authenticated access
+ - Public buckets → getPublicUrl() for customer-facing content
+ - Private buckets → getSignedUrl() for authenticated access
 
 **5. Database vs Filesystem Storage Requires URL Strategy**
 - **Critical Insight**: Storing full URLs (https://...) is better than relative paths
@@ -3776,11 +3827,11 @@ Story Points |
 #### Retrospective Notes
 
 **What Went Exceptionally Well:**
-- ✅ Systematic debugging approach using investigation scripts
-- ✅ Quick identification of root causes (menuRoutes bypass, bucket access)
-- ✅ Consistent fix pattern applied across 8 frontend components
-- ✅ Zero production downtime during migration implementation
-- ✅ Comprehensive logging enabled fast troubleshooting
+- Systematic debugging approach using investigation scripts
+- Quick identification of root causes (menuRoutes bypass, bucket access)
+- Consistent fix pattern applied across 8 frontend components
+- Zero production downtime during migration implementation
+- Comprehensive logging enabled fast troubleshooting
 
 **Challenges Overcome:**
 - Diagnosed subtle environment variable typo (underscore vs 'o')
@@ -3797,40 +3848,40 @@ Story Points |
 - Should implement storage usage monitoring and alerting
 
 **Action Items for Next Sprint:**
-- 🔲 Execute migrate-images-to-supabase.js on production database
-- 🔲 Test staff profile photo upload and display end-to-end
-- 🔲 Test time clock photo upload and display workflow
-- 🔲 Implement storage usage monitoring in admin dashboard
-- 🔲 Create automated backup script for Supabase buckets
-- 🔲 Add comprehensive logging to track storage costs
-- 🔲 Write integration tests for Supabase upload pipeline
-- 🔲 Document Supabase configuration for team reference
+- Execute migrate-images-to-supabase.js on production database
+- Test staff profile photo upload and display end-to-end
+- Test time clock photo upload and display workflow
+- Implement storage usage monitoring in admin dashboard
+- Create automated backup script for Supabase buckets
+- Add comprehensive logging to track storage costs
+- Write integration tests for Supabase upload pipeline
+- Document Supabase configuration for team reference
 
 **Technical Debt Assessment:**
-- ✅ **MAJOR DEBT RESOLVED**: Eliminated ephemeral filesystem dependency
-- ✅ Proper authentication added to menu management endpoints
-- ✅ Consistent URL handling pattern established across frontend
-- 🟡 Migration of existing production images pending
-- 🟡 Backup strategy not yet implemented
-- 🟡 Storage monitoring and alerting not yet implemented
+- **MAJOR DEBT RESOLVED**: Eliminated ephemeral filesystem dependency
+- Proper authentication added to menu management endpoints
+- Consistent URL handling pattern established across frontend
+- Migration of existing production images pending
+- Backup strategy not yet implemented
+- Storage monitoring and alerting not yet implemented
 
 **Team Velocity Impact:**
 This sprint demonstrates exceptional problem-solving velocity with 45/52 story points (87%) completed in a single day. The systematic debugging approach using custom investigation scripts enabled rapid identification and resolution of complex integration issues.
 
 **Production Readiness Assessment:**
-- ✅ Menu items: Production ready (tested and working)
-- ✅ Merchant QR codes: Production ready (tested and working)
-- ✅ Payment proofs: Backend ready (pending full end-to-end test)
-- 🟡 Staff profiles: Integration complete but not tested
-- 🟡 Time clock photos: Integration complete but not tested
-- 🟡 Legacy image migration: Script ready but not executed
+- Menu items: Production ready (tested and working)
+- Merchant QR codes: Production ready (tested and working)
+- Payment proofs: Backend ready (pending full end-to-end test)
+- Staff profiles: Integration complete but not tested
+- Time clock photos: Integration complete but not tested
+- Legacy image migration: Script ready but not executed
 
 **Next Sprint Priority:**
 Complete staff management system testing and fixes (photo uploads, data persistence, UI improvements) to achieve 100% Supabase migration across all file types.
 
 ---
 
-### Sprint 19 (Nov 19 - Nov 23, 2025) [COMPLETED]
+### Sprint 33 (Nov 19 - Nov 23, 2025) [COMPLETED]
 **Sprint Goal:** Customer Authentication & Order Management Enhancement
 **Story Points Planned:** 48
 **Story Points Completed:** 48/48
@@ -3857,104 +3908,104 @@ Transform the self-checkout system from a basic order form into a complete custo
 
 **1. Customer Model Enhancement** (`models/Customer.js`)
 - Complete customer data structure with comprehensive fields:
-  ```javascript
-  {
-    username: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    phone: { type: String, required: true },
-    firstName: { type: String, required: true },
-    lastName: { type: String, required: true },
-    isActive: { type: Boolean, default: true },
-    deletedAt: { type: Date, default: null }
-  }
-  ```
+ ```javascript
+ {
+ username: { type: String, required: true, unique: true },
+ password: { type: String, required: true },
+ email: { type: String, required: true, unique: true },
+ phone: { type: String, required: true },
+ firstName: { type: String, required: true },
+ lastName: { type: String, required: true },
+ isActive: { type: Boolean, default: true },
+ deletedAt: { type: Date, default: null }
+ }
+ ```
 - Password hashing with bcrypt for security
 - Soft delete functionality with `isActive` and `deletedAt` tracking
 - Email and username uniqueness validation
 
 **2. Customer Address Model** (`models/CustomerAddress.js`)
 - Comprehensive address structure for delivery management:
-  ```javascript
-  {
-    customerId: { type: Schema.Types.ObjectId, ref: 'Customer', required: true },
-    label: { type: String, required: true }, // Home, Office, etc.
-    street: { type: String, required: true },
-    barangay: { type: String, required: true },
-    city: { type: String, required: true },
-    notes: { type: String },
-    isDefault: { type: Boolean, default: false }
-  }
-  ```
+ ```javascript
+ {
+ customerId: { type: Schema.Types.ObjectId, ref: 'Customer', required: true },
+ label: { type: String, required: true }, // Home, Office, etc.
+ street: { type: String, required: true },
+ barangay: { type: String, required: true },
+ city: { type: String, required: true },
+ notes: { type: String },
+ isDefault: { type: Boolean, default: false }
+ }
+ ```
 - One customer can have multiple delivery addresses
 - Default address selection for streamlined checkout
 - Address validation and formatting
 
 **3. Customer Authentication Controller** (`controllers/customerAuthController.js`)
 - **signup()**: Customer registration with validation
-  - Duplicate username/email checking
-  - Password strength requirements
-  - Automatic JWT token generation upon registration
+ - Duplicate username/email checking
+ - Password strength requirements
+ - Automatic JWT token generation upon registration
 - **login()**: Secure authentication with credentials validation
-  - Password comparison using bcrypt
-  - JWT token generation with 7-day expiration
-  - Active account verification
+ - Password comparison using bcrypt
+ - JWT token generation with 7-day expiration
+ - Active account verification
 - **getProfile()**: Retrieve authenticated customer details
-  - JWT token verification
-  - Customer data population
+ - JWT token verification
+ - Customer data population
 - **updateProfile()**: Profile editing functionality
-  - Email and username uniqueness validation
-  - Selective field updates
+ - Email and username uniqueness validation
+ - Selective field updates
 - **changePassword()**: Password update with current password verification
-  - Current password validation
-  - New password hashing
+ - Current password validation
+ - New password hashing
 - **deleteAccount()**: Soft delete with password confirmation
-  - Sets `isActive: false` and `deletedAt: Date.now()`
-  - Preserves order history for business records
+ - Sets `isActive: false` and `deletedAt: Date.now()`
+ - Preserves order history for business records
 
 **4. Customer Address Controller** (`controllers/customerAddressController.js`)
 - **createAddress()**: Add new delivery address
-  - Automatic default address selection for first address
-  - Multiple address support for flexible delivery options
+ - Automatic default address selection for first address
+ - Multiple address support for flexible delivery options
 - **getAddresses()**: Retrieve all customer addresses
-  - Sorted by default address first, then creation date
+ - Sorted by default address first, then creation date
 - **updateAddress()**: Edit existing address
-  - Default address management (only one default per customer)
+ - Default address management (only one default per customer)
 - **deleteAddress()**: Remove address with validation
-  - Prevents deletion of last remaining address
-  - Automatic default reassignment if default address deleted
+ - Prevents deletion of last remaining address
+ - Automatic default reassignment if default address deleted
 - **setDefaultAddress()**: Change default delivery address
-  - Updates all addresses to ensure only one default
+ - Updates all addresses to ensure only one default
 
 **5. Customer Order Controller** (`controllers/customerOrderController.js`)
 - **getCustomerOrders()**: Retrieve customer order history
-  - Filters by authenticated customer ID
-  - Populates items with menu item details
-  - Status-based filtering (current vs past orders)
+ - Filters by authenticated customer ID
+ - Populates items with menu item details
+ - Status-based filtering (current vs past orders)
 - **getOrderById()**: Detailed order information
-  - Complete order data with items and pricing
-  - Customer ownership verification
-  - Status tracking for order timeline
+ - Complete order data with items and pricing
+ - Customer ownership verification
+ - Status tracking for order timeline
 
 **6. API Endpoints**
 - **Authentication Routes** (`/api/customer/auth`):
-  - `POST /signup` - Customer registration
-  - `POST /login` - Customer authentication
-  - `GET /profile` - Get customer profile (protected)
-  - `PUT /profile` - Update customer profile (protected)
-  - `PUT /password` - Change password (protected)
-  - `DELETE /account` - Delete account (protected)
+ - `POST /signup` - Customer registration
+ - `POST /login` - Customer authentication
+ - `GET /profile` - Get customer profile (protected)
+ - `PUT /profile` - Update customer profile (protected)
+ - `PUT /password` - Change password (protected)
+ - `DELETE /account` - Delete account (protected)
 
 - **Address Routes** (`/api/customer/addresses`):
-  - `POST /` - Create new address (protected)
-  - `GET /` - Get all addresses (protected)
-  - `PUT /:id` - Update address (protected)
-  - `DELETE /:id` - Delete address (protected)
-  - `PUT /:id/set-default` - Set default address (protected)
+ - `POST /` - Create new address (protected)
+ - `GET /` - Get all addresses (protected)
+ - `PUT /:id` - Update address (protected)
+ - `DELETE /:id` - Delete address (protected)
+ - `PUT /:id/set-default` - Set default address (protected)
 
 - **Order Routes** (`/api/customer/orders`):
-  - `GET /` - Get customer orders (protected)
-  - `GET /:id` - Get order details (protected)
+ - `GET /` - Get customer orders (protected)
+ - `GET /:id` - Get order details (protected)
 
 #### Frontend Customer Experience Enhancement
 **Story Points:** 14 - **STATUS: COMPLETED**
@@ -3968,86 +4019,86 @@ Transform the self-checkout system from a basic order form into a complete custo
 
 **2. Customer Authentication Pages**
 - **CustomerLogin.jsx**: Login interface
-  - Username/email and password fields
-  - "Remember me" functionality
-  - Link to signup page
-  - Error handling with user-friendly messages
-  - Automatic redirect to self-checkout after login
+ - Username/email and password fields
+ - "Remember me" functionality
+ - Link to signup page
+ - Error handling with user-friendly messages
+ - Automatic redirect to self-checkout after login
 
 - **CustomerSignup.jsx**: Registration interface
-  - Complete registration form (username, email, phone, name, password)
-  - Password confirmation validation
-  - Real-time validation feedback
-  - Duplicate username/email error handling
-  - Automatic login after successful registration
-  - Link to login page for existing users
+ - Complete registration form (username, email, phone, name, password)
+ - Password confirmation validation
+ - Real-time validation feedback
+ - Duplicate username/email error handling
+ - Automatic login after successful registration
+ - Link to login page for existing users
 
 **3. Customer Account Management**
 - **CustomerAccountMenu.jsx**: Account dropdown menu
-  - Customer name display
-  - Navigation links (My Orders, Delivery Addresses, Settings)
-  - Logout functionality
-  - Responsive mobile design
+ - Customer name display
+ - Navigation links (My Orders, Delivery Addresses, Settings)
+ - Logout functionality
+ - Responsive mobile design
 
 - **MyOrders.jsx**: Order history page
-  - Tabbed interface (Current Orders / Past Orders)
-  - Order status filtering (pending, payment_verified, received, preparing, ready, completed, cancelled)
-  - Order card display with key information
-  - Click to view detailed order information
-  - Real-time order status updates
+ - Tabbed interface (Current Orders / Past Orders)
+ - Order status filtering (pending, payment_verified, received, preparing, ready, completed, cancelled)
+ - Order card display with key information
+ - Click to view detailed order information
+ - Real-time order status updates
 
 - **OrderDetails.jsx**: Individual order details page
-  - Complete order information (receipt number, date, status, totals)
-  - Item breakdown with quantities, prices, add-ons
-  - 5-step order timeline visualization
-  - Delivery address display
-  - Reorder functionality
+ - Complete order information (receipt number, date, status, totals)
+ - Item breakdown with quantities, prices, add-ons
+ - 5-step order timeline visualization
+ - Delivery address display
+ - Reorder functionality
 
 **4. Delivery Address Management**
 - **DeliveryAddresses.jsx**: Address management interface
-  - List all saved addresses
-  - Add new address form
-  - Edit existing addresses
-  - Delete addresses with confirmation
-  - Set default address
-  - Default address indicator badge
+ - List all saved addresses
+ - Add new address form
+ - Edit existing addresses
+ - Delete addresses with confirmation
+ - Set default address
+ - Default address indicator badge
 
 **5. Self-Checkout Integration**
 - **Customer Authentication Flow**:
-  - "Login/Signup" button in header for guest users
-  - Automatic customer ID attachment to orders
-  - Pre-filled customer information for logged-in users
-  - Address selection from saved addresses
-  - Quick address addition during checkout
+ - "Login/Signup" button in header for guest users
+ - Automatic customer ID attachment to orders
+ - Pre-filled customer information for logged-in users
+ - Address selection from saved addresses
+ - Quick address addition during checkout
 
 - **Guest Checkout Support**:
-  - Allow orders without customer account
-  - Manual customer information entry
-  - Option to create account after order placement
+ - Allow orders without customer account
+ - Manual customer information entry
+ - Option to create account after order placement
 
 #### Phase 6: Profile Management (Nov 21-22, 2025)
 **Story Points:** 8 - **STATUS: COMPLETED**
 
 **1. Profile Settings Page** (`ProfileSettings.jsx`)
 - **Profile Editing Section**:
-  - Edit username, email, phone, first name, last name
-  - Real-time validation with error messages
-  - Duplicate username/email detection
-  - Success notifications on save
-  - Cancel button to discard changes
+ - Edit username, email, phone, first name, last name
+ - Real-time validation with error messages
+ - Duplicate username/email detection
+ - Success notifications on save
+ - Cancel button to discard changes
 
 - **Password Change Section**:
-  - Current password verification
-  - New password with confirmation
-  - Password strength requirements display
-  - Separate form with isolated state management
+ - Current password verification
+ - New password with confirmation
+ - Password strength requirements display
+ - Separate form with isolated state management
 
 - **Account Deletion Section**:
-  - Two-step confirmation process
-  - Password verification required
-  - Type "DELETE" confirmation for safety
-  - Warning message about data permanence
-  - Soft delete preserves order history
+ - Two-step confirmation process
+ - Password verification required
+ - Type "DELETE" confirmation for safety
+ - Warning message about data permanence
+ - Soft delete preserves order history
 
 **2. Customer Settings Navigation**
 - Settings link in account dropdown menu
@@ -4063,41 +4114,41 @@ Provide real-time order status notifications to customers using Socket.io, allow
 
 **1. Socket.io Customer Integration**
 - **useOrderNotifications Hook** (`hooks/useOrderNotifications.js`):
-  - Establishes Socket.io connection with customer authentication
-  - Listens for `orderStatusChanged` events from backend
-  - Manages notification state (unread count, notification list)
-  - Provides methods: `markAsRead`, `markAllAsRead`, `removeNotification`, `clearAll`
-  - Automatic reconnection with exponential backoff
-  - Customer-specific room subscription: `customer:${customerId}`
+ - Establishes Socket.io connection with customer authentication
+ - Listens for `orderStatusChanged` events from backend
+ - Manages notification state (unread count, notification list)
+ - Provides methods: `markAsRead`, `markAllAsRead`, `removeNotification`, `clearAll`
+ - Automatic reconnection with exponential backoff
+ - Customer-specific room subscription: `customer:${customerId}`
 
 **2. Notification UI Components**
 - **OrderNotificationToast.jsx**: Toast notification display
-  - Status-specific icons and colors
-  - Order number and status display
-  - Fulfillment type indicator (Delivery/Takeout)
-  - Action buttons: View (navigate to order details), Dismiss (mark as read)
-  - Auto-dismiss after 10 seconds
-  - Slide-in animation from bottom-right
+ - Status-specific icons and colors
+ - Order number and status display
+ - Fulfillment type indicator (Delivery/Takeout)
+ - Action buttons: View (navigate to order details), Dismiss (mark as read)
+ - Auto-dismiss after 10 seconds
+ - Slide-in animation from bottom-right
 
 - **OrderNotificationContainer.jsx**: Toast container
-  - Fixed positioning (bottom-right corner)
-  - Stacks multiple notifications vertically
-  - Z-index management for proper layering
-  - Responsive positioning for mobile devices
+ - Fixed positioning (bottom-right corner)
+ - Stacks multiple notifications vertically
+ - Z-index management for proper layering
+ - Responsive positioning for mobile devices
 
 **3. Notification Badge System**
 - **CustomerAccountMenu Enhancement**:
-  - Orange notification badge on "My Orders" link
-  - Real-time unread count display
-  - Badge only shows when unread notifications exist
-  - Syncs with notification state automatically
+ - Orange notification badge on "My Orders" link
+ - Real-time unread count display
+ - Badge only shows when unread notifications exist
+ - Syncs with notification state automatically
 
 **4. Backend Socket.io Emissions**
 - **Order Status Change Notifications**:
-  - Emitted when order status changes in POS systems
-  - Targets specific customer room: `io.to(\`customer:\${customerId}\`).emit('orderStatusChanged', {...})`
-  - Includes: order ID, receipt number, new status, fulfillment type
-  - Triggers on all status transitions: received → preparing → ready → completed
+ - Emitted when order status changes in POS systems
+ - Targets specific customer room: `io.to(\`customer:\${customerId}\`).emit('orderStatusChanged', {...})`
+ - Includes: order ID, receipt number, new status, fulfillment type
+ - Triggers on all status transitions: received → preparing → ready → completed
 
 **5. Integration Points**
 - **POS Systems**: Emit notifications when changing order status
@@ -4129,25 +4180,25 @@ Provide real-time order status notifications to customers using Socket.io, allow
 - **Problem**: Staff couldn't see customer contact information during payment verification
 - **Solution**: Added customer info and delivery address sections to verification modals
 - **Features**: 
-  - Customer Information section (name, phone, email)
-  - Delivery Address section (label, street, barangay, city, notes)
-  - Backend population of `customerId` and `deliveryAddressId` in order queries
+ - Customer Information section (name, phone, email)
+ - Delivery Address section (label, street, barangay, city, notes)
+ - Backend population of `customerId` and `deliveryAddressId` in order queries
 - **Impact**: Staff can contact customers and verify delivery addresses during verification
 
 **5. Order Totals Structure Correction**
 - **Problem**: Order totals showing as undefined, breaking receipt display
 - **Root Cause**: Frontend accessed `order.total` but backend used `order.totals.total`
 - **Solution**: Updated all components to use `order.totals` object structure:
-  ```javascript
-  {
-    subtotal: Number,
-    discount: Number,
-    vatExemption: Number,
-    total: Number,
-    cashReceived: Number,
-    change: Number
-  }
-  ```
+ ```javascript
+ {
+ subtotal: Number,
+ discount: Number,
+ vatExemption: Number,
+ total: Number,
+ cashReceived: Number,
+ change: Number
+ }
+ ```
 - **Result**: Order totals, receipts, and summaries display correctly
 
 #### Technical Architecture Enhancements
@@ -4201,7 +4252,7 @@ Provide real-time order status notifications to customers using Socket.io, allow
 **Burndown Chart:**
 ```
 Story Points |
-    48 |●
+ 48 |●
 ```
 
 **Story Point Breakdown:**
@@ -4283,7 +4334,7 @@ This sprint represents a major milestone in customer-facing functionality. The 4
 
 ---
 
-### Sprint 22 (Nov 19 - Nov 21, 2025) [IN PROGRESS]
+### Sprint 34 (Nov 19 - Nov 21, 2025) [COMPLETED]
 **Sprint Goal:** Production Deployment & Performance Optimization
 **Story Points Planned:** 34
 **Story Points Completed:** 28/34 (82%)
@@ -4297,22 +4348,22 @@ This sprint represents a major milestone in customer-facing functionality. The 4
 
 **1. Render.com Deployment Configuration**
 - **Frontend Deployment**: Static site deployment on Render.com
-  - Build command: `npm run build`
-  - Publish directory: `dist`
-  - Environment variable: `VITE_API_URL=https://ring-wing-backend.onrender.com`
-  - Auto-deploy on `production` branch push
+ - Build command: `npm run build`
+ - Publish directory: `dist`
+ - Environment variable: `VITE_API_URL=https://ring-wing-backend.onrender.com`
+ - Auto-deploy on `production` branch push
 - **Backend Deployment**: Node.js/Express service on Render
-  - MongoDB Atlas integration for database
-  - Environment variables configured for production
-  - Health monitoring endpoints active
+ - MongoDB Atlas integration for database
+ - Environment variables configured for production
+ - Health monitoring endpoints active
 
 **2. API URL Migration (30+ files updated)**
 - Systematic replacement of hardcoded `localhost:5000` with production backend URL
 - Components updated:
-  - Dashboard, MenuManagement, InventorySystem, OrderSystem
-  - PaymentVerificationDashboard, PaymentSettings, SelfCheckout
-  - AI Chatbot, POS systems (desktop and tablet)
-  - All service files and utility functions
+ - Dashboard, MenuManagement, InventorySystem, OrderSystem
+ - PaymentVerificationDashboard, PaymentSettings, SelfCheckout
+ - AI Chatbot, POS systems (desktop and tablet)
+ - All service files and utility functions
 - Error handling for connection failures and API timeouts
 
 **3. Gemini API Integration Fixes**
@@ -4320,53 +4371,53 @@ This sprint represents a major milestone in customer-facing functionality. The 4
 - **Root Cause**: Model name incorrect (`gemini-2.5-flash` → `gemini-2.0-flash`)
 - **Solution**: Updated to correct model name across all AI components
 - **Additional Fix**: Enhanced JSON parsing error handling in SelfCheckoutAIAssistant
-  - Try-catch blocks around all `JSON.parse()` calls
-  - Fallback error messages for malformed API responses
-  - Graceful degradation when Gemini API unavailable
+ - Try-catch blocks around all `JSON.parse()` calls
+ - Fallback error messages for malformed API responses
+ - Graceful degradation when Gemini API unavailable
 
 #### Phase 2: Settings & UI Cleanup (Nov 21, 2025)
 **Story Points:** 8 - **STATUS: COMPLETED**
 
 **1. Payment Settings Component Refactoring**
 - **Removed Components**:
-  - Custom Toast notification component (replaced with react-toastify)
-  - PayMongo info boxes (3 total): "About PayMongo", "PayMongo Active", "Important Notes"
-  - All emoji usage (ℹ️ ✅ ⚠️) in informational sections
+ - Custom Toast notification component (replaced with react-toastify)
+ - PayMongo info boxes (3 total): "About PayMongo", "PayMongo Active", "Important Notes"
+ - All emoji usage ( ) in informational sections
 - **Toast Notification Unification**:
-  - Migrated from custom Toast to global `react-toastify`
-  - Changed all `Toast.success()` to `toast.success()`
-  - Changed all `Toast.error()` to `toast.error()`
-  - Consistent toast notifications across entire application
+ - Migrated from custom Toast to global `react-toastify`
+ - Changed all `Toast.success()` to `toast.success()`
+ - Changed all `Toast.error()` to `toast.error()`
+ - Consistent toast notifications across entire application
 - **Impact**: Cleaner UI, reduced code complexity (~69 lines removed)
 
 **2. Loading Spinner Optimization**
 - **Issue**: Loading screens appearing at top-center instead of middle-center
 - **Root Causes Identified**:
-  - App.jsx using `showLogo={false}` + `variant="minimal"` for auth loading
-  - This triggered circular `RingAnimation` instead of full branded screen
-  - MenuManagement and InventorySystem using full `BrandedLoadingScreen`
+ - App.jsx using `showLogo={false}` + `variant="minimal"` for auth loading
+ - This triggered circular `RingAnimation` instead of full branded screen
+ - MenuManagement and InventorySystem using full `BrandedLoadingScreen`
 - **Solutions Implemented**:
-  - Removed `showLogo={false}` and `variant="minimal"` from App.jsx auth validation
-  - Updated LoadingContext to use full `BrandedLoadingScreen` globally
-  - Replaced `LoadingSpinner` with `BrandedLoadingScreen` in:
-    - MenuManagement (line 1818)
-    - OrderSystem (line 260)
-    - InventorySystem (line 1228)
-    - LoadingContext (global loading overlay)
+ - Removed `showLogo={false}` and `variant="minimal"` from App.jsx auth validation
+ - Updated LoadingContext to use full `BrandedLoadingScreen` globally
+ - Replaced `LoadingSpinner` with `BrandedLoadingScreen` in:
+ - MenuManagement (line 1818)
+ - OrderSystem (line 260)
+ - InventorySystem (line 1228)
+ - LoadingContext (global loading overlay)
 - **Impact**: Consistent centered branded loading screens across all pages and transitions
 
 **Technical Details:**
 ```javascript
 // Before (App.jsx - caused circular spinner):
 <BrandedLoadingScreen 
-  message="Verifying authentication..." 
-  showLogo={false}
-  variant="minimal"
+ message="Verifying authentication..." 
+ showLogo={false}
+ variant="minimal"
 />
 
 // After (proper centered loading):
 <BrandedLoadingScreen 
-  message="Verifying authentication..." 
+ message="Verifying authentication..." 
 />
 ```
 
@@ -4381,55 +4432,55 @@ This sprint represents a major milestone in customer-facing functionality. The 4
 - **5-minute cache validity**: Reduces redundant API calls while keeping data fresh
 - **Parallel data fetching**: `Promise.allSettled()` for simultaneous requests
 - **Cache management functions**:
-  - `preloadPaymentVerificationData()`: Fetches pending payment orders
-  - `preloadPaymentSettingsData()`: Fetches merchant wallets and verification settings
-  - `preloadAllCriticalData()`: Coordinates all preload operations
-  - `getCachedPaymentVerificationData()`: Retrieves cached payment orders
-  - `getCachedPaymentSettingsData()`: Retrieves cached settings
-  - `invalidatePreloadCache()`: Clears cache after data changes
+ - `preloadPaymentVerificationData()`: Fetches pending payment orders
+ - `preloadPaymentSettingsData()`: Fetches merchant wallets and verification settings
+ - `preloadAllCriticalData()`: Coordinates all preload operations
+ - `getCachedPaymentVerificationData()`: Retrieves cached payment orders
+ - `getCachedPaymentSettingsData()`: Retrieves cached settings
+ - `invalidatePreloadCache()`: Clears cache after data changes
 
 **Integration Points:**
 - **App.jsx**: Triggers preload after successful token validation
-  ```javascript
-  if (response.data && response.data.success) {
-    setIsAuthenticated(true);
-    // Preload critical data in background
-    preloadAllCriticalData().catch(err => {
-      console.warn('Background preload failed (non-critical):', err);
-    });
-  }
-  ```
+ ```javascript
+ if (response.data && response.data.success) {
+ setIsAuthenticated(true);
+ // Preload critical data in background
+ preloadAllCriticalData().catch(err => {
+ console.warn('Background preload failed (non-critical):', err);
+ });
+ }
+ ```
 
 - **PaymentVerificationDashboard**: Uses cached data on initial load
-  ```javascript
-  const fetchOrders = async (useCache = true) => {
-    if (useCache && statusFilter === 'pending') {
-      const cachedData = getCachedPaymentVerificationData();
-      if (cachedData?.data) {
-        // Render immediately from cache
-        setOrders(cachedData.data);
-        setLoading(false);
-        return;
-      }
-    }
-    // Fall back to API if cache unavailable
-  }
-  ```
+ ```javascript
+ const fetchOrders = async (useCache = true) => {
+ if (useCache && statusFilter === 'pending') {
+ const cachedData = getCachedPaymentVerificationData();
+ if (cachedData?.data) {
+ // Render immediately from cache
+ setOrders(cachedData.data);
+ setLoading(false);
+ return;
+ }
+ }
+ // Fall back to API if cache unavailable
+ }
+ ```
 
 - **PaymentSettings**: Uses cached merchant wallet and verification settings
-  ```javascript
-  const loadSettings = async (useCache = true) => {
-    if (useCache) {
-      const cachedData = getCachedPaymentSettingsData();
-      if (cachedData?.merchantWallets && cachedData?.verificationSettings) {
-        // Show settings instantly from cache
-        setSettings(prevSettings => ({...prevSettings, ...cachedData}));
-        return;
-      }
-    }
-    // Fetch from API if cache expired
-  }
-  ```
+ ```javascript
+ const loadSettings = async (useCache = true) => {
+ if (useCache) {
+ const cachedData = getCachedPaymentSettingsData();
+ if (cachedData?.merchantWallets && cachedData?.verificationSettings) {
+ // Show settings instantly from cache
+ setSettings(prevSettings => ({...prevSettings, ...cachedData}));
+ return;
+ }
+ }
+ // Fetch from API if cache expired
+ }
+ ```
 
 **Performance Gains:**
 - **Payment Verification page**: 0-100ms load time (vs 500-1500ms without cache)
@@ -4448,10 +4499,10 @@ This sprint represents a major milestone in customer-facing functionality. The 4
 1. `ce27c1cc` - "Fix: Remove minimal variant from auth loading screen to show full branded loading"
 2. `cfb04a52` - "Fix: Replace LoadingSpinner with BrandedLoadingScreen in global LoadingContext for proper vertical centering"
 3. `7a1af00d` - "Feat: Add background data preloading for Payment Verification and Settings"
-   - Created preloadService.js with 5-minute cache
-   - Integrated preload triggers in App.jsx after auth validation
-   - Updated PaymentVerificationDashboard and PaymentSettings to use cached data
-   - Reduces initial loading time on Payment and Settings pages
+ - Created preloadService.js with 5-minute cache
+ - Integrated preload triggers in App.jsx after auth validation
+ - Updated PaymentVerificationDashboard and PaymentSettings to use cached data
+ - Reduces initial loading time on Payment and Settings pages
 
 **Code Quality Metrics:**
 - Files created: 1 (preloadService.js - 171 lines)
@@ -4462,14 +4513,14 @@ This sprint represents a major milestone in customer-facing functionality. The 4
 
 #### Current Sprint Challenges & Active Issues
 
-**1. Loading Screen Timing Issue** ⚠️ IN DISCUSSION
+**1. Loading Screen Timing Issue** IN DISCUSSION
 - **User Concern**: "Loading screen finishes yet data still not fully fetched"
 - **Analysis**: Loading screen closes when components mount, but data fetches happen after
 - **Proposed Solutions** (Under Discussion):
-  - **Option 1**: Data Coordinator pattern - tracks all active fetches system-wide ⭐
-  - **Option 2**: Dashboard-level loading - components report when ready
-  - **Option 3**: Enhanced preload - wait for preload completion before showing routes
-  - **Option 4**: Route-level loading - React Router v6.4+ loader functions
+ - **Option 1**: Data Coordinator pattern - tracks all active fetches system-wide 
+ - **Option 2**: Dashboard-level loading - components report when ready
+ - **Option 3**: Enhanced preload - wait for preload completion before showing routes
+ - **Option 4**: Route-level loading - React Router v6.4+ loader functions
 - **Status**: Awaiting user decision on preferred approach
 
 **2. Render.com Free Tier Limitations**
@@ -4497,16 +4548,16 @@ This sprint represents a major milestone in customer-facing functionality. The 4
 **Burndown Chart:**
 ```
 Story Points |
-    34 |●
-    28 |  ●
-    24 |    ●
-    20 |      
-    16 |      
-    12 |      
-     8 |      
-     4 |      
-     0 |________________
-       D1  D2  D3  End
+ 34 |●
+ 28 | ●
+ 24 | ●
+ 20 | 
+ 16 | 
+ 12 | 
+ 8 | 
+ 4 | 
+ 0 |________________
+ D1 D2 D3 End
 ```
 
 **Velocity:**
@@ -4544,11 +4595,11 @@ Story Points |
 - Clean separation of concerns (payment cache vs component loading) prevents conflicts
 
 **Action Items for Sprint Completion:**
-- ⏳ Await user decision on loading coordinator approach
-- ⏳ Implement chosen loading strategy across all pages
-- ⏳ Test complete user journey from login to all major features
-- ⏳ Document final architecture and optimization patterns
-- ⏳ Update ScumDevelopmentProcess.md with sprint completion
+- Await user decision on loading coordinator approach
+- Implement chosen loading strategy across all pages
+- Test complete user journey from login to all major features
+- Document final architecture and optimization patterns
+- Update ScumDevelopmentProcess.md with sprint completion
 
 **Next Sprint Preview:**
 - Complete system testing and QA validation
@@ -4569,105 +4620,105 @@ Story Points |
 - System monitoring enhancement (In progress - 75% complete)
 
 ### Completed Features (Sep 2025)
-- ✅ **Menu Availability System** (100% complete) - *NEW Sep 11, 2025*
-  - Real-time availability toggle in Menu Management
-  - Automatic filtering across POS, Self Checkout, and AI Chatbot
-  - Window focus and periodic refresh synchronization
-  - Complete menu item visibility with pagination fixes
-- ✅ Mobile responsive design for all interfaces (100% complete)
-- ✅ Advanced analytics dashboard (100% complete)
-- ✅ AI chatbot integration with Gemini API (100% complete)
-- ✅ Advanced POS system with pending orders (100% complete)
-- ✅ Comprehensive staff management system (100% complete)
-- ✅ Complete menu management with image handling (100% complete)
-- ✅ Custom theme system and scrollbars (100% complete)
-- ✅ Kitchen display system (100% complete)
-- ✅ Inventory management with audit trails (100% complete)
+- **Menu Availability System** (100% complete) - *NEW Sep 11, 2025*
+ - Real-time availability toggle in Menu Management
+ - Automatic filtering across POS, Self Checkout, and AI Chatbot
+ - Window focus and periodic refresh synchronization
+ - Complete menu item visibility with pagination fixes
+- Mobile responsive design for all interfaces (100% complete)
+- Advanced analytics dashboard (100% complete)
+- AI chatbot integration with Gemini API (100% complete)
+- Advanced POS system with pending orders (100% complete)
+- Comprehensive staff management system (100% complete)
+- Complete menu management with image handling (100% complete)
+- Custom theme system and scrollbars (100% complete)
+- Kitchen display system (100% complete)
+- Inventory management with audit trails (100% complete)
 
 ### Bug Fixes Completed (June-September 2025)
 
 #### Sprint 11 Bug Fixes (May-June 2025)
-- [FIXED] ✓ Order item quantity update synchronization issues
-- [FIXED] ✓ Cash float calculation errors during daily resets
-- [FIXED] ✓ Order modification conflicts when switching between pending orders
-- [FIXED] ✓ Receipt generation errors for orders with multiple item sizes
-- [FIXED] ✓ Memory leaks in order processing components
+- [FIXED] Order item quantity update synchronization issues
+- [FIXED] Cash float calculation errors during daily resets
+- [FIXED] Order modification conflicts when switching between pending orders
+- [FIXED] Receipt generation errors for orders with multiple item sizes
+- [FIXED] Memory leaks in order processing components
 
 #### Sprint 12 Bug Fixes (June 2025)
-- [FIXED] ✓ Staff creation duplicate validation errors
-- [FIXED] ✓ Profile picture upload and deletion synchronization issues
-- [FIXED] ✓ PIN code authentication timing vulnerabilities
-- [FIXED] ✓ Staff status update propagation delays
-- [FIXED] ✓ Payroll schedule assignment conflicts
-- [FIXED] ✓ Image cleanup during staff record updates
-- [FIXED] ✓ Position hierarchy permission mapping errors
+- [FIXED] Staff creation duplicate validation errors
+- [FIXED] Profile picture upload and deletion synchronization issues
+- [FIXED] PIN code authentication timing vulnerabilities
+- [FIXED] Staff status update propagation delays
+- [FIXED] Payroll schedule assignment conflicts
+- [FIXED] Image cleanup during staff record updates
+- [FIXED] Position hierarchy permission mapping errors
 
 #### Sprint 13 Bug Fixes (June-July 2025)
-- [FIXED] ✓ Chatbot API rate limiting edge cases
-- [FIXED] ✓ Menu item recognition accuracy improvements
-- [FIXED] ✓ Order processing timeout handling
-- [FIXED] ✓ Memory leaks in conversation history
-- [FIXED] ✓ Customer information validation errors
-- [FIXED] ✓ Order status synchronization issues
-- [FIXED] ✓ Mobile responsiveness on smaller screens
+- [FIXED] Chatbot API rate limiting edge cases
+- [FIXED] Menu item recognition accuracy improvements
+- [FIXED] Order processing timeout handling
+- [FIXED] Memory leaks in conversation history
+- [FIXED] Customer information validation errors
+- [FIXED] Order status synchronization issues
+- [FIXED] Mobile responsiveness on smaller screens
 
 #### Sprint 14 Bug Fixes (July 2025)
-- [FIXED] ✓ Menu image upload validation errors
-- [FIXED] ✓ Modifier assignment synchronization issues
-- [FIXED] ✓ Category filtering edge cases
-- [FIXED] ✓ Image deletion during menu item updates
-- [FIXED] ✓ Pricing validation for multiple size formats
-- [FIXED] ✓ Menu item code uniqueness validation
-- [FIXED] ✓ File path security vulnerabilities
-- [FIXED] ✓ Memory leaks in image processing
-- [FIXED] ✓ Theme consistency across components
-- [FIXED] ✓ Scrollbar rendering on different screen sizes
+- [FIXED] Menu image upload validation errors
+- [FIXED] Modifier assignment synchronization issues
+- [FIXED] Category filtering edge cases
+- [FIXED] Image deletion during menu item updates
+- [FIXED] Pricing validation for multiple size formats
+- [FIXED] Menu item code uniqueness validation
+- [FIXED] File path security vulnerabilities
+- [FIXED] Memory leaks in image processing
+- [FIXED] Theme consistency across components
+- [FIXED] Scrollbar rendering on different screen sizes
 
 #### Sprint 15 Bug Fixes (July-August 2025)
-- [FIXED] ✓ Dashboard data refresh synchronization issues
-- [FIXED] ✓ Revenue calculation edge cases for complex orders
-- [FIXED] ✓ Chart rendering performance on large datasets
-- [FIXED] ✓ Order status update propagation delays
-- [FIXED] ✓ Kitchen display timer accuracy issues
-- [FIXED] ✓ Inventory audit log memory optimization
+- [FIXED] Dashboard data refresh synchronization issues
+- [FIXED] Revenue calculation edge cases for complex orders
+- [FIXED] Chart rendering performance on large datasets
+- [FIXED] Order status update propagation delays
+- [FIXED] Kitchen display timer accuracy issues
+- [FIXED] Inventory audit log memory optimization
 
 #### Current Sprint Bug Fixes (September 2025)
-- [FIXED] ✓ **Menu Management Data Persistence**: Fixed new menu items disappearing on refresh due to incorrect response parsing
-- [FIXED] ✓ **Real-time Synchronization**: Resolved stale data issues across POS, Self Checkout, and AI Chatbot systems
-- [FIXED] ✓ **API Pagination Limitation**: Fixed 50-item limit causing menu items to be invisible across all systems
-- [FIXED] ✓ **AbortController Memory Leaks**: Improved cleanup in fetch operations and refresh mechanisms
-- [FIXED] ✓ **Window Focus Refresh**: Added proper event listener management for real-time updates
-- [FIXED] ✓ **Response Format Handling**: Standardized handling of both array and paginated API responses
-- [FIXED] ✓ Export functionality timeout errors
-- [FIXED] ✓ Dashboard responsiveness on mobile devices
-- [FIXED] ✓ Real-time update conflicts during high traffic
-- [FIXED] ✓ Staff performance calculation inconsistencies
+- [FIXED] **Menu Management Data Persistence**: Fixed new menu items disappearing on refresh due to incorrect response parsing
+- [FIXED] **Real-time Synchronization**: Resolved stale data issues across POS, Self Checkout, and AI Chatbot systems
+- [FIXED] **API Pagination Limitation**: Fixed 50-item limit causing menu items to be invisible across all systems
+- [FIXED] **AbortController Memory Leaks**: Improved cleanup in fetch operations and refresh mechanisms
+- [FIXED] **Window Focus Refresh**: Added proper event listener management for real-time updates
+- [FIXED] **Response Format Handling**: Standardized handling of both array and paginated API responses
+- [FIXED] Export functionality timeout errors
+- [FIXED] Dashboard responsiveness on mobile devices
+- [FIXED] Real-time update conflicts during high traffic
+- [FIXED] Staff performance calculation inconsistencies
 
 #### Sprint 16 Bug Fixes (August 2025)
-- [FIXED] ✓ Mobile menu navigation edge cases
-- [FIXED] ✓ Touch gesture conflicts on tablets
-- [FIXED] ✓ Memory leaks in long-running sessions
-- [FIXED] ✓ Database connection pool optimization
-- [FIXED] ✓ Real-time update synchronization issues
-- [FIXED] ✓ Image loading optimization on slow connections
-- [FIXED] ✓ Form validation consistency across devices
-- [FIXED] ✓ Chart responsiveness on small screens
-- [FIXED] ✓ Authentication token refresh edge cases
-- [FIXED] ✓ Cross-browser compatibility issues
+- [FIXED] Mobile menu navigation edge cases
+- [FIXED] Touch gesture conflicts on tablets
+- [FIXED] Memory leaks in long-running sessions
+- [FIXED] Database connection pool optimization
+- [FIXED] Real-time update synchronization issues
+- [FIXED] Image loading optimization on slow connections
+- [FIXED] Form validation consistency across devices
+- [FIXED] Chart responsiveness on small screens
+- [FIXED] Authentication token refresh edge cases
+- [FIXED] Cross-browser compatibility issues
 
 #### Current Sprint Bug Fixes (August-September 2025)
-- [FIXED] ✓ JavaScript initialization error in DashboardMinimal.jsx (September 8, 2025)
-- [FIXED] ✓ PWD/Senior citizen discount calculation edge cases (September 2025)
-- [FIXED] ✓ Mobile self-checkout navigation and accessibility (September 2025)
-- [FIXED] ✓ Database connectivity false positives caused by frontend errors (September 2025)
-- [FIXED] ✓ React component variable hoisting issues (September 2025)
-- [FIXED] ✓ Mobile landing page responsiveness for AI chatbot (September 2025)
+- [FIXED] JavaScript initialization error in DashboardMinimal.jsx (September 8, 2025)
+- [FIXED] PWD/Senior citizen discount calculation edge cases (September 2025)
+- [FIXED] Mobile self-checkout navigation and accessibility (September 2025)
+- [FIXED] Database connectivity false positives caused by frontend errors (September 2025)
+- [FIXED] React component variable hoisting issues (September 2025)
+- [FIXED] Mobile landing page responsiveness for AI chatbot (September 2025)
 
 ### Legacy Bug Fixes (Earlier Sprints)
-- [FIXED] ✓ Expense disbursement permanent status reset issue (May 16, 2025)
-- [FIXED] ✓ POS payment processing React compatibility issue (May 16, 2025)
-- [FIXED] ✓ Pending order receipt display error (May 16, 2025)
-- [FIXED] ✓ POS payment method enhancements (May 16, 2025)
+- [FIXED] Expense disbursement permanent status reset issue (May 16, 2025)
+- [FIXED] POS payment processing React compatibility issue (May 16, 2025)
+- [FIXED] Pending order receipt display error (May 16, 2025)
+- [FIXED] POS payment method enhancements (May 16, 2025)
 
 ### Low Priority (Future Enhancements)
 - Dark mode for all interfaces
@@ -4826,13 +4877,13 @@ Story Points |
 ### Feature Completion Status
 
 #### Completed Features (100%)
-✅ **Authentication System**
+ **Authentication System**
 - User registration and login
 - JWT token management
 - Role-based access control
 - PIN-based staff authentication
 
-✅ **Point of Sale System**
+ **Point of Sale System**
 - Order creation and management
 - Pending order workflow
 - Payment processing (cash, card, e-wallet)
@@ -4842,21 +4893,21 @@ Story Points |
 - Mobile self-checkout interface
 - Dedicated mobile landing page
 
-✅ **Staff Management**
+ **Staff Management**
 - Complete CRUD operations
 - Termination and reactivation workflows
 - Profile picture management
 - Position hierarchy and permissions
 - Payroll integration
 
-✅ **Menu Management**
+ **Menu Management**
 - Menu item CRUD with image upload
 - Category and subcategory management
 - Modifier and add-on system
 - Pricing variations (multiple sizes)
 - Bulk operations
 
-✅ **AI Chatbot**
+ **AI Chatbot**
 - Gemini API integration
 - Natural language order processing
 - Menu browsing and recommendations
@@ -4865,26 +4916,26 @@ Story Points |
 - Mobile-optimized interface
 - Dedicated mobile landing page access
 
-✅ **Analytics Dashboard**
+ **Analytics Dashboard**
 - Real-time revenue tracking
 - Order analytics and reporting
 - Staff performance metrics
 - Inventory usage reports
 - Export functionality
 
-✅ **Kitchen Display**
+ **Kitchen Display**
 - Real-time order tracking
 - Timer and alert system
 - Status management workflow
 - Mobile-responsive interface
 
-✅ **Theme System**
+ **Theme System**
 - Centralized color management
 - Custom scrollbar variants
 - Responsive design system
 - Brand consistency
 
-✅ **Inventory System**
+ **Inventory System**
 - Stock level monitoring
 - Audit trail tracking
 - Usage analytics
@@ -4950,97 +5001,97 @@ Story Points |
 
 ### Legacy Issues (May 2025)
 1. **React Compatibility Fix**
-   - Resolved legacy ReactDOM.render calls that were incompatible with React 19
-   - Implemented modern createRoot API for better component lifecycle management
-   - Improved memory handling for receipt generation
+ - Resolved legacy ReactDOM.render calls that were incompatible with React 19
+ - Implemented modern createRoot API for better component lifecycle management
+ - Improved memory handling for receipt generation
 
 2. **Data Normalization**
-   - Added null checks for item properties in OrderItem component
-   - Implemented consistent data structure validation for order processing
-   - Enhanced type safety throughout the payment processing flow
+ - Added null checks for item properties in OrderItem component
+ - Implemented consistent data structure validation for order processing
+ - Enhanced type safety throughout the payment processing flow
 
 3. **Cron Job Optimization**
-   - Fixed logical bug in expense disbursement reset process
-   - Added proper filtering for permanent expense records
-   - Improved error handling and reporting for failed jobs
+ - Fixed logical bug in expense disbursement reset process
+ - Added proper filtering for permanent expense records
+ - Improved error handling and reporting for failed jobs
 
 ### Major Technical Debt Resolution (June-August 2025)
 
 #### Sprint 11-12 Technical Debt (June 2025)
 4. **State Management Refactoring**
-   - Refactored complex state management in PointofSale.jsx (1600+ lines)
-   - Implemented proper separation of concerns for order management
-   - Added comprehensive error boundaries and fallback states
-   - Enhanced component reusability and maintainability
+ - Refactored complex state management in PointofSale.jsx (1600+ lines)
+ - Implemented proper separation of concerns for order management
+ - Added comprehensive error boundaries and fallback states
+ - Enhanced component reusability and maintainability
 
 5. **Authentication System Overhaul**
-   - Redesigned authentication flow with JWT refresh tokens
-   - Implemented role-based access control with middleware
-   - Enhanced security with rate limiting and brute force protection
-   - Added comprehensive audit logging for security events
+ - Redesigned authentication flow with JWT refresh tokens
+ - Implemented role-based access control with middleware
+ - Enhanced security with rate limiting and brute force protection
+ - Added comprehensive audit logging for security events
 
 6. **Database Schema Optimization**
-   - Normalized database relationships for better performance
-   - Added proper indexing for frequently queried fields
-   - Implemented soft delete patterns for data integrity
-   - Enhanced validation rules and constraints
+ - Normalized database relationships for better performance
+ - Added proper indexing for frequently queried fields
+ - Implemented soft delete patterns for data integrity
+ - Enhanced validation rules and constraints
 
 #### Sprint 13-14 Technical Debt (July 2025)
 7. **Memory Management Improvements**
-   - Identified and fixed multiple memory leaks in React components
-   - Implemented proper cleanup in useEffect hooks
-   - Added memory monitoring and garbage collection optimization
-   - Enhanced performance for long-running sessions
+ - Identified and fixed multiple memory leaks in React components
+ - Implemented proper cleanup in useEffect hooks
+ - Added memory monitoring and garbage collection optimization
+ - Enhanced performance for long-running sessions
 
 8. **API Architecture Refactoring**
-   - Standardized API response formats across all endpoints
-   - Implemented comprehensive error handling middleware
-   - Added request/response logging and monitoring
-   - Enhanced input validation and sanitization
+ - Standardized API response formats across all endpoints
+ - Implemented comprehensive error handling middleware
+ - Added request/response logging and monitoring
+ - Enhanced input validation and sanitization
 
 9. **File Management System**
-   - Implemented secure file upload and deletion mechanisms
-   - Added proper file type validation and size limits
-   - Enhanced path security to prevent directory traversal
-   - Implemented automatic cleanup of orphaned files
+ - Implemented secure file upload and deletion mechanisms
+ - Added proper file type validation and size limits
+ - Enhanced path security to prevent directory traversal
+ - Implemented automatic cleanup of orphaned files
 
 #### Sprint 15-16 Technical Debt (August 2025)
 10. **Performance Optimization**
-    - Implemented lazy loading for large datasets
-    - Added virtual scrolling for menu and staff lists
-    - Optimized bundle size through code splitting
-    - Enhanced database query performance with caching
+ - Implemented lazy loading for large datasets
+ - Added virtual scrolling for menu and staff lists
+ - Optimized bundle size through code splitting
+ - Enhanced database query performance with caching
 
 11. **Cross-Browser Compatibility**
-    - Resolved browser-specific issues across Chrome, Firefox, Safari, Edge
-    - Implemented polyfills for older browser support
-    - Enhanced CSS compatibility with vendor prefixes
-    - Fixed JavaScript compatibility issues
+ - Resolved browser-specific issues across Chrome, Firefox, Safari, Edge
+ - Implemented polyfills for older browser support
+ - Enhanced CSS compatibility with vendor prefixes
+ - Fixed JavaScript compatibility issues
 
 12. **Mobile Responsiveness**
-    - Redesigned components for mobile-first approach
-    - Implemented touch-friendly interfaces throughout the application
-    - Fixed viewport and scaling issues on various devices
-    - Enhanced accessibility for mobile screen readers
+ - Redesigned components for mobile-first approach
+ - Implemented touch-friendly interfaces throughout the application
+ - Fixed viewport and scaling issues on various devices
+ - Enhanced accessibility for mobile screen readers
 
 #### Current Sprint Technical Debt (September 2025)
 13. **JavaScript Initialization Errors**
-    - Fixed temporal dead zone issues in React components
-    - Resolved variable hoisting problems in DashboardMinimal.jsx
-    - Improved component lifecycle management and state declaration patterns
-    - Enhanced error boundaries to catch initialization errors
+ - Fixed temporal dead zone issues in React components
+ - Resolved variable hoisting problems in DashboardMinimal.jsx
+ - Improved component lifecycle management and state declaration patterns
+ - Enhanced error boundaries to catch initialization errors
 
 14. **Mobile User Experience Optimization**
-    - Created dedicated mobile landing pages for key features
-    - Enhanced self-checkout mobile interface with improved touch targets
-    - Optimized AI chatbot access through mobile-first design patterns
-    - Improved responsive breakpoints for better device compatibility
+ - Created dedicated mobile landing pages for key features
+ - Enhanced self-checkout mobile interface with improved touch targets
+ - Optimized AI chatbot access through mobile-first design patterns
+ - Improved responsive breakpoints for better device compatibility
 
 15. **Discount System Reliability**
-    - Enhanced PWD/Senior citizen discount calculation algorithms
-    - Fixed edge cases in quantity-based discount applications
-    - Improved validation and error handling for discount scenarios
-    - Added comprehensive testing for discount calculation accuracy
+ - Enhanced PWD/Senior citizen discount calculation algorithms
+ - Fixed edge cases in quantity-based discount applications
+ - Improved validation and error handling for discount scenarios
+ - Added comprehensive testing for discount calculation accuracy
 
 ### Code Quality Improvements
 
@@ -5373,7 +5424,7 @@ The Menu Availability System was implemented to provide restaurant staff with re
 // Before: No availability filtering
 const items = await MenuItem.find().sort({ createdAt: -1 });
 
-// After: Availability filtering for ordering systems  
+// After: Availability filtering for ordering systems 
 const availableItems = await MenuItem.find({ isAvailable: true }).sort({ createdAt: -1 });
 ```
 
@@ -5415,9 +5466,9 @@ const availableItems = await MenuItem.find({ isAvailable: true }).sort({ created
 ```javascript
 // Backend API Response Format
 {
-  "items": [...],      // Array of menu items
-  "totalPages": 2,     // Pagination metadata
-  "currentPage": 1     // Current page number
+ "items": [...], // Array of menu items
+ "totalPages": 2, // Pagination metadata
+ "currentPage": 1 // Current page number
 }
 
 // Frontend Parsing (Fixed)
@@ -5436,24 +5487,24 @@ const validMenuItems = Array.isArray(menuData) ? menuData : (menuData.items || [
 ```javascript
 // Window Focus Refresh
 useEffect(() => {
-  const handleWindowFocus = () => {
-    fetchMenuData();
-  };
-  
-  window.addEventListener('focus', handleWindowFocus);
-  
-  return () => {
-    window.removeEventListener('focus', handleWindowFocus);
-  };
+ const handleWindowFocus = () => {
+ fetchMenuData();
+ };
+ 
+ window.addEventListener('focus', handleWindowFocus);
+ 
+ return () => {
+ window.removeEventListener('focus', handleWindowFocus);
+ };
 }, []);
 
 // Periodic Refresh
 useEffect(() => {
-  const intervalId = setInterval(() => {
-    fetchMenuData();
-  }, 30000); // 30 seconds
-  
-  return () => clearInterval(intervalId);
+ const intervalId = setInterval(() => {
+ fetchMenuData();
+ }, 30000); // 30 seconds
+ 
+ return () => clearInterval(intervalId);
 }, []);
 ```
 
@@ -5500,7 +5551,7 @@ useEffect(() => {
 
 ---
 
-### Sprint 15 (Sep 8 - Sep 11, 2025) [COMPLETED]
+### Sprint 19 (Sep 8 - Sep 11, 2025) [COMPLETED]
 **Sprint Goal:** Menu Availability System & Customer Alternatives
 **Story Points Completed:** 32/32
 
@@ -5547,7 +5598,7 @@ recommendedAlternative: { type: mongoose.Schema.Types.ObjectId, ref: 'MenuItem' 
 
 // Smart alternatives API with fallback logic
 getItemAlternatives: async (req, res) => {
-  // Same subcategory → same category → empty fallback
+ // Same subcategory → same category → empty fallback
 }
 ```
 
@@ -5571,11 +5622,11 @@ getItemAlternatives: async (req, res) => {
 - Proper error handling and state management
 
 **Critical Bug Fixes:**
-- [FIXED] ✓ Menu updates not reflecting in real-time across systems
-- [FIXED] ✓ New menu items disappearing on page refresh
-- [FIXED] ✓ Pagination limiting menu visibility to 50 items
-- [FIXED] ✓ Stale data issues causing sync problems
-- [FIXED] ✓ useEffect dependency array causing refresh failures
+- [FIXED] Menu updates not reflecting in real-time across systems
+- [FIXED] New menu items disappearing on page refresh
+- [FIXED] Pagination limiting menu visibility to 50 items
+- [FIXED] Stale data issues causing sync problems
+- [FIXED] useEffect dependency array causing refresh failures
 
 **Performance Metrics:**
 - Modal animation: 60fps smooth transitions
@@ -5594,15 +5645,15 @@ getItemAlternatives: async (req, res) => {
 **Burndown Chart:**
 ```
 Story Points |
-    32 |\
-       | \
-       |  \
-       |   \
-    16 |    \
-       |     \
-       |      \
-     0 |________\____
-       0   1   2   3 Days
+ 32 |\
+ | \
+ | \
+ | \
+ 16 | \
+ | \
+ | \
+ 0 |________\____
+ 0 1 2 3 Days
 ```
 
 **Retrospective Notes:**
@@ -5612,7 +5663,7 @@ Story Points |
 
 ---
 
-### Sprint 16 (Sep 11, 2025) [COMPLETED]
+### Sprint 20 (Sep 11, 2025) [COMPLETED]
 **Sprint Goal:** Sidebar UX Improvements & Navigation Enhancement
 **Story Points Completed:** 13/13
 
@@ -5638,10 +5689,10 @@ const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
 
 // Portal rendering outside sidebar container
 {hoveredItem && !isMobile && createPortal(
-  <div className="fixed bg-white rounded-md shadow-xl...">
-    {hoveredItem}
-  </div>,
-  document.body
+ <div className="fixed bg-white rounded-md shadow-xl...">
+ {hoveredItem}
+ </div>,
+ document.body
 )}
 ```
 
@@ -5659,12 +5710,12 @@ const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
 **Burndown Chart:**
 ```
 Story Points |
-    13 |\
-       | \
-       |  \____
-       |      \
-     0 |________\____
-       0   1   2   3 Hours
+ 13 |\
+ | \
+ | \____
+ | \
+ 0 |________\____
+ 0 1 2 3 Hours
 ```
 
 **Technical Achievements:**
@@ -5711,48 +5762,48 @@ Story Points |
 
 ---
 
-### Sprint 22 (Sep 12 - Sep 13, 2025)
+### Sprint 21 (Sep 12 - Sep 13, 2025)
 **Sprint Goal:** Database-Driven Category System Migration & Architecture Modernization
 **Story Points Completed:** 48/50
 
 **Key Deliverables:**
 - **Phase 1**: Database Foundation & Category Model Enhancement
-  - Enhanced MongoDB Category schema with stable sorting methods
-  - Implemented subcategory population from menu items
-  - Added comprehensive database connection health monitoring
-  
+ - Enhanced MongoDB Category schema with stable sorting methods
+ - Implemented subcategory population from menu items
+ - Added comprehensive database connection health monitoring
+ 
 - **Phase 2**: Backend API Architecture Overhaul
-  - Migrated categoryRoutes to pure database-driven approach
-  - Enhanced debug logging with emoji prefixes (🔧, 🎯, 🔍)
-  - Implemented efficient query caching and optimization
-  
+ - Migrated categoryRoutes to pure database-driven approach
+ - Enhanced debug logging with emoji prefixes (, , )
+ - Implemented efficient query caching and optimization
+ 
 - **Phase 3**: MenuManagement Component Migration
-  - Removed hard-coded MENU_CONFIG object dependencies
-  - Implemented dynamic category configuration from database
-  - Enhanced subcategory debugging and error handling
-  
+ - Removed hard-coded MENU_CONFIG object dependencies
+ - Implemented dynamic category configuration from database
+ - Enhanced subcategory debugging and error handling
+ 
 - **Phase 4**: SelfCheckout System Restoration
-  - Fixed white screen issues with comprehensive debugging
-  - Migrated to database-driven category loading
-  - Improved fallback category handling with proper subcategories
-  
+ - Fixed white screen issues with comprehensive debugging
+ - Migrated to database-driven category loading
+ - Improved fallback category handling with proper subcategories
+ 
 - **Phase 5**: Cross-Component Database Integration
-  - Updated PointofSale to maintain database-driven sorting
-  - Verified all components use consistent category ordering
-  - Implemented stable sorting algorithms across the system
-  
+ - Updated PointofSale to maintain database-driven sorting
+ - Verified all components use consistent category ordering
+ - Implemented stable sorting algorithms across the system
+ 
 - **Phase 6**: Final Cleanup & Architecture Purification
-  - Removed all hard-coded MENU_CONFIG and ADDONS_CONFIG references
-  - Migrated add-ons filtering to database-driven configuration
-  - Achieved 100% database-driven category management
+ - Removed all hard-coded MENU_CONFIG and ADDONS_CONFIG references
+ - Migrated add-ons filtering to database-driven configuration
+ - Achieved 100% database-driven category management
 
 **Architecture Migration Details:**
 
 **Before (Hard-coded System):**
 ```javascript
 const MENU_CONFIG = {
-  Beverages: { subCategories: { 'Coffee': { sizes: [...] } } },
-  Meals: { subCategories: { 'Breakfast All Day': { sizes: [] } } }
+ Beverages: { subCategories: { 'Coffee': { sizes: [...] } } },
+ Meals: { subCategories: { 'Breakfast All Day': { sizes: [] } } }
 };
 ```
 
@@ -5779,14 +5830,14 @@ const dynamicConfig = buildConfigFromDatabase(categories);
 **Database Schema Enhancement:**
 ```javascript
 const CategorySchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  sortOrder: { type: Number, required: true },
-  subCategories: [{
-    name: String,
-    sizes: [String],
-    addons: [String]
-  }],
-  isActive: { type: Boolean, default: true }
+ name: { type: String, required: true },
+ sortOrder: { type: Number, required: true },
+ subCategories: [{
+ name: String,
+ sizes: [String],
+ addons: [String]
+ }],
+ isActive: { type: Boolean, default: true }
 });
 ```
 
@@ -5798,24 +5849,24 @@ const CategorySchema = new mongoose.Schema({
 **Burndown Chart:**
 ```
 Story Points |
-    50 |\
-       | \____
-       |      \
-       |       \
-    25 |        \
-       |         \
-       |          \
-       |           \____
-     0 |________________\
-       0   0.5   1   1.5  Days
+ 50 |\
+ | \____
+ | \
+ | \
+ 25 | \
+ | \
+ | \
+ | \____
+ 0 |________________\
+ 0 0.5 1 1.5 Days
 ```
 
 **Component Status After Migration:**
-- ✅ **MenuManagement**: Pure database-driven, zero hard-coded dependencies
-- ✅ **SelfCheckout**: Restored functionality with database categories
-- ✅ **PointofSale**: Maintained stable sorting with database integration
-- ✅ **Backend APIs**: 100% database-driven with health monitoring
-- ✅ **Database**: Enhanced schema with automated subcategory population
+- **MenuManagement**: Pure database-driven, zero hard-coded dependencies
+- **SelfCheckout**: Restored functionality with database categories
+- **PointofSale**: Maintained stable sorting with database integration
+- **Backend APIs**: 100% database-driven with health monitoring
+- **Database**: Enhanced schema with automated subcategory population
 
 **Quality Assurance Results:**
 - **Database Queries**: Optimized with efficient caching
@@ -5826,26 +5877,26 @@ Story Points |
 
 **Retrospective Notes:**
 - **What went well:** 
-  - Seamless migration without system downtime
-  - Enhanced debugging capabilities accelerated problem resolution
-  - Database health monitoring prevented potential issues
-  - Team coordination on complex architecture changes
-  
+ - Seamless migration without system downtime
+ - Enhanced debugging capabilities accelerated problem resolution
+ - Database health monitoring prevented potential issues
+ - Team coordination on complex architecture changes
+ 
 - **Challenges Overcome:**
-  - Complex category scrambling issues resolved through stable sorting
-  - SelfCheckout white screen fixed via comprehensive debugging
-  - Hard-coded dependency removal required careful refactoring
-  
+ - Complex category scrambling issues resolved through stable sorting
+ - SelfCheckout white screen fixed via comprehensive debugging
+ - Hard-coded dependency removal required careful refactoring
+ 
 - **Technical Debt Eliminated:**
-  - Removed all hard-coded MENU_CONFIG objects
-  - Eliminated ADDONS_CONFIG dependencies
-  - Migrated to pure database-driven architecture
-  - Enhanced system maintainability and scalability
-  
+ - Removed all hard-coded MENU_CONFIG objects
+ - Eliminated ADDONS_CONFIG dependencies
+ - Migrated to pure database-driven architecture
+ - Enhanced system maintainability and scalability
+ 
 - **Action items for next sprint:**
-  - Clean up temporary debug logging statements
-  - Implement automated testing for category management
-  - Document new database-driven architecture patterns
+ - Clean up temporary debug logging statements
+ - Implement automated testing for category management
+ - Document new database-driven architecture patterns
 
 **Impact on System Architecture:**
 This sprint represents a fundamental architectural improvement, transforming the system from a hybrid hard-coded/database approach to a pure database-driven architecture. This migration enhances maintainability, scalability, and consistency across all components while eliminating technical debt from legacy hard-coded configurations.
@@ -5860,33 +5911,33 @@ This sprint represents a fundamental architectural improvement, transforming the
 
 **Main Entry File**
 - **SelfCheckout.jsx** (652 lines) - **CRITICAL ISSUE: LOGIC + UI MIXED**
-  - Role: Monolithic component containing all business logic and UI
-  - State Management: Multiple useState hooks for cart, menu, categories, search, loading, error, tabs
-  - API Endpoints: 3 major endpoints (menu, categories, orders)
-  - Cart Logic: Inline functions for addToOrder, updateQuantity, updateSize, calculateTotal
-  - **NO localStorage usage found** - Cart state lost on refresh
+ - Role: Monolithic component containing all business logic and UI
+ - State Management: Multiple useState hooks for cart, menu, categories, search, loading, error, tabs
+ - API Endpoints: 3 major endpoints (menu, categories, orders)
+ - Cart Logic: Inline functions for addToOrder, updateQuantity, updateSize, calculateTotal
+ - **NO localStorage usage found** - Cart state lost on refresh
 
 **Direct Dependencies**
-- **useAlternatives.js** (58 lines) - HOOK + LOGIC ✅ Good architecture
-- **AlternativesModal.jsx** (205 lines) - UI COMPONENT ✅ Pure UI component
+- **useAlternatives.js** (58 lines) - HOOK + LOGIC Good architecture
+- **AlternativesModal.jsx** (205 lines) - UI COMPONENT Pure UI component
 - **SelfCheckoutAIAssistant.jsx** (1038+ lines) - LOGIC + UI MIXED Another monolith
 - **App.jsx** (382 lines) - CONFIG + VIEWPORT DETECTION Primitive detection
 
-### 🔍 Architecture Issues Identified
+### Architecture Issues Identified
 
-**🔴 High Risk Issues**
+** High Risk Issues**
 - **Massive monolithic file:** SelfCheckout.jsx (652 lines) mixes UI and business logic
 - **No state persistence:** Cart state lost on page refresh (no localStorage)
 - **Inline mixed logic:** Cart calculations, API calls, and UI rendering in single component
 - **Primitive viewport detection:** Manual window.innerWidth tracking vs. modern breakpoint systems
 - **No layout abstractions:** Single responsive design, not hybrid layout ready
 
-**Medium Risk Issues**  
+**Medium Risk Issues** 
 - **Mobile-first design:** No desktop-specific layouts
 - **AI Assistant complexity:** SelfCheckoutAIAssistant.jsx (1038+ lines) needs coordination
 - **State management complexity:** Multiple useState hooks require provider pattern
 
-**✅ Low Risk Issues**
+** Low Risk Issues**
 - **Clean API separation:** API endpoints clearly defined
 - **Existing hook pattern:** useAlternatives shows good architecture to follow
 - **No User Agent sniffing:** Using window.innerWidth appropriately
@@ -5895,41 +5946,41 @@ This sprint represents a fundamental architectural improvement, transforming the
 
 **Phase 1: Logic Extraction** (PR-sized tasks)
 - Extract menu fetching logic → Create useMenu() hook
-- Extract cart state management → Create useCart() hook  
+- Extract cart state management → Create useCart() hook 
 - Extract order submission logic → Create useOrder() hook
-- ✅ Add cart persistence → Integrate localStorage in useCart
-- ✅ Create CartProvider → Centralize cart state management
+- Add cart persistence → Integrate localStorage in useCart
+- Create CartProvider → Centralize cart state management
 
 **Phase 2: Presentational Components**
-- ✅ Create MenuItem component → Extract item card JSX
-- ✅ Create CartItem component → Extract cart item JSX  
-- ✅ Create OrderSummary component → Extract checkout JSX
-- ✅ Create SearchBar component → Extract search input
+- Create MenuItem component → Extract item card JSX
+- Create CartItem component → Extract cart item JSX 
+- Create OrderSummary component → Extract checkout JSX
+- Create SearchBar component → Extract search input
 
-**Phase 3: Breakpoint System**  
-- ✅ Create useBreakpoint() hook → matchMedia-based Tailwind detection
-- ✅ Define breakpoint mapping → { mobile: '<768px', tablet: '768-1024px', desktop: '>1024px' }
-- ✅ Update App.jsx viewport detection → Replace window.innerWidth logic
+**Phase 3: Breakpoint System** 
+- Create useBreakpoint() hook → matchMedia-based Tailwind detection
+- Define breakpoint mapping → { mobile: '<768px', tablet: '768-1024px', desktop: '>1024px' }
+- Update App.jsx viewport detection → Replace window.innerWidth logic
 
 **Phase 4: Layout Layers**
-- ✅ Create MobileLayout component → Bottom tabs, bottom-sheet cart
-- ✅ Create TabletLayout component → Side-by-side menu/cart  
-- ✅ Create DesktopLayout component → Persistent sidebar, keyboard nav
-- ✅ Create LayoutSelector component → Breakpoint-based rendering
+- Create MobileLayout component → Bottom tabs, bottom-sheet cart
+- Create TabletLayout component → Side-by-side menu/cart 
+- Create DesktopLayout component → Persistent sidebar, keyboard nav
+- Create LayoutSelector component → Breakpoint-based rendering
 
-**Phase 5: Layout Integration**  
-- ✅ Refactor SelfCheckout main component → Remove UI, keep providers
-- ✅ Test cart state persistence → Verify across layout changes
-- ✅ Add desktop-specific features → Keyboard navigation, hover states
-- ✅ Preserve AI Assistant integration → Cross-layout compatibility
+**Phase 5: Layout Integration** 
+- Refactor SelfCheckout main component → Remove UI, keep providers
+- Test cart state persistence → Verify across layout changes
+- Add desktop-specific features → Keyboard navigation, hover states
+- Preserve AI Assistant integration → Cross-layout compatibility
 
 **Phase 6: Testing & Validation**
-- ✅ Add unit tests for hooks → useCart, useMenu, useBreakpoint
-- ✅ Add component tests → MenuItem, CartItem, OrderSummary contracts  
-- ✅ Add integration test → E2E order flow across layouts
-- ✅ Performance testing → No regressions with layout switching
+- Add unit tests for hooks → useCart, useMenu, useBreakpoint
+- Add component tests → MenuItem, CartItem, OrderSummary contracts 
+- Add integration test → E2E order flow across layouts
+- Performance testing → No regressions with layout switching
 
-### 📈 Refactoring Impact Assessment
+### Refactoring Impact Assessment
 
 **Before Refactoring:**
 - **Single monolithic component:** 652 lines of mixed concerns
@@ -5938,14 +5989,14 @@ This sprint represents a fundamental architectural improvement, transforming the
 - **Testing difficulty:** Logic embedded in UI components
 - **Maintenance burden:** Changes require touching multiple concerns
 
-**After Refactoring:**  
+**After Refactoring:** 
 - **Clean separation:** Logic hooks + UI components + Layout layers
 - **Responsive architecture:** Device-specific optimized layouts
 - **State persistence:** localStorage integration for cart survival
 - **Testable components:** Each hook and component independently testable
 - **Maintainable codebase:** Single responsibility principle throughout
 
-### 🏆 Key Achievements
+### Key Achievements
 
 **Technical Debt Elimination:**
 - **Monolithic decomposition:** 652-line component broken into focused units
@@ -5955,7 +6006,7 @@ This sprint represents a fundamental architectural improvement, transforming the
 
 **Code Quality Improvements:**
 - **Separation of concerns:** Business logic separated from presentation
-- **Reusability:** Components now reusable across different layouts  
+- **Reusability:** Components now reusable across different layouts 
 - **Testability:** Each unit independently testable with clear interfaces
 - **Performance:** Optimized re-renders and memory usage
 
@@ -5967,7 +6018,7 @@ This sprint represents a fundamental architectural improvement, transforming the
 
 ---
 
-### Sprint 14 (Sep 15, 2025 - Current)
+### Sprint 22 (Sep 15, 2025) [COMPLETED]
 **Sprint Goal:** AI Assistant Enhancement and Responsive Integration
 **Story Points Completed:** 38/40 [IN PROGRESS]
 
@@ -5980,19 +6031,19 @@ This sprint represents a fundamental architectural improvement, transforming the
 
 **Major Features Implemented:**
 - **Responsive AI Assistant Panel:** Complete replacement of SelfCheckoutAIAssistant with responsive floating design
-  - Mobile: Bottom sheet modal with smooth animations
-  - Tablet: Side drawer with toggle functionality  
-  - Desktop: Floating panel with hover effects
+ - Mobile: Bottom sheet modal with smooth animations
+ - Tablet: Side drawer with toggle functionality 
+ - Desktop: Floating panel with hover effects
 - **Enhanced Menu Suggestions:** Visual menu item cards with photos and smart descriptions
-  - Square thumbnails on left side of suggestions
-  - Expandable descriptions with character limits (35 chars)
-  - Photo hiding when descriptions are expanded
-  - Automatic scrolling animation for long menu titles
+ - Square thumbnails on left side of suggestions
+ - Expandable descriptions with character limits (35 chars)
+ - Photo hiding when descriptions are expanded
+ - Automatic scrolling animation for long menu titles
 - **Full AI Integration:** Complete Gemini AI functionality preserved from original component
-  - Natural language processing for menu queries
-  - Context-aware menu recommendations
-  - System alternatives for unavailable items
-  - Initial popular item suggestions on load
+ - Natural language processing for menu queries
+ - Context-aware menu recommendations
+ - System alternatives for unavailable items
+ - Initial popular item suggestions on load
 
 **Technical Improvements:**
 - **Component Architecture:** Clean separation of concerns between layout and AI functionality
@@ -6003,19 +6054,19 @@ This sprint represents a fundamental architectural improvement, transforming the
 - **Performance Optimization:** Proper memoization and efficient re-renders
 
 **Bug Fixes Completed:**
-- [FIXED] ✓ `onAddToCart` prop passing errors between layout components
-- [FIXED] ✓ ChatMessage PropTypes syntax errors and duplicate declarations  
-- [FIXED] ✓ Image path inconsistencies (`imagePath` vs `image` field)
-- [FIXED] ✓ Container sizing issues with menu suggestions
-- [FIXED] ✓ Text overflow problems in expanded descriptions
-- [FIXED] ✓ Animation conflicts in responsive transitions
+- [FIXED] `onAddToCart` prop passing errors between layout components
+- [FIXED] ChatMessage PropTypes syntax errors and duplicate declarations 
+- [FIXED] Image path inconsistencies (`imagePath` vs `image` field)
+- [FIXED] Container sizing issues with menu suggestions
+- [FIXED] Text overflow problems in expanded descriptions
+- [FIXED] Animation conflicts in responsive transitions
 
 **UI/UX Enhancements:**
 - **Visual Consistency:** All menu containers maintain standard size until expanded
 - **Interactive Elements:** 
-  - Hover effects on menu suggestion cards
-  - Smooth photo transitions when expanding/collapsing
-  - Automatic title scrolling for long menu names
+ - Hover effects on menu suggestion cards
+ - Smooth photo transitions when expanding/collapsing
+ - Automatic title scrolling for long menu names
 - **Accessibility:** Proper ARIA labels and keyboard navigation support
 - **Responsive Behavior:** Seamless experience across all device breakpoints
 
@@ -6039,16 +6090,16 @@ This sprint represents a fundamental architectural improvement, transforming the
 **Burndown Chart:**
 ```
 Story Points |
-    40 |\
-       | \
-       |  \
-       |   \
-    20 |    \
-       |     \
-       |      \
-       |       \
-     2 |        \___
-       0   1   2  Days
+ 40 |\
+ | \
+ | \
+ | \
+ 20 | \
+ | \
+ | \
+ | \
+ 2 | \___
+ 0 1 2 Days
 ```
 
 **Retrospective Notes:**
@@ -6059,7 +6110,7 @@ Story Points |
 
 ---
 
-### Sprint 24 (Sep 16-17, 2025)
+### Sprint 23 (Sep 16-17, 2025) [COMPLETED]
 **Sprint Goal:** Database stability & Performance optimization
 **Story Points Completed:** 45/48
 
@@ -6074,111 +6125,111 @@ Story Points |
 - **Issue:** Connection shutdowns during ingredient mapping transactions: "pls fix this first, im getting tired of this every transaction with mapping of ingredient leads to my data connection getting shut downed"
 - **Root Cause:** Aggressive connection monitoring and bulk insertMany operations conflicting with unique indexes
 - **Solution Implemented:**
-  ```javascript
-  // Updated db.js connection settings
-  const mongooseOptions = {
-    maxPoolSize: 10,        // Reduced from 15
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
-    bufferMaxEntries: 0,
-    bufferCommands: false,
-    // Removed aggressive ping monitoring
-  };
-  ```
+ ```javascript
+ // Updated db.js connection settings
+ const mongooseOptions = {
+ maxPoolSize: 10, // Reduced from 15
+ serverSelectionTimeoutMS: 5000,
+ socketTimeoutMS: 45000,
+ bufferMaxEntries: 0,
+ bufferCommands: false,
+ // Removed aggressive ping monitoring
+ };
+ ```
 
 **2. Ingredient Mapping System Fixes:**
 - **Bulk Operation Rewrite:** Replaced `insertMany()` with individual `save()` operations to handle unique constraint violations
-  ```javascript
-  // Before: insertMany causing crashes
-  const savedMappings = await MenuItemIngredient.insertMany(mappingsToCreate);
-  
-  // After: Individual saves with error handling  
-  const savedMappings = [];
-  for (const mapping of mappingsToCreate) {
-    try {
-      const saved = await new MenuItemIngredient(mapping).save();
-      savedMappings.push(saved);
-    } catch (error) {
-      if (error.code === 11000) continue; // Skip duplicates
-      throw error;
-    }
-  }
-  ```
+ ```javascript
+ // Before: insertMany causing crashes
+ const savedMappings = await MenuItemIngredient.insertMany(mappingsToCreate);
+ 
+ // After: Individual saves with error handling 
+ const savedMappings = [];
+ for (const mapping of mappingsToCreate) {
+ try {
+ const saved = await new MenuItemIngredient(mapping).save();
+ savedMappings.push(saved);
+ } catch (error) {
+ if (error.code === 11000) continue; // Skip duplicates
+ throw error;
+ }
+ }
+ ```
 
 **3. Ingredient Removal Debugging:**
 - **Enhanced removeMapping Function:** Added comprehensive logging to track deletion failures
-  ```javascript
-  const removeMapping = async (mappingId) => {
-    console.log('🔍 Starting removal for mapping ID:', mappingId);
-    console.log('📋 Current mappings:', mappings);
-    
-    const mapping = mappings.find(m => m._id === mappingId);
-    console.log('Found mapping to remove:', mapping);
-    
-    try {
-      const response = await fetch(`/api/ingredients/mappings/${mappingId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      console.log('API Response status:', response.status);
-      console.log('API Response data:', await response.json());
-      
-      if (response.ok) {
-        setMappings(prev => prev.filter(m => m._id !== mappingId));
-        console.log('Successfully removed from local state');
-      }
-    } catch (error) {
-      console.error('Removal failed:', error);
-    }
-  };
-  ```
+ ```javascript
+ const removeMapping = async (mappingId) => {
+ console.log(' Starting removal for mapping ID:', mappingId);
+ console.log(' Current mappings:', mappings);
+ 
+ const mapping = mappings.find(m => m._id === mappingId);
+ console.log('Found mapping to remove:', mapping);
+ 
+ try {
+ const response = await fetch(`/api/ingredients/mappings/${mappingId}`, {
+ method: 'DELETE',
+ headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+ });
+ console.log('API Response status:', response.status);
+ console.log('API Response data:', await response.json());
+ 
+ if (response.ok) {
+ setMappings(prev => prev.filter(m => m._id !== mappingId));
+ console.log('Successfully removed from local state');
+ }
+ } catch (error) {
+ console.error('Removal failed:', error);
+ }
+ };
+ ```
 
 **4. Performance Optimization - REQUEST FLOODING CRISIS:**
 - **Critical Discovery:** Frontend realtime monitoring was flooding server with 50+ simultaneous requests every few seconds
 - **Symptoms:** 
-  - "Failed to fetch" errors during ingredient mapping
-  - Database appearing to "drop connections" 
-  - Server overwhelmed with identical requests
+ - "Failed to fetch" errors during ingredient mapping
+ - Database appearing to "drop connections" 
+ - Server overwhelmed with identical requests
 - **Root Cause Analysis:**
-  ```javascript
-  // PROBLEMATIC: Multiple components polling simultaneously
-  MenuManagement.jsx: setInterval(fetchData, 120000)     // Every 2 mins
-  InventoryAlertsPanel: setInterval(fetchAlerts, 30000)   // Every 30 secs  
-  ReservationPanel: setInterval(fetchReservations, 30000) // Every 30 secs
-  PointofSale: setInterval(fetchActiveOrders, 5000)       // Every 5 secs!
-  useInventoryAvailability: setInterval(refresh, 120000)  // Every 2 mins
-  ConnectionMonitor: setInterval(checkConnection, 30000)  // Every 30 secs
-  ```
+ ```javascript
+ // PROBLEMATIC: Multiple components polling simultaneously
+ MenuManagement.jsx: setInterval(fetchData, 120000) // Every 2 mins
+ InventoryAlertsPanel: setInterval(fetchAlerts, 30000) // Every 30 secs 
+ ReservationPanel: setInterval(fetchReservations, 30000) // Every 30 secs
+ PointofSale: setInterval(fetchActiveOrders, 5000) // Every 5 secs!
+ useInventoryAvailability: setInterval(refresh, 120000) // Every 2 mins
+ ConnectionMonitor: setInterval(checkConnection, 30000) // Every 30 secs
+ ```
 - **SOLUTION - Smart Caching & Throttling:**
-  ```javascript
-  // Smart availability checking with cache
-  const itemsToCheck = menuItemIds.filter(itemId => {
-    const lastChecked = itemAvailability[itemId];
-    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
-    return !lastChecked || (now - lastChecked.timestamp) > CACHE_DURATION;
-  });
-  
-  // Reduced batch processing: 3 items per batch, 2 second delays
-  for (let i = 0; i < itemsToCheck.length; i += 3) {
-    setTimeout(() => {
-      batch.forEach(itemId => {
-        checkMenuItemAvailability(itemId);
-        fetchCostAnalysis(itemId);
-      });
-    }, (i / 3) * 2000);
-  }
-  ```
+ ```javascript
+ // Smart availability checking with cache
+ const itemsToCheck = menuItemIds.filter(itemId => {
+ const lastChecked = itemAvailability[itemId];
+ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+ return !lastChecked || (now - lastChecked.timestamp) > CACHE_DURATION;
+ });
+ 
+ // Reduced batch processing: 3 items per batch, 2 second delays
+ for (let i = 0; i < itemsToCheck.length; i += 3) {
+ setTimeout(() => {
+ batch.forEach(itemId => {
+ checkMenuItemAvailability(itemId);
+ fetchCostAnalysis(itemId);
+ });
+ }, (i / 3) * 2000);
+ }
+ ```
 - **Results:** Database connection stabilized, "Failed to fetch" errors eliminated
 
 **Database Schema Improvements:**
 ```javascript
 // MenuItemIngredient compound index for uniqueness
 {
-  menuItemId: ObjectId,
-  ingredientId: ObjectId,
-  quantity: Number,
-  unit: String,
-  isActive: Boolean
+ menuItemId: ObjectId,
+ ingredientId: ObjectId,
+ quantity: Number,
+ unit: String,
+ isActive: Boolean
 }
 // Unique compound index: { menuItemId: 1, ingredientId: 1 }
 ```
@@ -6190,12 +6241,12 @@ Story Points |
 - `GET /api/menu/cost-analysis/:id` - Added caching and fallback handling
 
 **Bug Fixes Completed:**
-- [FIXED] ✓ Database connections crashing during ingredient mapping bulk operations
-- [FIXED] ✓ MenuItemIngredient insertMany failures with unique compound indexes  
-- [FIXED] ✓ Excessive realtime API polling overwhelming server connections
-- [FIXED] ✓ Ingredient removal not working despite proper API implementation
-- [FIXED] ✓ Connection timeout issues during bulk database operations
-- [FIXED] ✓ Duplicate query conditions in ingredient lookup functions
+- [FIXED] Database connections crashing during ingredient mapping bulk operations
+- [FIXED] MenuItemIngredient insertMany failures with unique compound indexes 
+- [FIXED] Excessive realtime API polling overwhelming server connections
+- [FIXED] Ingredient removal not working despite proper API implementation
+- [FIXED] Connection timeout issues during bulk database operations
+- [FIXED] Duplicate query conditions in ingredient lookup functions
 
 **System Stability Improvements:**
 - **Connection Pooling:** Optimized MongoDB connection pool settings for stability
@@ -6205,7 +6256,7 @@ Story Points |
 
 **Code Quality Enhancements:**
 - **Error Logging:** Comprehensive debugging logs for ingredient mapping operations
-- **Transaction Safety:** Individual save operations preventing bulk operation crashes  
+- **Transaction Safety:** Individual save operations preventing bulk operation crashes 
 - **API Optimization:** Eliminated redundant database queries and excessive polling
 - **Connection Management:** Simplified database configuration for better stability
 
@@ -6229,14 +6280,14 @@ During debugging what appeared to be "database connection drops," we discovered 
 **The Polling Storm Identified:**
 ```javascript
 // DANGEROUS: Multiple components polling simultaneously
-PointofSale.jsx:        setInterval(fetchActiveOrders, 5000)     // Every 5s
-InventoryAlerts:        setInterval(fetchAlerts, 30000)          // Every 30s  
-ReservationPanel:       setInterval(fetchReservations, 30000)    // Every 30s
-MenuManagement:         setInterval(fetchData, 120000)           // Every 2m
-useInventoryAvailability: setInterval(refreshAll, 120000)       // Every 2m
-ConnectionMonitor:      setInterval(checkConnection, 30000)      // Every 30s
-useMenu.js:             setInterval(refreshMenu, 30000)          // Every 30s
-Chatbot.jsx:            setInterval(refreshMenuData, 30000)      // Every 30s
+PointofSale.jsx: setInterval(fetchActiveOrders, 5000) // Every 5s
+InventoryAlerts: setInterval(fetchAlerts, 30000) // Every 30s 
+ReservationPanel: setInterval(fetchReservations, 30000) // Every 30s
+MenuManagement: setInterval(fetchData, 120000) // Every 2m
+useInventoryAvailability: setInterval(refreshAll, 120000) // Every 2m
+ConnectionMonitor: setInterval(checkConnection, 30000) // Every 30s
+useMenu.js: setInterval(refreshMenu, 30000) // Every 30s
+Chatbot.jsx: setInterval(refreshMenuData, 30000) // Every 30s
 ```
 **Total: 8 different polling intervals running simultaneously = Request flood**
 
@@ -6244,20 +6295,20 @@ Chatbot.jsx:            setInterval(refreshMenuData, 30000)      // Every 30s
 ```javascript
 // SOLUTION: Smart caching prevents redundant requests
 const itemsToCheck = menuItemIds.filter(itemId => {
-  const lastChecked = itemAvailability[itemId];
-  const CACHE_DURATION = 5 * 60 * 1000; // 5 minute cache
-  return !lastChecked || (now - lastChecked.timestamp) > CACHE_DURATION;
+ const lastChecked = itemAvailability[itemId];
+ const CACHE_DURATION = 5 * 60 * 1000; // 5 minute cache
+ return !lastChecked || (now - lastChecked.timestamp) > CACHE_DURATION;
 });
 
 // Smaller batches with longer delays prevent flooding
 for (let i = 0; i < itemsToCheck.length; i += 3) { // 3 items per batch
-  setTimeout(() => { processItems(batch); }, (i/3) * 2000); // 2s delays
+ setTimeout(() => { processItems(batch); }, (i/3) * 2000); // 2s delays
 }
 ```
 
 **Critical Takeaway for Future Development:**
 - **Always audit ALL polling intervals** across entire frontend codebase
-- **Implement centralized polling management** to prevent conflicts  
+- **Implement centralized polling management** to prevent conflicts 
 - **Use caching to prevent redundant API calls**
 - **"Connection issues" may actually be request flooding**
 - **Monitor network tab during debugging** to identify request patterns
@@ -6266,34 +6317,34 @@ for (let i = 0; i < itemsToCheck.length; i += 3) { // 3 items per batch
 **Burndown Chart:**
 ```
 Story Points |
-    48 |\
-       | \
-       |  \
-       |   \
-    24 |    \
-       |     \
-       |      \
-       |       \
-     3 |        \___
-       0   1   2  Days
+ 48 |\
+ | \
+ | \
+ | \
+ 24 | \
+ | \
+ | \
+ | \
+ 3 | \___
+ 0 1 2 Days
 ```
 
 **Retrospective Notes:**
 - **What went well:** Successful identification and resolution of database stability issues
 - **Challenges:** Balancing performance optimization with system stability
 - **Lessons learned:** 
-  - Aggressive connection monitoring can destabilize database connections
-  - Bulk operations require careful handling of unique constraints
-  - Realtime polling can overwhelm system resources if not properly throttled
+ - Aggressive connection monitoring can destabilize database connections
+ - Bulk operations require careful handling of unique constraints
+ - Realtime polling can overwhelm system resources if not properly throttled
 - **Action items:** 
-  - Continue monitoring database connection stability
-  - Implement proper caching for frequently accessed data
-  - Consider implementing WebSocket connections for realtime features
+ - Continue monitoring database connection stability
+ - Implement proper caching for frequently accessed data
+ - Consider implementing WebSocket connections for realtime features
 
 ---
 
-### Sprint 17 (Oct 2, 2025) [COMPLETED]
-**Sprint Goal:** Menu Availability Toggle Optimization & Database Connection Stability  
+### Sprint 24 (Oct 2, 2025) [COMPLETED]
+**Sprint Goal:** Menu Availability Toggle Optimization & Database Connection Stability 
 **Story Points Completed:** 8/8
 
 **Key Deliverables:**
@@ -6330,23 +6381,23 @@ When toggling menu item availability in Menu Management, users experienced datab
 ```javascript
 // Backend: Lightweight endpoint
 router.patch('/:id/availability', rateLimitMiddleware, lightCheck, async (req, res) => {
-  const updatedItem = await MenuItem.findByIdAndUpdate(
-    id,
-    { $set: { isAvailable } },
-    { new: true, select: '_id name isAvailable' }
-  );
-  // Returns minimal data only
+ const updatedItem = await MenuItem.findByIdAndUpdate(
+ id,
+ { $set: { isAvailable } },
+ { new: true, select: '_id name isAvailable' }
+ );
+ // Returns minimal data only
 });
 
 // Frontend: Debounced toggle
 const toggleAvailabilityDebounced = useCallback(
-  debounce(async (itemId, newAvailability) => {
-    await fetch(`/api/menu/${itemId}/availability`, {
-      method: 'PATCH',
-      body: JSON.stringify({ isAvailable: newAvailability })
-    });
-  }, 500), // 500ms debounce
-  [selectedItem, setMenuItems, reset]
+ debounce(async (itemId, newAvailability) => {
+ await fetch(`/api/menu/${itemId}/availability`, {
+ method: 'PATCH',
+ body: JSON.stringify({ isAvailable: newAvailability })
+ });
+ }, 500), // 500ms debounce
+ [selectedItem, setMenuItems, reset]
 );
 ```
 
@@ -6357,10 +6408,10 @@ const toggleAvailabilityDebounced = useCallback(
 - **Stability**: Zero connection losses in stress testing
 
 **Bug Fixes:**
-- [FIXED] ✓ Database connection loss on rapid availability toggling
-- [FIXED] ✓ `ReferenceError: Cannot access 'rateLimitMiddleware' before initialization`
-- [FIXED] ✓ Full form submission on simple field updates
-- [FIXED] ✓ No protection against request flooding
+- [FIXED] Database connection loss on rapid availability toggling
+- [FIXED] `ReferenceError: Cannot access 'rateLimitMiddleware' before initialization`
+- [FIXED] Full form submission on simple field updates
+- [FIXED] No protection against request flooding
 
 **Quality Assurance:**
 - Stress tested with rapid toggling (10+ clicks/second)
@@ -6376,12 +6427,12 @@ const toggleAvailabilityDebounced = useCallback(
 **Burndown Chart:**
 ```
 Story Points |
-     8 |\
-       | \__
-       |    \
-       |     \
-     0 |______\____
-       0   1 Day
+ 8 |\
+ | \__
+ | \
+ | \
+ 0 |______\____
+ 0 1 Day
 ```
 
 **Retrospective Notes:**
@@ -6392,8 +6443,8 @@ Story Points |
 
 ---
 
-### Sprint 18 (Oct 3, 2025) [COMPLETED]
-**Sprint Goal:** POS Inventory Integration - Automatic Ingredient Deduction  
+### Sprint 25 (Oct 3, 2025) [COMPLETED]
+**Sprint Goal:** POS Inventory Integration - Automatic Ingredient Deduction 
 **Story Points Completed:** 13/13
 
 **Key Deliverables:**
@@ -6408,24 +6459,24 @@ The system had a complete ingredient mapping infrastructure (MenuItemIngredient 
 
 **Root Cause Analysis:**
 1. **Missing Integration Points:**
-   - POS checkout didn't call inventory reservation API
-   - Order completion didn't trigger consumption hooks
-   - Frontend had no connection to backend reservation services
+ - POS checkout didn't call inventory reservation API
+ - Order completion didn't trigger consumption hooks
+ - Frontend had no connection to backend reservation services
 
 2. **MongoDB Transaction Issues:**
-   - Code used `session.startTransaction()` on standalone MongoDB (requires replica set)
-   - All transaction-dependent operations failed silently
-   - No fallback for non-transactional environments
+ - Code used `session.startTransaction()` on standalone MongoDB (requires replica set)
+ - All transaction-dependent operations failed silently
+ - No fallback for non-transactional environments
 
 3. **Schema Mismatch:**
-   - Code tried updating `ingredient.currentStock` and `ingredient.quantity` fields
-   - Actual schema uses `inventory` array with batches containing `quantity`
-   - Updates were targeting non-existent fields
+ - Code tried updating `ingredient.currentStock` and `ingredient.quantity` fields
+ - Actual schema uses `inventory` array with batches containing `quantity`
+ - Updates were targeting non-existent fields
 
 4. **Stub Implementation:**
-   - `consumeFromBatches()` method was placeholder returning mock data
-   - No actual batch quantity updates occurring
-   - Inventory batches remained unchanged after consumption
+ - `consumeFromBatches()` method was placeholder returning mock data
+ - No actual batch quantity updates occurring
+ - Inventory batches remained unchanged after consumption
 
 **Solution Implemented:**
 
@@ -6433,20 +6484,20 @@ The system had a complete ingredient mapping infrastructure (MenuItemIngredient 
 ```javascript
 // PointofSale.jsx - Added reservation calls in payment processing
 const processPayment = async () => {
-  // 1. Create order
-  const newOrder = await fetch('/api/orders', { method: 'POST', body: orderData });
-  
-  // 2. Reserve inventory immediately
-  await fetch('/api/inventory/reserve', {
-    method: 'POST',
-    body: JSON.stringify({
-      orderId: newOrder._id,
-      items: cart.map(item => ({
-        menuItemId: item._id,
-        quantity: item.quantity
-      }))
-    })
-  });
+ // 1. Create order
+ const newOrder = await fetch('/api/orders', { method: 'POST', body: orderData });
+ 
+ // 2. Reserve inventory immediately
+ await fetch('/api/inventory/reserve', {
+ method: 'POST',
+ body: JSON.stringify({
+ orderId: newOrder._id,
+ items: cart.map(item => ({
+ menuItemId: item._id,
+ quantity: item.quantity
+ }))
+ })
+ });
 };
 ```
 
@@ -6454,13 +6505,13 @@ const processPayment = async () => {
 ```javascript
 // orderRoutes.js - Added inventory consumption on order completion
 router.patch('/:id', async (req, res) => {
-  if (req.body.status === 'completed') {
-    // Consume reserved inventory
-    await InventoryBusinessLogicService.completeOrderProcessing(
-      orderId,
-      req.user.id
-    );
-  }
+ if (req.body.status === 'completed') {
+ // Consume reserved inventory
+ await InventoryBusinessLogicService.completeOrderProcessing(
+ orderId,
+ req.user.id
+ );
+ }
 });
 ```
 
@@ -6468,20 +6519,20 @@ router.patch('/:id', async (req, res) => {
 ```javascript
 // inventoryReservationService.js - Added dynamic transaction support
 static async supportsTransactions() {
-  const adminDb = mongoose.connection.db.admin();
-  const serverInfo = await adminDb.serverStatus();
-  const isReplicaSet = serverInfo.repl && serverInfo.repl.setName;
-  return isReplicaSet;
+ const adminDb = mongoose.connection.db.admin();
+ const serverInfo = await adminDb.serverStatus();
+ const isReplicaSet = serverInfo.repl && serverInfo.repl.setName;
+ return isReplicaSet;
 }
 
 // Use conditional session handling
 const supportsTransactions = await this.supportsTransactions();
 if (supportsTransactions) {
-  const session = await mongoose.startSession();
-  await session.withTransaction(async () => { /* operations */ });
+ const session = await mongoose.startSession();
+ await session.withTransaction(async () => { /* operations */ });
 } else {
-  // Direct operations without session
-  await Model.findByIdAndUpdate(...);
+ // Direct operations without session
+ await Model.findByIdAndUpdate(...);
 }
 ```
 
@@ -6489,44 +6540,44 @@ if (supportsTransactions) {
 ```javascript
 // Implemented proper batch consumption logic
 static async consumeFromBatches(ingredient, quantityToConsume, reservedBatches, session) {
-  let remainingToConsume = quantityToConsume;
-  
-  // Sort by expiration date (FIFO - oldest first)
-  const sortedBatches = [...ingredient.inventory].sort((a, b) => 
-    new Date(a.expirationDate) - new Date(b.expirationDate)
-  );
-  
-  for (const batch of sortedBatches) {
-    if (remainingToConsume <= 0) break;
-    
-    const consumeFromThisBatch = Math.min(batch.quantity, remainingToConsume);
-    batch.quantity -= consumeFromThisBatch;
-    remainingToConsume -= consumeFromThisBatch;
-  }
-  
-  // Remove empty batches
-  ingredient.inventory = ingredient.inventory.filter(b => b.quantity > 0);
-  await ingredient.save();
+ let remainingToConsume = quantityToConsume;
+ 
+ // Sort by expiration date (FIFO - oldest first)
+ const sortedBatches = [...ingredient.inventory].sort((a, b) => 
+ new Date(a.expirationDate) - new Date(b.expirationDate)
+ );
+ 
+ for (const batch of sortedBatches) {
+ if (remainingToConsume <= 0) break;
+ 
+ const consumeFromThisBatch = Math.min(batch.quantity, remainingToConsume);
+ batch.quantity -= consumeFromThisBatch;
+ remainingToConsume -= consumeFromThisBatch;
+ }
+ 
+ // Remove empty batches
+ ingredient.inventory = ingredient.inventory.filter(b => b.quantity > 0);
+ await ingredient.save();
 }
 ```
 
 **Technical Challenges & Solutions:**
 
 1. **ObjectId Validation Errors:**
-   - **Problem:** `modifiedBy: 'system'` rejected by Mongoose (expects ObjectId or null)
-   - **Solution:** Changed to `modifiedBy: userId || null` with validation check
+ - **Problem:** `modifiedBy: 'system'` rejected by Mongoose (expects ObjectId or null)
+ - **Solution:** Changed to `modifiedBy: userId || null` with validation check
 
 2. **Field Name Discovery:**
-   - **Problem:** Used `ingredient.quantity` but schema has no root-level quantity field
-   - **Solution:** Discovered `inventory[]` array with batches, each containing `quantity`
+ - **Problem:** Used `ingredient.quantity` but schema has no root-level quantity field
+ - **Solution:** Discovered `inventory[]` array with batches, each containing `quantity`
 
 3. **Virtual Field Calculation:**
-   - **Problem:** `totalQuantity` is virtual field, not persisted in database
-   - **Solution:** Calculate total from `inventory.reduce((sum, b) => sum + b.quantity, 0)`
+ - **Problem:** `totalQuantity` is virtual field, not persisted in database
+ - **Solution:** Calculate total from `inventory.reduce((sum, b) => sum + b.quantity, 0)`
 
 4. **Audit Trail Non-Critical:**
-   - **Problem:** Audit trail failures blocking inventory updates
-   - **Solution:** Wrapped in try/catch, logged errors but allowed process to continue
+ - **Problem:** Audit trail failures blocking inventory updates
+ - **Solution:** Wrapped in try/catch, logged errors but allowed process to continue
 
 **Performance & Data Integrity:**
 - FIFO consumption ensures oldest ingredients used first
@@ -6536,12 +6587,12 @@ static async consumeFromBatches(ingredient, quantityToConsume, reservedBatches, 
 - Graceful degradation without transactions
 
 **Bug Fixes:**
-- [FIXED] ✓ POS orders not deducting ingredients from inventory
-- [FIXED] ✓ MongoDB transaction errors on standalone instance
-- [FIXED] ✓ Schema field mismatch (currentStock vs inventory batches)
-- [FIXED] ✓ Stub consumeFromBatches() implementation not updating batches
-- [FIXED] ✓ ObjectId validation errors for system-generated updates
-- [FIXED] ✓ Audit trail failures blocking consumption process
+- [FIXED] POS orders not deducting ingredients from inventory
+- [FIXED] MongoDB transaction errors on standalone instance
+- [FIXED] Schema field mismatch (currentStock vs inventory batches)
+- [FIXED] Stub consumeFromBatches() implementation not updating batches
+- [FIXED] ObjectId validation errors for system-generated updates
+- [FIXED] Audit trail failures blocking consumption process
 
 **Testing Results:**
 ```
@@ -6573,33 +6624,33 @@ After Fix:
 **Burndown Chart:**
 ```
 Story Points |
-    13 |\
-       | \
-       |  \___
-       |      \
-       |       \
-     0 |________\__
-       0   1 Day
+ 13 |\
+ | \
+ | \___
+ | \
+ | \
+ 0 |________\__
+ 0 1 Day
 ```
 
 **Retrospective Notes:**
 - **What went well:** Systematic debugging approach, comprehensive logging revealed exact issues
 - **Challenges:** Multiple interconnected issues (transactions, schema, stub code) required iterative fixes
 - **Lessons learned:** 
-  - Always verify database schema matches code assumptions
-  - Check for stub/placeholder implementations in inherited codebases
-  - MongoDB transactions require replica sets - add detection logic
-  - Virtual fields cannot be directly updated
+ - Always verify database schema matches code assumptions
+ - Check for stub/placeholder implementations in inherited codebases
+ - MongoDB transactions require replica sets - add detection logic
+ - Virtual fields cannot be directly updated
 - **Action items:** 
-  - Document inventory system architecture for future reference
-  - Add integration tests for POS → inventory flow
-  - Consider implementing reservation expiration/cleanup
-  - Add UI notifications for low stock alerts
+ - Document inventory system architecture for future reference
+ - Add integration tests for POS → inventory flow
+ - Consider implementing reservation expiration/cleanup
+ - Add UI notifications for low stock alerts
 
 ---
 
-### Sprint 18 Extension (Oct 3, 2025) [COMPLETED]
-**Sprint Goal:** Inventory System UI Cleanup & Reservation Visibility  
+### Sprint 25 Extension (Oct 3, 2025) [COMPLETED]
+**Sprint Goal:** Inventory System UI Cleanup & Reservation Visibility 
 **Story Points Completed:** 8/8
 
 **Key Deliverables:**
@@ -6634,33 +6685,33 @@ After completing Sprint 18's POS inventory integration, two critical UI issues r
 ```javascript
 // BEFORE - Stub returning mock data
 static async getActiveReservations() {
-  return {
-    success: true,
-    data: { active: [], message: 'No active reservations (test mode)' }
-  };
+ return {
+ success: true,
+ data: { active: [], message: 'No active reservations (test mode)' }
+ };
 }
 
 // AFTER - Real database query with population
 static async getActiveReservations() {
-  const reservations = await InventoryReservation.find()
-    .populate('orderId', 'orderNumber status totalAmount customer')
-    .populate('reservations.ingredientId', 'name unit category')
-    .sort({ createdAt: -1 })
-    .limit(100)
-    .lean();
-  
-  // Categorize and format for frontend
-  return {
-    success: true,
-    data: formattedReservations,
-    summary: {
-      total: reservations.length,
-      active: categorized.active.length,
-      consumed: categorized.consumed.length,
-      released: categorized.released.length,
-      expired: categorized.expired.length
-    }
-  };
+ const reservations = await InventoryReservation.find()
+ .populate('orderId', 'orderNumber status totalAmount customer')
+ .populate('reservations.ingredientId', 'name unit category')
+ .sort({ createdAt: -1 })
+ .limit(100)
+ .lean();
+ 
+ // Categorize and format for frontend
+ return {
+ success: true,
+ data: formattedReservations,
+ summary: {
+ total: reservations.length,
+ active: categorized.active.length,
+ consumed: categorized.consumed.length,
+ released: categorized.released.length,
+ expired: categorized.expired.length
+ }
+ };
 }
 ```
 
@@ -6678,16 +6729,16 @@ Cleaned up ~150 lines of non-functional code:
 ```javascript
 // BEFORE - Incorrect nested access
 const fetchInventoryReservations = async () => {
-  const response = await axios.get('/api/inventory/reservations');
-  setInventoryReservations(response.data.data); // Wrong level!
+ const response = await axios.get('/api/inventory/reservations');
+ setInventoryReservations(response.data.data); // Wrong level!
 };
 
 // AFTER - Correct nested handling
 const fetchInventoryReservations = async () => {
-  const response = await axios.get('/api/inventory/reservations');
-  // Handle double-nested response: data.data.data
-  const reservationsData = response.data.data?.data || response.data.data || [];
-  setInventoryReservations(Array.isArray(reservationsData) ? reservationsData : []);
+ const response = await axios.get('/api/inventory/reservations');
+ // Handle double-nested response: data.data.data
+ const reservationsData = response.data.data?.data || response.data.data || [];
+ setInventoryReservations(Array.isArray(reservationsData) ? reservationsData : []);
 };
 ```
 
@@ -6696,15 +6747,15 @@ const fetchInventoryReservations = async () => {
 **Added Summary Dashboard:**
 ```jsx
 <div className="grid grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
-  <div className="text-center">
-    <div className="text-2xl font-bold">4</div>
-    <div className="text-xs text-yellow-600">Active</div>
-  </div>
-  <div className="text-center">
-    <div className="text-2xl font-bold">2</div>
-    <div className="text-xs text-green-600">Consumed</div>
-  </div>
-  {/* Released and Total stats */}
+ <div className="text-center">
+ <div className="text-2xl font-bold">4</div>
+ <div className="text-xs text-yellow-600">Active</div>
+ </div>
+ <div className="text-center">
+ <div className="text-2xl font-bold">2</div>
+ <div className="text-xs text-green-600">Consumed</div>
+ </div>
+ {/* Released and Total stats */}
 </div>
 ```
 
@@ -6729,46 +6780,46 @@ During debugging, discovered:
 // Backend route logging
 === RESERVATION ENDPOINT HIT ===
 Request body: { orderId, items, reservedBy }
-📦 Reservation request received
-✅ Validation passed
-📋 Found 1 ingredient mappings
-✅ Reservation created successfully: ObjectId(...)
+ Reservation request received
+ Validation passed
+ Found 1 ingredient mappings
+ Reservation created successfully: ObjectId(...)
 
-// Frontend logging  
-📦 Reservations API response: {...}
-📦 Setting reservations: 6 items
+// Frontend logging 
+ Reservations API response: {...}
+ Setting reservations: 6 items
 ```
 
 **Bug Fixes:**
-- [FIXED] ✓ Inventory Reservations Modal showing "No reservations found" despite data existing
-- [FIXED] ✓ `getActiveReservations()` returning stub data instead of querying database
-- [FIXED] ✓ Double-nested response structure causing frontend to miss data array
-- [FIXED] ✓ Database connection confusion (admin_db vs ring-and-wing-restaurant)
-- [FIXED] ✓ Duplicate System Alerts Modal removed
-- [FIXED] ✓ Reservation modal showing raw data instead of formatted display
+- [FIXED] Inventory Reservations Modal showing "No reservations found" despite data existing
+- [FIXED] `getActiveReservations()` returning stub data instead of querying database
+- [FIXED] Double-nested response structure causing frontend to miss data array
+- [FIXED] Database connection confusion (admin_db vs ring-and-wing-restaurant)
+- [FIXED] Duplicate System Alerts Modal removed
+- [FIXED] Reservation modal showing raw data instead of formatted display
 
 **Testing Results:**
 ```
 Database Check:
-✅ 6 total reservations in admin_db
-✅ 4 active (reserved status)
-✅ 2 consumed (completed orders)
-✅ Ingredient mappings working (Boneless Bangsilog → kangkong 1kg)
-✅ FIFO batch reservation working
+ 6 total reservations in admin_db
+ 4 active (reserved status)
+ 2 consumed (completed orders)
+ Ingredient mappings working (Boneless Bangsilog → kangkong 1kg)
+ FIFO batch reservation working
 
 Frontend Display:
-✅ Modal shows all 6 reservations
-✅ Summary statistics visible
-✅ Ingredient names displayed correctly
-✅ Status color coding working
-✅ Expiration times shown
-✅ Action buttons appropriate for status
+ Modal shows all 6 reservations
+ Summary statistics visible
+ Ingredient names displayed correctly
+ Status color coding working
+ Expiration times shown
+ Action buttons appropriate for status
 
 API Verification:
-✅ GET /api/inventory/reservations returns 200 OK
-✅ Response contains 2158 bytes of reservation data
-✅ All 6 reservations present in JSON response
-✅ Proper population of order and ingredient details
+ GET /api/inventory/reservations returns 200 OK
+ Response contains 2158 bytes of reservation data
+ All 6 reservations present in JSON response
+ Proper population of order and ingredient details
 ```
 
 **Code Quality:**
@@ -6787,41 +6838,41 @@ API Verification:
 **Burndown Chart:**
 ```
 Story Points |
-     8 |\
-       | \__
-       |    \
-       |     \
-     0 |______\____
-       0   1 Day
+ 8 |\
+ | \__
+ | \
+ | \
+ 0 |______\____
+ 0 1 Day
 ```
 
 **Retrospective Notes:**
 - **What went well:** 
-  - Systematic debugging with logging revealed exact issue locations
-  - Database verification confirmed backend was working correctly
-  - Quick identification of stub vs real implementations
-  - Efficient cleanup of duplicate functionality
+ - Systematic debugging with logging revealed exact issue locations
+ - Database verification confirmed backend was working correctly
+ - Quick identification of stub vs real implementations
+ - Efficient cleanup of duplicate functionality
 - **Challenges:** 
-  - Double-nested response structure was not obvious
-  - Database name mismatch caused initial confusion
-  - Stub implementations looked like real code
+ - Double-nested response structure was not obvious
+ - Database name mismatch caused initial confusion
+ - Stub implementations looked like real code
 - **Lessons learned:**
-  - Always verify actual database being used by backend
-  - Check API responses with curl/Postman before blaming frontend
-  - Look for stub implementations in "working" systems
-  - Response nesting can hide data from frontend
-  - Remove duplicate features to reduce confusion
+ - Always verify actual database being used by backend
+ - Check API responses with curl/Postman before blaming frontend
+ - Look for stub implementations in "working" systems
+ - Response nesting can hide data from frontend
+ - Remove duplicate features to reduce confusion
 - **Action items:**
-  - Fix summary statistics calculation (showing wrong counts)
-  - Add "Release" button for active reservations
-  - Implement auto-cleanup of expired reservations
-  - Add order number to reservations (currently showing "N/A")
-  - Consider pagination for large reservation lists
+ - Fix summary statistics calculation (showing wrong counts)
+ - Add "Release" button for active reservations
+ - Implement auto-cleanup of expired reservations
+ - Add order number to reservations (currently showing "N/A")
+ - Consider pagination for large reservation lists
 
 ---
 
-### Sprint 19 (Oct 3, 2025) [COMPLETED]
-**Sprint Goal:** Inventory Analytics Overhaul & UI Polish  
+### Sprint 26 (Oct 3, 2025) [COMPLETED]
+**Sprint Goal:** Inventory Analytics Overhaul & UI Polish 
 **Story Points Completed:** 8/8
 
 **Key Deliverables:**
@@ -6862,15 +6913,15 @@ Backend was populating `orderNumber` field but database uses `receiptNumber`:
 .populate('orderId', 'orderNumber status totalAmount customer')
 orderNumber: reservation.orderId?.orderNumber || 'N/A'
 
-// AFTER  
+// AFTER 
 .populate('orderId', 'receiptNumber orderNumber status totalAmount customer')
 orderNumber: reservation.orderId?.receiptNumber || reservation.orderId?.orderNumber || 'N/A'
 ```
 
 **Results:**
-- ✅ POS receipts now show "RNG-160263-987" format immediately
-- ✅ Inventory reservations display correct order numbers
-- ✅ No more temporary or "N/A" order numbers
+- POS receipts now show "RNG-160263-987" format immediately
+- Inventory reservations display correct order numbers
+- No more temporary or "N/A" order numbers
 
 **Phase 2: Inventory Analytics Overhaul**
 
@@ -6882,7 +6933,7 @@ Features:
 - Summary Statistics (Total Items, Quantity, Alerts)
 - Status Breakdown (Healthy, Low Stock, Out of Stock)
 - Stock Status Distribution (Pie Chart)
-- Stock by Category (Pie Chart)  
+- Stock by Category (Pie Chart) 
 - Top 10 Items Stock Levels (Bar Chart)
 - Active Alerts Section (color-coded)
 - Detailed Inventory Table (20 items)
@@ -6892,12 +6943,12 @@ Features:
 **2. PDF Generation Function:**
 ```javascript
 handleDownloadInventoryPDF() {
-  - Uses html2canvas to capture report
-  - Converts to JPEG at 95% quality
-  - Creates multi-page PDF with jsPDF
-  - Handles chart rendering properly
-  - Off-screen rendering (left: -9999px)
-  - Filename: Inventory_Analytics_YYYY-MM-DD.pdf
+ - Uses html2canvas to capture report
+ - Converts to JPEG at 95% quality
+ - Creates multi-page PDF with jsPDF
+ - Handles chart rendering properly
+ - Off-screen rendering (left: -9999px)
+ - Filename: Inventory_Analytics_YYYY-MM-DD.pdf
 }
 ```
 
@@ -6906,16 +6957,16 @@ Replaced problematic pie charts with clean data table:
 ```jsx
 // BEFORE: Charts with rendering issues
 <PieChart> // Not rendering properly, z-index conflicts
-  
+ 
 // AFTER: Professional data table
 <table>
-  Columns: Item Name | Category | Quantity | Unit | Status | Total Value
-  Features: 
-  - Color-coded status badges
-  - Zebra striping (alternating rows)
-  - Total inventory value calculation
-  - Calculates from batches (quantity × unitCost)
-  - Responsive design
+ Columns: Item Name | Category | Quantity | Unit | Status | Total Value
+ Features: 
+ - Color-coded status badges
+ - Zebra striping (alternating rows)
+ - Total inventory value calculation
+ - Calculates from batches (quantity × unitCost)
+ - Responsive design
 </table>
 ```
 
@@ -6932,20 +6983,20 @@ Replaced problematic pie charts with clean data table:
 ```
 Z-Index Levels:
 - AlertDashboard container: 10 (page element)
-- Alert dropdown panel: 50 (dropdown layer)  
+- Alert dropdown panel: 50 (dropdown layer) 
 - All modals: 9999 (always on top)
 ```
 
 **Fixed Components:**
 1. **AlertDashboard** - Reduced from zIndex: 100 → zIndex: 10
 2. **Analytics Modal** - Added zIndex: 9999
-3. **Audit Log Modal** - Added zIndex: 9999  
+3. **Audit Log Modal** - Added zIndex: 9999 
 4. **Reservations Modal** - Already had z-50, verified correct
 
 **Results:**
-- ✅ Alerts never overlay modals
-- ✅ Modals always stay on top when open
-- ✅ No visual conflicts between UI layers
+- Alerts never overlay modals
+- Modals always stay on top when open
+- No visual conflicts between UI layers
 
 **Phase 4: Chart Rendering Fixes Attempted**
 
@@ -6955,7 +7006,7 @@ Attempt 1: ResponsiveContainer wrapper
 ```jsx
 // Added ResponsiveContainer for proper sizing
 <ResponsiveContainer width="100%" height={250}>
-  <PieChart>...</PieChart>
+ <PieChart>...</PieChart>
 </ResponsiveContainer>
 ```
 
@@ -6964,15 +7015,15 @@ Attempt 2: Data/Cell mapping sync
 // Ensured same filtered array used for data AND cells
 const statusData = [...].filter(d => d.value > 0);
 <Pie data={statusData}>
-  {statusData.map(...)} // Same reference
+ {statusData.map(...)} // Same reference
 </Pie>
 ```
 
 Attempt 3: IIFE for data consistency
 ```jsx
 {(() => {
-  const statusData = [filtered data];
-  return <PieChart>...</PieChart>;
+ const statusData = [filtered data];
+ return <PieChart>...</PieChart>;
 })()}
 ```
 
@@ -7025,42 +7076,42 @@ import { ResponsiveContainer } from 'recharts';
 - `documentation/ScumDevelopmentProcess.md` - Added Sprint 18 Extension and Sprint 19 documentation
 
 **Bug Fixes:**
-- [FIXED] ✓ POS receipts showing temporary numbers instead of RNG format
-- [FIXED] ✓ Inventory reservations showing "N/A" for order numbers
-- [FIXED] ✓ Alert dropdown overlaying modals (z-index: 100 → 10)
-- [FIXED] ✓ Inventory analytics modal z-index conflict
-- [FIXED] ✓ Audit log modal z-index conflict
-- [FIXED] ✓ Charts not rendering in modal (removed, kept in PDF)
-- [FIXED] ✓ Emoji usage removed for professional appearance
+- [FIXED] POS receipts showing temporary numbers instead of RNG format
+- [FIXED] Inventory reservations showing "N/A" for order numbers
+- [FIXED] Alert dropdown overlaying modals (z-index: 100 → 10)
+- [FIXED] Inventory analytics modal z-index conflict
+- [FIXED] Audit log modal z-index conflict
+- [FIXED] Charts not rendering in modal (removed, kept in PDF)
+- [FIXED] Emoji usage removed for professional appearance
 
 **Testing Results:**
 ```
 Receipt Number Verification:
-✅ POS receipts show RNG-XXXXXX-XXX immediately
-✅ Order saved before receipt displayed
-✅ Reservation order numbers display correctly
-✅ Backend populates receiptNumber field properly
+ POS receipts show RNG-XXXXXX-XXX immediately
+ Order saved before receipt displayed
+ Reservation order numbers display correctly
+ Backend populates receiptNumber field properly
 
 PDF Generation:
-✅ Charts render properly in PDF
-✅ Multi-page support working
-✅ File downloads with correct naming
-✅ Summary statistics accurate
-✅ Alerts section populated
-✅ Detailed table shows all items
+ Charts render properly in PDF
+ Multi-page support working
+ File downloads with correct naming
+ Summary statistics accurate
+ Alerts section populated
+ Detailed table shows all items
 
 Z-Index Hierarchy:
-✅ Alert dropdown at level 10
-✅ All modals at level 9999
-✅ No overlay conflicts
-✅ Proper stacking order maintained
+ Alert dropdown at level 10
+ All modals at level 9999
+ No overlay conflicts
+ Proper stacking order maintained
 
 Modal Display:
-✅ Analytics modal shows clean table
-✅ Summary cards working
-✅ Total value calculations correct
-✅ Status badges color-coded properly
-✅ Responsive design working
+ Analytics modal shows clean table
+ Summary cards working
+ Total value calculations correct
+ Status badges color-coded properly
+ Responsive design working
 ```
 
 **User Experience Improvements:**
@@ -7087,45 +7138,45 @@ Modal Display:
 **Burndown Chart:**
 ```
 Story Points |
-     8 |\
-       | \__
-       |    \
-       |     \
-     0 |______\____
-       0   1 Day
+ 8 |\
+ | \__
+ | \
+ | \
+ 0 |______\____
+ 0 1 Day
 ```
 
 **Retrospective Notes:**
 - **What went well:**
-  - PDF report system works flawlessly with charts
-  - Receipt number fix solved multiple related issues
-  - Table view in modal is cleaner than charts
-  - Z-index architecture now well-defined
-  - Quick pivots when chart rendering failed
+ - PDF report system works flawlessly with charts
+ - Receipt number fix solved multiple related issues
+ - Table view in modal is cleaner than charts
+ - Z-index architecture now well-defined
+ - Quick pivots when chart rendering failed
 - **Challenges:**
-  - Recharts rendering issues in modal context
-  - Multiple attempts needed to fix chart display
-  - Understanding double-nested API responses
-  - Database field naming inconsistency (receiptNumber vs orderNumber)
+ - Recharts rendering issues in modal context
+ - Multiple attempts needed to fix chart display
+ - Understanding double-nested API responses
+ - Database field naming inconsistency (receiptNumber vs orderNumber)
 - **Lessons learned:**
-  - Sometimes removing features is better than fixing them
-  - PDF generation more reliable than inline chart rendering
-  - Establish z-index hierarchy early in project
-  - Always save orders before generating receipts
-  - Emojis don't belong in production UI
-  - Tables can be more effective than charts for quick scans
+ - Sometimes removing features is better than fixing them
+ - PDF generation more reliable than inline chart rendering
+ - Establish z-index hierarchy early in project
+ - Always save orders before generating receipts
+ - Emojis don't belong in production UI
+ - Tables can be more effective than charts for quick scans
 - **Action items:**
-  - Consider implementing persistent audit log (database storage)
-  - Add export functionality for audit log
-  - Implement audit log date range filtering
-  - Add pagination to inventory table in modal
-  - Consider adding quick filters (Low Stock, Out of Stock)
-  - Add print button for modal table view
+ - Consider implementing persistent audit log (database storage)
+ - Add export functionality for audit log
+ - Implement audit log date range filtering
+ - Add pagination to inventory table in modal
+ - Consider adding quick filters (Low Stock, Out of Stock)
+ - Add print button for modal table view
 
 ---
 
-### Sprint 20 (Oct 4, 2025) [COMPLETED]
-**Sprint Goal:** Database Connection Pool Optimization and Request Overload Resolution  
+### Sprint 27 (Oct 4, 2025) [COMPLETED]
+**Sprint Goal:** Database Connection Pool Optimization and Request Overload Resolution 
 **Story Points Completed:** 29/29
 
 **Key Deliverables:**
@@ -7166,8 +7217,8 @@ As a system administrator, I want increased database connection pool capacity so
 **Implementation:**
 - File: ring-and-wing-backend/config/db.js
 - Changes: 
-  - Line 7: maxPoolSize: 10 to 25 (+150% capacity)
-  - Line 8: minPoolSize: 1 to 3
+ - Line 7: maxPoolSize: 10 to 25 (+150% capacity)
+ - Line 8: minPoolSize: 1 to 3
 - Story Points: 2
 - Actual Effort: 15 minutes
 
@@ -7203,9 +7254,9 @@ As a system administrator, I want reduced monitoring frequency so that monitorin
 **Implementation:**
 - File: ring-and-wing-backend/utils/connectionMonitor.js
 - Changes: 
-  - Line 37: TIER1_INTERVAL from 15000 to 300000
-  - Line 43: TIER2_INTERVAL from 30000 to 300000
-  - Line 48: TIER3_INTERVAL from 180000 to 900000
+ - Line 37: TIER1_INTERVAL from 15000 to 300000
+ - Line 43: TIER2_INTERVAL from 30000 to 300000
+ - Line 48: TIER3_INTERVAL from 180000 to 900000
 - Request Reduction: 240 checks/hr to 12 checks/hr (95% reduction)
 - Story Points: 2
 - Actual Effort: 15 minutes
@@ -7242,8 +7293,8 @@ As a database administrator, I want less frequent health checks so that monitori
 **Implementation:**
 - File: ring-and-wing-backend/config/db.js
 - Changes: 
-  - Line 199: keepAliveInterval from 120000 to 300000
-  - Line 204: health check from 120000 to 300000
+ - Line 199: keepAliveInterval from 120000 to 300000
+ - Line 204: health check from 120000 to 300000
 - Request Reduction: 60 checks/hr to 24 checks/hr (60% reduction)
 - Story Points: 2
 - Actual Effort: 10 minutes
@@ -7300,8 +7351,8 @@ As a manager viewing the dashboard, I want smooth dashboard loading so that mult
 **Implementation:**
 - File: ring-and-wing-frontend/src/components/DashboardMinimal.jsx
 - Changes: 
-  - Lines 50-170: Added await setTimeout(250ms) between fetches
-  - Sequential order: orders, daily revenue, monthly revenue, historical, expenses, staff
+ - Lines 50-170: Added await setTimeout(250ms) between fetches
+ - Sequential order: orders, daily revenue, monthly revenue, historical, expenses, staff
 - Impact: Prevents 18-connection burst spike
 - Story Points: 5
 - Actual Effort: 35 minutes
@@ -7320,9 +7371,9 @@ As a staff member, I want menu management to load efficiently so that I don't co
 **Implementation:**
 - File: ring-and-wing-frontend/src/MenuManagement.jsx
 - Changes: 
-  - Lines 304-320: Replaced Promise.all() with sequential fetches + delays
-  - Lines 328-331: Sequential response parsing
-  - Order: menu, addOns, categories, inventory
+ - Lines 304-320: Replaced Promise.all() with sequential fetches + delays
+ - Lines 328-331: Sequential response parsing
+ - Order: menu, addOns, categories, inventory
 - Impact: 4-connection burst to staggered 1-connection-at-a-time
 - Story Points: 5
 - Actual Effort: 25 minutes
@@ -7341,9 +7392,9 @@ As an inventory manager, I want a refresh button that prevents spam clicking so 
 **Implementation:**
 - File: ring-and-wing-frontend/src/InventorySystem.jsx
 - Changes: 
-  - Lines 255-256: Added isRefreshThrottled state and lastRefreshTime ref
-  - Lines 414-440: Added throttle logic to fetchInventoryReservations()
-  - Lines 2410-2418: Button shows disabled state with feedback
+ - Lines 255-256: Added isRefreshThrottled state and lastRefreshTime ref
+ - Lines 414-440: Added throttle logic to fetchInventoryReservations()
+ - Lines 2410-2418: Button shows disabled state with feedback
 - Impact: Prevents refresh spam (observed users clicking 3-5 times rapidly)
 - Story Points: 3
 - Actual Effort: 25 minutes
@@ -7455,31 +7506,31 @@ As a system, I want less frequent API health checks so that monitoring overhead 
 **Burndown Chart:**
 ```
 Story Points |
-    29 |\
-       | \
-       |  \
-       |   \
-       |    \
-       |     \
-       |      \
-     0 |_______\____
-       0    1 Day
+ 29 |\
+ | \
+ | \
+ | \
+ | \
+ | \
+ | \
+ 0 |_______\____
+ 0 1 Day
 ```
 
 **Retrospective Notes:**
 - **What went well:** Successfully resolved critical connection exhaustion issue, system now stable
 - **Challenges:** Diagnosing multiple layers of polling and parallel calls causing cumulative load
 - **Lessons learned:** 
-  - Multiple monitoring systems can become the problem themselves
-  - Parallel component mounts can instantly exhaust small connection pools
-  - User actions have hidden multiplier effects (1 action = 3-5 requests)
-  - Database-driven architecture must consider connection pool capacity from inception
+ - Multiple monitoring systems can become the problem themselves
+ - Parallel component mounts can instantly exhaust small connection pools
+ - User actions have hidden multiplier effects (1 action = 3-5 requests)
+ - Database-driven architecture must consider connection pool capacity from inception
 - **Action items:** Continue monitoring production performance, consider Phase 3 optimizations only if needed
 
 ---
 
-### Sprint 21 (Oct 15, 2025) [COMPLETED]
-**Sprint Goal:** Socket.io Authentication Fix for Real-time Staff Notifications  
+### Sprint 29 (Oct 15, 2025) [COMPLETED]
+**Sprint Goal:** Socket.io Authentication Fix for Real-time Staff Notifications 
 **Story Points Completed:** 5/5
 
 **Key Deliverables:**
@@ -7496,7 +7547,7 @@ Frontend socket connections lacked authentication tokens in handshake:
 ```javascript
 // BEFORE: No authentication
 const socket = io(API_URL, {
-  transports: ['websocket', 'polling']
+ transports: ['websocket', 'polling']
 });
 ```
 
@@ -7509,8 +7560,8 @@ const socket = io(API_URL, {
 // AFTER: With JWT authentication
 const token = localStorage.getItem('token') || localStorage.getItem('authToken');
 const socketConnection = io(API_URL, {
-  auth: { token: token },
-  transports: ['websocket', 'polling']
+ auth: { token: token },
+ transports: ['websocket', 'polling']
 });
 ```
 
@@ -7533,10 +7584,10 @@ socket.userPosition = decoded.position; // Extract position from JWT
 
 // Expanded 'staff' room membership
 if (socket.userRole === 'manager' || 
-    socket.userRole === 'admin' || 
-    socket.userPosition === 'cashier') { // ✅ Cashiers now included
-  socket.join('staff');
-  logger.info(`Socket joined 'staff' room (Role: ${socket.userRole}, Position: ${socket.userPosition})`);
+ socket.userRole === 'admin' || 
+ socket.userPosition === 'cashier') { // Cashiers now included
+ socket.join('staff');
+ logger.info(`Socket joined 'staff' room (Role: ${socket.userRole}, Position: ${socket.userPosition})`);
 }
 ```
 
@@ -7552,11 +7603,11 @@ if (socket.userRole === 'manager' ||
 - `ring-and-wing-backend/server.js` (Lines 735-760)
 
 **Bug Fixes:**
-- [FIXED] ✓ Socket connections not authenticating (100% authentication now)
-- [FIXED] ✓ Staff not joining 'staff' room (all staff now auto-join)
-- [FIXED] ✓ Cashiers excluded from notifications (now included)
-- [FIXED] ✓ 0-30 second notification delays (now <100ms)
-- [FIXED] ✓ Manual refresh required (now instant real-time updates)
+- [FIXED] Socket connections not authenticating (100% authentication now)
+- [FIXED] Staff not joining 'staff' room (all staff now auto-join)
+- [FIXED] Cashiers excluded from notifications (now included)
+- [FIXED] 0-30 second notification delays (now <100ms)
+- [FIXED] Manual refresh required (now instant real-time updates)
 
 **Performance Improvements:**
 - **Notification Latency:** 0-30 seconds → <100ms (99.7% reduction)
@@ -7566,24 +7617,24 @@ if (socket.userRole === 'manager' ||
 
 **Testing Results:**
 ```
-✅ Test Case 1: POS Socket Authentication
-   Result: "POS connected - Authenticated: Yes"
-   Backend: "Socket xyz joined 'staff' room"
+ Test Case 1: POS Socket Authentication
+ Result: "POS connected - Authenticated: Yes"
+ Backend: "Socket xyz joined 'staff' room"
 
-✅ Test Case 2: Real-time Payment Notification
-   Result: New orders appear instantly (no 30s delay)
-   
-✅ Test Case 3: Payment Verification Flow
-   Result: <100ms update latency across all tabs
+ Test Case 2: Real-time Payment Notification
+ Result: New orders appear instantly (no 30s delay)
+ 
+ Test Case 3: Payment Verification Flow
+ Result: <100ms update latency across all tabs
 
-✅ Test Case 4: Multi-User Real-time Sync
-   Result: 3 concurrent users all receive instant updates
+ Test Case 4: Multi-User Real-time Sync
+ Result: 3 concurrent users all receive instant updates
 
-✅ Test Case 5: Unauthenticated Fallback
-   Result: Customers connect successfully, graceful degradation
+ Test Case 5: Unauthenticated Fallback
+ Result: Customers connect successfully, graceful degradation
 
-✅ Test Case 6: Token Expiration Handling
-   Result: No crashes, fallback polling works
+ Test Case 6: Token Expiration Handling
+ Result: No crashes, fallback polling works
 ```
 
 **Security Enhancements:**
@@ -7609,12 +7660,12 @@ if (socket.userRole === 'manager' ||
 **Burndown Chart:**
 ```
 Story Points |
-     5 |\___
-       |    \
-       |     \
-       |      \
-     0 |_______\____
-       0    1.5 Hours
+ 5 |\___
+ | \
+ | \
+ | \
+ 0 |_______\____
+ 0 1.5 Hours
 ```
 
 **Impact Assessment:**
@@ -7641,29 +7692,29 @@ Story Points |
 
 **Retrospective Notes:**
 - **What went well:**
-  - Quick identification of missing authentication tokens
-  - Clean implementation with zero breaking changes
-  - Comprehensive testing validated all scenarios
-  - Enhanced logging improves future debugging
-  - Complete backward compatibility maintained
-  
+ - Quick identification of missing authentication tokens
+ - Clean implementation with zero breaking changes
+ - Comprehensive testing validated all scenarios
+ - Enhanced logging improves future debugging
+ - Complete backward compatibility maintained
+ 
 - **Challenges:**
-  - Verifying all socket connection points across codebase
-  - Ensuring cashiers included in 'staff' room logic
-  - Testing multi-user real-time synchronization
-  
+ - Verifying all socket connection points across codebase
+ - Ensuring cashiers included in 'staff' room logic
+ - Testing multi-user real-time synchronization
+ 
 - **Lessons learned:**
-  - Always include authentication tokens in socket handshakes
-  - Position-based access control more flexible than role-only
-  - Enhanced logging critical for real-time system debugging
-  - Fallback mechanisms prevent complete system failures
-  - Comprehensive testing catches edge cases early
-  
+ - Always include authentication tokens in socket handshakes
+ - Position-based access control more flexible than role-only
+ - Enhanced logging critical for real-time system debugging
+ - Fallback mechanisms prevent complete system failures
+ - Comprehensive testing catches edge cases early
+ 
 - **Action items:**
-  - Monitor socket connection health in production
-  - Consider department-specific rooms for future scalability
-  - Implement socket event analytics dashboard
-  - Add automated tests for socket authentication
+ - Monitor socket connection health in production
+ - Consider department-specific rooms for future scalability
+ - Implement socket event analytics dashboard
+ - Add automated tests for socket authentication
 
 **Technical Debt Resolved:**
 - Eliminated 0-30 second notification delays
@@ -7680,10 +7731,10 @@ Story Points |
 
 ---
 
-### Sprint 22 (Oct 15, 2025) [COMPLETED]
-**Sprint Goal:** Real-Time Inventory System - Socket.io Integration  
+### Sprint 30 (Oct 15, 2025) [COMPLETED]
+**Sprint Goal:** Real-Time Inventory System - Socket.io Integration 
 **Story Points Planned:** 50
-**Story Points Completed:** 50/50 ✅
+**Story Points Completed:** 50/50 
 
 **Sprint Duration:** 1 day (Intensive debugging and implementation session)
 
@@ -7705,7 +7756,7 @@ Story Points |
 5. `reservationCompleted` - Order completion and inventory consumption
 6. `reservationReleased` - Reservation cancellations/expirations
 7. `alertTriggered` - Critical inventory alerts (out of stock)
-8. `newPaymentOrder` - Self-checkout orders (takeout/delivery/dine-in) ⭐ NEW
+8. `newPaymentOrder` - Self-checkout orders (takeout/delivery/dine-in) NEW
 
 **Backend Files Modified:**
 - `services/socketService.js` - 8 emission methods with throttling
@@ -7714,11 +7765,11 @@ Story Points |
 - `routes/menuRoutes.js` - Availability + ingredient mapping emissions
 - `routes/inventoryRoutes.js` - Reserve + alerts io passing
 - `routes/itemRoutes.js` - Stock level emissions (update/restock)
-- `routes/orderRoutes.js` - Order completion + new order emissions ⭐ ENHANCED
+- `routes/orderRoutes.js` - Order completion + new order emissions ENHANCED
 
 ---
 
-### **Phase 2: Frontend Socket Listeners** ✅ COMPLETED (15 points)
+### **Phase 2: Frontend Socket Listeners** COMPLETED (15 points)
 - Implemented socket.io listeners across 3 critical components
 - Added proper authentication with token fallback (token || authToken)
 - Implemented real-time state updates with duplicate prevention
@@ -7726,65 +7777,65 @@ Story Points |
 
 **Frontend Components Updated:**
 1. **MenuManagement.jsx**: 
-   - `ingredientMappingChanged` listener (removes polling, updates cost analysis only)
-   - `menuAvailabilityChanged` listener (instant UI updates, no refetch)
-   
+ - `ingredientMappingChanged` listener (removes polling, updates cost analysis only)
+ - `menuAvailabilityChanged` listener (instant UI updates, no refetch)
+ 
 2. **PointofSale.jsx**: 
-   - `menuAvailabilityChanged` listener (instant menu availability updates)
-   - `newPaymentOrder` listener (self-checkout orders appear instantly) ✅
-   - `paymentVerified` listener (removes verified orders from tab)
-   - `paymentRejected` listener (removes rejected orders from tab)
-   
+ - `menuAvailabilityChanged` listener (instant menu availability updates)
+ - `newPaymentOrder` listener (self-checkout orders appear instantly) 
+ - `paymentVerified` listener (removes verified orders from tab)
+ - `paymentRejected` listener (removes rejected orders from tab)
+ 
 3. **InventorySystem.jsx**: 
-   - `stockLevelChanged` listener (real-time stock updates)
-   - `reservationCreated` listener (instant reservation visibility)
-   - `reservationCompleted` listener (order completion status)
-   - `reservationReleased` listener (cancellation/expiration)
-   - `alertTriggered` listener (critical alerts with format conversion) ⭐ ADDED
+ - `stockLevelChanged` listener (real-time stock updates)
+ - `reservationCreated` listener (instant reservation visibility)
+ - `reservationCompleted` listener (order completion status)
+ - `reservationReleased` listener (cancellation/expiration)
+ - `alertTriggered` listener (critical alerts with format conversion) ADDED
 
 **Authentication Pattern:**
 ```javascript
 const token = localStorage.getItem('token') || localStorage.getItem('authToken');
 const socket = io(API_URL, {
-  auth: { token },
-  transports: ['websocket', 'polling'],
-  reconnection: true
+ auth: { token },
+ transports: ['websocket', 'polling'],
+ reconnection: true
 });
 ```
 
 ---
 
-### **Phase 3: Critical Bug Fixes** ✅ COMPLETED (12 points)
+### **Phase 3: Critical Bug Fixes** COMPLETED (12 points)
 
 **13 Critical Bugs Fixed:**
 
-1. ✅ **Logger Import Error** - socketService.js destructuring fix (HTTP 500)
-2. ✅ **useEffect Polling Conflict** - MenuManagement dependencies narrowed to IDs only
-3. ✅ **Socket Refetch Conflict** - Removed checkMenuItemAvailability from socket handlers (MAJOR)
-4. ✅ **Batched Polling Performance** - Single batch API call (48s → 1s load time)
-5. ✅ **Manual Toggle Missing Emission** - Added socket emission to availability endpoint
-6. ✅ **Parameter Passing Error** - Fixed object → individual params (menuAvailabilityChanged)
-7. ✅ **Token Check Missing** - Added authToken fallback in InventorySystem
-8. ✅ **Data Structure Mismatch** - Fixed reservation event (flat → nested object)
-9. ✅ **Missing io Parameter (reserve)** - Added to POST /reserve endpoint
-10. ✅ **Missing io Parameter (update/restock)** - Added to PUT /:id and PATCH /restock
-11. ✅ **Missing io Parameter (alerts)** - Added to GET /alerts endpoint
-12. ✅ **Missing io Parameter (order completion)** - Added 3-function chain
-13. ✅ **Missing alertTriggered Listener** - Added to InventorySystem with format conversion
+1. **Logger Import Error** - socketService.js destructuring fix (HTTP 500)
+2. **useEffect Polling Conflict** - MenuManagement dependencies narrowed to IDs only
+3. **Socket Refetch Conflict** - Removed checkMenuItemAvailability from socket handlers (MAJOR)
+4. **Batched Polling Performance** - Single batch API call (48s → 1s load time)
+5. **Manual Toggle Missing Emission** - Added socket emission to availability endpoint
+6. **Parameter Passing Error** - Fixed object → individual params (menuAvailabilityChanged)
+7. **Token Check Missing** - Added authToken fallback in InventorySystem
+8. **Data Structure Mismatch** - Fixed reservation event (flat → nested object)
+9. **Missing io Parameter (reserve)** - Added to POST /reserve endpoint
+10. **Missing io Parameter (update/restock)** - Added to PUT /:id and PATCH /restock
+11. **Missing io Parameter (alerts)** - Added to GET /alerts endpoint
+12. **Missing io Parameter (order completion)** - Added 3-function chain
+13. **Missing alertTriggered Listener** - Added to InventorySystem with format conversion
 
 ---
 
-### **Phase 4: Testing & Validation** ✅ COMPLETED (10 points)
+### **Phase 4: Testing & Validation** COMPLETED (10 points)
 
 **Test Results:**
-- ✅ **TEST 1 (Backend Socket Emissions)**: All 8 events emitting correctly
-- ✅ **TEST 2 (Frontend Socket Reception)**: All components receiving events
-- ✅ **TEST 3A (MenuManagement)**: Real-time updates working (no refetch)
-- ✅ **TEST 3B (POS Menu Availability)**: Instant updates, no refresh needed
-- ✅ **TEST 3C (InventorySystem Reservations)**: Real-time reservation updates
-- ✅ **TEST 4 (Order Completion)**: Stock reduction + reservation completion working
-- ✅ **TEST 5 (Alert System)**: Critical alerts emitting and displaying instantly
-- ✅ **TEST 6 (Self-Checkout Orders)**: Takeout/delivery/dine-in orders appear instantly ⭐ NEW
+- **TEST 1 (Backend Socket Emissions)**: All 8 events emitting correctly
+- **TEST 2 (Frontend Socket Reception)**: All components receiving events
+- **TEST 3A (MenuManagement)**: Real-time updates working (no refetch)
+- **TEST 3B (POS Menu Availability)**: Instant updates, no refresh needed
+- **TEST 3C (InventorySystem Reservations)**: Real-time reservation updates
+- **TEST 4 (Order Completion)**: Stock reduction + reservation completion working
+- **TEST 5 (Alert System)**: Critical alerts emitting and displaying instantly
+- **TEST 6 (Self-Checkout Orders)**: Takeout/delivery/dine-in orders appear instantly NEW
 
 **User Confirmations:**
 - "no its working no its fine now yehey" - POS real-time updates working
@@ -7810,7 +7861,7 @@ const socket = io(API_URL, {
 - UI updates: Instant, no flicker
 
 **Performance Gains:**
-- ⚡ **48x faster** initial load time
+- **48x faster** initial load time
 - **97% reduction** in network requests
 - **Zero ongoing polling** after initial load
 - **Instant multi-user synchronization**
@@ -7823,9 +7874,9 @@ const socket = io(API_URL, {
 ### **Before (Polling Hell):**
 ```
 Frontend ──poll (2s)──> Backend
-   │                       │
-   └────refetch stale──────┘
-   
+ │ │
+ └────refetch stale──────┘
+ 
 Issues: 
 - Stale data between polls
 - Network flooding
@@ -7836,11 +7887,11 @@ Issues:
 ### **After (Socket.io Real-Time):**
 ```
 Frontend ←──socket events──┐
-   ↓                        │
-Initial Batch API          │
-   ↓                        │
+ ↓ │
+Initial Batch API │
+ ↓ │
 Backend ──real-time────> Socket.io
-   ↓
+ ↓
 Database
 
 Benefits:
@@ -7852,7 +7903,7 @@ Benefits:
 
 ---
 
-## 🐛 **Debugging Journey (Detailed)**
+## **Debugging Journey (Detailed)**
 
 ### **Session 1: Initial Implementation (Hours 0-4)**
 - Implemented backend socket emitters
@@ -7882,26 +7933,26 @@ Benefits:
 
 ---
 
-## 🎓 **Technical Lessons Learned**
+## **Technical Lessons Learned**
 
 ### **1. Socket Event Parameter Pattern**
-**✅ CORRECT (Individual Parameters):**
+** CORRECT (Individual Parameters):**
 ```javascript
 SocketService.emitMenuAvailabilityChanged(
-  io,
-  menuItemId,
-  isAvailable,
-  reason,
-  insufficientIngredients
+ io,
+ menuItemId,
+ isAvailable,
+ reason,
+ insufficientIngredients
 );
 ```
 
 **WRONG (Object Parameter):**
 ```javascript
 SocketService.emitMenuAvailabilityChanged(io, {
-  menuItemId,
-  isAvailable,
-  reason
+ menuItemId,
+ isAvailable,
+ reason
 }); // Results in [object Object] on frontend
 ```
 
@@ -7910,9 +7961,9 @@ SocketService.emitMenuAvailabilityChanged(io, {
 ```javascript
 // Route → Service → Sub-Service
 orderRoutes.js (get io) 
-  → completeOrderProcessing(io)
-    → consumeReservation(io)
-      → SocketService.emit(io, ...)
+ → completeOrderProcessing(io)
+ → consumeReservation(io)
+ → SocketService.emit(io, ...)
 ```
 
 **Missing io at ANY level breaks the chain!**
@@ -7922,17 +7973,17 @@ orderRoutes.js (get io)
 ```javascript
 // WRONG - Causes infinite refetch
 socket.on('event', async (data) => {
-  await fetchAllData(); // Triggers re-render, re-fetches everything
+ await fetchAllData(); // Triggers re-render, re-fetches everything
 });
 ```
 
 **Correct Pattern:**
 ```javascript
-// ✅ CORRECT - Direct state update
+// CORRECT - Direct state update
 socket.on('event', (data) => {
-  setState(prev => prev.map(item => 
-    item._id === data.id ? { ...item, ...data } : item
-  ));
+ setState(prev => prev.map(item => 
+ item._id === data.id ? { ...item, ...data } : item
+ ));
 });
 ```
 
@@ -7948,19 +7999,19 @@ POS uses `token`, some components use `authToken`. Fallback ensures compatibilit
 **For alerts and events with potential duplicates:**
 ```javascript
 setAlerts(prev => {
-  const exists = prev.some(a => 
-    a.itemId === newAlert.itemId && 
-    a.type === newAlert.type &&
-    Math.abs(new Date(a.date) - new Date(newAlert.date)) < 60000
-  );
-  if (exists) return prev;
-  return [newAlert, ...prev];
+ const exists = prev.some(a => 
+ a.itemId === newAlert.itemId && 
+ a.type === newAlert.type &&
+ Math.abs(new Date(a.date) - new Date(newAlert.date)) < 60000
+ );
+ if (exists) return prev;
+ return [newAlert, ...prev];
 });
 ```
 
 ---
 
-## 📁 **Files Modified Summary**
+## **Files Modified Summary**
 
 ### **Backend (7 files, ~450 lines added):**
 1. `services/socketService.js` - 8 emission methods with throttling
@@ -7985,13 +8036,13 @@ setAlerts(prev => {
 **Burndown Chart:**
 ```
 Story Points |
-    50 |●
-       |  \
-       |    \
-       |      \
-       |        \
-     0 |__________●
-       0    12   Hours
+ 50 |●
+ | \
+ | \
+ | \
+ | \
+ 0 |__________●
+ 0 12 Hours
 ```
 
 **Velocity:**
@@ -8005,7 +8056,7 @@ Story Points |
 - **Technical Debt**: Minimal (clean integration)
 - **Test Coverage**: Manual testing complete (100% pass rate)
 - **Documentation**: Comprehensive (this document + 3 others)
-- **Production Ready**: Yes ✅
+- **Production Ready**: Yes 
 
 ---
 
@@ -8017,7 +8068,7 @@ Story Points |
 - User observations ("polling thing") led to breakthrough insights
 - Clean separation of concerns (verification vs workflow status)
 - Comprehensive real-time coverage across all critical features
-- ✅ Performance improvements exceeded expectations (48x faster)
+- Performance improvements exceeded expectations (48x faster)
 
 ### **Challenges Overcome:**
 - Initial TEST 3 blocker revealed deep architectural issues
@@ -8028,19 +8079,19 @@ Story Points |
 - Missing frontend listener discovered late in sprint
 
 ### **Key Success Factors:**
-- 🔑 User's patience during extensive debugging session
-- 🔑 Systematic auditing of backend → frontend flow
-- 🔑 Console logging at every step for visibility
-- 🔑 Breaking down problem into smaller testable pieces
-- 🔑 Not giving up despite multiple setbacks
-- 🔑 Thorough testing after each fix
+- User's patience during extensive debugging session
+- Systematic auditing of backend → frontend flow
+- Console logging at every step for visibility
+- Breaking down problem into smaller testable pieces
+- Not giving up despite multiple setbacks
+- Thorough testing after each fix
 
 ### **Action Items for Future:**
-- 📋 Consider automated testing for socket events
-- 📋 Add socket event monitoring dashboard
-- 📋 Document socket event payloads and schemas
-- 📋 Create troubleshooting guide for common socket issues
-- 📋 Add performance monitoring for socket latency
+- Consider automated testing for socket events
+- Add socket event monitoring dashboard
+- Document socket event payloads and schemas
+- Create troubleshooting guide for common socket issues
+- Add performance monitoring for socket latency
 
 ---
 
@@ -8091,10 +8142,10 @@ Story Points |
 - **Production ready**: Yes
 - **User satisfaction**: "yehey"
 
-**Development Time:** 12 hours intensive debugging and implementation  
-**Story Points:** 50/50 (100%)  
-**Bugs Fixed:** 13  
-**Features Added:** 8 socket events + real-time architecture  
+**Development Time:** 12 hours intensive debugging and implementation 
+**Story Points:** 50/50 (100%) 
+**Bugs Fixed:** 13 
+**Features Added:** 8 socket events + real-time architecture 
 **Performance Improvement:** 48x faster, 97% network reduction
 
 **Next Sprint Focus:** Consider advanced features, monitoring, and analytics
@@ -8105,8 +8156,8 @@ Story Points |
 
 ---
 
-### Sprint 23 (Oct 16, 2025) [COMPLETED]
-**Sprint Goal:** Dynamic Size Management System & Menu Architecture Overhaul  
+### Sprint 31 (Oct 16, 2025) [COMPLETED]
+**Sprint Goal:** Dynamic Size Management System & Menu Architecture Overhaul 
 **Story Points Planned:** 45
 **Story Points Completed:** 45/45
 
@@ -8125,10 +8176,10 @@ The system had hard-coded size configurations (M/L, Regular) that required code 
 
 **1. Backend Size Management Architecture:**
 - Enhanced Category model with embedded size schema supporting:
-  - `name` (internal identifier: "M", "L", "Regular")
-  - `displayName` (customer-facing: "Medium", "Large")
-  - `sortOrder` (display ordering)
-  - `isDefault` (default selection flag)
+ - `name` (internal identifier: "M", "L", "Regular")
+ - `displayName` (customer-facing: "Medium", "Large")
+ - `sortOrder` (display ordering)
+ - `isDefault` (default selection flag)
 - Added size CRUD operations to category API endpoints
 - Implemented validation and conflict prevention
 
@@ -8271,20 +8322,20 @@ const [filteredSizes, setFilteredSizes] = useState([]);
 
 // Smart filtering
 const handleSizeNameChange = (value) => {
-  setNewSizeName(value);
-  const filtered = commonSizes.filter(size => 
-    size.name.toLowerCase().includes(value.toLowerCase()) ||
-    size.displayName.toLowerCase().includes(value.toLowerCase())
-  );
-  setFilteredSizes(filtered);
-  setShowSuggestions(filtered.length > 0);
+ setNewSizeName(value);
+ const filtered = commonSizes.filter(size => 
+ size.name.toLowerCase().includes(value.toLowerCase()) ||
+ size.displayName.toLowerCase().includes(value.toLowerCase())
+ );
+ setFilteredSizes(filtered);
+ setShowSuggestions(filtered.length > 0);
 };
 
 // Auto-fill on selection
 const selectSuggestion = (size) => {
-  setNewSizeName(size.name);
-  setNewSizeDisplayName(size.displayName); // Always overwrite
-  setShowSuggestions(false);
+ setNewSizeName(size.name);
+ setNewSizeDisplayName(size.displayName); // Always overwrite
+ setShowSuggestions(false);
 };
 ```
 
@@ -8327,40 +8378,40 @@ If database-driven architecture was implemented from inception:
 ### **Before Sprint 23:**
 ```
 Menu Items:
-  pricing: { "M": 120, "L": 150 }  // Hard-coded size keys
+ pricing: { "M": 120, "L": 150 } // Hard-coded size keys
 
 Frontend:
-  MENU_CONFIG = {
-    Beverages: { subCategories: {...} }  // Hard-coded
-  }
+ MENU_CONFIG = {
+ Beverages: { subCategories: {...} } // Hard-coded
+ }
 
 Database:
-  subcategories: [...old data...]      // Old field
-  subCategories: [...new data...]      // New field (conflict!)
+ subcategories: [...old data...] // Old field
+ subCategories: [...new data...] // New field (conflict!)
 ```
 
 ### **After Sprint 23:**
 ```
 Menu Items:
-  pricing: { "M": 120, "L": 150 }
-  ignoreSizes: false
-  subCategory.sizes: [
-    { name: "M", displayName: "Medium", isDefault: true },
-    { name: "L", displayName: "Large", isDefault: false }
-  ]
+ pricing: { "M": 120, "L": 150 }
+ ignoreSizes: false
+ subCategory.sizes: [
+ { name: "M", displayName: "Medium", isDefault: true },
+ { name: "L", displayName: "Large", isDefault: false }
+ ]
 
 Frontend:
-  categories = await fetch('/api/categories')  // Dynamic
-  menuConfig = transform(categories)           // Generated
+ categories = await fetch('/api/categories') // Dynamic
+ menuConfig = transform(categories) // Generated
 
 Database:
-  subCategories: [                             // Clean, single field
-    {
-      name: "Frappe",
-      displayName: "Frappe",
-      sizes: [{name: "M", displayName: "Medium"}, ...]
-    }
-  ]
+ subCategories: [ // Clean, single field
+ {
+ name: "Frappe",
+ displayName: "Frappe",
+ sizes: [{name: "M", displayName: "Medium"}, ...]
+ }
+ ]
 ```
 
 ---
@@ -8370,34 +8421,34 @@ Database:
 **Test Scenarios Completed:**
 
 1. **Size Management Flow:**
-   - Add sizes to Frappe subcategory (M, L)
-   - Sizes persist after page refresh
-   - Autocomplete shows previously used sizes
-   - Selecting from autocomplete auto-fills both fields
+ - Add sizes to Frappe subcategory (M, L)
+ - Sizes persist after page refresh
+ - Autocomplete shows previously used sizes
+ - Selecting from autocomplete auto-fills both fields
 
 2. **Dynamic Pricing:**
-   - Create menu item in Frappe category
-   - Form shows Medium and Large price fields
-   - Both prices required before submission
-   - Pricing saves correctly to database
+ - Create menu item in Frappe category
+ - Form shows Medium and Large price fields
+ - Both prices required before submission
+ - Pricing saves correctly to database
 
 3. **Ignore Sizes Feature:**
-   - Create "Lemon Yakult" in Fresh Lemonade (M/L category)
-   - Check "ignore sizes" checkbox
-   - Form shows single price field only
-   - Item saves with `ignoreSizes: true` flag
+ - Create "Lemon Yakult" in Fresh Lemonade (M/L category)
+ - Check "ignore sizes" checkbox
+ - Form shows single price field only
+ - Item saves with `ignoreSizes: true` flag
 
 4. **POS Integration:**
-   - POS displays only new subcategories (Rice Meals, not "Breakfast All Day")
-   - Old subcategories completely removed from UI
-   - Menu items display correctly under proper subcategories
-   - Size-based pricing displays correctly in POS
+ - POS displays only new subcategories (Rice Meals, not "Breakfast All Day")
+ - Old subcategories completely removed from UI
+ - Menu items display correctly under proper subcategories
+ - Size-based pricing displays correctly in POS
 
 5. **Database Cleanup Verification:**
-   - Query categories: only `subCategories` field exists
-   - No `subcategories` (lowercase) field in database
-   - JSON parsing works without duplicate key errors
-   - API responses clean and well-formed
+ - Query categories: only `subCategories` field exists
+ - No `subcategories` (lowercase) field in database
+ - JSON parsing works without duplicate key errors
+ - API responses clean and well-formed
 
 ---
 
@@ -8447,9 +8498,9 @@ Database:
 **Burndown Chart:**
 ```
 Story Points |
-    45 |●
-       |  \
-       |    \___
+ 45 |●
+ | \
+ | \___
 ```
 
 **Velocity:**
@@ -8543,22 +8594,22 @@ The initial "quick solution" of hard-coding ultimately cost 4x more effort when 
 ### **Action Items for Future Projects:**
 
 1. **Architectural Review Checklist:**
-   - Identify any hard-coded configurations during initial design
-   - Challenge "quick solutions" that avoid database architecture
-   - Estimate full lifecycle cost (initial + maintenance + migration)
-   - Default to database-driven architecture unless compelling reason
+ - Identify any hard-coded configurations during initial design
+ - Challenge "quick solutions" that avoid database architecture
+ - Estimate full lifecycle cost (initial + maintenance + migration)
+ - Default to database-driven architecture unless compelling reason
 
 2. **Migration Completeness:**
-   - Create verification scripts for every migration
-   - Test all consuming systems after migration
-   - Remove old data/code completely (no "just in case" preservation)
-   - Document migration checklist for future reference
+ - Create verification scripts for every migration
+ - Test all consuming systems after migration
+ - Remove old data/code completely (no "just in case" preservation)
+ - Document migration checklist for future reference
 
 3. **Code Review Standards:**
-   - Flag any new hard-coded configuration objects
-   - Require architectural justification for static data
-   - Enforce database-first approach for business data
-   - Peer review migration pull requests thoroughly
+ - Flag any new hard-coded configuration objects
+ - Require architectural justification for static data
+ - Enforce database-first approach for business data
+ - Peer review migration pull requests thoroughly
 
 ---
 
@@ -8625,7 +8676,7 @@ End-to-end testing of complete menu management flow, user acceptance testing, an
 
 ---
 
-### Sprint 24 (Nov 25, 2025) [COMPLETED]
+### Sprint 37 (Nov 25, 2025) [COMPLETED]
 **Sprint Goal:** Role-Based Expense Workflow System & Dashboard Enhancement
 **Story Points Planned:** 38
 **Story Points Completed:** 38/38
@@ -8803,3 +8854,232 @@ Implement a comprehensive role-based expense workflow system where:
 - Proper error handling throughout
 
 ---
+
+### Sprint 38 (Dec 1 - Dec 4, 2025) [COMPLETED]
+**Sprint Goal:** Staff Scheduling System with Drag-Drop Calendar & Payroll Integration
+**Story Points Planned:** 65
+**Story Points Completed:** 65/65
+
+**Sprint Duration:** 4 days (Intensive module development)
+
+**Major Implementations Completed:**
+
+#### Staff Scheduling Module Architecture
+**Story Points:** 25 - **STATUS: COMPLETED**
+
+**Core Components Developed:**
+1. **ScheduleCalendar.jsx** (~1000 lines)
+   - Drag-and-drop calendar interface using @dnd-kit/core and @dnd-kit/sortable
+   - Week/Month view toggle with responsive grid layout
+   - Real-time schedule updates with socket.io integration
+   - Holiday highlighting and rest day management
+   - Staff filtering by position with search functionality
+
+2. **ShiftTemplateManager.jsx** (~800 lines)
+   - CRUD operations for shift templates (Morning, Afternoon, Evening, Night, etc.)
+   - Color-coded shift templates for visual distinction
+   - Break time configuration (start time and duration)
+   - Template validation with time overlap detection
+   - Drag-from-template-to-calendar functionality
+
+3. **ScheduleCell.jsx** (144 lines)
+   - Individual cell rendering with shift assignment display
+   - Context menu for quick actions (assign, delete, set as rest day)
+   - Visual indicators for rest days, holidays, and scheduled shifts
+   - Hover effects and click handlers for cell interactions
+
+4. **DraggableShift.jsx** (120 lines)
+   - Drag-and-drop shift representation within calendar
+   - Visual feedback during drag operations
+   - Shift time display with color-coded background
+   - Template name and time range rendering
+
+5. **DroppableDay.jsx** (80 lines)
+   - Drop zone for each calendar day cell
+   - Accepts shift templates and existing shifts for reassignment
+   - Visual feedback when dragging over valid drop targets
+
+#### Scheduling Settings System
+**Story Points:** 12 - **STATUS: COMPLETED**
+
+**SchedulingSettings.jsx Component:**
+- Grace period configuration (slider: 0-60 minutes)
+- Default rest days selection (multi-day picker: Sun-Sat)
+- Time rounding options (1, 5, 15, 30 minute intervals)
+- Overtime limits configuration (daily and weekly)
+- Split shift toggle and staff schedule visibility settings
+- Settings summary display with current configuration
+- API integration with /api/settings/scheduling endpoint
+
+**Backend Settings Implementation:**
+- GET /api/settings/scheduling - Fetch current settings
+- PUT /api/settings/scheduling - Update scheduling settings
+- Settings model with defaults for grace period, rest days, etc.
+- Settings auto-seeding on first access
+
+#### Real-Time Late Detection System
+**Story Points:** 15 - **STATUS: COMPLETED**
+
+**Backend Schedule Comparison Endpoint:**
+- GET /api/schedules/compare - Compare scheduled vs actual attendance
+- Timezone-aware calculations (PHT to UTC conversion)
+- Late detection with grace period consideration
+- Overnight shift handling (shifts crossing midnight)
+- Late minutes capping at shift duration
+- Absent detection when shift time has passed
+
+**Frontend Integration:**
+- ScheduleComparisonView.jsx for side-by-side comparison
+- Real-time status updates (On Time, Late, Absent, etc.)
+- Late minutes display with visual indicators
+- Integration with existing attendance/time log system
+
+**Technical Implementation:**
+```javascript
+// Timezone-aware late detection
+const phtHour = parseInt(scheduled.startTime.split(':')[0]);
+const phtMinute = parseInt(scheduled.startTime.split(':')[1]);
+const scheduledTimeUTC = new Date(Date.UTC(
+  today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(),
+  phtHour - 8, phtMinute // Convert PHT to UTC
+));
+```
+
+#### Payroll Integration
+**Story Points:** 8 - **STATUS: COMPLETED**
+
+**Schedule-Based Absence Tracking:**
+- Automatic absence detection based on schedules vs time logs
+- Absence deduction calculation for payroll
+- Integration with existing payroll calculation service
+- Staff rest day exclusion from absence counting
+
+**Time Log Enhancement:**
+- Schedule-aware time log creation
+- Late arrival tracking with scheduled start time reference
+- Early departure detection based on scheduled end time
+
+#### UI/UX Improvements
+**Story Points:** 5 - **STATUS: COMPLETED**
+
+**Theme Integration:**
+- Consistent Ring & Wing branding (accent: #f1670f)
+- Publish button color changed to orange accent
+- Time input UX improvements (wider inputs, better focus handling)
+- Custom scrollbar styling for schedule grid
+
+**Calendar Visual Enhancements:**
+- Rest day highlighting with yellow tint
+- Holiday indicators with flag icons
+- Today highlighting with accent border
+- Shift template color-coding in cells
+
+#### Bug Fixes (Dec 1-4, 2025)
+
+**1. Default Rest Days Not Reflecting in Calendar**
+- **Problem**: Settings saved correctly but calendar showed wrong rest days
+- **Root Cause**: Staff-specific restDays array overriding default settings
+- **Solution**: Added hasCustomRestDays flag check before using staff rest days
+- **Impact**: Calendar now correctly shows Monday/Thursday as rest days per settings
+
+**2. Time Input Focus Issues**
+- **Problem**: Time input fields difficult to type in
+- **Root Cause**: Missing inputMode and focus/blur handlers
+- **Solution**: Added inputMode="numeric", onFocus select all, onBlur validation
+- **Impact**: Smooth time input experience in shift template forms
+
+**3. Publish Button Color**
+- **Problem**: Publish button was green instead of orange brand color
+- **Root Cause**: Using theme.success instead of theme.accent
+- **Solution**: Changed to theme.accent for consistent branding
+
+**4. Header Row Rest Day Styling**
+- **Problem**: Day headers used hardcoded weekend check
+- **Root Cause**: isWeekend check instead of defaultRestDays from settings
+- **Solution**: Use schedulingSettings.defaultRestDays.includes(dayOfWeek)
+
+#### Files Created/Modified
+
+**New Frontend Components:**
+- components/scheduling/ScheduleCalendar.jsx
+- components/scheduling/ShiftTemplateManager.jsx
+- components/scheduling/ScheduleCell.jsx
+- components/scheduling/DraggableShift.jsx
+- components/scheduling/DroppableDay.jsx
+- components/scheduling/ScheduleComparisonView.jsx
+- components/scheduling/ScheduleNotificationBell.jsx
+- components/scheduling/StaffScheduleView.jsx
+- components/scheduling/TimeLogCorrectionForm.jsx
+- components/scheduling/index.js
+- components/SchedulingSettings.jsx
+- components/StaffScheduler.jsx
+
+**Backend Files:**
+- models/ShiftTemplate.js - Shift template schema with breakStartTime
+- models/Schedule.js - Staff schedule assignments
+- routes/scheduleRoutes.js - Schedule CRUD and comparison endpoints
+- routes/settingsRoutes.js - Added scheduling settings endpoints
+- controllers/settingsController.js - getSchedulingSettings, updateSchedulingSettings
+
+**Modified Files:**
+- Sidebar.jsx - Added Staff Scheduling navigation
+- App.jsx - Added /staff-scheduler route
+- SystemSettings.jsx - Added SchedulingSettings section
+
+#### Sprint Metrics
+
+**Story Point Breakdown:**
+- Schedule Calendar System: 15 points
+- Shift Template Manager: 10 points
+- Scheduling Settings: 12 points
+- Late Detection System: 15 points
+- Payroll Integration: 8 points
+- UI/UX Improvements: 5 points
+- **Total**: 65/65 points (100% completion)
+
+**Component Statistics:**
+- New components created: 12
+- Lines of code added: ~3,500
+- API endpoints added: 8
+- Bug fixes: 4
+
+**Technical Stack Used:**
+- @dnd-kit/core, @dnd-kit/sortable - Drag and drop
+- Framer Motion - Animations
+- Lucide React - Icons
+- React hooks (useState, useEffect, useCallback, useMemo)
+
+#### Retrospective Notes
+
+**What Went Well:**
+- Drag-and-drop calendar provides intuitive scheduling experience
+- Settings system allows flexible configuration without code changes
+- Timezone handling properly converts between PHT and UTC
+- Clean component architecture with reusable scheduling components
+- Payroll integration works seamlessly with existing system
+
+**Challenges Overcome:**
+- Complex timezone calculations for late detection
+- State management for drag-and-drop across calendar cells
+- Settings synchronization between components
+- Rest day logic with staff-specific vs default settings
+
+**Action Items for Future Sprints:**
+- Add NFC time tracking integration for clock-in/out
+- Implement schedule conflict detection
+- Add bulk schedule assignment (apply template to week)
+- Create schedule export functionality (PDF/Excel)
+- Add schedule approval workflow for managers
+
+**Technical Debt Assessment:**
+- Clean component separation maintained
+- Settings properly database-driven
+- Timezone handling centralized in backend
+- Minor: Debug logging should be removed for production
+
+**Dependencies Added:**
+- @dnd-kit/core: ^6.1.0
+- @dnd-kit/sortable: ^8.0.0
+
+---
+
