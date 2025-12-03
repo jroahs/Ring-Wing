@@ -701,6 +701,11 @@ router.get('/compare/:staffId', auth, async (req, res) => {
         scheduledEndTimeUTC = new Date(scheduleDate);
         scheduledEndTimeUTC.setUTCHours(endHour, endMin, 0, 0);
         scheduledEndTimeUTC = new Date(scheduledEndTimeUTC.getTime() - PHT_OFFSET_MS);
+        
+        // Handle overnight shifts (end time is next day if end < start)
+        if (scheduledStartTimeUTC && scheduledEndTimeUTC < scheduledStartTimeUTC) {
+          scheduledEndTimeUTC = new Date(scheduledEndTimeUTC.getTime() + 24 * 60 * 60 * 1000);
+        }
       }
 
       // Check if today's date in PHT matches schedule date
@@ -728,20 +733,32 @@ router.get('/compare/:staffId', auth, async (req, res) => {
           // Day has passed with no clock-in = absent
           status = 'absent';
         } else if (isToday && scheduledStartTimeUTC) {
-          // Check if we're past the scheduled start + grace period
-          // All times are now in UTC for comparison
+          // Check if we're past the scheduled end time (shift is over = absent)
+          // Or past the grace period (shift started, no clock-in = late)
           const graceEndTimeUTC = new Date(scheduledStartTimeUTC.getTime() + gracePeriodMinutes * 60 * 1000);
+          
           console.log('[Compare] Grace check:', {
             scheduledStartTimeUTC: scheduledStartTimeUTC.toISOString(),
+            scheduledEndTimeUTC: scheduledEndTimeUTC?.toISOString(),
             graceEndTimeUTC: graceEndTimeUTC.toISOString(),
             nowUTC: now.toISOString(),
+            nowPastEnd: scheduledEndTimeUTC ? now > scheduledEndTimeUTC : false,
             nowPastGrace: now > graceEndTimeUTC,
             nowPastStart: now > scheduledStartTimeUTC
           });
-          if (now > graceEndTimeUTC) {
+          
+          // If we're past the scheduled end time with no clock-in, it's an absence
+          if (scheduledEndTimeUTC && now > scheduledEndTimeUTC) {
+            status = 'absent';
+          } else if (now > graceEndTimeUTC) {
             // Past grace period with no clock-in = late (not clocked in)
             status = 'late-no-clockin';
-            lateMinutes = Math.round((now - scheduledStartTimeUTC) / (1000 * 60));
+            // Cap late minutes to shift duration (don't exceed expected hours)
+            const maxLateMinutes = expectedHours ? Math.round(expectedHours * 60) : 480; // Default 8 hours max
+            lateMinutes = Math.min(
+              Math.round((now - scheduledStartTimeUTC) / (1000 * 60)),
+              maxLateMinutes
+            );
           } else if (now > scheduledStartTimeUTC) {
             // Within grace period but shift started
             status = 'pending-clockin';
@@ -754,24 +771,51 @@ router.get('/compare/:staffId', auth, async (req, res) => {
       } else {
         status = clockOut ? 'worked' : 'partial';
 
-        // Calculate late minutes
+        // Calculate late minutes (only if clocked in after grace period)
         if (clockIn && scheduledStartTimeUTC) {
-          const diffMinutes = (new Date(clockIn.timestamp) - scheduledStartTimeUTC) / (1000 * 60);
+          const clockInTime = new Date(clockIn.timestamp);
+          const diffMinutes = (clockInTime - scheduledStartTimeUTC) / (1000 * 60);
           if (diffMinutes > gracePeriodMinutes) {
             lateMinutes = Math.round(diffMinutes - gracePeriodMinutes);
           }
         }
 
-        // Calculate overtime/undertime
-        if (clockOut && expectedHours) {
-          const actualHours = clockOut.totalHours || 0;
-          const diff = actualHours - expectedHours;
-          if (diff > 0) {
-            overtimeMinutes = Math.round(diff * 60);
-          } else if (diff < 0) {
-            undertimeMinutes = Math.round(Math.abs(diff) * 60);
+        // Calculate early departure
+        if (clockOut && scheduledEndTimeUTC) {
+          const clockOutTime = new Date(clockOut.timestamp);
+          const earlyMinutes = (scheduledEndTimeUTC - clockOutTime) / (1000 * 60);
+          if (earlyMinutes > 0) {
+            earlyOutMinutes = Math.round(earlyMinutes);
           }
         }
+
+        // Calculate actual hours worked and overtime/undertime
+        if (clockIn && clockOut) {
+          const clockInTime = new Date(clockIn.timestamp);
+          const clockOutTime = new Date(clockOut.timestamp);
+          const actualMinutes = (clockOutTime - clockInTime) / (1000 * 60);
+          const actualHours = actualMinutes / 60;
+          
+          // Get expected hours from schedule or shift template
+          const expectedMins = expectedHours ? expectedHours * 60 : 
+            (scheduledStartTimeUTC && scheduledEndTimeUTC ? 
+              (scheduledEndTimeUTC - scheduledStartTimeUTC) / (1000 * 60) : 480);
+          
+          const diffMinutes = actualMinutes - expectedMins;
+          if (diffMinutes > 0) {
+            overtimeMinutes = Math.round(diffMinutes);
+          } else if (diffMinutes < -15) { // Only count undertime if more than 15 mins short
+            undertimeMinutes = Math.round(Math.abs(diffMinutes));
+          }
+        }
+      }
+
+      // Calculate actual hours worked for display
+      let hoursWorked = 0;
+      if (clockIn && clockOut) {
+        const clockInTime = new Date(clockIn.timestamp);
+        const clockOutTime = new Date(clockOut.timestamp);
+        hoursWorked = Math.round(((clockOutTime - clockInTime) / (1000 * 60 * 60)) * 100) / 100;
       }
 
       return {
@@ -789,7 +833,7 @@ router.get('/compare/:staffId', auth, async (req, res) => {
         actual: {
           clockIn: clockIn?.timestamp || null,
           clockOut: clockOut?.timestamp || null,
-          hoursWorked: clockOut?.totalHours || 0,
+          hoursWorked,
           clockMethod: clockIn?.clockMethod || null
         },
         variance: {
@@ -806,11 +850,13 @@ router.get('/compare/:staffId', auth, async (req, res) => {
     const summary = {
       totalScheduledDays: comparison.filter(c => !c.schedule.isRestDay).length,
       workedDays: comparison.filter(c => c.variance.status === 'worked').length,
+      partialDays: comparison.filter(c => c.variance.status === 'partial').length,
       absentDays: comparison.filter(c => c.variance.status === 'absent').length,
       lateNoClockin: comparison.filter(c => c.variance.status === 'late-no-clockin').length,
       pendingClockin: comparison.filter(c => c.variance.status === 'pending-clockin').length,
       restDays: comparison.filter(c => c.schedule.isRestDay).length,
       totalLateMinutes: comparison.reduce((sum, c) => sum + c.variance.lateMinutes, 0),
+      totalEarlyOutMinutes: comparison.reduce((sum, c) => sum + c.variance.earlyOutMinutes, 0),
       totalOvertimeMinutes: comparison.reduce((sum, c) => sum + c.variance.overtimeMinutes, 0),
       totalUndertimeMinutes: comparison.reduce((sum, c) => sum + c.variance.undertimeMinutes, 0)
     };
