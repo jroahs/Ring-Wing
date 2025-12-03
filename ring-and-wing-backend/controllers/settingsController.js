@@ -538,6 +538,103 @@ const updateAttendanceSettings = async (req, res) => {
   }
 };
 
+// Get scheduling settings
+const getSchedulingSettings = async (req, res) => {
+  try {
+    const settings = await Settings.getSettings();
+    
+    res.json({
+      success: true,
+      data: settings.scheduling || {
+        enabled: true,
+        gracePeriodMinutes: 15,
+        roundingRule: 'none',
+        maxOvertimeHoursDaily: 4,
+        requireScheduleForPayroll: false,
+        allowSplitShifts: true,
+        defaultRestDays: [0]
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching scheduling settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch scheduling settings',
+      error: error.message
+    });
+  }
+};
+
+// Update scheduling settings (admin only)
+const updateSchedulingSettings = async (req, res) => {
+  try {
+    const {
+      enabled,
+      gracePeriodMinutes,
+      roundingRule,
+      maxOvertimeHoursDaily,
+      requireScheduleForPayroll,
+      allowSplitShifts,
+      defaultRestDays
+    } = req.body;
+    
+    const settings = await Settings.getSettings();
+    
+    // Initialize scheduling object if not exists
+    if (!settings.scheduling) {
+      settings.scheduling = {
+        enabled: true,
+        gracePeriodMinutes: 15,
+        roundingRule: 'none',
+        maxOvertimeHoursDaily: 4,
+        requireScheduleForPayroll: false,
+        allowSplitShifts: true,
+        defaultRestDays: [0]
+      };
+    }
+    
+    // Update scheduling settings
+    if (typeof enabled === 'boolean') {
+      settings.scheduling.enabled = enabled;
+    }
+    if (typeof gracePeriodMinutes === 'number') {
+      settings.scheduling.gracePeriodMinutes = Math.min(60, Math.max(0, gracePeriodMinutes));
+    }
+    if (roundingRule && ['none', '5min', '15min', '30min'].includes(roundingRule)) {
+      settings.scheduling.roundingRule = roundingRule;
+    }
+    if (typeof maxOvertimeHoursDaily === 'number') {
+      settings.scheduling.maxOvertimeHoursDaily = Math.min(8, Math.max(0, maxOvertimeHoursDaily));
+    }
+    if (typeof requireScheduleForPayroll === 'boolean') {
+      settings.scheduling.requireScheduleForPayroll = requireScheduleForPayroll;
+    }
+    if (typeof allowSplitShifts === 'boolean') {
+      settings.scheduling.allowSplitShifts = allowSplitShifts;
+    }
+    if (Array.isArray(defaultRestDays)) {
+      settings.scheduling.defaultRestDays = defaultRestDays.filter(d => d >= 0 && d <= 6);
+    }
+    
+    console.log('Updating scheduling settings:', settings.scheduling);
+    
+    await settings.save();
+    
+    res.json({
+      success: true,
+      message: 'Scheduling settings updated successfully',
+      data: settings.scheduling
+    });
+  } catch (error) {
+    console.error('Error updating scheduling settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update scheduling settings',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getSettings,
   getCashFloatSettings,
@@ -550,5 +647,7 @@ module.exports = {
   getPaymentGateways,
   updatePaymentGateways,
   getAttendanceSettings,
-  updateAttendanceSettings
+  updateAttendanceSettings,
+  getSchedulingSettings,
+  updateSchedulingSettings
 };

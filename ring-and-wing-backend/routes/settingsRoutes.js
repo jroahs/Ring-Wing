@@ -12,7 +12,9 @@ const {
   getPaymentGateways,
   updatePaymentGateways,
   getAttendanceSettings,
-  updateAttendanceSettings
+  updateAttendanceSettings,
+  getSchedulingSettings,
+  updateSchedulingSettings
 } = require('../controllers/settingsController');
 const {
   getMerchantWallets,
@@ -116,5 +118,23 @@ router.get('/attendance', getAttendanceSettings);
  * Requires: admin role
  */
 router.put('/attendance', auth, isManager, updateAttendanceSettings);
+
+// ========================================
+// SCHEDULING SETTINGS ROUTES
+// ========================================
+
+/**
+ * Get scheduling settings (grace period, overtime rules, etc.)
+ * GET /api/settings/scheduling
+ * Requires: auth
+ */
+router.get('/scheduling', auth, getSchedulingSettings);
+
+/**
+ * Update scheduling settings
+ * PUT /api/settings/scheduling
+ * Requires: admin role
+ */
+router.put('/scheduling', auth, isManager, updateSchedulingSettings);
 
 module.exports = router;

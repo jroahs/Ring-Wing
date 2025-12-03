@@ -685,7 +685,7 @@ const ScheduleCalendar = () => {
             onClick={handlePublishSchedules}
             disabled={saving}
             className="px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-white"
-            style={{ backgroundColor: theme.success }}
+            style={{ backgroundColor: theme.accent }}
           >
             <Send className="w-4 h-4" />
             Publish

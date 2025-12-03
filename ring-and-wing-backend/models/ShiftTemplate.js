@@ -23,6 +23,12 @@ const shiftTemplateSchema = new mongoose.Schema({
     min: [0, 'Break minutes cannot be negative'],
     max: [180, 'Break cannot exceed 3 hours']
   },
+  // Optional: specific break start time (null = flexible break time)
+  breakStartTime: {
+    type: String,
+    default: null,
+    match: [/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Break start time must be in HH:MM format']
+  },
   color: {
     type: String,
     default: '#4CAF50',

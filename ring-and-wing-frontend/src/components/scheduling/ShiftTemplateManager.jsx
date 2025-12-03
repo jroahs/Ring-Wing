@@ -175,18 +175,25 @@ const TimePickerModal = ({ isOpen, onClose, value, onChange, label, colors }) =>
             </button>
             <input
               type="text"
+              inputMode="numeric"
               value={hours}
               onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, '').slice(0, 2);
-                if (parseInt(val) <= 12 && parseInt(val) >= 1) {
-                  setHours(val.padStart(2, '0'));
+                const val = e.target.value.replace(/\D/g, '');
+                if (val === '' || (parseInt(val) <= 12 && parseInt(val) >= 1)) {
+                  setHours(val);
                 }
               }}
-              className="w-14 h-14 text-center text-2xl font-bold rounded-lg"
+              onBlur={(e) => {
+                const val = parseInt(e.target.value) || 12;
+                setHours(String(Math.min(12, Math.max(1, val))).padStart(2, '0'));
+              }}
+              onFocus={(e) => e.target.select()}
+              className="w-16 h-14 text-center text-2xl font-bold rounded-lg focus:outline-none focus:ring-2"
               style={{ 
                 backgroundColor: `${c.primary}10`,
                 color: c.text,
-                border: `2px solid ${c.primary}`
+                border: `2px solid ${c.primary}`,
+                caretColor: c.primary
               }}
             />
             <button
@@ -217,18 +224,25 @@ const TimePickerModal = ({ isOpen, onClose, value, onChange, label, colors }) =>
             </button>
             <input
               type="text"
+              inputMode="numeric"
               value={minutes}
               onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, '').slice(0, 2);
-                if (parseInt(val) < 60) {
-                  setMinutes(val.padStart(2, '0'));
+                const val = e.target.value.replace(/\D/g, '');
+                if (val === '' || parseInt(val) < 60) {
+                  setMinutes(val);
                 }
               }}
-              className="w-14 h-14 text-center text-2xl font-bold rounded-lg"
+              onBlur={(e) => {
+                const val = parseInt(e.target.value) || 0;
+                setMinutes(String(Math.min(59, Math.max(0, val))).padStart(2, '0'));
+              }}
+              onFocus={(e) => e.target.select()}
+              className="w-16 h-14 text-center text-2xl font-bold rounded-lg focus:outline-none focus:ring-2"
               style={{ 
                 backgroundColor: `${c.primary}10`,
                 color: c.text,
-                border: `2px solid ${c.primary}`
+                border: `2px solid ${c.primary}`,
+                caretColor: c.primary
               }}
             />
             <button
@@ -303,6 +317,7 @@ const TemplateFormModal = ({ isOpen, onClose, template, onSave, colors }) => {
     startTime: '09:00',
     endTime: '18:00',
     breakMinutes: 60,
+    breakStartTime: null, // Optional: specific break start time
     color: '#3B82F6',
     allowSplitShift: false,
     splitShiftConfig: {
@@ -311,7 +326,7 @@ const TemplateFormModal = ({ isOpen, onClose, template, onSave, colors }) => {
     }
   });
 
-  const [timePickerOpen, setTimePickerOpen] = useState(null); // 'start', 'end', 'splitEnd', 'splitStart'
+  const [timePickerOpen, setTimePickerOpen] = useState(null); // 'start', 'end', 'splitEnd', 'splitStart', 'breakStart'
   const [saving, setSaving] = useState(false);
 
   const colorOptions = [
@@ -326,6 +341,7 @@ const TemplateFormModal = ({ isOpen, onClose, template, onSave, colors }) => {
         startTime: template.startTime || '09:00',
         endTime: template.endTime || '18:00',
         breakMinutes: template.breakMinutes || 60,
+        breakStartTime: template.breakStartTime || null,
         color: template.color || '#3B82F6',
         allowSplitShift: template.allowSplitShift || false,
         splitShiftConfig: template.splitShiftConfig || {
@@ -339,6 +355,7 @@ const TemplateFormModal = ({ isOpen, onClose, template, onSave, colors }) => {
         startTime: '09:00',
         endTime: '18:00',
         breakMinutes: 60,
+        breakStartTime: null,
         color: '#3B82F6',
         allowSplitShift: false,
         splitShiftConfig: {
@@ -356,6 +373,15 @@ const TemplateFormModal = ({ isOpen, onClose, template, onSave, colors }) => {
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const displayHour = hour % 12 || 12;
     return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  const calculateBreakEnd = () => {
+    if (!formData.breakStartTime || !formData.breakMinutes) return '';
+    const [hours, minutes] = formData.breakStartTime.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes + formData.breakMinutes;
+    const endHours = Math.floor(totalMinutes / 60) % 24;
+    const endMins = totalMinutes % 60;
+    return formatTime(`${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`);
   };
 
   const calculateWorkHours = () => {
@@ -502,7 +528,7 @@ const TemplateFormModal = ({ isOpen, onClose, template, onSave, colors }) => {
               Break Duration
             </label>
             <div className="flex gap-2">
-              {[30, 60, 90, 120].map(mins => (
+              {[0, 30, 60, 90, 120].map(mins => (
                 <button
                   key={mins}
                   type="button"
@@ -513,11 +539,57 @@ const TemplateFormModal = ({ isOpen, onClose, template, onSave, colors }) => {
                     color: formData.breakMinutes === mins ? '#fff' : c.text
                   }}
                 >
-                  {mins}m
+                  {mins === 0 ? 'None' : `${mins}m`}
                 </button>
               ))}
             </div>
           </div>
+
+          {/* Break Time (Optional - only shown if break duration > 0) */}
+          {formData.breakMinutes > 0 && (
+            <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: c.text }}>
+                <Clock className="w-4 h-4 inline mr-1" />
+                Break Time (Optional)
+              </label>
+              <p className="text-xs mb-2" style={{ color: c.muted }}>
+                Specify when the break starts, or leave empty for flexible break time.
+              </p>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setTimePickerOpen('breakStart')}
+                  className="flex-1 py-2 px-3 rounded-lg text-center"
+                  style={{ backgroundColor: `${c.muted}08`, border: `1px solid ${c.border}` }}
+                >
+                  <div className="text-xs" style={{ color: c.muted }}>Break starts</div>
+                  <div className="font-medium" style={{ color: c.text }}>
+                    {formData.breakStartTime ? formatTime(formData.breakStartTime) : 'Flexible'}
+                  </div>
+                </button>
+                <span style={{ color: c.muted }}>→</span>
+                <div 
+                  className="flex-1 py-2 px-3 rounded-lg text-center"
+                  style={{ backgroundColor: `${c.muted}05`, border: `1px dashed ${c.border}` }}
+                >
+                  <div className="text-xs" style={{ color: c.muted }}>Break ends</div>
+                  <div className="font-medium" style={{ color: c.muted }}>
+                    {formData.breakStartTime ? calculateBreakEnd() : 'Flexible'}
+                  </div>
+                </div>
+              </div>
+              {formData.breakStartTime && (
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, breakStartTime: null })}
+                  className="mt-2 text-xs underline"
+                  style={{ color: c.muted }}
+                >
+                  Clear specific time (use flexible)
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Color Picker */}
           <div>
@@ -665,6 +737,14 @@ const TemplateFormModal = ({ isOpen, onClose, template, onSave, colors }) => {
           splitShiftConfig: { ...formData.splitShiftConfig, secondShiftStart: time }
         })}
         label="Second Shift Starts"
+        colors={c}
+      />
+      <TimePickerModal
+        isOpen={timePickerOpen === 'breakStart'}
+        onClose={() => setTimePickerOpen(null)}
+        value={formData.breakStartTime || '12:00'}
+        onChange={(time) => setFormData({ ...formData, breakStartTime: time })}
+        label="Break Starts At"
         colors={c}
       />
     </div>

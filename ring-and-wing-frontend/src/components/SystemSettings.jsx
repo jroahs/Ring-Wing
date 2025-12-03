@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSettings, FiCreditCard, FiClock, FiChevronRight, FiDollarSign, FiShield, FiDatabase } from 'react-icons/fi';
+import { FiSettings, FiCreditCard, FiClock, FiChevronRight, FiDollarSign, FiShield, FiDatabase, FiCalendar } from 'react-icons/fi';
 import PaymentSettings from './PaymentSettings';
 import AttendanceSettings from './AttendanceSettings';
+import SchedulingSettings from './SchedulingSettings';
 import { theme } from '../theme';
 
 const SystemSettings = () => {
-  const [activeSection, setActiveSection] = useState('payment'); // 'payment', 'attendance', or future sections
+  const [activeSection, setActiveSection] = useState('payment'); // 'payment', 'attendance', 'scheduling', or future sections
 
   const settingsSections = [
     {
@@ -22,6 +23,13 @@ const SystemSettings = () => {
       description: 'Configure time clock modes and options',
       icon: FiClock,
       component: AttendanceSettings
+    },
+    {
+      id: 'scheduling',
+      name: 'Scheduling Settings',
+      description: 'Grace period, overtime rules, and more',
+      icon: FiCalendar,
+      component: SchedulingSettings
     },
     // Future settings sections can be added here
     // {
