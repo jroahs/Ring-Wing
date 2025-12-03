@@ -77,6 +77,10 @@ const ScheduleCalendar = () => {
   const [viewMode, setViewMode] = useState('week'); // 'week' or 'month'
   const [filterPosition, setFilterPosition] = useState('all');
   const [templates, setTemplates] = useState([]); // Store templates for drag overlay
+  const [schedulingSettings, setSchedulingSettings] = useState({
+    defaultRestDays: [0], // Default to Sunday
+    gracePeriodMinutes: 15
+  });
 
   // Drag sensors
   const sensors = useSensors(
@@ -237,6 +241,27 @@ const ScheduleCalendar = () => {
     fetchScheduleData();
   }, [fetchScheduleData]);
 
+  // Fetch scheduling settings
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await api.get('/api/settings/scheduling');
+        const data = response.data?.data || response.data;
+        if (data) {
+          setSchedulingSettings({
+            defaultRestDays: data.defaultRestDays || [0],
+            gracePeriodMinutes: data.gracePeriodMinutes || 15
+          });
+          console.log('[ScheduleCalendar] Loaded scheduling settings:', data);
+        }
+      } catch (err) {
+        console.error('[ScheduleCalendar] Error fetching scheduling settings:', err);
+        // Use defaults if fetch fails
+      }
+    };
+    fetchSettings();
+  }, []);
+
   // Get schedule for a specific staff and date
   const getSchedule = useCallback((staffId, dateString) => {
     return schedules.find(s => 
@@ -252,10 +277,15 @@ const ScheduleCalendar = () => {
     );
   }, [holidays]);
 
-  // Check if a day is a rest day for staff
+  // Check if a day is a rest day for staff (uses settings default or staff-specific)
   const isRestDay = useCallback((staffMember, dayOfWeek) => {
-    return staffMember.restDays?.includes(dayOfWeek);
-  }, []);
+    // Staff-specific rest days take precedence
+    if (staffMember?.restDays && staffMember.restDays.length > 0) {
+      return staffMember.restDays.includes(dayOfWeek);
+    }
+    // Fall back to default rest days from settings
+    return schedulingSettings.defaultRestDays.includes(dayOfWeek);
+  }, [schedulingSettings.defaultRestDays]);
 
   // Handle cell click
   const handleCellClick = async (staffId, dateString, dayOfWeek) => {

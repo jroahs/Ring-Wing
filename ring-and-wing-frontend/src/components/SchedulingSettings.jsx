@@ -127,6 +127,47 @@ const SchedulingSettings = () => {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Current Settings Summary */}
+      <div 
+        className="p-4 rounded-lg flex items-start gap-3"
+        style={{ backgroundColor: `${theme.colors.success}10`, border: `1px solid ${theme.colors.success}30` }}
+      >
+        <FiInfo className="text-lg mt-0.5" style={{ color: theme.colors.success }} />
+        <div className="flex-1">
+          <p className="font-medium text-sm" style={{ color: theme.colors.success }}>
+            Current Saved Settings
+          </p>
+          <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div>
+              <span style={{ color: theme.colors.muted }}>Grace Period:</span>
+              <span className="ml-1 font-medium" style={{ color: theme.colors.primary }}>
+                {settings.gracePeriodMinutes}m
+              </span>
+            </div>
+            <div>
+              <span style={{ color: theme.colors.muted }}>Rounding:</span>
+              <span className="ml-1 font-medium" style={{ color: theme.colors.primary }}>
+                {settings.roundingRule === 'none' ? 'None' : settings.roundingRule}
+              </span>
+            </div>
+            <div>
+              <span style={{ color: theme.colors.muted }}>Max OT:</span>
+              <span className="ml-1 font-medium" style={{ color: theme.colors.primary }}>
+                {settings.maxOvertimeHoursDaily}h/day
+              </span>
+            </div>
+            <div>
+              <span style={{ color: theme.colors.muted }}>Rest Days:</span>
+              <span className="ml-1 font-medium" style={{ color: theme.colors.primary }}>
+                {(settings.defaultRestDays || []).map(d => 
+                  ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d]
+                ).join(', ') || 'None'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Error Messages */}
       {error && (
         <div className="p-4 rounded-lg bg-red-50 border border-red-200 flex items-center gap-2">
