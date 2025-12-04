@@ -3,6 +3,7 @@ const router = express.Router();
 const Payroll = require('../models/Payroll');
 const Staff = require('../models/Staff');
 const TimeLog = require('../models/TimeLog');
+const Settings = require('../models/Settings');
 const { auth } = require('../middleware/authMiddleware');
 const { 
   getHolidaysForYear, 
@@ -13,6 +14,37 @@ const {
   is13thMonthPayPeriod 
 } = require('../utils/philippineHolidays');
 const { calculateAllGovernmentDeductions } = require('../utils/governmentDeductions');
+
+// Helper: Get global payroll settings (multipliers) from Settings model
+const getPayrollMultipliers = async () => {
+  try {
+    const settings = await Settings.getSettings();
+    // Multipliers are nested under payroll.multipliers
+    const multipliers = settings.payroll?.multipliers || {};
+    return {
+      overtime: multipliers.overtime || 1.25,
+      regularHoliday: multipliers.regularHoliday || 2.0,
+      specialHoliday: multipliers.specialHoliday || 1.30,
+      overtimeOnHoliday: multipliers.overtimeOnHoliday || 2.60,
+      overtimeOnSpecialHoliday: multipliers.overtimeOnSpecialHoliday || 1.69,
+      restDay: multipliers.restDay || 1.30,
+      restDayOvertime: multipliers.restDayOvertime || 1.69,
+      nightDifferential: multipliers.nightDifferential || 1.10
+    };
+  } catch (error) {
+    console.error('Error fetching payroll multipliers, using DOLE defaults:', error);
+    return {
+      overtime: 1.25,
+      regularHoliday: 2.0,
+      specialHoliday: 1.30,
+      overtimeOnHoliday: 2.60,
+      overtimeOnSpecialHoliday: 1.69,
+      restDay: 1.30,
+      restDayOvertime: 1.69,
+      nightDifferential: 1.10
+    };
+  }
+};
 
 // Create payroll record
 router.post('/', auth, async (req, res) => {
@@ -200,6 +232,15 @@ router.post('/calculate-holiday-pay', auth, async (req, res) => {
       clockIn: { $gte: start, $lte: end }
     });
 
+    // Get global multipliers from system settings
+    const globalMultipliers = await getPayrollMultipliers();
+    const customMultipliers = {
+      regularHolidayMultiplier: globalMultipliers.regularHoliday,
+      specialHolidayMultiplier: globalMultipliers.specialHoliday,
+      overtimeOnHolidayMultiplier: globalMultipliers.overtimeOnHoliday,
+      overtimeOnSpecialHolidayMultiplier: globalMultipliers.overtimeOnSpecialHoliday
+    };
+
     // Calculate holiday pay for each holiday worked
     const holidaysWorked = [];
     let totalHolidayBonus = 0;
@@ -217,14 +258,20 @@ router.post('/calculate-holiday-pay', auth, async (req, res) => {
         const totalHoursWorked = holidayTimeLogs.reduce((sum, log) => sum + (log.totalHours || 0), 0);
         // Use hourlyRate directly; fall back to dailyRate/8 for legacy records
         const hourlyRate = staff.hourlyRate || (staff.dailyRate || 0) / 8;
-        const bonusAmount = calculateHolidayBonus(hourlyRate, holiday.type, totalHoursWorked);
+        // Pass custom multipliers from schedule settings
+        const bonusAmount = calculateHolidayBonus(hourlyRate, holiday.type, totalHoursWorked, null, customMultipliers);
+        
+        // Determine effective multiplier for display
+        const effectiveMultiplier = customMultipliers 
+          ? (holiday.type === 'regular' ? customMultipliers.regularHolidayMultiplier : customMultipliers.specialHolidayMultiplier)
+          : holiday.payMultiplier;
         
         holidaysWorked.push({
           date: holidayDate,
           holidayName: holiday.name,
           holidayType: holiday.type,
           hoursWorked: totalHoursWorked,
-          payMultiplier: holiday.payMultiplier,
+          payMultiplier: effectiveMultiplier,
           bonusAmount: bonusAmount
         });
 
@@ -363,6 +410,15 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
     const startOfMonth = new Date(period.getFullYear(), period.getMonth(), 1);
     const endOfMonth = new Date(period.getFullYear(), period.getMonth() + 1, 0);
 
+    // Get global multipliers from system settings
+    const globalMultipliers = await getPayrollMultipliers();
+    const customMultipliers = {
+      regularHolidayMultiplier: globalMultipliers.regularHoliday,
+      specialHolidayMultiplier: globalMultipliers.specialHoliday,
+      overtimeOnHolidayMultiplier: globalMultipliers.overtimeOnHoliday,
+      overtimeOnSpecialHolidayMultiplier: globalMultipliers.overtimeOnSpecialHoliday
+    };
+
     // Calculate holiday pay if requested
     let holidaysWorked = [];
     let totalHolidayBonus = 0;
@@ -386,14 +442,20 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
           const totalHoursWorked = holidayTimeLogs.reduce((sum, log) => sum + (log.totalHours || 0), 0);
           // Use hourlyRate directly; fall back to dailyRate/8 for legacy records
           const hourlyRate = staff.hourlyRate || (staff.dailyRate || 0) / 8;
-          const bonusAmount = calculateHolidayBonus(hourlyRate, holiday.type, totalHoursWorked);
+          // Pass global multipliers from system settings
+          const bonusAmount = calculateHolidayBonus(hourlyRate, holiday.type, totalHoursWorked, null, customMultipliers);
+          
+          // Determine effective multiplier for display
+          const effectiveMultiplier = holiday.type === 'regular' 
+            ? customMultipliers.regularHolidayMultiplier 
+            : customMultipliers.specialHolidayMultiplier;
           
           holidaysWorked.push({
             date: holidayDate,
             holidayName: holiday.name,
             holidayType: holiday.type,
             hoursWorked: totalHoursWorked,
-            payMultiplier: holiday.payMultiplier,
+            payMultiplier: effectiveMultiplier,
             bonusAmount: bonusAmount
           });
 
@@ -554,6 +616,9 @@ router.post('/generate-batch', auth, async (req, res) => {
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
 
+    // Get global payroll multipliers from system settings
+    const globalMultipliers = await getPayrollMultipliers();
+
     // Fetch ALL active employees (exclude Terminated, Resigned, Suspended)
     const allStaff = await Staff.find({
       status: { $nin: ['Terminated', 'Resigned', 'Suspended'] }
@@ -655,8 +720,11 @@ router.post('/generate-batch', auth, async (req, res) => {
       // Calculate hours from time logs
       let totalHours = 0;
       let overtimeHours = 0;
-      const regularHoursPerDay = staff.payrollScheduleId?.regularHoursPerDay || 8;
-      const overtimeMultiplier = staff.payrollScheduleId?.overtimeMultiplier || 1.25;
+      // Use global settings for regular hours, fallback to staff schedule or default
+      const settings = await Settings.getSettings();
+      const regularHoursPerDay = settings.payroll?.regularHoursPerDay || staff.payrollScheduleId?.regularHoursPerDay || 8;
+      // Use global overtime multiplier from system settings
+      const overtimeMultiplier = globalMultipliers.overtime;
 
       // Pair clock-in/out entries
       const clockIns = timeLogs.filter(l => l.type === 'clockIn');

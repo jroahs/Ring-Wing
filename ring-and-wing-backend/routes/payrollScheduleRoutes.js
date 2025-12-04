@@ -3,6 +3,44 @@ const router = express.Router();
 const PayrollSchedule = require('../models/PayrollSchedule');
 const Staff = require('../models/Staff');
 const { auth, isManager } = require('../middleware/authMiddleware');
+const { 
+  DOLE_MINIMUM_MULTIPLIERS, 
+  validateMultiplier, 
+  calculateComplianceStatus,
+  DEFAULT_DEDUCTION_SETTINGS 
+} = require('../utils/laborLawCompliance');
+
+// Helper function to validate all multipliers before save
+const validateMultipliers = (data) => {
+  const errors = [];
+  
+  const multiplierFields = [
+    { field: 'overtimeMultiplier', type: 'overtime' },
+    { field: 'regularHolidayMultiplier', type: 'regularHoliday' },
+    { field: 'specialHolidayMultiplier', type: 'specialHoliday' },
+    { field: 'overtimeOnHolidayMultiplier', type: 'overtimeOnHoliday' },
+    { field: 'overtimeOnSpecialHolidayMultiplier', type: 'overtimeOnSpecialHoliday' },
+    { field: 'restDayMultiplier', type: 'restDay' },
+    { field: 'restDayOvertimeMultiplier', type: 'restDayOvertime' },
+    { field: 'nightDifferentialMultiplier', type: 'nightDifferential' }
+  ];
+  
+  for (const { field, type } of multiplierFields) {
+    if (data[field] !== undefined) {
+      const validation = validateMultiplier(type, data[field]);
+      if (!validation.isValid) {
+        errors.push({
+          field,
+          value: data[field],
+          minimum: validation.minimum,
+          message: `${field} must be at least ${validation.minimum}× (DOLE minimum)`
+        });
+      }
+    }
+  }
+  
+  return errors;
+};
 
 // Get all payroll schedules
 router.get('/', auth, async (req, res) => {
@@ -10,12 +48,47 @@ router.get('/', auth, async (req, res) => {
     const schedules = await PayrollSchedule.find()
       .sort({ isActive: -1, name: 1 });
 
+    // Add compliance status to each schedule
+    const schedulesWithCompliance = schedules.map(schedule => {
+      const scheduleObj = schedule.toObject();
+      scheduleObj.complianceStatus = calculateComplianceStatus({
+        overtimeMultiplier: schedule.overtimeMultiplier,
+        regularHolidayMultiplier: schedule.regularHolidayMultiplier,
+        specialHolidayMultiplier: schedule.specialHolidayMultiplier,
+        overtimeOnHolidayMultiplier: schedule.overtimeOnHolidayMultiplier,
+        overtimeOnSpecialHolidayMultiplier: schedule.overtimeOnSpecialHolidayMultiplier,
+        restDayMultiplier: schedule.restDayMultiplier,
+        restDayOvertimeMultiplier: schedule.restDayOvertimeMultiplier,
+        nightDifferentialMultiplier: schedule.nightDifferentialMultiplier
+      });
+      return scheduleObj;
+    });
+
     res.json({
       success: true,
-      data: schedules
+      data: schedulesWithCompliance
     });
   } catch (error) {
     console.error('Error fetching payroll schedules:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// Get DOLE minimum multipliers (for frontend reference)
+router.get('/compliance/minimums', auth, async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        minimums: DOLE_MINIMUM_MULTIPLIERS,
+        defaultDeductions: DEFAULT_DEDUCTION_SETTINGS
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching compliance minimums:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -33,9 +106,27 @@ router.post('/', auth, isManager, async (req, res) => {
       cutoffDays,
       description,
       overtimeMultiplier,
+      regularHolidayMultiplier,
+      specialHolidayMultiplier,
+      overtimeOnHolidayMultiplier,
+      overtimeOnSpecialHolidayMultiplier,
+      restDayMultiplier,
+      restDayOvertimeMultiplier,
+      nightDifferentialMultiplier,
       regularHoursPerDay,
-      workDaysPerWeek
+      workDaysPerWeek,
+      deductionSettings
     } = req.body;
+
+    // Validate multipliers against DOLE minimums
+    const validationErrors = validateMultipliers(req.body);
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Multipliers below DOLE legal minimums',
+        errors: validationErrors
+      });
+    }
 
     const schedule = new PayrollSchedule({
       name,
@@ -44,15 +135,36 @@ router.post('/', auth, isManager, async (req, res) => {
       cutoffDays,
       description,
       overtimeMultiplier,
+      regularHolidayMultiplier,
+      specialHolidayMultiplier,
+      overtimeOnHolidayMultiplier,
+      overtimeOnSpecialHolidayMultiplier,
+      restDayMultiplier,
+      restDayOvertimeMultiplier,
+      nightDifferentialMultiplier,
       regularHoursPerDay,
-      workDaysPerWeek
+      workDaysPerWeek,
+      deductionSettings: deductionSettings || DEFAULT_DEDUCTION_SETTINGS
     });
 
     await schedule.save();
 
+    // Add compliance status to response
+    const scheduleObj = schedule.toObject();
+    scheduleObj.complianceStatus = calculateComplianceStatus({
+      overtimeMultiplier: schedule.overtimeMultiplier,
+      regularHolidayMultiplier: schedule.regularHolidayMultiplier,
+      specialHolidayMultiplier: schedule.specialHolidayMultiplier,
+      overtimeOnHolidayMultiplier: schedule.overtimeOnHolidayMultiplier,
+      overtimeOnSpecialHolidayMultiplier: schedule.overtimeOnSpecialHolidayMultiplier,
+      restDayMultiplier: schedule.restDayMultiplier,
+      restDayOvertimeMultiplier: schedule.restDayOvertimeMultiplier,
+      nightDifferentialMultiplier: schedule.nightDifferentialMultiplier
+    });
+
     res.status(201).json({
       success: true,
-      data: schedule
+      data: scheduleObj
     });
   } catch (error) {
     console.error('Error creating payroll schedule:', error);
@@ -69,6 +181,16 @@ router.put('/:id', auth, isManager, async (req, res) => {
     const { id } = req.params;
     const update = req.body;
 
+    // Validate multipliers against DOLE minimums
+    const validationErrors = validateMultipliers(update);
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Multipliers below DOLE legal minimums',
+        errors: validationErrors
+      });
+    }
+
     const schedule = await PayrollSchedule.findByIdAndUpdate(
       id,
       update,
@@ -82,9 +204,22 @@ router.put('/:id', auth, isManager, async (req, res) => {
       });
     }
 
+    // Add compliance status to response
+    const scheduleObj = schedule.toObject();
+    scheduleObj.complianceStatus = calculateComplianceStatus({
+      overtimeMultiplier: schedule.overtimeMultiplier,
+      regularHolidayMultiplier: schedule.regularHolidayMultiplier,
+      specialHolidayMultiplier: schedule.specialHolidayMultiplier,
+      overtimeOnHolidayMultiplier: schedule.overtimeOnHolidayMultiplier,
+      overtimeOnSpecialHolidayMultiplier: schedule.overtimeOnSpecialHolidayMultiplier,
+      restDayMultiplier: schedule.restDayMultiplier,
+      restDayOvertimeMultiplier: schedule.restDayOvertimeMultiplier,
+      nightDifferentialMultiplier: schedule.nightDifferentialMultiplier
+    });
+
     res.json({
       success: true,
-      data: schedule
+      data: scheduleObj
     });
   } catch (error) {
     console.error('Error updating payroll schedule:', error);

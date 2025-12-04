@@ -635,6 +635,203 @@ const updateSchedulingSettings = async (req, res) => {
   }
 };
 
+// DOLE Minimum Multipliers (for validation)
+const DOLE_MINIMUMS = {
+  overtime: 1.25,
+  regularHoliday: 2.0,
+  specialHoliday: 1.30,
+  overtimeOnHoliday: 2.60,
+  overtimeOnSpecialHoliday: 1.69,
+  restDay: 1.30,
+  restDayOvertime: 1.69,
+  nightDifferential: 1.10
+};
+
+// Get payroll settings (DOLE-compliant multipliers)
+const getPayrollSettings = async (req, res) => {
+  try {
+    const settings = await Settings.getSettings();
+    
+    const defaultPayrollSettings = {
+      regularHoursPerDay: 8,
+      workDaysPerWeek: 6,
+      multipliers: {
+        overtime: 1.25,
+        regularHoliday: 2.0,
+        specialHoliday: 1.30,
+        overtimeOnHoliday: 2.60,
+        overtimeOnSpecialHoliday: 1.69,
+        restDay: 1.30,
+        restDayOvertime: 1.69,
+        nightDifferential: 1.10
+      },
+      deductions: {
+        sssEnabled: true,
+        philhealthEnabled: true,
+        pagibigEnabled: true,
+        taxEnabled: true,
+        lateDeductionPerMinute: 0,
+        absentDeductionType: 'daily_rate'
+      },
+      defaultPayoutType: 'semi-monthly',
+      defaultPayoutDays: [15, 30],
+      defaultCutoffDays: [14, 29]
+    };
+    
+    res.json({
+      success: true,
+      data: settings.payroll || defaultPayrollSettings,
+      doleMinimums: DOLE_MINIMUMS
+    });
+  } catch (error) {
+    console.error('Error fetching payroll settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch payroll settings',
+      error: error.message
+    });
+  }
+};
+
+// Update payroll settings (admin only) - enforces DOLE minimums
+const updatePayrollSettings = async (req, res) => {
+  try {
+    const {
+      regularHoursPerDay,
+      workDaysPerWeek,
+      multipliers,
+      deductions,
+      defaultPayoutType,
+      defaultPayoutDays,
+      defaultCutoffDays
+    } = req.body;
+    
+    const settings = await Settings.getSettings();
+    
+    // Initialize payroll object if not exists
+    if (!settings.payroll) {
+      settings.payroll = {
+        regularHoursPerDay: 8,
+        workDaysPerWeek: 6,
+        multipliers: {
+          overtime: 1.25,
+          regularHoliday: 2.0,
+          specialHoliday: 1.30,
+          overtimeOnHoliday: 2.60,
+          overtimeOnSpecialHoliday: 1.69,
+          restDay: 1.30,
+          restDayOvertime: 1.69,
+          nightDifferential: 1.10
+        },
+        deductions: {
+          sssEnabled: true,
+          philhealthEnabled: true,
+          pagibigEnabled: true,
+          taxEnabled: true,
+          lateDeductionPerMinute: 0,
+          absentDeductionType: 'daily_rate'
+        },
+        defaultPayoutType: 'semi-monthly',
+        defaultPayoutDays: [15, 30],
+        defaultCutoffDays: [14, 29]
+      };
+    }
+    
+    // Update work hours
+    if (typeof regularHoursPerDay === 'number') {
+      settings.payroll.regularHoursPerDay = Math.min(12, Math.max(1, regularHoursPerDay));
+    }
+    if (typeof workDaysPerWeek === 'number') {
+      settings.payroll.workDaysPerWeek = Math.min(7, Math.max(1, workDaysPerWeek));
+    }
+    
+    // Validate and update multipliers (enforce DOLE minimums)
+    if (multipliers && typeof multipliers === 'object') {
+      const validationErrors = [];
+      
+      for (const [key, value] of Object.entries(multipliers)) {
+        if (DOLE_MINIMUMS[key] !== undefined && typeof value === 'number') {
+          if (value < DOLE_MINIMUMS[key]) {
+            validationErrors.push({
+              field: key,
+              value: value,
+              minimum: DOLE_MINIMUMS[key],
+              message: `${key} multiplier must be at least ${DOLE_MINIMUMS[key]}× (DOLE minimum)`
+            });
+          } else {
+            if (!settings.payroll.multipliers) {
+              settings.payroll.multipliers = {};
+            }
+            settings.payroll.multipliers[key] = value;
+          }
+        }
+      }
+      
+      if (validationErrors.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Multipliers below DOLE legal minimums',
+          errors: validationErrors
+        });
+      }
+    }
+    
+    // Update deduction settings
+    if (deductions && typeof deductions === 'object') {
+      if (!settings.payroll.deductions) {
+        settings.payroll.deductions = {};
+      }
+      
+      if (typeof deductions.sssEnabled === 'boolean') {
+        settings.payroll.deductions.sssEnabled = deductions.sssEnabled;
+      }
+      if (typeof deductions.philhealthEnabled === 'boolean') {
+        settings.payroll.deductions.philhealthEnabled = deductions.philhealthEnabled;
+      }
+      if (typeof deductions.pagibigEnabled === 'boolean') {
+        settings.payroll.deductions.pagibigEnabled = deductions.pagibigEnabled;
+      }
+      if (typeof deductions.taxEnabled === 'boolean') {
+        settings.payroll.deductions.taxEnabled = deductions.taxEnabled;
+      }
+      if (typeof deductions.lateDeductionPerMinute === 'number') {
+        settings.payroll.deductions.lateDeductionPerMinute = Math.max(0, deductions.lateDeductionPerMinute);
+      }
+      if (deductions.absentDeductionType && ['daily_rate', 'hourly', 'none'].includes(deductions.absentDeductionType)) {
+        settings.payroll.deductions.absentDeductionType = deductions.absentDeductionType;
+      }
+    }
+    
+    // Update payout settings
+    if (defaultPayoutType && ['monthly', 'semi-monthly', 'weekly', 'bi-weekly'].includes(defaultPayoutType)) {
+      settings.payroll.defaultPayoutType = defaultPayoutType;
+    }
+    if (Array.isArray(defaultPayoutDays)) {
+      settings.payroll.defaultPayoutDays = defaultPayoutDays.filter(d => d >= 1 && d <= 31);
+    }
+    if (Array.isArray(defaultCutoffDays)) {
+      settings.payroll.defaultCutoffDays = defaultCutoffDays.filter(d => d >= 1 && d <= 31);
+    }
+    
+    console.log('Updating payroll settings:', settings.payroll);
+    
+    await settings.save();
+    
+    res.json({
+      success: true,
+      message: 'Payroll settings updated successfully',
+      data: settings.payroll
+    });
+  } catch (error) {
+    console.error('Error updating payroll settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update payroll settings',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getSettings,
   getCashFloatSettings,
@@ -649,5 +846,7 @@ module.exports = {
   getAttendanceSettings,
   updateAttendanceSettings,
   getSchedulingSettings,
-  updateSchedulingSettings
+  updateSchedulingSettings,
+  getPayrollSettings,
+  updatePayrollSettings
 };

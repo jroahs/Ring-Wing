@@ -246,6 +246,109 @@ const settingsSchema = new mongoose.Schema({
       max: 30
     }
   },
+
+  // NEW: Payroll Settings (DOLE-Compliant Multipliers)
+  payroll: {
+    // Standard work hours
+    regularHoursPerDay: {
+      type: Number,
+      default: 8,
+      min: 1,
+      max: 12
+    },
+    workDaysPerWeek: {
+      type: Number,
+      default: 6,
+      min: 1,
+      max: 7
+    },
+    // DOLE-Compliant Pay Multipliers (minimum values enforced)
+    multipliers: {
+      overtime: {
+        type: Number,
+        default: 1.25,
+        min: 1.25 // DOLE minimum
+      },
+      regularHoliday: {
+        type: Number,
+        default: 2.0,
+        min: 2.0 // DOLE minimum
+      },
+      specialHoliday: {
+        type: Number,
+        default: 1.30,
+        min: 1.30 // DOLE minimum
+      },
+      overtimeOnHoliday: {
+        type: Number,
+        default: 2.60,
+        min: 2.60 // DOLE minimum: 200% + 30% of 200%
+      },
+      overtimeOnSpecialHoliday: {
+        type: Number,
+        default: 1.69,
+        min: 1.69 // DOLE minimum: 130% + 30% of 130%
+      },
+      restDay: {
+        type: Number,
+        default: 1.30,
+        min: 1.30 // DOLE minimum
+      },
+      restDayOvertime: {
+        type: Number,
+        default: 1.69,
+        min: 1.69 // DOLE minimum
+      },
+      nightDifferential: {
+        type: Number,
+        default: 1.10,
+        min: 1.10 // DOLE minimum: 10% additional
+      }
+    },
+    // Deduction settings
+    deductions: {
+      sssEnabled: {
+        type: Boolean,
+        default: true
+      },
+      philhealthEnabled: {
+        type: Boolean,
+        default: true
+      },
+      pagibigEnabled: {
+        type: Boolean,
+        default: true
+      },
+      taxEnabled: {
+        type: Boolean,
+        default: true
+      },
+      lateDeductionPerMinute: {
+        type: Number,
+        default: 0, // 0 = no late deduction
+        min: 0
+      },
+      absentDeductionType: {
+        type: String,
+        enum: ['daily_rate', 'hourly', 'none'],
+        default: 'daily_rate'
+      }
+    },
+    // Default payout schedule
+    defaultPayoutType: {
+      type: String,
+      enum: ['monthly', 'semi-monthly', 'weekly', 'bi-weekly'],
+      default: 'semi-monthly'
+    },
+    defaultPayoutDays: {
+      type: [Number],
+      default: [15, 30]
+    },
+    defaultCutoffDays: {
+      type: [Number],
+      default: [14, 29]
+    }
+  },
   
   // Metadata
   createdAt: { 

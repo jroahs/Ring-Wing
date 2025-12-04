@@ -2,6 +2,7 @@
 // Uses Nager.Date API for automatic Philippine holidays fetching
 
 const axios = require('axios');
+const Settings = require('../models/Settings');
 
 // Holiday pay multipliers based on Philippine labor law
 const HOLIDAY_MULTIPLIERS = {
@@ -13,6 +14,28 @@ const HOLIDAY_MULTIPLIERS = {
 // Cache for fetched holidays to avoid repeated API calls
 const holidayCache = new Map();
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * Helper to get global payroll multipliers from Settings
+ * @returns {Promise<Object>} Multiplier settings
+ */
+async function getGlobalMultipliers() {
+  try {
+    const settings = await Settings.getSettings();
+    // Multipliers are nested under payroll.multipliers
+    const m = settings.payroll?.multipliers || {};
+    return {
+      regularHolidayMultiplier: m.regularHoliday || HOLIDAY_MULTIPLIERS.regular,
+      specialHolidayMultiplier: m.specialHoliday || HOLIDAY_MULTIPLIERS.special
+    };
+  } catch (error) {
+    console.error('[PhilippineHolidays] Error fetching global settings:', error.message);
+    return {
+      regularHolidayMultiplier: HOLIDAY_MULTIPLIERS.regular,
+      specialHolidayMultiplier: HOLIDAY_MULTIPLIERS.special
+    };
+  }
+}
 
 /**
  * Fetch Philippine holidays from Nager.Date API
@@ -341,14 +364,29 @@ async function getHolidaysInRange(startDate, endDate) {
 
 /**
  * Calculate holiday bonus based on hourly rate and holiday type
+ * Now fetches global multipliers from Settings if custom multipliers not provided
  * @param {number} hourlyRate - Hourly rate (NEW: primary rate field)
  * @param {string} holidayType - Type of holiday ('regular', 'special', 'local')
  * @param {number} hoursWorked - Hours worked on the holiday (default: 8)
  * @param {number} [dailyRateFallback] - DEPRECATED: Daily rate for backward compatibility
- * @returns {number} Holiday bonus amount
+ * @param {Object} [customMultipliers] - Optional custom multipliers (overrides global settings)
+ * @returns {Promise<number>} Holiday bonus amount
  */
-function calculateHolidayBonus(hourlyRate, holidayType, hoursWorked = 8, dailyRateFallback = null) {
-  const multiplier = getPayMultiplier(holidayType);
+async function calculateHolidayBonus(hourlyRate, holidayType, hoursWorked = 8, dailyRateFallback = null, customMultipliers = null) {
+  // Get multipliers - prefer custom, then global settings, then DOLE defaults
+  let multiplierSettings = customMultipliers;
+  if (!multiplierSettings) {
+    multiplierSettings = await getGlobalMultipliers();
+  }
+  
+  let multiplier;
+  if (holidayType === 'regular') {
+    multiplier = multiplierSettings.regularHolidayMultiplier || HOLIDAY_MULTIPLIERS.regular;
+  } else if (holidayType === 'special') {
+    multiplier = multiplierSettings.specialHolidayMultiplier || HOLIDAY_MULTIPLIERS.special;
+  } else {
+    multiplier = multiplierSettings.specialHolidayMultiplier || HOLIDAY_MULTIPLIERS.local;
+  }
   
   // Use hourlyRate directly; if not provided, derive from dailyRate (legacy support)
   let effectiveHourlyRate = hourlyRate;
@@ -362,14 +400,29 @@ function calculateHolidayBonus(hourlyRate, holidayType, hoursWorked = 8, dailyRa
 
 /**
  * Calculate total holiday pay (regular pay + bonus)
+ * Now fetches global multipliers from Settings if custom multipliers not provided
  * @param {number} hourlyRate - Hourly rate (NEW: primary rate field)
  * @param {string} holidayType - Type of holiday
  * @param {number} hoursWorked - Hours worked on the holiday
  * @param {number} [dailyRateFallback] - DEPRECATED: Daily rate for backward compatibility
- * @returns {number} Total holiday pay
+ * @param {Object} [customMultipliers] - Optional custom multipliers (overrides global settings)
+ * @returns {Promise<number>} Total holiday pay
  */
-function calculateTotalHolidayPay(hourlyRate, holidayType, hoursWorked = 8, dailyRateFallback = null) {
-  const multiplier = getPayMultiplier(holidayType);
+async function calculateTotalHolidayPay(hourlyRate, holidayType, hoursWorked = 8, dailyRateFallback = null, customMultipliers = null) {
+  // Get multipliers - prefer custom, then global settings, then DOLE defaults
+  let multiplierSettings = customMultipliers;
+  if (!multiplierSettings) {
+    multiplierSettings = await getGlobalMultipliers();
+  }
+  
+  let multiplier;
+  if (holidayType === 'regular') {
+    multiplier = multiplierSettings.regularHolidayMultiplier || HOLIDAY_MULTIPLIERS.regular;
+  } else if (holidayType === 'special') {
+    multiplier = multiplierSettings.specialHolidayMultiplier || HOLIDAY_MULTIPLIERS.special;
+  } else {
+    multiplier = multiplierSettings.specialHolidayMultiplier || HOLIDAY_MULTIPLIERS.local;
+  }
   
   // Use hourlyRate directly; if not provided, derive from dailyRate (legacy support)
   let effectiveHourlyRate = hourlyRate;

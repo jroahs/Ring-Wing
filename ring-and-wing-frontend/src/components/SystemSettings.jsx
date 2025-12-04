@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSettings, FiCreditCard, FiClock, FiChevronRight, FiDollarSign, FiShield, FiDatabase, FiCalendar } from 'react-icons/fi';
+import { FiSettings, FiCreditCard, FiClock, FiChevronRight, FiDollarSign, FiCalendar } from 'react-icons/fi';
 import PaymentSettings from './PaymentSettings';
 import AttendanceSettings from './AttendanceSettings';
 import SchedulingSettings from './SchedulingSettings';
+import PayrollSettings from './PayrollSettings';
 import { theme } from '../theme';
 
 const SystemSettings = () => {
-  const [activeSection, setActiveSection] = useState('payment'); // 'payment', 'attendance', 'scheduling', or future sections
+  const [activeSection, setActiveSection] = useState('payment'); // 'payment', 'attendance', 'scheduling', 'payroll'
 
   const settingsSections = [
     {
@@ -31,21 +32,13 @@ const SystemSettings = () => {
       icon: FiCalendar,
       component: SchedulingSettings
     },
-    // Future settings sections can be added here
-    // {
-    //   id: 'notifications',
-    //   name: 'Notifications',
-    //   description: 'Configure system notifications',
-    //   icon: FiBell,
-    //   component: NotificationSettings
-    // },
-    // {
-    //   id: 'security',
-    //   name: 'Security',
-    //   description: 'Configure security settings',
-    //   icon: FiShield,
-    //   component: SecuritySettings
-    // },
+    {
+      id: 'payroll',
+      name: 'Payroll Settings',
+      description: 'DOLE-compliant multipliers and deductions',
+      icon: FiDollarSign,
+      component: PayrollSettings
+    }
   ];
 
   const ActiveComponent = settingsSections.find(s => s.id === activeSection)?.component;
@@ -112,31 +105,6 @@ const SystemSettings = () => {
               );
             })}
           </nav>
-
-          {/* Future Settings Placeholder */}
-          <div className="mt-8 pt-4 border-t" style={{ borderColor: theme.colors.muted + '30' }}>
-            <p className="text-xs uppercase font-medium tracking-wider mb-3" style={{ color: theme.colors.muted }}>
-              Coming Soon
-            </p>
-            <div className="space-y-2 opacity-50">
-              <div className="flex items-center gap-3 p-3 rounded-lg">
-                <div className="p-2 rounded-lg" style={{ backgroundColor: theme.colors.muted + '20' }}>
-                  <FiShield className="text-lg" style={{ color: theme.colors.muted }} />
-                </div>
-                <div>
-                  <p className="font-medium text-sm" style={{ color: theme.colors.muted }}>Security</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 rounded-lg">
-                <div className="p-2 rounded-lg" style={{ backgroundColor: theme.colors.muted + '20' }}>
-                  <FiDatabase className="text-lg" style={{ color: theme.colors.muted }} />
-                </div>
-                <div>
-                  <p className="font-medium text-sm" style={{ color: theme.colors.muted }}>Backup</p>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Settings Content */}

@@ -14,7 +14,9 @@ const {
   getAttendanceSettings,
   updateAttendanceSettings,
   getSchedulingSettings,
-  updateSchedulingSettings
+  updateSchedulingSettings,
+  getPayrollSettings,
+  updatePayrollSettings
 } = require('../controllers/settingsController');
 const {
   getMerchantWallets,
@@ -136,5 +138,24 @@ router.get('/scheduling', auth, getSchedulingSettings);
  * Requires: admin role
  */
 router.put('/scheduling', auth, isManager, updateSchedulingSettings);
+
+// ========================================
+// PAYROLL SETTINGS ROUTES (DOLE-Compliant)
+// ========================================
+
+/**
+ * Get payroll settings (DOLE-compliant multipliers, deductions)
+ * GET /api/settings/payroll
+ * Requires: auth
+ */
+router.get('/payroll', auth, getPayrollSettings);
+
+/**
+ * Update payroll settings
+ * PUT /api/settings/payroll
+ * Requires: admin role
+ * Note: Multipliers below DOLE minimums will be rejected
+ */
+router.put('/payroll', auth, isManager, updatePayrollSettings);
 
 module.exports = router;
