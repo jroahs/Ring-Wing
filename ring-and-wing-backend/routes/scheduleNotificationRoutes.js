@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const ScheduleNotification = require('../models/ScheduleNotification');
 const Staff = require('../models/Staff');
+const User = require('../models/User');
 const { auth, isManager } = require('../middleware/authMiddleware');
 
 // Get notifications for the current user (staff)
@@ -12,9 +13,20 @@ router.get('/my-notifications', auth, async (req, res) => {
     // Find staff record for current user
     const staff = await Staff.findOne({ userId: req.user._id });
     if (!staff) {
-      return res.status(404).json({
-        success: false,
-        message: 'Staff record not found'
+      // Return empty array instead of 404 for better UX
+      console.log(`[Notifications] No staff record found for user ${req.user._id}`);
+      return res.json({
+        success: true,
+        data: {
+          notifications: [],
+          unreadCount: 0,
+          pagination: {
+            total: 0,
+            limit: parseInt(limit),
+            skip: parseInt(skip),
+            hasMore: false
+          }
+        }
       });
     }
 
@@ -302,7 +314,7 @@ router.get('/staff/:staffId', auth, isManager, async (req, res) => {
   }
 });
 
-// Publish schedule (send notifications to affected staff)
+// Publish schedule (send notifications to affected staff AND admin confirmation)
 router.post('/publish', auth, isManager, async (req, res) => {
   try {
     const { staffIds, startDate, endDate, message } = req.body;
@@ -323,29 +335,73 @@ router.post('/publish', auth, isManager, async (req, res) => {
 
     const start = new Date(startDate);
     const end = new Date(endDate);
+    const dateRange = `${start.toLocaleDateString()} to ${end.toLocaleDateString()}`;
 
     // Create notification for each staff
     const notifications = [];
+    const notifiedStaffNames = [];
+    
     for (const staffId of staffIds) {
       const staff = await Staff.findById(staffId);
       if (!staff) continue;
+
+      notifiedStaffNames.push(staff.firstName + ' ' + staff.lastName);
 
       const notification = await ScheduleNotification.createScheduleNotification({
         staffId,
         type: 'schedule_published',
         affectedDates: [start, end],
         triggeredBy: req.user._id,
-        customMessage: message || `Your schedule for ${start.toLocaleDateString()} to ${end.toLocaleDateString()} has been published.`
+        customMessage: message || `Your schedule for ${dateRange} has been published. Please check your assigned shifts.`
       });
 
       notifications.push(notification);
     }
 
+    // Create admin confirmation notification for the publisher
+    // Find the staff record for the admin who published (if they have one)
+    const publisherStaff = await Staff.findOne({ userId: req.user._id });
+    if (publisherStaff) {
+      await ScheduleNotification.createScheduleNotification({
+        staffId: publisherStaff._id,
+        type: 'schedule_published',
+        affectedDates: [start, end],
+        triggeredBy: req.user._id,
+        customTitle: 'Schedule Published Successfully',
+        customMessage: `You published the schedule for ${dateRange}. ${notifications.length} staff members were notified.`,
+        isAdminNotification: true
+      });
+    }
+
+    // Also notify other admin/manager users about the published schedule
+    const otherAdmins = await User.find({ 
+      position: { $in: ['Admin', 'Manager'] },
+      _id: { $ne: req.user._id } // Exclude the publisher
+    });
+
+    for (const admin of otherAdmins) {
+      const adminStaff = await Staff.findOne({ userId: admin._id });
+      if (adminStaff) {
+        await ScheduleNotification.createScheduleNotification({
+          staffId: adminStaff._id,
+          type: 'schedule_published',
+          affectedDates: [start, end],
+          triggeredBy: req.user._id,
+          customTitle: 'Schedule Published by ' + req.user.username,
+          customMessage: `${req.user.username} published the schedule for ${dateRange}. ${notifications.length} staff members were notified.`,
+          isAdminNotification: true
+        });
+      }
+    }
+
+    console.log(`[Publish] Schedule published by ${req.user.username}: ${notifications.length} staff notified, ${dateRange}`);
+
     res.json({
       success: true,
       data: {
         notified: notifications.length,
-        notifications
+        notifications,
+        staffNotified: notifiedStaffNames
       },
       message: `Schedule published. ${notifications.length} staff notified.`
     });

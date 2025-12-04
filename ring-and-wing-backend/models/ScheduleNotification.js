@@ -76,6 +76,16 @@ const scheduleNotificationSchema = new mongoose.Schema({
     enum: ['low', 'normal', 'high', 'urgent'],
     default: 'normal'
   },
+  // Admin notification flag (for notifications to admins/managers)
+  isAdminNotification: {
+    type: Boolean,
+    default: false
+  },
+  // Admin recipient (when isAdminNotification is true)
+  adminId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   // Expiry (auto-delete old notifications)
   expiresAt: {
     type: Date,
@@ -103,7 +113,10 @@ scheduleNotificationSchema.statics.createScheduleNotification = async function(o
     previousSchedule,
     newSchedule,
     triggeredBy,
-    priority = 'normal'
+    priority = 'normal',
+    customMessage,
+    customTitle,
+    isAdminNotification = false
   } = options;
 
   // Generate title and message based on type
@@ -111,35 +124,35 @@ scheduleNotificationSchema.statics.createScheduleNotification = async function(o
 
   switch (type) {
     case 'schedule_created':
-      title = 'New Schedule Assigned';
-      message = `You have been scheduled to work on ${formatDates(affectedDates)}. Shift: ${newSchedule?.shiftName || 'Custom'} (${newSchedule?.startTime} - ${newSchedule?.endTime})`;
+      title = customTitle || 'New Schedule Assigned';
+      message = customMessage || `You have been scheduled to work on ${formatDates(affectedDates)}. Shift: ${newSchedule?.shiftName || 'Custom'} (${newSchedule?.startTime} - ${newSchedule?.endTime})`;
       break;
     
     case 'schedule_updated':
-      title = 'Schedule Changed';
-      message = `Your schedule for ${formatDates(affectedDates)} has been updated. New shift: ${newSchedule?.shiftName || 'Custom'} (${newSchedule?.startTime} - ${newSchedule?.endTime})`;
+      title = customTitle || 'Schedule Changed';
+      message = customMessage || `Your schedule for ${formatDates(affectedDates)} has been updated. New shift: ${newSchedule?.shiftName || 'Custom'} (${newSchedule?.startTime} - ${newSchedule?.endTime})`;
       break;
     
     case 'schedule_deleted':
-      title = 'Schedule Removed';
-      message = `Your scheduled shift on ${formatDates(affectedDates)} has been removed.`;
+      title = customTitle || 'Schedule Removed';
+      message = customMessage || `Your scheduled shift on ${formatDates(affectedDates)} has been removed.`;
       break;
     
     case 'rest_day_changed':
-      title = 'Rest Day Updated';
-      message = newSchedule?.isRestDay 
+      title = customTitle || 'Rest Day Updated';
+      message = customMessage || (newSchedule?.isRestDay 
         ? `${formatDates(affectedDates)} is now your rest day.`
-        : `${formatDates(affectedDates)} is no longer a rest day. You are scheduled to work.`;
+        : `${formatDates(affectedDates)} is no longer a rest day. You are scheduled to work.`);
       break;
     
     case 'schedule_published':
-      title = 'Schedule Published';
-      message = `The schedule for ${formatDates(affectedDates)} has been published. Please check your assigned shifts.`;
+      title = customTitle || 'Schedule Published';
+      message = customMessage || `The schedule for ${formatDates(affectedDates)} has been published. Please check your assigned shifts.`;
       break;
     
     default:
-      title = 'Schedule Notification';
-      message = 'Your schedule has been updated.';
+      title = customTitle || 'Schedule Notification';
+      message = customMessage || 'Your schedule has been updated.';
   }
 
   return this.create({
@@ -152,7 +165,8 @@ scheduleNotificationSchema.statics.createScheduleNotification = async function(o
     previousSchedule,
     newSchedule,
     triggeredBy,
-    priority
+    priority,
+    isAdminNotification
   });
 };
 

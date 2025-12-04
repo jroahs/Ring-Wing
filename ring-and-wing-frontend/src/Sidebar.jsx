@@ -34,7 +34,16 @@ import {
   FiSettings,
   FiDatabase,
   FiPieChart,
-  FiSmartphone
+  FiSmartphone,
+  FiCheckCircle,
+  FiFileText,
+  FiDollarSign,
+  FiClipboard,
+  FiBarChart2,
+  FiUserCheck,
+  FiBriefcase,
+  FiPercent,
+  FiLayers
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -158,37 +167,56 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
   const dropdownWidth = isLargeScreen ? '14rem' : '12rem';
   const isMobile = windowWidth < 768;const userRole = userData?.role || 'staff';
   const userPosition = userData?.position || 'cashier';
+  
   // Define navigation items with position-based access
+  // GROUPED: Sales & Orders → Inventory → Staff & HR → Finance → Settings
   const navigationItems = [
+    // ═══════════════════════════════════════════
+    // GROUP 1: OVERVIEW
+    // ═══════════════════════════════════════════
     { 
       path: '/dashboard', 
       icon: <FiGrid size={iconSize} className="text-white" />, 
       label: 'Dashboard',
-      positions: ['shift_manager', 'general_manager', 'admin']
+      positions: ['shift_manager', 'general_manager', 'admin'],
+      group: 'overview'
     },
+    
+    // ═══════════════════════════════════════════
+    // GROUP 2: SALES & ORDERS
+    // ═══════════════════════════════════════════
     { 
       path: '/pos', 
       icon: <FiShoppingCart size={iconSize} className="text-white" />, 
       label: 'POS',
-      positions: ['cashier', 'shift_manager', 'general_manager', 'admin']
+      positions: ['cashier', 'shift_manager', 'general_manager', 'admin'],
+      group: 'sales'
     },
     { 
       path: '/orders', 
       icon: <FiShoppingBag size={iconSize} className="text-white" />, 
       label: 'Orders',
-      positions: ['cashier', 'shift_manager', 'general_manager', 'admin']
+      positions: ['cashier', 'shift_manager', 'general_manager', 'admin'],
+      group: 'sales'
     },
     { 
       path: '/payment-verification', 
-      icon: <FiCreditCard size={iconSize} className="text-white" />, 
+      icon: <FiCheckCircle size={iconSize} className="text-white" />, 
       label: 'Payment Verification',
-      positions: ['cashier', 'shift_manager', 'general_manager', 'admin']
+      positions: ['cashier', 'shift_manager', 'general_manager', 'admin'],
+      group: 'sales'
     },
+    
+    // ═══════════════════════════════════════════
+    // GROUP 3: INVENTORY & MENU
+    // ═══════════════════════════════════════════
     { 
       path: '/inventory-management',
-      icon: <FiDatabase size={iconSize} className="text-white" />,
+      icon: <FiLayers size={iconSize} className="text-white" />,
       label: 'Inventory & Menu',
-      positions: ['inventory', 'shift_manager', 'general_manager', 'admin'],      subItems: [
+      positions: ['inventory', 'shift_manager', 'general_manager', 'admin'],
+      group: 'inventory',
+      subItems: [
         { 
           path: '/inventory', 
           icon: <FiBox size={iconSize} style={{ color: colors.iconBrown }} />, 
@@ -203,83 +231,124 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
         },
       ]
     },
+    
+    // ═══════════════════════════════════════════
+    // GROUP 4: STAFF & HR
+    // ═══════════════════════════════════════════
     {
       path: '/timeclock', 
       icon: <FiClock size={iconSize} className="text-white" />, 
       label: 'Time Clock',
-      positions: ['cashier', 'inventory', 'shift_manager', 'general_manager', 'admin']
-    },
-    {
-      path: '/my-payslips', 
-      icon: <FiCreditCard size={iconSize} className="text-white" />, 
-      label: 'My Payslips',
-      positions: ['cashier', 'inventory', 'shift_manager', 'general_manager', 'admin']
-    },
-    {
-      path: '/my-expense-requests', 
-      icon: <FiTrendingDown size={iconSize} className="text-white" />, 
-      label: 'My Expense Requests',
-      positions: ['cashier', 'inventory']
+      positions: ['cashier', 'inventory', 'shift_manager', 'general_manager', 'admin'],
+      group: 'hr'
     },
     { 
       path: '/staff',
       icon: <FiUsers size={iconSize} className="text-white" />,
-      label: 'Staff',      positions: ['shift_manager', 'general_manager', 'admin'],
+      label: 'Staff Management',
+      positions: ['shift_manager', 'general_manager', 'admin'],
+      group: 'hr',
       subItems: [
         { 
           path: '/employees', 
           icon: <FiUser size={iconSize} style={{ color: colors.iconBrown }} />, 
-          label: 'Employee Management',
+          label: 'Employees',
           positions: ['shift_manager', 'general_manager', 'admin']
         },
         { 
           path: '/staff-scheduler', 
           icon: <FiCalendar size={iconSize} style={{ color: colors.iconBrown }} />, 
-          label: 'Staff Scheduler',
+          label: 'Scheduler',
           positions: ['shift_manager', 'general_manager', 'admin']
         },
         { 
+          path: '/customer-management', 
+          icon: <FiUserCheck size={iconSize} style={{ color: colors.iconBrown }} />, 
+          label: 'Customers',
+          positions: ['general_manager', 'admin']
+        }
+      ]
+    },
+    
+    // ═══════════════════════════════════════════
+    // GROUP 5: PAYROLL & FINANCE
+    // ═══════════════════════════════════════════
+    {
+      path: '/my-payslips', 
+      icon: <FiFileText size={iconSize} className="text-white" />, 
+      label: 'My Payslips',
+      positions: ['cashier', 'inventory', 'shift_manager', 'general_manager', 'admin'],
+      group: 'finance'
+    },
+    {
+      path: '/my-expense-requests', 
+      icon: <FiClipboard size={iconSize} className="text-white" />, 
+      label: 'My Expenses',
+      positions: ['cashier', 'inventory'],
+      group: 'finance'
+    },
+    { 
+      path: '/finance',
+      icon: <FiCreditCard size={iconSize} className="text-white" />,
+      label: 'Finance',
+      positions: ['shift_manager', 'general_manager', 'admin'],
+      group: 'finance',
+      subItems: [
+        { 
           path: '/payroll', 
-          icon: <FiCreditCard size={iconSize} style={{ color: colors.iconBrown }} />, 
-          label: 'Payroll System',
+          icon: <FiFileText size={iconSize} style={{ color: colors.iconBrown }} />, 
+          label: 'Payroll',
+          positions: ['shift_manager', 'general_manager', 'admin']
+        },
+        { 
+          path: '/expenses', 
+          icon: <FiTrendingDown size={iconSize} style={{ color: colors.iconBrown }} />, 
+          label: 'Expenses',
           positions: ['shift_manager', 'general_manager', 'admin']
         },
         { 
           path: '/government-config', 
-          icon: <FiCreditCard size={iconSize} style={{ color: colors.iconBrown }} />, 
+          icon: <FiPercent size={iconSize} style={{ color: colors.iconBrown }} />, 
           label: 'Government Config',
           positions: ['general_manager', 'admin']
-        },
+        }
+      ]
+    },
+    
+    // ═══════════════════════════════════════════
+    // GROUP 6: REPORTS
+    // ═══════════════════════════════════════════
+    { 
+      path: '/reports',
+      icon: <FiBarChart2 size={iconSize} className="text-white" />,
+      label: 'Reports',
+      positions: ['shift_manager', 'general_manager', 'admin'],
+      group: 'reports',
+      subItems: [
         { 
-          path: '/customer-management', 
-          icon: <FiUsers size={iconSize} style={{ color: colors.iconBrown }} />, 
-          label: 'Customer Management',
-          positions: ['general_manager', 'admin']
+          path: '/revenue-reports', 
+          icon: <FiPieChart size={iconSize} style={{ color: colors.iconBrown }} />, 
+          label: 'Revenue Reports',
+          positions: ['shift_manager', 'general_manager', 'admin']
         },
         { 
           path: '/payroll-reports', 
-          icon: <FiPieChart size={iconSize} style={{ color: colors.iconBrown }} />, 
-          label: 'Monthly Reports',
+          icon: <FiBriefcase size={iconSize} style={{ color: colors.iconBrown }} />, 
+          label: 'Payroll Reports',
           positions: ['shift_manager', 'general_manager', 'admin']
         }
       ]
     },
+    
+    // ═══════════════════════════════════════════
+    // GROUP 7: MOBILE & OTHER
+    // ═══════════════════════════════════════════
     { 
-      path: '/expenses', 
-      icon: <FiTrendingDown size={iconSize} className="text-white" />, 
-      label: 'Expenses',
-      positions: ['shift_manager', 'general_manager', 'admin']
-    },
-    { 
-      path: '/revenue-reports', 
-      icon: <FiPieChart size={iconSize} className="text-white" />, 
-      label: 'Revenue Reports',
-      positions: ['shift_manager', 'general_manager', 'admin']
-    },    { 
       path: '/mobile', 
       icon: <FiSmartphone size={iconSize} className="text-white" />, 
       label: 'Mobile Services',
-      positions: ['cashier', 'inventory', 'shift_manager', 'general_manager', 'admin']
+      positions: ['cashier', 'inventory', 'shift_manager', 'general_manager', 'admin'],
+      group: 'other'
     }
   ];
 
@@ -303,6 +372,8 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
     
     return item;
   }).filter(Boolean); // Remove null items
+  
+  // Routes where sidebar should be displayed
   const allowedRoutes = [
     '/dashboard', 
     '/orders', 
@@ -322,7 +393,13 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
     '/inventory-management',
     '/staff',
     '/revenue-reports',
-    '/mobile'
+    '/mobile',
+    '/payment-verification',  // Added - was missing!
+    '/my-payslips',
+    '/my-expense-requests',
+    '/staff-scheduler',
+    '/finance',
+    '/reports'
   ];
   
   const shouldRender = allowedRoutes.some(route => location.pathname.startsWith(route));
