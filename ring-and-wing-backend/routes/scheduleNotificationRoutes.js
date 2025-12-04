@@ -5,32 +5,30 @@ const Staff = require('../models/Staff');
 const User = require('../models/User');
 const { auth, isManager } = require('../middleware/authMiddleware');
 
-// Get notifications for the current user (staff)
+// Get notifications for the current user (staff or admin)
 router.get('/my-notifications', auth, async (req, res) => {
   try {
     const { limit = 20, skip = 0, unreadOnly = 'false' } = req.query;
 
     // Find staff record for current user
     const staff = await Staff.findOne({ userId: req.user._id });
-    if (!staff) {
-      // Return empty array instead of 404 for better UX
-      console.log(`[Notifications] No staff record found for user ${req.user._id}`);
-      return res.json({
-        success: true,
-        data: {
-          notifications: [],
-          unreadCount: 0,
-          pagination: {
-            total: 0,
-            limit: parseInt(limit),
-            skip: parseInt(skip),
-            hasMore: false
-          }
-        }
-      });
+    
+    // Build query - check staffId OR adminId
+    let query = {};
+    if (staff) {
+      // User has a staff record - get notifications by staffId OR adminId
+      query = {
+        $or: [
+          { staffId: staff._id },
+          { adminId: req.user._id }
+        ]
+      };
+    } else {
+      // User doesn't have staff record (admin/manager) - get by adminId only
+      console.log(`[Notifications] No staff record for user ${req.user._id}, checking adminId`);
+      query = { adminId: req.user._id };
     }
-
-    const query = { staffId: staff._id };
+    
     if (unreadOnly === 'true') {
       query.isRead = false;
     }
@@ -39,10 +37,10 @@ router.get('/my-notifications', auth, async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(parseInt(skip))
       .limit(parseInt(limit))
-      .populate('triggeredBy', 'name');
+      .populate('triggeredBy', 'username');
 
     const total = await ScheduleNotification.countDocuments(query);
-    const unreadCount = await ScheduleNotification.getUnreadCount(staff._id);
+    const unreadCount = await ScheduleNotification.countDocuments({ ...query, isRead: false });
 
     res.json({
       success: true,
@@ -70,14 +68,19 @@ router.get('/my-notifications', auth, async (req, res) => {
 router.get('/unread-count', auth, async (req, res) => {
   try {
     const staff = await Staff.findOne({ userId: req.user._id });
-    if (!staff) {
-      return res.json({
-        success: true,
-        data: { count: 0 }
-      });
+    
+    // Build query - check staffId OR adminId
+    let query = { isRead: false };
+    if (staff) {
+      query.$or = [
+        { staffId: staff._id },
+        { adminId: req.user._id }
+      ];
+    } else {
+      query.adminId = req.user._id;
     }
 
-    const count = await ScheduleNotification.getUnreadCount(staff._id);
+    const count = await ScheduleNotification.countDocuments(query);
 
     res.json({
       success: true,
@@ -358,20 +361,18 @@ router.post('/publish', auth, isManager, async (req, res) => {
       notifications.push(notification);
     }
 
-    // Create admin confirmation notification for the publisher
-    // Find the staff record for the admin who published (if they have one)
-    const publisherStaff = await Staff.findOne({ userId: req.user._id });
-    if (publisherStaff) {
-      await ScheduleNotification.createScheduleNotification({
-        staffId: publisherStaff._id,
-        type: 'schedule_published',
-        affectedDates: [start, end],
-        triggeredBy: req.user._id,
-        customTitle: 'Schedule Published Successfully',
-        customMessage: `You published the schedule for ${dateRange}. ${notifications.length} staff members were notified.`,
-        isAdminNotification: true
-      });
-    }
+    // Create admin confirmation notification for the publisher (using adminId, not staffId)
+    await ScheduleNotification.create({
+      adminId: req.user._id,
+      type: 'schedule_published',
+      title: 'Schedule Published Successfully',
+      message: `You published the schedule for ${dateRange}. ${notifications.length} staff members were notified.`,
+      affectedDates: [start, end],
+      triggeredBy: req.user._id,
+      isAdminNotification: true,
+      priority: 'normal'
+    });
+    console.log(`[Publish] Created confirmation notification for publisher ${req.user.username}`);
 
     // Also notify other admin/manager users about the published schedule
     const otherAdmins = await User.find({ 
@@ -380,18 +381,17 @@ router.post('/publish', auth, isManager, async (req, res) => {
     });
 
     for (const admin of otherAdmins) {
-      const adminStaff = await Staff.findOne({ userId: admin._id });
-      if (adminStaff) {
-        await ScheduleNotification.createScheduleNotification({
-          staffId: adminStaff._id,
-          type: 'schedule_published',
-          affectedDates: [start, end],
-          triggeredBy: req.user._id,
-          customTitle: 'Schedule Published by ' + req.user.username,
-          customMessage: `${req.user.username} published the schedule for ${dateRange}. ${notifications.length} staff members were notified.`,
-          isAdminNotification: true
-        });
-      }
+      await ScheduleNotification.create({
+        adminId: admin._id,
+        type: 'schedule_published',
+        title: 'Schedule Published by ' + req.user.username,
+        message: `${req.user.username} published the schedule for ${dateRange}. ${notifications.length} staff members were notified.`,
+        affectedDates: [start, end],
+        triggeredBy: req.user._id,
+        isAdminNotification: true,
+        priority: 'normal'
+      });
+      console.log(`[Publish] Notified other admin: ${admin.username}`);
     }
 
     console.log(`[Publish] Schedule published by ${req.user.username}: ${notifications.length} staff notified, ${dateRange}`);

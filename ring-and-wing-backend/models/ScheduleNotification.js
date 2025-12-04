@@ -4,7 +4,7 @@ const scheduleNotificationSchema = new mongoose.Schema({
   staffId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Staff',
-    required: [true, 'Staff ID is required'],
+    // Not required - admin notifications use adminId instead
     index: true
   },
   type: {
