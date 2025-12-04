@@ -1,5 +1,392 @@
 import jsPDF from 'jspdf';
 
+/**
+ * Generate Batch Payroll Report PDF
+ * Professional layout with header, roster, summary, and page numbers
+ * @param {Object} payrollData - Complete batch payroll data from API
+ */
+export const generatePayrollBatchPDF = (payrollData) => {
+  const pdf = new jsPDF({
+    orientation: 'landscape',
+    unit: 'mm',
+    format: 'a4',
+    putOnlyUsedFonts: true,
+    compress: true
+  });
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 10;
+  let yPosition = margin;
+  let currentPage = 1;
+  let totalPages = 1; // Will be calculated after content
+
+  // Helper function to format currency
+  const formatCurrency = (value) => {
+    return `PHP ${parseFloat(value || 0).toLocaleString('en-PH', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    })}`;
+  };
+
+  // Helper function to format date
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-PH', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  // Helper function to add page header
+  const addPageHeader = () => {
+    const { batchHeader } = payrollData;
+    
+    // Company name
+    pdf.setFontSize(16);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(batchHeader.companyName || 'Ring & Wing Restaurant', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 6;
+
+    // Report title
+    pdf.setFontSize(12);
+    pdf.text('PAYROLL REGISTER', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 5;
+
+    // Period
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(
+      `Pay Period: ${formatDate(batchHeader.payrollPeriod.startDate)} - ${formatDate(batchHeader.payrollPeriod.endDate)}`,
+      pageWidth / 2, yPosition, { align: 'center' }
+    );
+    yPosition += 4;
+
+    // Frequency and generated date
+    pdf.text(
+      `Pay Frequency: ${batchHeader.payFrequency.charAt(0).toUpperCase() + batchHeader.payFrequency.slice(1)} | Generated: ${formatDate(batchHeader.dateGenerated)}`,
+      pageWidth / 2, yPosition, { align: 'center' }
+    );
+    yPosition += 6;
+
+    // Line separator
+    pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 3;
+  };
+
+  // Helper function to add page footer
+  const addPageFooter = (pageNum) => {
+    const footerY = pageHeight - 8;
+    
+    pdf.setFontSize(7);
+    pdf.setFont('helvetica', 'normal');
+    
+    // Left: Prepared by
+    pdf.text(`Prepared by: ${payrollData.batchHeader.preparedBy}`, margin, footerY);
+    
+    // Center: Page number
+    pdf.text(`Page ${pageNum}`, pageWidth / 2, footerY, { align: 'center' });
+    
+    // Right: Approved by
+    pdf.text(
+      `Approved by: ${payrollData.batchHeader.approvedBy || '________________'}`,
+      pageWidth - margin, footerY, { align: 'right' }
+    );
+  };
+
+  // Helper function to check page break
+  const checkPageBreak = (requiredHeight) => {
+    if (yPosition + requiredHeight > pageHeight - 15) {
+      addPageFooter(currentPage);
+      pdf.addPage();
+      currentPage++;
+      yPosition = margin;
+      addPageHeader();
+      return true;
+    }
+    return false;
+  };
+
+  // Add first page header
+  addPageHeader();
+
+  // Batch Details Section
+  pdf.setFontSize(9);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('BATCH DETAILS', margin, yPosition);
+  yPosition += 4;
+
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8);
+  const details = [
+    `Company: ${payrollData.batchHeader.companyName}`,
+    `Pay Frequency: ${payrollData.batchHeader.payFrequency}`,
+    `Total Employees: ${payrollData.summary.totalEmployees}`,
+    `Date Generated: ${formatDate(payrollData.batchHeader.dateGenerated)}`
+  ];
+  
+  const colWidth = (pageWidth - 2 * margin) / 4;
+  details.forEach((detail, i) => {
+    pdf.text(detail, margin + (i * colWidth), yPosition);
+  });
+  yPosition += 6;
+
+  // Employee Roster Table
+  pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += 3;
+
+  pdf.setFontSize(8);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('EMPLOYEE PAYROLL ROSTER', margin, yPosition);
+  yPosition += 5;
+
+  // Table headers
+  const columns = [
+    { label: 'Employee Name', width: 35 },
+    { label: 'Position', width: 22 },
+    { label: 'Rate', width: 18 },
+    { label: 'Hours', width: 14 },
+    { label: 'OT Hrs', width: 14 },
+    { label: 'OT Pay', width: 18 },
+    { label: 'Allowance', width: 18 },
+    { label: 'SSS', width: 16 },
+    { label: 'PhilH', width: 16 },
+    { label: 'PagIBIG', width: 16 },
+    { label: 'Late/Abs', width: 18 },
+    { label: 'Gross', width: 20 },
+    { label: 'Deductions', width: 20 },
+    { label: 'Net Pay', width: 22 }
+  ];
+
+  // Draw table header
+  pdf.setFillColor(46, 3, 4); // Primary color
+  pdf.rect(margin, yPosition - 3, pageWidth - 2 * margin, 6, 'F');
+  
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFontSize(6);
+  pdf.setFont('helvetica', 'bold');
+  
+  let xPos = margin + 1;
+  columns.forEach(col => {
+    pdf.text(col.label, xPos, yPosition);
+    xPos += col.width;
+  });
+  yPosition += 5;
+  pdf.setTextColor(0, 0, 0);
+
+  // Draw employee rows
+  pdf.setFontSize(6);
+  pdf.setFont('helvetica', 'normal');
+  
+  let isAlternate = false;
+  payrollData.employees.forEach((emp, index) => {
+    checkPageBreak(6);
+
+    // Alternate row background
+    if (isAlternate) {
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(margin, yPosition - 3, pageWidth - 2 * margin, 5, 'F');
+    }
+    isAlternate = !isAlternate;
+
+    xPos = margin + 1;
+    
+    // Employee Name (truncate if too long)
+    const name = (emp.staffName || 'N/A').substring(0, 18);
+    pdf.text(name, xPos, yPosition);
+    xPos += columns[0].width;
+
+    // Position
+    pdf.text((emp.position || 'N/A').substring(0, 12), xPos, yPosition);
+    xPos += columns[1].width;
+
+    // Rate
+    pdf.text(formatCurrency(emp.dailyRate).replace('PHP ', ''), xPos, yPosition);
+    xPos += columns[2].width;
+
+    // Hours
+    pdf.text((emp.hoursWorked || 0).toFixed(1), xPos, yPosition);
+    xPos += columns[3].width;
+
+    // OT Hours
+    pdf.text((emp.overtimeHours || 0).toFixed(1), xPos, yPosition);
+    xPos += columns[4].width;
+
+    // OT Pay
+    pdf.text(formatCurrency(emp.overtimePay).replace('PHP ', ''), xPos, yPosition);
+    xPos += columns[5].width;
+
+    // Allowance
+    pdf.text(formatCurrency(emp.allowances).replace('PHP ', ''), xPos, yPosition);
+    xPos += columns[6].width;
+
+    // SSS
+    pdf.text(formatCurrency(emp.sssDeduction).replace('PHP ', ''), xPos, yPosition);
+    xPos += columns[7].width;
+
+    // PhilHealth
+    pdf.text(formatCurrency(emp.philHealthDeduction).replace('PHP ', ''), xPos, yPosition);
+    xPos += columns[8].width;
+
+    // PagIBIG
+    pdf.text(formatCurrency(emp.pagIbigDeduction).replace('PHP ', ''), xPos, yPosition);
+    xPos += columns[9].width;
+
+    // Late/Abs deductions
+    pdf.text(formatCurrency((emp.lateDeduction || 0) + (emp.absenceDeduction || 0)).replace('PHP ', ''), xPos, yPosition);
+    xPos += columns[10].width;
+
+    // Gross Pay
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(formatCurrency(emp.grossPay).replace('PHP ', ''), xPos, yPosition);
+    xPos += columns[11].width;
+
+    // Total Deductions
+    pdf.setTextColor(200, 0, 0);
+    pdf.text(formatCurrency(emp.totalDeductions).replace('PHP ', ''), xPos, yPosition);
+    xPos += columns[12].width;
+    pdf.setTextColor(0, 0, 0);
+
+    // Net Pay
+    pdf.setTextColor(0, 100, 0);
+    pdf.text(formatCurrency(emp.netPay).replace('PHP ', ''), xPos, yPosition);
+    pdf.setTextColor(0, 0, 0);
+    pdf.setFont('helvetica', 'normal');
+
+    yPosition += 5;
+  });
+
+  // Summary Section
+  checkPageBreak(40);
+  yPosition += 3;
+  pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += 5;
+
+  pdf.setFontSize(10);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('PAYROLL SUMMARY', margin, yPosition);
+  yPosition += 6;
+
+  const { summary } = payrollData;
+  pdf.setFontSize(8);
+
+  // Summary in columns
+  const summaryCol1 = [
+    ['Total Employees:', summary.totalEmployees.toString()],
+    ['Total Hours Worked:', summary.totalHoursWorked.toFixed(1)],
+    ['Total Overtime Hours:', summary.totalOvertimeHours.toFixed(1)]
+  ];
+
+  const summaryCol2 = [
+    ['Total Basic Pay:', formatCurrency(summary.totalBasicPay)],
+    ['Total Overtime Pay:', formatCurrency(summary.totalOvertimePay)],
+    ['Total Allowances:', formatCurrency(summary.totalAllowances)],
+    ['Total Gross Pay:', formatCurrency(summary.totalGrossPay)]
+  ];
+
+  const summaryCol3 = [
+    ['SSS Deductions:', formatCurrency(summary.totalSSSDeductions)],
+    ['PhilHealth Deductions:', formatCurrency(summary.totalPhilHealthDeductions)],
+    ['Pag-IBIG Deductions:', formatCurrency(summary.totalPagIbigDeductions)],
+    ['Late/Absence Deductions:', formatCurrency(summary.totalLateDeductions + summary.totalAbsenceDeductions)],
+    ['Total Deductions:', formatCurrency(summary.totalDeductions)]
+  ];
+
+  const summaryColWidth = (pageWidth - 2 * margin - 60) / 3;
+  
+  // Column 1
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('WORKFORCE', margin, yPosition);
+  yPosition += 4;
+  pdf.setFont('helvetica', 'normal');
+  summaryCol1.forEach(([label, value]) => {
+    pdf.text(label, margin, yPosition);
+    pdf.text(value, margin + 40, yPosition);
+    yPosition += 4;
+  });
+
+  yPosition -= summaryCol1.length * 4 + 4;
+
+  // Column 2
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('EARNINGS', margin + summaryColWidth + 20, yPosition);
+  yPosition += 4;
+  pdf.setFont('helvetica', 'normal');
+  summaryCol2.forEach(([label, value]) => {
+    pdf.text(label, margin + summaryColWidth + 20, yPosition);
+    pdf.text(value, margin + summaryColWidth + 70, yPosition);
+    yPosition += 4;
+  });
+
+  yPosition -= summaryCol2.length * 4 + 4;
+
+  // Column 3
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('DEDUCTIONS', margin + (summaryColWidth * 2) + 40, yPosition);
+  yPosition += 4;
+  pdf.setFont('helvetica', 'normal');
+  summaryCol3.forEach(([label, value]) => {
+    pdf.text(label, margin + (summaryColWidth * 2) + 40, yPosition);
+    pdf.text(value, margin + (summaryColWidth * 2) + 100, yPosition);
+    yPosition += 4;
+  });
+
+  yPosition = Math.max(yPosition, yPosition) + 8;
+
+  // Grand Total Net Pay
+  pdf.setFillColor(46, 3, 4);
+  pdf.rect(pageWidth - margin - 80, yPosition - 4, 80, 10, 'F');
+  
+  pdf.setFontSize(10);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(255, 255, 255);
+  pdf.text('TOTAL NET PAY:', pageWidth - margin - 78, yPosition + 2);
+  pdf.text(formatCurrency(summary.totalNetPay), pageWidth - margin - 2, yPosition + 2, { align: 'right' });
+  pdf.setTextColor(0, 0, 0);
+
+  yPosition += 15;
+
+  // Signature lines
+  checkPageBreak(25);
+  yPosition += 5;
+  
+  pdf.setFontSize(8);
+  pdf.setFont('helvetica', 'normal');
+  
+  const sigWidth = 60;
+  const sigGap = 30;
+  const sigStartX = (pageWidth - (sigWidth * 3 + sigGap * 2)) / 2;
+
+  // Prepared by
+  pdf.line(sigStartX, yPosition, sigStartX + sigWidth, yPosition);
+  pdf.text('Prepared by:', sigStartX, yPosition + 4);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text(payrollData.batchHeader.preparedBy || '', sigStartX + (sigWidth / 2), yPosition - 2, { align: 'center' });
+  pdf.setFont('helvetica', 'normal');
+
+  // Checked by
+  pdf.line(sigStartX + sigWidth + sigGap, yPosition, sigStartX + sigWidth * 2 + sigGap, yPosition);
+  pdf.text('Checked by:', sigStartX + sigWidth + sigGap, yPosition + 4);
+
+  // Approved by
+  pdf.line(sigStartX + sigWidth * 2 + sigGap * 2, yPosition, sigStartX + sigWidth * 3 + sigGap * 2, yPosition);
+  pdf.text('Approved by:', sigStartX + sigWidth * 2 + sigGap * 2, yPosition + 4);
+  if (payrollData.batchHeader.approvedBy) {
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(payrollData.batchHeader.approvedBy, sigStartX + sigWidth * 2.5 + sigGap * 2, yPosition - 2, { align: 'center' });
+  }
+
+  // Add footer to last page
+  addPageFooter(currentPage);
+
+  // Generate filename and save
+  const startDateStr = new Date(payrollData.batchHeader.payrollPeriod.startDate).toISOString().split('T')[0];
+  const endDateStr = new Date(payrollData.batchHeader.payrollPeriod.endDate).toISOString().split('T')[0];
+  const fileName = `Payroll_Register_${startDateStr}_to_${endDateStr}.pdf`;
+  
+  pdf.save(fileName);
+};
+
 export const generateRevenuePDF = (revenueData, selectedPeriod) => {
   // Create PDF with UTF-8 support
   const pdf = new jsPDF({

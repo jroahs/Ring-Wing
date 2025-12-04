@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FiUser, FiCalendar, FiClock, FiFileText, FiPrinter, FiEdit, FiGift, FiStar, FiDownload } from 'react-icons/fi';
+import { FiUser, FiCalendar, FiClock, FiFileText, FiPrinter, FiEdit, FiGift, FiStar, FiDownload, FiLayers } from 'react-icons/fi';
 import { PesoIconSimple } from './components/ui/PesoIconSimple';
 import { FaWrench } from 'react-icons/fa';
 import { default as WorkIDModal } from './WorkIDModal';
@@ -7,6 +7,7 @@ import TimeLogHistory from './components/TimeLogHistory';
 import StaffAvatar from './components/StaffAvatar';
 import PayrollSchedule from './components/PayrollSchedule';
 import PayrollReports from './PayrollReports';
+import PayrollGenerator from './PayrollGenerator';
 import api from './services/apiService';
 import { toast } from 'react-toastify';
 import { useMultiTabLogout } from './hooks/useMultiTabLogout';
@@ -84,6 +85,10 @@ const PayrollSystem = () => {
   
   // Reports view state
   const [showReports, setShowReports] = useState(false);
+  
+  // Batch payroll generator view state
+  const [showPayrollGenerator, setShowPayrollGenerator] = useState(false);
+  
     // Define fetchEmployees outside of useEffect so it can be called from other functions
   const fetchEmployees = async () => {
     try {
@@ -610,7 +615,12 @@ const PayrollSystem = () => {
           paddingTop: windowWidth < 768 ? '4rem' : '0'
         }}
       ><div className="p-6 md:p-8 pt-24 md:pt-8">
-          {showReports ? (
+          {showPayrollGenerator ? (
+            <PayrollGenerator 
+              onBack={() => setShowPayrollGenerator(false)}
+              colors={colors}
+            />
+          ) : showReports ? (
             <PayrollReports 
               onBack={() => setShowReports(false)}
               colors={colors}
@@ -696,6 +706,20 @@ const PayrollSystem = () => {
                       Payroll Period
                     </h2>
                       <div className="flex gap-2">
+                      <button
+                        onClick={() => setShowPayrollGenerator(true)}
+                        className="px-3 py-1 rounded text-sm font-medium flex items-center"
+                        style={{ 
+                          backgroundColor: colors.primary, 
+                          color: 'white',
+                          fontSize: '0.75rem'
+                        }}
+                        title="Generate batch payroll for all employees"
+                      >
+                        <FiLayers className="mr-1" />
+                        Batch Payroll
+                      </button>
+                      
                       <button
                         onClick={() => setShowReports(true)}
                         className="px-3 py-1 rounded text-sm font-medium flex items-center"

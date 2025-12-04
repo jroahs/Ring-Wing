@@ -11,9 +11,11 @@ import {
 
   FiPieChart,
   FiBarChart2,
-  FiArrowLeft
+  FiArrowLeft,
+  FiPrinter
 } from 'react-icons/fi';
 import BrandedLoadingScreen from './components/ui/BrandedLoadingScreen';
+import { generatePayrollBatchPDF } from './utils/pdfGenerator';
 
 const PayrollReports = ({ onBack, colors }) => {
   const [reportType, setReportType] = useState('summary');
@@ -289,50 +291,32 @@ const PayrollReports = ({ onBack, colors }) => {
     );
   };
 
-  const exportToCSV = () => {
-    const filtered = getFilteredData();
-    
-    const headers = [
-      'Employee Name',
-      'Position', 
-      'Period',
-      'Basic Pay',
-      'Overtime Pay',
-      'Holiday Pay',
-      '13th Month Pay',
-      'Performance Bonus',
-      'Other Bonus',
-      'Late Deductions',
-      'Absence Deductions',
-      'Net Pay'
-    ];
-      const csvData = filtered.map(record => [
-      record.staffId?.name || 'N/A',
-      record.staffId?.position || 'N/A',
-      new Date(record.payrollPeriod).toLocaleDateString('en-PH'),
-      record.basicPay || 0,
-      record.overtimePay || 0,
-      record.holidayPay || 0,
-      record.thirteenthMonthPay || 0,
-      record.bonuses?.performance || 0,
-      record.bonuses?.other || 0,
-      record.deductions?.late || 0,
-      record.deductions?.absence || 0,
-      record.netPay || 0
-    ]);
-    
-    const csvContent = [headers, ...csvData]
-      .map(row => row.map(field => `"${field}"`).join(','))
-      .join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `payroll-report-${dateRange.startDate}-to-${dateRange.endDate}.csv`;
-    link.click();
-    
-    toast.success('Report exported successfully');
+  // Export to PDF instead of CSV for security
+  const exportToPDF = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      
+      // Fetch batch payroll data for PDF generation
+      const response = await api.post('/api/payroll/generate-batch', {
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+        payFrequency: 'monthly',
+        preparedBy: 'System',
+        approvedBy: null
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        generatePayrollBatchPDF(response.data.data);
+        toast.success('Payroll PDF exported successfully');
+      } else {
+        throw new Error('Failed to generate PDF data');
+      }
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast.error('Failed to export PDF. Please try again.');
+    }
   };
 
   return (
@@ -360,12 +344,12 @@ const PayrollReports = ({ onBack, colors }) => {
           </div>
           
           <button
-            onClick={exportToCSV}
+            onClick={exportToPDF}
             className="flex items-center px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
             style={{ backgroundColor: colors.secondary, color: colors.background }}
           >
             <FiDownload className="mr-2" />
-            Export CSV
+            Export PDF
           </button>
         </div>
 

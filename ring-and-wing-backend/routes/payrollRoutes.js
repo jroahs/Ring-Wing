@@ -524,6 +524,300 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
   }
 });
 
+// POST /api/payroll/generate-batch - Generate batch payroll for all employees
+// This endpoint fetches ALL active employees and computes payroll for the selected period
+// Employees with no activity will have zero values instead of being excluded
+router.post('/generate-batch', auth, async (req, res) => {
+  try {
+    const { 
+      startDate, 
+      endDate, 
+      payFrequency = 'monthly',
+      preparedBy,
+      approvedBy 
+    } = req.body;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Start date and end date are required'
+      });
+    }
+
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    // Fetch ALL active employees (exclude Terminated, Resigned, Suspended)
+    const allStaff = await Staff.find({
+      status: { $nin: ['Terminated', 'Resigned', 'Suspended'] }
+    }).populate('payrollScheduleId').lean();
+
+    // Get existing payroll records for the period
+    const existingPayrolls = await Payroll.find({
+      payrollPeriod: { $gte: start, $lte: end }
+    }).populate('staffId', 'name position').lean();
+
+    // Create a map of existing payroll by staffId for quick lookup
+    const existingPayrollMap = new Map();
+    existingPayrolls.forEach(p => {
+      if (p.staffId && p.staffId._id) {
+        existingPayrollMap.set(p.staffId._id.toString(), p);
+      }
+    });
+
+    // Get EmployeeSchedule model for schedule-based attendance
+    const EmployeeSchedule = require('../models/EmployeeSchedule');
+
+    // Process each employee
+    const payrollData = await Promise.all(allStaff.map(async (staff) => {
+      const staffIdStr = staff._id.toString();
+      
+      // Check if payroll already exists for this period
+      const existingPayroll = existingPayrollMap.get(staffIdStr);
+      
+      if (existingPayroll) {
+        // Return existing payroll data
+        return {
+          staffId: staff._id,
+          staffName: staff.name,
+          position: staff.position,
+          employmentType: staff.employmentType || 'Regular',
+          dailyRate: staff.dailyRate || 0,
+          hourlyRate: (staff.dailyRate || 0) / 8,
+          
+          // Hours
+          hoursWorked: existingPayroll.totalHoursWorked || 0,
+          overtimeHours: existingPayroll.overtimeHours || 0,
+          
+          // Earnings
+          basicPay: existingPayroll.basicPay || 0,
+          overtimePay: existingPayroll.overtimePay || 0,
+          holidayPay: existingPayroll.holidayPay || 0,
+          thirteenthMonthPay: existingPayroll.thirteenthMonthPay || 0,
+          allowances: existingPayroll.allowances || 0,
+          bonuses: {
+            performance: existingPayroll.bonuses?.performance || 0,
+            other: existingPayroll.bonuses?.other || 0
+          },
+          
+          // Deductions
+          lateDeduction: existingPayroll.deductions?.late || 0,
+          absenceDeduction: existingPayroll.deductions?.absence || 0,
+          sssDeduction: existingPayroll.deductions?.sss || 0,
+          philHealthDeduction: existingPayroll.deductions?.philHealth || 0,
+          pagIbigDeduction: existingPayroll.deductions?.pagIbig || 0,
+          withholdingTax: existingPayroll.deductions?.withholdingTax || 0,
+          cashAdvance: 0, // Placeholder for future implementation
+          otherDeductions: 0, // Placeholder for future implementation
+          
+          // Attendance summary
+          scheduleSummary: existingPayroll.scheduleSummary || {},
+          
+          // Totals
+          grossPay: existingPayroll.grossPay || 
+            ((existingPayroll.basicPay || 0) + 
+             (existingPayroll.overtimePay || 0) + 
+             (existingPayroll.holidayPay || 0) + 
+             (existingPayroll.thirteenthMonthPay || 0) + 
+             (existingPayroll.allowances || 0) + 
+             (existingPayroll.bonuses?.performance || 0) + 
+             (existingPayroll.bonuses?.other || 0)),
+          totalDeductions: 
+            (existingPayroll.deductions?.late || 0) + 
+            (existingPayroll.deductions?.absence || 0) + 
+            (existingPayroll.deductions?.sss || 0) + 
+            (existingPayroll.deductions?.philHealth || 0) + 
+            (existingPayroll.deductions?.pagIbig || 0) + 
+            (existingPayroll.deductions?.withholdingTax || 0),
+          netPay: existingPayroll.netPay || 0,
+          
+          hasExistingPayroll: true,
+          payrollId: existingPayroll._id
+        };
+      }
+
+      // Compute payroll for employees without existing records
+      // Get time logs for the period
+      const timeLogs = await TimeLog.find({
+        staffId: staff._id,
+        timestamp: { $gte: start, $lte: end }
+      }).sort('timestamp');
+
+      // Calculate hours from time logs
+      let totalHours = 0;
+      let overtimeHours = 0;
+      const regularHoursPerDay = staff.payrollScheduleId?.regularHoursPerDay || 8;
+      const overtimeMultiplier = staff.payrollScheduleId?.overtimeMultiplier || 1.25;
+
+      // Pair clock-in/out entries
+      const clockIns = timeLogs.filter(l => l.type === 'clockIn');
+      const clockOuts = timeLogs.filter(l => l.type === 'clockOut');
+
+      clockOuts.forEach(clockOut => {
+        if (clockOut.totalHours) {
+          totalHours += clockOut.totalHours;
+          if (clockOut.isOvertime && clockOut.totalHours > regularHoursPerDay) {
+            overtimeHours += clockOut.totalHours - regularHoursPerDay;
+          }
+        }
+      });
+
+      // Get schedule attendance data (late minutes, absences)
+      let lateMinutes = 0;
+      let absentDays = 0;
+      let undertimeMinutes = 0;
+
+      try {
+        const schedules = await EmployeeSchedule.find({
+          staffId: staff._id,
+          date: { $gte: start, $lte: end }
+        });
+
+        schedules.forEach(schedule => {
+          if (schedule.status === 'absent' && !schedule.isRestDay && !schedule.isLeave) {
+            absentDays++;
+          }
+          lateMinutes += schedule.variance?.lateMinutes || 0;
+          undertimeMinutes += schedule.variance?.undertimeMinutes || 0;
+        });
+      } catch (error) {
+        console.log(`[Batch Payroll] Schedule data not available for ${staff.name}`);
+      }
+
+      // Calculate pay
+      const hourlyRate = (staff.dailyRate || 0) / regularHoursPerDay;
+      const regularHours = Math.max(0, totalHours - overtimeHours);
+      const basicPay = regularHours * hourlyRate;
+      const overtimePay = overtimeHours * hourlyRate * overtimeMultiplier;
+
+      // Calculate deductions
+      const lateDeduction = (lateMinutes / 60) * hourlyRate;
+      const absenceDeduction = absentDays * (staff.dailyRate || 0);
+
+      // Calculate government deductions
+      const govtDeductions = await calculateAllGovernmentDeductions(basicPay, staff);
+
+      // Calculate gross and net pay
+      const grossPay = basicPay + overtimePay + (staff.allowances || 0);
+      const totalDeductions = lateDeduction + absenceDeduction + govtDeductions.total;
+      const netPay = Math.max(0, grossPay - totalDeductions);
+
+      return {
+        staffId: staff._id,
+        staffName: staff.name,
+        position: staff.position,
+        employmentType: staff.employmentType || 'Regular',
+        dailyRate: staff.dailyRate || 0,
+        hourlyRate: hourlyRate,
+        
+        // Hours
+        hoursWorked: Number(totalHours.toFixed(2)),
+        overtimeHours: Number(overtimeHours.toFixed(2)),
+        
+        // Earnings
+        basicPay: Number(basicPay.toFixed(2)),
+        overtimePay: Number(overtimePay.toFixed(2)),
+        holidayPay: 0,
+        thirteenthMonthPay: 0,
+        allowances: staff.allowances || 0,
+        bonuses: {
+          performance: 0,
+          other: 0
+        },
+        
+        // Deductions
+        lateDeduction: Number(lateDeduction.toFixed(2)),
+        absenceDeduction: Number(absenceDeduction.toFixed(2)),
+        lateMinutes: lateMinutes,
+        absentDays: absentDays,
+        sssDeduction: govtDeductions.sss.amount,
+        philHealthDeduction: govtDeductions.philHealth.amount,
+        pagIbigDeduction: govtDeductions.pagIbig.amount,
+        withholdingTax: 0,
+        cashAdvance: 0,
+        otherDeductions: 0,
+        
+        // Attendance summary
+        scheduleSummary: {
+          scheduledDays: 0,
+          workedDays: clockOuts.length,
+          absentDays: absentDays,
+          totalLateMinutes: lateMinutes,
+          totalUndertimeMinutes: undertimeMinutes
+        },
+        
+        // Totals
+        grossPay: Number(grossPay.toFixed(2)),
+        totalDeductions: Number(totalDeductions.toFixed(2)),
+        netPay: Number(netPay.toFixed(2)),
+        
+        hasExistingPayroll: false,
+        payrollId: null
+      };
+    }));
+
+    // Calculate summary totals
+    const summary = {
+      totalEmployees: payrollData.length,
+      totalHoursWorked: payrollData.reduce((sum, p) => sum + p.hoursWorked, 0),
+      totalOvertimeHours: payrollData.reduce((sum, p) => sum + p.overtimeHours, 0),
+      
+      totalBasicPay: payrollData.reduce((sum, p) => sum + p.basicPay, 0),
+      totalOvertimePay: payrollData.reduce((sum, p) => sum + p.overtimePay, 0),
+      totalHolidayPay: payrollData.reduce((sum, p) => sum + p.holidayPay, 0),
+      totalAllowances: payrollData.reduce((sum, p) => sum + p.allowances, 0),
+      totalBonuses: payrollData.reduce((sum, p) => sum + (p.bonuses?.performance || 0) + (p.bonuses?.other || 0), 0),
+      totalGrossPay: payrollData.reduce((sum, p) => sum + p.grossPay, 0),
+      
+      totalLateDeductions: payrollData.reduce((sum, p) => sum + p.lateDeduction, 0),
+      totalAbsenceDeductions: payrollData.reduce((sum, p) => sum + p.absenceDeduction, 0),
+      totalSSSDeductions: payrollData.reduce((sum, p) => sum + p.sssDeduction, 0),
+      totalPhilHealthDeductions: payrollData.reduce((sum, p) => sum + p.philHealthDeduction, 0),
+      totalPagIbigDeductions: payrollData.reduce((sum, p) => sum + p.pagIbigDeduction, 0),
+      totalGovernmentDeductions: payrollData.reduce((sum, p) => 
+        sum + p.sssDeduction + p.philHealthDeduction + p.pagIbigDeduction, 0),
+      totalDeductions: payrollData.reduce((sum, p) => sum + p.totalDeductions, 0),
+      
+      totalNetPay: payrollData.reduce((sum, p) => sum + p.netPay, 0)
+    };
+
+    // Round summary values
+    Object.keys(summary).forEach(key => {
+      if (typeof summary[key] === 'number') {
+        summary[key] = Number(summary[key].toFixed(2));
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        batchHeader: {
+          payrollPeriod: {
+            startDate: start.toISOString(),
+            endDate: end.toISOString()
+          },
+          payFrequency: payFrequency,
+          dateGenerated: new Date().toISOString(),
+          preparedBy: preparedBy || req.user?.username || 'System',
+          approvedBy: approvedBy || null,
+          companyName: 'Ring & Wing Restaurant'
+        },
+        employees: payrollData,
+        summary: summary
+      }
+    });
+
+  } catch (error) {
+    console.error('Error generating batch payroll:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error generating batch payroll'
+    });
+  }
+});
+
 // GET /api/payroll/summary - Monthly payroll summary report
 router.get('/summary', auth, async (req, res) => {
   try {
