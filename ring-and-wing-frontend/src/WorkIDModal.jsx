@@ -182,10 +182,10 @@ function WorkIDModal({ staff, onClose, colors }) {
 
                 <div>
                   <div className="text-xs uppercase tracking-widest mb-1" style={{ color: colors.muted }}>
-                    Daily Rate
+                    Hourly Rate
                   </div>
                   <div className="text-md font-semibold" style={{ color: colors.primary }}>
-                    ₱{staff.dailyRate?.toLocaleString()}
+                    ₱{(staff.hourlyRate || (staff.dailyRate / 8))?.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                   </div>
                 </div>
 

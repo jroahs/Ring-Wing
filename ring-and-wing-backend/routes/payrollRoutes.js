@@ -215,7 +215,9 @@ router.post('/calculate-holiday-pay', auth, async (req, res) => {
 
       if (holidayTimeLogs.length > 0) {
         const totalHoursWorked = holidayTimeLogs.reduce((sum, log) => sum + (log.totalHours || 0), 0);
-        const bonusAmount = calculateHolidayBonus(staff.dailyRate, holiday.type, totalHoursWorked);
+        // Use hourlyRate directly; fall back to dailyRate/8 for legacy records
+        const hourlyRate = staff.hourlyRate || (staff.dailyRate || 0) / 8;
+        const bonusAmount = calculateHolidayBonus(hourlyRate, holiday.type, totalHoursWorked);
         
         holidaysWorked.push({
           date: holidayDate,
@@ -236,7 +238,8 @@ router.post('/calculate-holiday-pay', auth, async (req, res) => {
         staff: {
           id: staff._id,
           name: staff.name,
-          dailyRate: staff.dailyRate
+          hourlyRate: staff.hourlyRate || (staff.dailyRate || 0) / 8,
+          dailyRate: staff.dailyRate // Keep for backward compatibility
         },
         period: {
           startDate: start.toISOString().split('T')[0],
@@ -381,7 +384,9 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
 
         if (holidayTimeLogs.length > 0) {
           const totalHoursWorked = holidayTimeLogs.reduce((sum, log) => sum + (log.totalHours || 0), 0);
-          const bonusAmount = calculateHolidayBonus(staff.dailyRate, holiday.type, totalHoursWorked);
+          // Use hourlyRate directly; fall back to dailyRate/8 for legacy records
+          const hourlyRate = staff.hourlyRate || (staff.dailyRate || 0) / 8;
+          const bonusAmount = calculateHolidayBonus(hourlyRate, holiday.type, totalHoursWorked);
           
           holidaysWorked.push({
             date: holidayDate,
@@ -579,13 +584,15 @@ router.post('/generate-batch', auth, async (req, res) => {
       
       if (existingPayroll) {
         // Return existing payroll data
+        // Use hourlyRate directly; fall back to dailyRate/8 for legacy records
+        const hourlyRate = staff.hourlyRate || (staff.dailyRate || 0) / 8;
         return {
           staffId: staff._id,
           staffName: staff.name,
           position: staff.position,
           employmentType: staff.employmentType || 'Regular',
-          dailyRate: staff.dailyRate || 0,
-          hourlyRate: (staff.dailyRate || 0) / 8,
+          hourlyRate: hourlyRate,
+          dailyRate: staff.dailyRate || (hourlyRate * 8), // Keep for backward compatibility
           
           // Hours
           hoursWorked: existingPayroll.totalHoursWorked || 0,
@@ -686,15 +693,18 @@ router.post('/generate-batch', auth, async (req, res) => {
         console.log(`[Batch Payroll] Schedule data not available for ${staff.name}`);
       }
 
-      // Calculate pay
-      const hourlyRate = (staff.dailyRate || 0) / regularHoursPerDay;
+      // Calculate pay using hourlyRate directly
+      // Use hourlyRate directly; fall back to dailyRate/regularHoursPerDay for legacy records
+      const hourlyRate = staff.hourlyRate || (staff.dailyRate || 0) / regularHoursPerDay;
       const regularHours = Math.max(0, totalHours - overtimeHours);
       const basicPay = regularHours * hourlyRate;
       const overtimePay = overtimeHours * hourlyRate * overtimeMultiplier;
 
       // Calculate deductions
       const lateDeduction = (lateMinutes / 60) * hourlyRate;
-      const absenceDeduction = absentDays * (staff.dailyRate || 0);
+      // Absence deduction: use hourlyRate * standardHoursPerDay instead of dailyRate
+      const standardHoursPerDay = staff.standardHoursPerDay || 8;
+      const absenceDeduction = absentDays * hourlyRate * standardHoursPerDay;
 
       // Calculate government deductions
       const govtDeductions = await calculateAllGovernmentDeductions(basicPay, staff);
@@ -709,8 +719,8 @@ router.post('/generate-batch', auth, async (req, res) => {
         staffName: staff.name,
         position: staff.position,
         employmentType: staff.employmentType || 'Regular',
-        dailyRate: staff.dailyRate || 0,
         hourlyRate: hourlyRate,
+        dailyRate: staff.dailyRate || (hourlyRate * standardHoursPerDay), // Keep for backward compatibility
         
         // Hours
         hoursWorked: Number(totalHours.toFixed(2)),

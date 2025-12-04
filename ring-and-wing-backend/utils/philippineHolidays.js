@@ -340,32 +340,44 @@ async function getHolidaysInRange(startDate, endDate) {
 }
 
 /**
- * Calculate holiday bonus based on basic daily rate and holiday type
- * @param {number} basicDailyRate - Basic daily rate
+ * Calculate holiday bonus based on hourly rate and holiday type
+ * @param {number} hourlyRate - Hourly rate (NEW: primary rate field)
  * @param {string} holidayType - Type of holiday ('regular', 'special', 'local')
  * @param {number} hoursWorked - Hours worked on the holiday (default: 8)
+ * @param {number} [dailyRateFallback] - DEPRECATED: Daily rate for backward compatibility
  * @returns {number} Holiday bonus amount
  */
-function calculateHolidayBonus(basicDailyRate, holidayType, hoursWorked = 8) {
+function calculateHolidayBonus(hourlyRate, holidayType, hoursWorked = 8, dailyRateFallback = null) {
   const multiplier = getPayMultiplier(holidayType);
-  const hourlyRate = basicDailyRate / 8; // Assuming 8-hour workday
+  
+  // Use hourlyRate directly; if not provided, derive from dailyRate (legacy support)
+  let effectiveHourlyRate = hourlyRate;
+  if (!effectiveHourlyRate && dailyRateFallback) {
+    effectiveHourlyRate = dailyRateFallback / 8; // Assuming 8-hour workday
+  }
   
   // Return only the bonus portion (multiplier - 1.0)
-  return hourlyRate * hoursWorked * (multiplier - 1.0);
+  return (effectiveHourlyRate || 0) * hoursWorked * (multiplier - 1.0);
 }
 
 /**
  * Calculate total holiday pay (regular pay + bonus)
- * @param {number} basicDailyRate - Basic daily rate
+ * @param {number} hourlyRate - Hourly rate (NEW: primary rate field)
  * @param {string} holidayType - Type of holiday
  * @param {number} hoursWorked - Hours worked on the holiday
+ * @param {number} [dailyRateFallback] - DEPRECATED: Daily rate for backward compatibility
  * @returns {number} Total holiday pay
  */
-function calculateTotalHolidayPay(basicDailyRate, holidayType, hoursWorked = 8) {
+function calculateTotalHolidayPay(hourlyRate, holidayType, hoursWorked = 8, dailyRateFallback = null) {
   const multiplier = getPayMultiplier(holidayType);
-  const hourlyRate = basicDailyRate / 8;
   
-  return hourlyRate * hoursWorked * multiplier;
+  // Use hourlyRate directly; if not provided, derive from dailyRate (legacy support)
+  let effectiveHourlyRate = hourlyRate;
+  if (!effectiveHourlyRate && dailyRateFallback) {
+    effectiveHourlyRate = dailyRateFallback / 8;
+  }
+  
+  return (effectiveHourlyRate || 0) * hoursWorked * multiplier;
 }
 
 /**

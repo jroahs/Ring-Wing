@@ -188,26 +188,26 @@ const PayrollGenerator = ({ onBack, colors }) => {
         </div>
         
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1600px]">
+          <table className="w-full text-xs">
             <thead style={{ backgroundColor: c.muted + '20' }}>
               <tr>
-                <th className="text-left p-3 text-xs font-semibold sticky left-0" style={{ color: c.primary, backgroundColor: c.muted + '20' }}>Employee</th>
-                <th className="text-left p-3 text-xs font-semibold" style={{ color: c.primary }}>Position</th>
-                <th className="text-right p-3 text-xs font-semibold" style={{ color: c.primary }}>Rate/Day</th>
-                <th className="text-right p-3 text-xs font-semibold" style={{ color: c.primary }}>Hours</th>
-                <th className="text-right p-3 text-xs font-semibold" style={{ color: c.primary }}>OT Hours</th>
-                <th className="text-right p-3 text-xs font-semibold" style={{ color: c.primary }}>OT Pay</th>
-                <th className="text-right p-3 text-xs font-semibold" style={{ color: c.primary }}>Bonuses</th>
-                <th className="text-right p-3 text-xs font-semibold" style={{ color: c.primary }}>Allowances</th>
-                <th className="text-right p-3 text-xs font-semibold" style={{ color: c.primary }}>Late/Under</th>
-                <th className="text-right p-3 text-xs font-semibold" style={{ color: c.primary }}>SSS</th>
-                <th className="text-right p-3 text-xs font-semibold" style={{ color: c.primary }}>PhilHealth</th>
-                <th className="text-right p-3 text-xs font-semibold" style={{ color: c.primary }}>Pag-IBIG</th>
-                <th className="text-right p-3 text-xs font-semibold" style={{ color: c.primary }}>Cash Adv</th>
-                <th className="text-right p-3 text-xs font-semibold" style={{ color: c.primary }}>Other Ded</th>
-                <th className="text-right p-3 text-xs font-semibold" style={{ color: c.secondary }}>Gross Pay</th>
-                <th className="text-right p-3 text-xs font-semibold" style={{ color: c.accent }}>Total Ded</th>
-                <th className="text-right p-3 text-xs font-semibold" style={{ color: c.primary, backgroundColor: c.secondary + '20' }}>Net Pay</th>
+                <th className="text-left p-2 font-semibold whitespace-nowrap sticky left-0" style={{ color: c.primary, backgroundColor: c.muted + '20', minWidth: '120px' }}>Employee</th>
+                <th className="text-left p-2 font-semibold whitespace-nowrap" style={{ color: c.primary, minWidth: '80px' }}>Position</th>
+                <th className="text-right p-2 font-semibold whitespace-nowrap" style={{ color: c.primary }}>₱/Hr</th>
+                <th className="text-right p-2 font-semibold whitespace-nowrap" style={{ color: c.primary }}>Hrs</th>
+                <th className="text-right p-2 font-semibold whitespace-nowrap" style={{ color: c.primary }}>OT</th>
+                <th className="text-right p-2 font-semibold whitespace-nowrap" style={{ color: c.primary }}>OT Pay</th>
+                <th className="text-right p-2 font-semibold whitespace-nowrap" style={{ color: c.primary }}>Bonus</th>
+                <th className="text-right p-2 font-semibold whitespace-nowrap" style={{ color: c.primary }}>Allow</th>
+                <th className="text-right p-2 font-semibold whitespace-nowrap" style={{ color: c.primary }}>Late</th>
+                <th className="text-right p-2 font-semibold whitespace-nowrap" style={{ color: c.primary }}>SSS</th>
+                <th className="text-right p-2 font-semibold whitespace-nowrap" style={{ color: c.primary }}>PH</th>
+                <th className="text-right p-2 font-semibold whitespace-nowrap" style={{ color: c.primary }}>HDMF</th>
+                <th className="text-right p-2 font-semibold whitespace-nowrap" style={{ color: c.primary }}>CA</th>
+                <th className="text-right p-2 font-semibold whitespace-nowrap" style={{ color: c.primary }}>Other</th>
+                <th className="text-right p-2 font-semibold whitespace-nowrap" style={{ color: c.secondary }}>Gross</th>
+                <th className="text-right p-2 font-semibold whitespace-nowrap" style={{ color: c.accent }}>Ded</th>
+                <th className="text-right p-2 font-semibold whitespace-nowrap" style={{ color: c.primary, backgroundColor: c.secondary + '20' }}>Net Pay</th>
               </tr>
             </thead>
             <tbody>
@@ -217,30 +217,30 @@ const PayrollGenerator = ({ onBack, colors }) => {
                   className="border-b hover:bg-gray-50"
                   style={{ borderColor: c.muted + '30' }}
                 >
-                  <td className="p-3 sticky left-0" style={{ backgroundColor: c.background }}>
-                    <div className="font-medium" style={{ color: c.primary }}>{employee.staffName}</div>
-                    <div className="text-xs" style={{ color: c.muted }}>{employee.employmentType}</div>
+                  <td className="p-2 sticky left-0" style={{ backgroundColor: c.background }}>
+                    <div className="font-medium truncate" style={{ color: c.primary, maxWidth: '120px' }}>{employee.staffName}</div>
+                    <div className="text-xs truncate" style={{ color: c.muted, maxWidth: '120px' }}>{employee.employmentType}</div>
                   </td>
-                  <td className="p-3 text-sm" style={{ color: c.muted }}>{employee.position}</td>
-                  <td className="p-3 text-right text-sm" style={{ color: c.primary }}>{formatCurrency(employee.dailyRate)}</td>
-                  <td className="p-3 text-right text-sm" style={{ color: c.primary }}>{employee.hoursWorked.toFixed(1)}</td>
-                  <td className="p-3 text-right text-sm" style={{ color: c.accent }}>{employee.overtimeHours.toFixed(1)}</td>
-                  <td className="p-3 text-right text-sm" style={{ color: c.accent }}>{formatCurrency(employee.overtimePay)}</td>
-                  <td className="p-3 text-right text-sm" style={{ color: c.secondary }}>
+                  <td className="p-2 truncate" style={{ color: c.muted, maxWidth: '80px' }}>{employee.position}</td>
+                  <td className="p-2 text-right whitespace-nowrap" style={{ color: c.primary }}>{formatCurrency(employee.hourlyRate)}</td>
+                  <td className="p-2 text-right" style={{ color: c.primary }}>{employee.hoursWorked.toFixed(1)}</td>
+                  <td className="p-2 text-right" style={{ color: c.accent }}>{employee.overtimeHours.toFixed(1)}</td>
+                  <td className="p-2 text-right whitespace-nowrap" style={{ color: c.accent }}>{formatCurrency(employee.overtimePay)}</td>
+                  <td className="p-2 text-right whitespace-nowrap" style={{ color: c.secondary }}>
                     {formatCurrency((employee.bonuses?.performance || 0) + (employee.bonuses?.other || 0))}
                   </td>
-                  <td className="p-3 text-right text-sm" style={{ color: c.primary }}>{formatCurrency(employee.allowances)}</td>
-                  <td className="p-3 text-right text-sm" style={{ color: c.accent }}>
+                  <td className="p-2 text-right whitespace-nowrap" style={{ color: c.primary }}>{formatCurrency(employee.allowances)}</td>
+                  <td className="p-2 text-right whitespace-nowrap" style={{ color: c.accent }}>
                     {formatCurrency(employee.lateDeduction + employee.absenceDeduction)}
                   </td>
-                  <td className="p-3 text-right text-sm" style={{ color: c.muted }}>{formatCurrency(employee.sssDeduction)}</td>
-                  <td className="p-3 text-right text-sm" style={{ color: c.muted }}>{formatCurrency(employee.philHealthDeduction)}</td>
-                  <td className="p-3 text-right text-sm" style={{ color: c.muted }}>{formatCurrency(employee.pagIbigDeduction)}</td>
-                  <td className="p-3 text-right text-sm" style={{ color: c.muted }}>{formatCurrency(employee.cashAdvance)}</td>
-                  <td className="p-3 text-right text-sm" style={{ color: c.muted }}>{formatCurrency(employee.otherDeductions)}</td>
-                  <td className="p-3 text-right text-sm font-medium" style={{ color: c.secondary }}>{formatCurrency(employee.grossPay)}</td>
-                  <td className="p-3 text-right text-sm font-medium" style={{ color: c.accent }}>{formatCurrency(employee.totalDeductions)}</td>
-                  <td className="p-3 text-right text-sm font-bold" style={{ color: c.primary, backgroundColor: c.secondary + '10' }}>
+                  <td className="p-2 text-right whitespace-nowrap" style={{ color: c.muted }}>{formatCurrency(employee.sssDeduction)}</td>
+                  <td className="p-2 text-right whitespace-nowrap" style={{ color: c.muted }}>{formatCurrency(employee.philHealthDeduction)}</td>
+                  <td className="p-2 text-right whitespace-nowrap" style={{ color: c.muted }}>{formatCurrency(employee.pagIbigDeduction)}</td>
+                  <td className="p-2 text-right whitespace-nowrap" style={{ color: c.muted }}>{formatCurrency(employee.cashAdvance)}</td>
+                  <td className="p-2 text-right whitespace-nowrap" style={{ color: c.muted }}>{formatCurrency(employee.otherDeductions)}</td>
+                  <td className="p-2 text-right font-medium whitespace-nowrap" style={{ color: c.secondary }}>{formatCurrency(employee.grossPay)}</td>
+                  <td className="p-2 text-right font-medium whitespace-nowrap" style={{ color: c.accent }}>{formatCurrency(employee.totalDeductions)}</td>
+                  <td className="p-2 text-right font-bold whitespace-nowrap" style={{ color: c.primary, backgroundColor: c.secondary + '10' }}>
                     {formatCurrency(employee.netPay)}
                   </td>
                 </tr>
@@ -368,7 +368,7 @@ const PayrollGenerator = ({ onBack, colors }) => {
 
   return (
     <div className="min-h-screen p-4 md:p-6" style={{ backgroundColor: c.background }}>
-      <div className="max-w-[1800px] mx-auto">
+      <div className="w-full">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
           <div className="flex items-center">

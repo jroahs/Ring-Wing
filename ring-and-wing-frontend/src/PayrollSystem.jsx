@@ -6,7 +6,6 @@ import { default as WorkIDModal } from './WorkIDModal';
 import TimeLogHistory from './components/TimeLogHistory';
 import StaffAvatar from './components/StaffAvatar';
 import PayrollSchedule from './components/PayrollSchedule';
-import PayrollReports from './PayrollReports';
 import PayrollGenerator from './PayrollGenerator';
 import api from './services/apiService';
 import { toast } from 'react-toastify';
@@ -83,9 +82,6 @@ const PayrollSystem = () => {
     other: 0
   });
   
-  // Reports view state
-  const [showReports, setShowReports] = useState(false);
-  
   // Batch payroll generator view state
   const [showPayrollGenerator, setShowPayrollGenerator] = useState(false);
   
@@ -113,7 +109,9 @@ const PayrollSystem = () => {
       
       const formattedEmployees = activeStaff.map(emp => ({
         ...emp,
-        dailyRate: Number(emp.dailyRate) || 0,
+        // Use hourlyRate directly; fall back to dailyRate/8 for legacy records
+        hourlyRate: Number(emp.hourlyRate) || (Number(emp.dailyRate) || 0) / 8,
+        dailyRate: Number(emp.dailyRate) || (Number(emp.hourlyRate) || 0) * 8, // Keep for backward compatibility
         allowances: Number(emp.allowances) || 0
       }));
       setEmployees(formattedEmployees);
@@ -255,7 +253,9 @@ const PayrollSystem = () => {
     if (!selectedEmployee) return { netPay: 0 };
   
     // Get values with proper validation
-    const dailyRate = Number(selectedEmployee.dailyRate) || 0;
+    // Use hourlyRate directly; fall back to dailyRate/8 for legacy records
+    const hourlyRate = Number(selectedEmployee.hourlyRate) || (Number(selectedEmployee.dailyRate) || 0) / 8;
+    const standardHoursPerDay = selectedEmployee.standardHoursPerDay || 8;
     const allowances = Number(selectedEmployee.allowances) || 0;
     
     // Handle manual adjustments properly
@@ -272,13 +272,11 @@ const PayrollSystem = () => {
     
     // Calculate regular hours (total - overtime)
     const regularHours = Math.max(0, totalHours - overtimeHours);
-      // Calculate hourly rate from daily rate
-    const hourlyRate = dailyRate / 8; // Assuming 8-hour standard day for rate calculation
     
     // Get overtime multiplier from schedule or use default 1.25
     const overtimeMultiplier = selectedEmployee.payrollScheduleId?.overtimeMultiplier || 1.25;
     
-    // Payment components
+    // Payment components - use hourlyRate directly
     const regularPay = regularHours * hourlyRate;
     const overtimePay = overtimeHours * (hourlyRate * overtimeMultiplier); // Use schedule's OT multiplier
     
@@ -293,7 +291,8 @@ const PayrollSystem = () => {
     const lateMinutes = Number(deductions.lateMinutes) || 0;
     const absences = Number(deductions.absences) || 0;
     const lateDeduction = lateMinutes * (hourlyRate / 60);
-    const absenceDeduction = absences * dailyRate;
+    // Absence deduction: use hourlyRate * standardHoursPerDay
+    const absenceDeduction = absences * hourlyRate * standardHoursPerDay;
     
     // Calculate government deductions based on basic pay (monthly salary)
     const monthlySalary = regularPay; // Using regular pay as monthly salary basis
@@ -327,7 +326,8 @@ const PayrollSystem = () => {
       governmentDeductions: govtDeductions.total,
       totalDeductions,
       allowances,
-      dailyRate,
+      hourlyRate, // NEW: Primary rate field
+      dailyRate: hourlyRate * standardHoursPerDay, // Computed for backward compatibility
       regularHours,
       overtimeHours,
       totalHours,
@@ -620,11 +620,6 @@ const PayrollSystem = () => {
               onBack={() => setShowPayrollGenerator(false)}
               colors={colors}
             />
-          ) : showReports ? (
-            <PayrollReports 
-              onBack={() => setShowReports(false)}
-              colors={colors}
-            />
           ) : (
             <>
               <h1 className="text-3xl font-bold mb-6" style={{ color: colors.primary }}>
@@ -718,20 +713,6 @@ const PayrollSystem = () => {
                       >
                         <FiLayers className="mr-1" />
                         Batch Payroll
-                      </button>
-                      
-                      <button
-                        onClick={() => setShowReports(true)}
-                        className="px-3 py-1 rounded text-sm font-medium flex items-center"
-                        style={{ 
-                          backgroundColor: colors.accent, 
-                          color: 'white',
-                          fontSize: '0.75rem'
-                        }}
-                        title="View payroll reports"
-                      >
-                        <FiFileText className="mr-1" />
-                        Reports
                       </button>
                       
                       <button
@@ -1117,8 +1098,8 @@ const PayrollSystem = () => {
                       </div>                      {/* Pay Breakdown */}
                       <div className="bg-opacity-10 p-4 rounded mb-4" style={{ backgroundColor: colors.accent + '15' }}>
                         <div className="flex justify-between items-center mb-2">
-                          <span>Daily Rate:</span>
-                          <span>₱{selectedEmployee.dailyRate?.toFixed(2)}</span>
+                          <span>Hourly Rate:</span>
+                          <span>₱{(selectedEmployee.hourlyRate || (selectedEmployee.dailyRate / 8))?.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between items-center mb-2">
                           <span>Regular Hours Pay:</span>

@@ -137,11 +137,13 @@ router.post('/', auth, validateStaffCreation, async (req, res) => {
       position,
       employmentType, 
       phone, 
-      dailyRate, 
+      hourlyRate, // NEW: Primary rate field
+      dailyRate,  // DEPRECATED: For backward compatibility only
       profilePicture, 
       allowances,
       pinCode,
-      nfcCardId 
+      nfcCardId,
+      standardHoursPerDay // Optional: defaults to 8
     } = req.body;
 
     // Check for existing username or email (case insensitive)
@@ -189,13 +191,25 @@ router.post('/', auth, validateStaffCreation, async (req, res) => {
         processedProfilePicture = await saveStaffProfileImage(profilePicture, user._id);
       }
       
+      // Determine hourly rate - prefer hourlyRate, fallback to converting dailyRate
+      const stdHours = standardHoursPerDay || 8;
+      let effectiveHourlyRate = hourlyRate;
+      if (!effectiveHourlyRate && dailyRate) {
+        // Legacy support: convert dailyRate to hourlyRate
+        effectiveHourlyRate = Number(dailyRate) / stdHours;
+        console.log(`[Staff Create] Converting legacy dailyRate ${dailyRate} to hourlyRate ${effectiveHourlyRate}`);
+      }
+      
       // Create the staff member and link to the user account
       const newStaff = new Staff({
         name,
         position,
         employmentType: employmentType || 'Regular',
         phone,
-        dailyRate,
+        hourlyRate: effectiveHourlyRate,
+        standardHoursPerDay: stdHours,
+        // Keep dailyRate for backward compatibility (computed from hourlyRate)
+        dailyRate: effectiveHourlyRate * stdHours,
         profilePicture: processedProfilePicture,
         allowances: allowances || 0,
         userId: user._id,
@@ -203,7 +217,7 @@ router.post('/', auth, validateStaffCreation, async (req, res) => {
         nfcCardId: nfcCardId ? nfcCardId.toUpperCase().replace(/\s/g, '') : '' // NFC Card ID
       });
       
-      console.log('Creating new staff with PIN code:', pinCode || '0000', 'NFC Card ID:', nfcCardId || 'none');
+      console.log('Creating new staff with PIN code:', pinCode || '0000', 'NFC Card ID:', nfcCardId || 'none', 'Hourly Rate:', effectiveHourlyRate);
       
       const savedStaff = await newStaff.save();
       const populatedStaff = await Staff.findById(savedStaff._id)
@@ -249,7 +263,25 @@ router.put('/:id', auth, async (req, res) => {
     // Check whether we're doing a staff-only or account-only update
     const { staffOnly, accountOnly } = req.body;
     // Extract user and staff data from request
-    const { username, email, password, ...staffUpdates } = req.body;
+    const { username, email, password, hourlyRate, dailyRate, standardHoursPerDay, ...staffUpdates } = req.body;
+    
+    // Handle hourlyRate / dailyRate conversion
+    if (hourlyRate !== undefined) {
+      // NEW: Using hourlyRate directly
+      staffUpdates.hourlyRate = Number(hourlyRate);
+      const stdHours = standardHoursPerDay || 8;
+      staffUpdates.standardHoursPerDay = stdHours;
+      // Keep dailyRate in sync for backward compatibility
+      staffUpdates.dailyRate = staffUpdates.hourlyRate * stdHours;
+      console.log(`[Staff Update] Setting hourlyRate: ${staffUpdates.hourlyRate}, computed dailyRate: ${staffUpdates.dailyRate}`);
+    } else if (dailyRate !== undefined) {
+      // LEGACY: Convert dailyRate to hourlyRate
+      const stdHours = standardHoursPerDay || 8;
+      staffUpdates.dailyRate = Number(dailyRate);
+      staffUpdates.hourlyRate = staffUpdates.dailyRate / stdHours;
+      staffUpdates.standardHoursPerDay = stdHours;
+      console.log(`[Staff Update] Converting legacy dailyRate ${staffUpdates.dailyRate} to hourlyRate ${staffUpdates.hourlyRate}`);
+    }
     
     // Always remove these flags from the updates
     delete staffUpdates.staffOnly;

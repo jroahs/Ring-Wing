@@ -265,20 +265,25 @@ const StaffForm = ({
             
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: colors.primary }}>
-                Daily Rate
+                Hourly Rate (₱)
               </label>
               <input 
                 type="number" 
-                name="dailyRate" 
-                placeholder="Daily Rate" 
-                value={formData.dailyRate}
+                name="hourlyRate" 
+                placeholder="e.g., 75.00" 
+                value={formData.hourlyRate}
                 onChange={handleInputChange} 
                 className="p-2 rounded border w-full text-sm"
-                style={{ borderColor: formErrors.dailyRate ? colors.accent : colors.muted }}
+                style={{ borderColor: formErrors.hourlyRate ? colors.accent : colors.muted }}
+                step="0.01"
+                min="0"
               />
-              {formErrors.dailyRate && (
-                <div className="text-xs text-red-500 mt-1">{formErrors.dailyRate}</div>
+              {formErrors.hourlyRate && (
+                <div className="text-xs text-red-500 mt-1">{formErrors.hourlyRate}</div>
               )}
+              <div className="text-xs mt-1" style={{ color: colors.muted }}>
+                Daily equivalent: ₱{(parseFloat(formData.hourlyRate || 0) * 8).toFixed(2)}
+              </div>
             </div>
             
             <div>

@@ -60,7 +60,7 @@ const StaffManagement = () => {
     employmentType: 'Regular',
     profilePicture: '',
     phone: '',
-    dailyRate: '',
+    hourlyRate: '', // NEW: Primary rate field (replaces dailyRate)
     status: 'Active',
     sssNumber: '',
     tinNumber: '',
@@ -122,7 +122,7 @@ const StaffManagement = () => {
             userId: member.userId || null,
             // Other staff fields
             phone: member.phone || '',
-            dailyRate: member.dailyRate || 0,
+            hourlyRate: member.hourlyRate || (member.dailyRate ? member.dailyRate / 8 : 0),
             status: member.status || 'Active',
             password: '', // Password is never returned from server
             pinCode: member.pinCode ? String(member.pinCode) : '0000',
@@ -291,7 +291,7 @@ const StaffManagement = () => {
     if (!formData.employmentType) errors.employmentType = 'Employment type is required';
     if (!formData.phone.trim()) errors.phone = 'Phone number is required';
     if (!/^0\d{10}$/.test(formData.phone)) errors.phone = 'Invalid phone number format (e.g., 09123456789)';
-    if (!formData.dailyRate) errors.dailyRate = 'Daily rate is required';
+    if (!formData.hourlyRate) errors.hourlyRate = 'Hourly rate is required';
     
     // Show each validation error as a toast notification
     Object.values(errors).forEach(error => {
@@ -320,7 +320,7 @@ const StaffManagement = () => {
     if (!formData.employmentType) errors.employmentType = 'Employment type is required';
     if (!formData.phone.trim()) errors.phone = 'Phone number is required';
     if (!/^0\d{10}$/.test(formData.phone)) errors.phone = 'Invalid phone number format (e.g., 09123456789)';
-    if (!formData.dailyRate) errors.dailyRate = 'Daily rate is required';
+    if (!formData.hourlyRate) errors.hourlyRate = 'Hourly rate is required';
     
     // Show each validation error as a toast notification
     Object.values(errors).forEach(error => {
@@ -429,7 +429,7 @@ const StaffManagement = () => {
       password: '', // Empty password since we don't receive it from the server
       // Map other staff fields
       phone: staffMember.phone?.replace('+63', '0') || '',
-      dailyRate: staffMember.dailyRate?.toString() || '',
+      hourlyRate: (staffMember.hourlyRate || (staffMember.dailyRate ? staffMember.dailyRate / 8 : 0)).toString(),
       pinCode: pinCode,
       nfcCardId: staffMember.nfcCardId || '', // NFC Card ID
       name: staffMember.name || '',
@@ -512,7 +512,7 @@ const StaffManagement = () => {
         employmentType: formData.employmentType,
         profilePicture: formData.profilePicture,
         phone: formData.phone,
-        dailyRate: formData.dailyRate,
+        hourlyRate: formData.hourlyRate,
         status: formData.status,
         sssNumber: formData.sssNumber || '',
         tinNumber: formData.tinNumber || '',
@@ -807,7 +807,7 @@ const StaffManagement = () => {
       employmentType: 'Regular',
       profilePicture: '',
       phone: '',
-      dailyRate: '',
+      hourlyRate: '', // NEW: Primary rate field
       status: 'Active',
       sssNumber: '',
       tinNumber: '',
@@ -1399,20 +1399,25 @@ const StaffManagement = () => {
                         
                         <div>
                           <label className="block text-xs font-medium mb-1" style={{ color: colors.primary }}>
-                            Daily Rate
+                            Hourly Rate (₱)
                           </label>
                           <input 
                             type="number" 
-                            name="dailyRate" 
-                            placeholder="Daily Rate" 
-                            value={formData.dailyRate}
+                            name="hourlyRate" 
+                            placeholder="e.g., 75.00" 
+                            value={formData.hourlyRate}
                             onChange={handleInputChange} 
                             className="p-2 rounded border w-full text-sm"
-                            style={{ borderColor: formErrors.dailyRate ? colors.accent : colors.muted }}
+                            style={{ borderColor: formErrors.hourlyRate ? colors.accent : colors.muted }}
+                            step="0.01"
+                            min="0"
                           />
-                          {formErrors.dailyRate && (
-                            <div className="text-xs text-red-500 mt-1">{formErrors.dailyRate}</div>
+                          {formErrors.hourlyRate && (
+                            <div className="text-xs text-red-500 mt-1">{formErrors.hourlyRate}</div>
                           )}
+                          <div className="text-xs mt-1" style={{ color: colors.muted }}>
+                            Daily equivalent: ₱{(parseFloat(formData.hourlyRate || 0) * 8).toFixed(2)}
+                          </div>
                         </div>
                           <div>
                           <label className="block text-xs font-medium mb-1" style={{ color: colors.primary }}>

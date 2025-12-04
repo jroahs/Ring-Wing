@@ -25,11 +25,28 @@ const staffSchema = new mongoose.Schema({
     required: [true, 'Phone number is required'],
     match: [/^0\d{10}$/, 'Please use a valid Philippine phone number (e.g., 09123456789)']
   },
+  // NEW: Primary rate field - hourly rate for all new payroll calculations
+  hourlyRate: {
+    type: Number,
+    required: [true, 'Hourly rate is required'],
+    min: [0, 'Hourly rate cannot be negative']
+  },
+  // DEPRECATED: Kept for backward compatibility with historical payroll records
+  // Do not use for new calculations - use hourlyRate instead
   dailyRate: {
     type: Number,
-    required: [true, 'Daily rate is required'],
-    min: [0, 'Daily rate cannot be negative']
-  },  status: {
+    required: false, // No longer required since we use hourlyRate
+    min: [0, 'Daily rate cannot be negative'],
+    default: null
+  },
+  // Standard hours per day used for rate conversion (default: 8 hours)
+  standardHoursPerDay: {
+    type: Number,
+    default: 8,
+    min: [1, 'Standard hours per day must be at least 1'],
+    max: [24, 'Standard hours per day cannot exceed 24']
+  },
+  status: {
     type: String,
     enum: ['Active', 'On Leave', 'Inactive', 'Terminated', 'Resigned', 'Suspended'],
     default: 'Active'
@@ -205,10 +222,46 @@ staffSchema.virtual('defaultShift', {
   justOne: true
 });
 
+// Virtual to compute daily rate from hourly rate (for backward compatibility in views)
+staffSchema.virtual('computedDailyRate').get(function() {
+  return (this.hourlyRate || 0) * (this.standardHoursPerDay || 8);
+});
+
+// Pre-save middleware to handle migration from dailyRate to hourlyRate
+staffSchema.pre('save', function(next) {
+  // If hourlyRate is not set but dailyRate exists (legacy data), compute hourlyRate
+  if (!this.hourlyRate && this.dailyRate) {
+    const standardHours = this.standardHoursPerDay || 8;
+    this.hourlyRate = this.dailyRate / standardHours;
+    console.log(`[Staff Migration] Converted dailyRate ${this.dailyRate} to hourlyRate ${this.hourlyRate} for ${this.name}`);
+  }
+  
+  // Optionally sync dailyRate for backward compatibility (computed from hourlyRate)
+  if (this.hourlyRate && !this.dailyRate) {
+    this.dailyRate = this.hourlyRate * (this.standardHoursPerDay || 8);
+  }
+  
+  next();
+});
+
 // Method to check if a specific day is a rest day for this staff
 staffSchema.methods.isRestDay = function(date) {
   const dayOfWeek = new Date(date).getDay();
   return this.restDays.includes(dayOfWeek);
+};
+
+// Method to get effective hourly rate (handles legacy records)
+staffSchema.methods.getEffectiveHourlyRate = function() {
+  if (this.hourlyRate) return this.hourlyRate;
+  // Fallback for legacy records
+  return (this.dailyRate || 0) / (this.standardHoursPerDay || 8);
+};
+
+// Method to get effective daily rate (for backward compatibility)
+staffSchema.methods.getEffectiveDailyRate = function() {
+  if (this.dailyRate) return this.dailyRate;
+  // Compute from hourly rate
+  return (this.hourlyRate || 0) * (this.standardHoursPerDay || 8);
 };
 
 module.exports = mongoose.model('Staff', staffSchema);

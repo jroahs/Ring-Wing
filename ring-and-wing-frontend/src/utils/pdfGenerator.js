@@ -144,7 +144,7 @@ export const generatePayrollBatchPDF = (payrollData) => {
   const columns = [
     { label: 'Employee Name', width: 35 },
     { label: 'Position', width: 22 },
-    { label: 'Rate', width: 18 },
+    { label: '₱/Hr', width: 18 }, // Changed from 'Rate' to '₱/Hr' for hourly rate
     { label: 'Hours', width: 14 },
     { label: 'OT Hrs', width: 14 },
     { label: 'OT Pay', width: 18 },
@@ -200,8 +200,8 @@ export const generatePayrollBatchPDF = (payrollData) => {
     pdf.text((emp.position || 'N/A').substring(0, 12), xPos, yPosition);
     xPos += columns[1].width;
 
-    // Rate
-    pdf.text(formatCurrency(emp.dailyRate).replace('PHP ', ''), xPos, yPosition);
+    // Hourly Rate (NEW: use hourlyRate instead of dailyRate)
+    pdf.text(formatCurrency(emp.hourlyRate).replace('PHP ', ''), xPos, yPosition);
     xPos += columns[2].width;
 
     // Hours
