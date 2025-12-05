@@ -6,6 +6,7 @@ const CART_ACTIONS = {
   UPDATE_QUANTITY: 'UPDATE_QUANTITY', 
   UPDATE_SIZE: 'UPDATE_SIZE',
   REMOVE_ITEM: 'REMOVE_ITEM',
+  REPLACE_ITEM: 'REPLACE_ITEM',
   CLEAR_CART: 'CLEAR_CART',
   LOAD_FROM_STORAGE: 'LOAD_FROM_STORAGE'
 };
@@ -134,6 +135,69 @@ const cartReducer = (state, action) => {
         !(cartItem._id === itemId && cartItem.selectedSize === selectedSize)
       );
     }
+
+    case CART_ACTIONS.REPLACE_ITEM: {
+      const { oldItemId, oldSelectedSize, newItem, selectedSize, variant, addOns, quantity } = action.payload;
+      
+      // Sanitize variant to prevent circular references
+      const sanitizedVariant = variant ? {
+        name: String(variant.name || ''),
+        priceAdjustment: Number(variant.priceAdjustment) || 0
+      } : null;
+      
+      // Sanitize addOns to prevent circular references
+      const sanitizedAddOns = Array.isArray(addOns) ? addOns.map(addon => ({
+        _id: String(addon._id || ''),
+        name: String(addon.name || ''),
+        price: Number(addon.price) || 0
+      })) : [];
+
+      // Find the index of the item to replace
+      const indexToReplace = state.findIndex(cartItem => 
+        cartItem._id === oldItemId && cartItem.selectedSize === oldSelectedSize
+      );
+
+      if (indexToReplace === -1) {
+        // Item not found, just add it as new
+        const cartItem = {
+          _id: newItem._id,
+          name: String(newItem.name || ''),
+          category: String(newItem.category || ''),
+          description: String(newItem.description || ''),
+          image: newItem.image || '',
+          price: Number(newItem.pricing?.[selectedSize]) || 0,
+          selectedSize: String(selectedSize),
+          availableSizes: Object.keys(newItem.pricing || {}),
+          pricing: { ...newItem.pricing },
+          modifiers: Array.isArray(newItem.modifiers) ? [...newItem.modifiers] : [],
+          variant: sanitizedVariant,
+          addOns: sanitizedAddOns,
+          quantity: quantity || 1
+        };
+        return [...state, cartItem];
+      }
+
+      // Replace the item at the found index
+      const newCartItem = {
+        _id: newItem._id,
+        name: String(newItem.name || ''),
+        category: String(newItem.category || ''),
+        description: String(newItem.description || ''),
+        image: newItem.image || '',
+        price: Number(newItem.pricing?.[selectedSize]) || 0,
+        selectedSize: String(selectedSize),
+        availableSizes: Object.keys(newItem.pricing || {}),
+        pricing: { ...newItem.pricing },
+        modifiers: Array.isArray(newItem.modifiers) ? [...newItem.modifiers] : [],
+        variant: sanitizedVariant,
+        addOns: sanitizedAddOns,
+        quantity: quantity || 1
+      };
+
+      return state.map((cartItem, index) => 
+        index === indexToReplace ? newCartItem : cartItem
+      );
+    }
     
     case CART_ACTIONS.CLEAR_CART:
       return [];
@@ -221,6 +285,25 @@ export const useCart = () => {
       payload: { itemId, selectedSize } 
     });
   }, []);
+
+  // Replace an existing cart item (for editing)
+  const replaceItem = useCallback((oldItemId, oldSelectedSize, newItem, options = {}) => {
+    const sizes = Object.keys(newItem.pricing);
+    const selectedSize = options.size || (sizes.includes('base') ? 'base' : sizes[0]);
+    
+    dispatch({
+      type: CART_ACTIONS.REPLACE_ITEM,
+      payload: {
+        oldItemId,
+        oldSelectedSize,
+        newItem,
+        selectedSize,
+        variant: options.variant || null,
+        addOns: options.addOns || [],
+        quantity: options.quantity || 1
+      }
+    });
+  }, []);
   
   // Clear entire cart
   const clearCart = useCallback(() => {
@@ -243,6 +326,7 @@ export const useCart = () => {
     updateQuantity,
     updateSize, 
     removeItem,
+    replaceItem,
     clearCart,
     getTotals,
     itemCount: itemCount()

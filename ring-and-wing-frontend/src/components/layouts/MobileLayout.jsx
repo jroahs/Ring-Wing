@@ -6,7 +6,7 @@ import { useCustomerAuth } from '../../contexts/CustomerAuthContext';
 import { useAlternatives } from '../../hooks/useAlternatives';
 import { AlternativesModal } from '../ui/AlternativesModal';
 import AssistantPanel from '../ui/AssistantPanel';
-import ItemCustomizationModal from '../ItemCustomizationModal';
+import ItemPreviewModal from '../ItemPreviewModal';
 import { FaStore, FaShoppingBag, FaTruck } from 'react-icons/fa';
 
 const colors = {
@@ -39,19 +39,22 @@ const MobileLayout = ({
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [showOrderTypeModal, setShowOrderTypeModal] = useState(false);
   const [selectedOrderType, setSelectedOrderType] = useState(null);
-  const [customizationItem, setCustomizationItem] = useState(null);
   
   // Ref for submit button visibility detection
   const submitButtonRef = useRef(null);
   const [isSubmitVisible, setIsSubmitVisible] = useState(false);
   
   // Get contexts
-  const { cartItems, addItem, updateQuantity: updateCartQuantity, updateSize: updateCartSize, removeItem, clearCart, getTotals, itemCount } = useCartContext();
+  const { cartItems, addItem, updateQuantity: updateCartQuantity, updateSize: updateCartSize, removeItem, replaceItem, clearCart, getTotals, itemCount } = useCartContext();
   const { menuItems, categories, addOns, loading, error } = useMenuContext();
   const { isAuthenticated, isLoading: authLoading, customer, logout } = useCustomerAuth();
 
   // Alternatives modal functionality
   const { modalState, showAlternatives, hideAlternatives } = useAlternatives();
+
+  // Preview/Edit modal state
+  const [previewItem, setPreviewItem] = useState(null);
+  const [editingCartItem, setEditingCartItem] = useState(null);
 
   // Initialize active category
   useEffect(() => {
@@ -99,25 +102,63 @@ const MobileLayout = ({
 
   // Handle customization modal confirm
   const handleCustomizationConfirm = (customizedItem) => {
-    addItem(customizedItem, { 
-      size: customizedItem.selectedSize,
-      variant: customizedItem.selectedVariant,
-      addOns: customizedItem.selectedAddOns,
-      quantity: customizedItem.quantity
-    });
-    setCustomizationItem(null);
+    if (customizedItem.isEditing && editingCartItem) {
+      // Editing existing cart item - replace it
+      replaceItem(
+        editingCartItem._id,
+        editingCartItem.selectedSize,
+        customizedItem,
+        {
+          size: customizedItem.selectedSize,
+          variant: customizedItem.selectedVariant,
+          addOns: customizedItem.selectedAddOns,
+          quantity: customizedItem.quantity
+        }
+      );
+      setEditingCartItem(null);
+    } else {
+      // Adding new item
+      addItem(customizedItem, { 
+        size: customizedItem.selectedSize,
+        variant: customizedItem.selectedVariant,
+        addOns: customizedItem.selectedAddOns,
+        quantity: customizedItem.quantity
+      });
+    }
+    setPreviewItem(null);
   };
 
-  // Handle menu item click - check availability first
+  // Handle menu item click - ALWAYS show preview modal for customers in Self Checkout
   const handleItemClick = (item) => {
     if (item.isAvailable === false) {
       showAlternatives(item);
-    } else if (needsCustomization(item)) {
-      setCustomizationItem(item);
     } else {
-      addToOrder(item);
+      // Always show preview modal for self-checkout customers
+      setPreviewItem(item);
+      setEditingCartItem(null);
     }
   };
+
+  // Handle edit cart item - open preview modal in edit mode
+  const handleEditCartItem = (cartItem) => {
+    // Find the full menu item data
+    const fullMenuItem = menuItems.find(mi => mi._id === cartItem._id);
+    if (fullMenuItem) {
+      setPreviewItem(fullMenuItem);
+      setEditingCartItem(cartItem);
+    }
+  };
+
+  // Expose handleItemPreview for recommendations
+  useEffect(() => {
+    window.handleItemPreview = (item) => {
+      setPreviewItem(item);
+      setEditingCartItem(null);
+    };
+    return () => {
+      delete window.handleItemPreview;
+    };
+  }, []);
 
   const updateQuantity = (item, delta) => {
     updateCartQuantity(item._id, item.selectedSize, delta);
@@ -458,15 +499,27 @@ const MobileLayout = ({
                     <h4 className="font-bold text-gray-800 flex-1 truncate pr-2">
                       {item.name}
                     </h4>
-                    <button
-                      onClick={() => removeItem(item._id, item.selectedSize)}
-                      className="text-red-500 hover:text-red-700 transition-colors p-1 flex-shrink-0"
-                      title="Remove item"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {/* Edit button */}
+                      <button
+                        onClick={() => handleEditCartItem(item)}
+                        className="text-orange-500 hover:text-orange-700 transition-colors p-1"
+                        title="Edit item"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => removeItem(item._id, item.selectedSize)}
+                        className="text-red-500 hover:text-red-700 transition-colors p-1"
+                        title="Remove item"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                   <select
                     value={item.selectedSize}
@@ -922,12 +975,18 @@ const MobileLayout = ({
       />
 
       {/* Item Customization Modal */}
-      {customizationItem && (
-        <ItemCustomizationModal
-          item={customizationItem}
+      {previewItem && (
+        <ItemPreviewModal
+          item={previewItem}
           addOns={addOns || []}
-          onClose={() => setCustomizationItem(null)}
+          onClose={() => {
+            setPreviewItem(null);
+            setEditingCartItem(null);
+          }}
           onConfirm={handleCustomizationConfirm}
+          isEditing={!!editingCartItem}
+          cartItem={editingCartItem}
+          menuItems={menuItems}
           colors={colors}
         />
       )}
@@ -940,12 +999,16 @@ const MobileLayout = ({
         onAddToCart={(item, options) => {
           // If item needs customization and no options provided, open modal
           if (needsCustomization(item) && !options?.skipCustomization) {
-            setCustomizationItem(item);
+            setPreviewItem(item);
+            setEditingCartItem(null);
           } else {
             addItem(item, options);
           }
         }}
-        onRequestCustomization={(item) => setCustomizationItem(item)}
+        onRequestCustomization={(item) => {
+          setPreviewItem(item);
+          setEditingCartItem(null);
+        }}
         onRemoveFromCart={(itemId, selectedSize) => removeItem(itemId, selectedSize)}
         onUpdateQuantity={(itemId, selectedSize, delta) => updateCartQuantity(itemId, selectedSize, delta)}
         onUpdateSize={(itemId, oldSize, newSize) => updateCartSize(itemId, oldSize, newSize)}
