@@ -46,7 +46,7 @@ const MobileLayout = ({
   const [isSubmitVisible, setIsSubmitVisible] = useState(false);
   
   // Get contexts
-  const { cartItems, addItem, updateQuantity: updateCartQuantity, updateSize: updateCartSize, removeItem, getTotals, itemCount } = useCartContext();
+  const { cartItems, addItem, updateQuantity: updateCartQuantity, updateSize: updateCartSize, removeItem, clearCart, getTotals, itemCount } = useCartContext();
   const { menuItems, categories, addOns, loading, error } = useMenuContext();
   const { isAuthenticated, isLoading: authLoading, customer, logout } = useCustomerAuth();
 
@@ -91,10 +91,10 @@ const MobileLayout = ({
   };
 
   // Cart management functions (preserve exact SelfCheckout behavior)
-  const addToOrder = (item) => {
+  const addToOrder = (item, options = {}) => {
     const sizes = Object.keys(item.pricing);
-    const selectedSize = sizes.includes('base') ? 'base' : sizes[0];
-    addItem(item, { size: selectedSize });
+    const selectedSize = options.size || (sizes.includes('base') ? 'base' : sizes[0]);
+    addItem(item, { size: selectedSize, ...options });
   };
 
   // Handle customization modal confirm
@@ -936,7 +936,11 @@ const MobileLayout = ({
       <AssistantPanel
         menuItems={menuItems}
         currentOrder={cartItems}
-        onAddToCart={addToOrder}
+        onAddToCart={(item, options) => addItem(item, options)}
+        onRemoveFromCart={(itemId, selectedSize) => removeItem(itemId, selectedSize)}
+        onUpdateQuantity={(itemId, selectedSize, delta) => updateCartQuantity(itemId, selectedSize, delta)}
+        onUpdateSize={(itemId, oldSize, newSize) => updateCartSize(itemId, oldSize, newSize)}
+        onClearCart={clearCart}
         onOrderSuggestion={(suggestion) => {
           console.log('AI Suggestion:', suggestion);
         }}

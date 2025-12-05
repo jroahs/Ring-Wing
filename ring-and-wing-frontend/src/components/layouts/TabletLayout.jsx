@@ -27,7 +27,7 @@ const TabletLayout = ({
   onProcessOrder 
 }) => {
   // Get contexts
-  const { cartItems, addItem, updateQuantity: updateCartQuantity, updateSize: updateCartSize, removeItem, getTotals, itemCount } = useCartContext();
+  const { cartItems, addItem, updateQuantity: updateCartQuantity, updateSize: updateCartSize, removeItem, clearCart, getTotals, itemCount } = useCartContext();
   const { menuItems, categories, addOns, loading, error } = useMenuContext();
   const { isAuthenticated } = useCustomerAuth();
 
@@ -62,10 +62,10 @@ const TabletLayout = ({
   };
 
   // Cart management functions
-  const addToOrder = (item) => {
+  const addToOrder = (item, options = {}) => {
     const sizes = Object.keys(item.pricing);
-    const selectedSize = sizes.includes('base') ? 'base' : sizes[0];
-    addItem(item, { size: selectedSize });
+    const selectedSize = options.size || (sizes.includes('base') ? 'base' : sizes[0]);
+    addItem(item, { size: selectedSize, ...options });
   };
 
   // Handle customization modal confirm
@@ -528,7 +528,11 @@ const TabletLayout = ({
       <AssistantPanel
         menuItems={menuItems}
         currentOrder={cartItems}
-        onAddToCart={addToOrder}
+        onAddToCart={(item, options) => addItem(item, options)}
+        onRemoveFromCart={(itemId, selectedSize) => removeItem(itemId, selectedSize)}
+        onUpdateQuantity={(itemId, selectedSize, delta) => updateCartQuantity(itemId, selectedSize, delta)}
+        onUpdateSize={(itemId, oldSize, newSize) => updateCartSize(itemId, oldSize, newSize)}
+        onClearCart={clearCart}
         onOrderSuggestion={(suggestion) => {
           console.log('AI Suggestion:', suggestion);
         }}

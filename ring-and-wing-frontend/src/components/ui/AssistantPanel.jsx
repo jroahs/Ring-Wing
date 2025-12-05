@@ -79,8 +79,128 @@ AIAvatar.propTypes = {
   size: PropTypes.oneOf(['small', 'default', 'large'])
 };
 
+// Text formatting helper - converts **text** to bold and highlights prices/menu names
+const FormattedText = ({ text, menuItems = [] }) => {
+  if (!text) return null;
+  
+  // First, handle explicit **bold** markers
+  let parts = text.split(/(\*\*[^*]+\*\*)/g);
+  
+  const elements = parts.map((part, index) => {
+    // Handle **bold** syntax
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <span key={index} className="font-bold text-gray-900">
+          {part.slice(2, -2)}
+        </span>
+      );
+    }
+    
+    // For non-bold parts, highlight prices and menu items
+    // Match prices like ₱123, ₱45.00, etc.
+    const priceRegex = /(₱[\d,]+(?:\.\d{2})?)/g;
+    const subParts = part.split(priceRegex);
+    
+    return subParts.map((subPart, subIndex) => {
+      // Highlight prices in orange
+      if (priceRegex.test(subPart) || subPart.match(/^₱[\d,]+(?:\.\d{2})?$/)) {
+        return (
+          <span key={`${index}-${subIndex}`} className="font-bold text-orange-600">
+            {subPart}
+          </span>
+        );
+      }
+      
+      // Check if this part contains a menu item name and highlight it
+      let highlightedPart = subPart;
+      let hasMatch = false;
+      
+      for (const item of menuItems) {
+        const itemName = item.name;
+        const regex = new RegExp(`\\b${itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+        if (regex.test(highlightedPart)) {
+          hasMatch = true;
+          const splitParts = highlightedPart.split(regex);
+          const matches = highlightedPart.match(regex) || [];
+          
+          return splitParts.reduce((acc, splitPart, splitIdx) => {
+            acc.push(<span key={`${index}-${subIndex}-${splitIdx}-text`}>{splitPart}</span>);
+            if (matches[splitIdx]) {
+              acc.push(
+                <span key={`${index}-${subIndex}-${splitIdx}-match`} className="font-semibold text-gray-800">
+                  {matches[splitIdx]}
+                </span>
+              );
+            }
+            return acc;
+          }, []);
+        }
+      }
+      
+      return <span key={`${index}-${subIndex}`}>{subPart}</span>;
+    });
+  });
+  
+  return <>{elements}</>;
+};
+
+FormattedText.propTypes = {
+  text: PropTypes.string,
+  menuItems: PropTypes.array
+};
+
+// Size Selection Component
+const SizeSelectionMessage = ({ item, onSelectSize, onCancel }) => {
+  const sizes = Object.keys(item.pricing || {});
+  
+  return (
+    <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-3">
+      <div className="flex items-center gap-3">
+        <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0">
+          <img 
+            src={item.image || '/placeholders/meal.png'} 
+            alt={item.name}
+            className="w-full h-full object-cover"
+            onError={(e) => { e.target.src = '/placeholders/meal.png'; }}
+          />
+        </div>
+        <div>
+          <h4 className="font-semibold text-gray-800">{item.name}</h4>
+          <p className="text-xs text-gray-500">Select your preferred size:</p>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-2">
+        {sizes.map(size => (
+          <button
+            key={size}
+            onClick={() => onSelectSize(item, size)}
+            className="flex items-center justify-between px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 transition-all"
+          >
+            <span className="font-medium text-gray-700 capitalize">{size}</span>
+            <span className="font-bold text-orange-600">₱{item.pricing[size]}</span>
+          </button>
+        ))}
+      </div>
+      
+      <button
+        onClick={onCancel}
+        className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+      >
+        Cancel
+      </button>
+    </div>
+  );
+};
+
+SizeSelectionMessage.propTypes = {
+  item: PropTypes.object.isRequired,
+  onSelectSize: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired
+};
+
 // Enhanced Message Component with suggestions, photos, and expandable descriptions
-const ChatMessage = ({ message, onAddToCart, menuItems = [] }) => {
+const ChatMessage = ({ message, onAddToCart, onSelectSize, onCancelSize, menuItems = [] }) => {
   const [expandedItems, setExpandedItems] = useState(new Set());
 
   const toggleExpanded = (itemId) => {
@@ -106,7 +226,9 @@ const ChatMessage = ({ message, onAddToCart, menuItems = [] }) => {
         <div className="flex gap-3">
           <AIAvatar size="small" />
           <div className="max-w-xs lg:max-w-sm px-4 py-2 rounded-2xl bg-gray-100 text-gray-800">
-            <p className="text-sm">{message.text}</p>
+            <p className="text-sm leading-relaxed">
+              <FormattedText text={message.text} menuItems={menuItems} />
+            </p>
           </div>
         </div>
         
@@ -255,6 +377,42 @@ const ChatMessage = ({ message, onAddToCart, menuItems = [] }) => {
       </div>
     );
   }
+
+  // Handle size selection message type
+  if (message.type === 'size-selection' && message.pendingItem) {
+    return (
+      <div className="flex gap-3">
+        <AIAvatar size="small" />
+        <div className="flex-1">
+          <SizeSelectionMessage
+            item={message.pendingItem}
+            onSelectSize={onSelectSize}
+            onCancel={onCancelSize}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Handle cart modification confirmation
+  if (message.type === 'cart-action') {
+    return (
+      <div className="flex gap-3">
+        <AIAvatar size="small" />
+        <div className="max-w-xs lg:max-w-sm px-4 py-3 rounded-2xl bg-green-50 border border-green-200">
+          <div className="flex items-center gap-2 mb-1">
+            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span className="text-sm font-medium text-green-800">Done!</span>
+          </div>
+          <p className="text-sm text-green-700">
+            <FormattedText text={message.text} menuItems={menuItems} />
+          </p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="flex gap-3">
@@ -267,7 +425,13 @@ const ChatMessage = ({ message, onAddToCart, menuItems = [] }) => {
         backgroundColor: message.sender === 'user' ? colors.accent : undefined,
         color: message.sender === 'user' ? 'white' : undefined
       }}>
-        <p className="text-sm">{message.text}</p>
+        <p className="text-sm leading-relaxed">
+          {message.sender === 'bot' ? (
+            <FormattedText text={message.text} menuItems={menuItems} />
+          ) : (
+            message.text
+          )}
+        </p>
         {message.timestamp && (
           <p className="text-xs opacity-70 mt-1">
             {new Date(message.timestamp).toLocaleTimeString([], {
@@ -289,9 +453,12 @@ ChatMessage.propTypes = {
     timestamp: PropTypes.oneOfType([PropTypes.string, PropTypes.instanceOf(Date)]),
     type: PropTypes.string,
     suggestions: PropTypes.array,
+    pendingItem: PropTypes.object,
     isThinking: PropTypes.bool
   }).isRequired,
   onAddToCart: PropTypes.func.isRequired,
+  onSelectSize: PropTypes.func,
+  onCancelSize: PropTypes.func,
   menuItems: PropTypes.array
 };
 
@@ -300,6 +467,10 @@ const AssistantPanel = ({
   menuItems = [], 
   currentOrder = [], 
   onAddToCart = () => {},
+  onRemoveFromCart = () => {},
+  onUpdateQuantity = () => {},
+  onUpdateSize = () => {},
+  onClearCart = () => {},
   onOrderSuggestion = () => {},
   onOpenChange = () => {},
   onSubmitOrder = null,
@@ -311,6 +482,9 @@ const AssistantPanel = ({
   
   // State management
   const [isOpen, setIsOpen] = useState(false);
+  const [pendingSizeSelection, setPendingSizeSelection] = useState(null);
+  const [lastSuggestedItems, setLastSuggestedItems] = useState([]); // Track last AI suggestions for context
+  const [conversationContext, setConversationContext] = useState(null); // Track conversation state
   
   // Notify parent when assistant opens/closes
   useEffect(() => {
@@ -533,27 +707,35 @@ ${menuContext}${categoryContext}
 CUSTOMER'S CART:
 ${currentOrderContext}
 
-Guidelines:
-1. Be friendly, concise, and helpful - you're assisting with self-checkout
-2. Help customers find items, suggest combinations, and answer menu questions
-3. When customers express interest in items, suggest specific menu items with prices
-4. Keep responses short (1-2 sentences max for mobile interface)
-5. Use Filipino pesos (₱) for prices
-6. If items are unavailable, suggest alternatives from available menu
-7. For recommendations, consider what's already in their cart for good pairings
-8. Help with natural language ordering (e.g., "I want chicken wings" → suggest specific wing items)
-9. Don't use markdown formatting - plain text only
-10. If someone says they want to order something, provide specific menu options
-11. Be proactive in suggesting complementary items (drinks with meals, sides, etc.)
-12. If asked about the cart, provide helpful info about what's in it and the total
-13. If the customer wants to submit/checkout their order, tell them to tap the "Submit Order" button below
+FORMATTING RULES (IMPORTANT):
+- Use **double asterisks** around menu item names to make them bold (e.g., **Buffalo Wings**)
+- Always include the price after the item name in this format: **Item Name** (₱price)
+- Use bold for important actions or highlights
+
+RESPONSE GUIDELINES:
+1. Be friendly, warm, and helpful - you're the customer's food ordering buddy!
+2. Keep responses short (2-3 sentences max for mobile readability)
+3. When suggesting items, ALWAYS format as: **Item Name** (₱price)
+4. If items are unavailable, suggest alternatives with empathy
+5. Be proactive in suggesting complementary items (drinks with meals, sides, etc.)
+6. If asked about the cart, provide helpful info about what's in it and the total
+7. If the customer wants to submit/checkout, tell them to tap the Submit Order button below
+
+CART MODIFICATION:
+- Users can ask to remove items, change sizes, or clear their cart
+- When they want to modify, confirm what you understood and I'll handle the action
+
+UPSELLING (be natural, not pushy):
+- After they add food, suggest a drink if they don't have one
+- Mention combos when they order individual items
+- Suggest popular pairings based on what's in their cart
 
 Example responses:
-- User: "I want chicken wings" → "Great! We have Buffalo Wings (₱180) and Honey Garlic Wings (₱200). Which would you prefer?"
-- User: "Something to drink" → "Perfect! Try our Iced Tea (₱60) or Fresh Juice (₱80). What sounds good?"
-- User: "I'm hungry" → "I can help! Our Chicken Combo (₱250) is popular, or try our BBQ Plate (₱220). What are you in the mood for?"
-- User: "What's in my cart?" → "You have [items] in your cart totaling ₱[total]. Ready to order or want to add more?"
-- User: "Submit my order" → "Tap the Submit Order button below to place your order!"`
+- "I want wings" → "Great choice! 🍗 We have **Buffalo Wings** (₱180) with our signature spicy sauce, or **Honey Garlic Wings** (₱200) for a sweeter taste. Which sounds good?"
+- "Something to drink" → "Perfect! Our **Iced Tea** (₱60) is refreshing, or try our **Mango Shake** (₱80) for something fruity!"
+- "What's popular?" → "Our bestsellers are **Chicken Combo** (₱250) - comes with rice and a drink! Also, the **BBQ Wings** (₱180) are customer favorites."
+- "Remove the wings" → "Got it! I'll remove the wings from your cart."
+- "What's in my cart?" → "You have **Buffalo Wings** (regular) and **Iced Tea** in your cart, totaling ₱240. Ready to order?"`
     };
 
     const payload = {
@@ -654,6 +836,140 @@ Example responses:
     return unavailableKeywords.some(keyword => text.toLowerCase().includes(keyword));
   };
 
+  // Cart modification intent detection
+  const detectCartModificationIntent = (text) => {
+    const lowerText = text.toLowerCase();
+    
+    const intents = {
+      remove: ['remove', 'delete', 'take out', 'cancel', 'get rid of', 'don\'t want', 'take off'],
+      changeSize: ['change size', 'make it', 'switch to large', 'switch to medium', 'switch to small', 'larger', 'smaller', 'upsize', 'downsize'],
+      changeQuantity: ['add more', 'add another', 'one more', 'increase', 'decrease', 'less of', 'more of'],
+      clear: ['clear cart', 'empty cart', 'start over', 'remove all', 'clear everything', 'empty my cart', 'remove everything']
+    };
+    
+    for (const [action, keywords] of Object.entries(intents)) {
+      if (keywords.some(kw => lowerText.includes(kw))) {
+        return { action, input: lowerText };
+      }
+    }
+    return null;
+  };
+
+  // Find matching cart item from user input
+  const findCartItemFromInput = (text) => {
+    const lowerText = text.toLowerCase();
+    
+    // Check each cart item
+    for (const cartItem of currentOrder) {
+      const itemNameLower = cartItem.name.toLowerCase();
+      
+      // Check for exact or partial match
+      if (lowerText.includes(itemNameLower)) {
+        return cartItem;
+      }
+      
+      // Check for key words in item name
+      const itemWords = itemNameLower.split(' ');
+      for (const word of itemWords) {
+        if (word.length > 3 && lowerText.includes(word)) {
+          return cartItem;
+        }
+      }
+    }
+    
+    return null;
+  };
+
+  // Handle cart modification actions
+  const handleCartModification = (intent, userInput) => {
+    const { action } = intent;
+    
+    if (action === 'clear') {
+      onClearCart();
+      return {
+        success: true,
+        message: "Done! I've cleared your cart. Ready to start a fresh order? 🛒",
+        type: 'cart-action'
+      };
+    }
+    
+    if (action === 'remove') {
+      const cartItem = findCartItemFromInput(userInput);
+      if (cartItem) {
+        onRemoveFromCart(cartItem._id, cartItem.selectedSize);
+        return {
+          success: true,
+          message: `Removed **${cartItem.name}** (${cartItem.selectedSize}) from your cart!`,
+          type: 'cart-action'
+        };
+      } else {
+        return {
+          success: false,
+          message: "I couldn't find that item in your cart. Could you tell me the exact name?",
+          type: 'text'
+        };
+      }
+    }
+    
+    if (action === 'changeQuantity') {
+      const cartItem = findCartItemFromInput(userInput);
+      if (cartItem) {
+        const isIncrease = userInput.toLowerCase().match(/add|more|another|increase/);
+        const delta = isIncrease ? 1 : -1;
+        
+        if (!isIncrease && cartItem.quantity <= 1) {
+          return {
+            success: false,
+            message: `**${cartItem.name}** only has 1 in cart. Want me to remove it instead?`,
+            type: 'text'
+          };
+        }
+        
+        onUpdateQuantity(cartItem._id, cartItem.selectedSize, delta);
+        const newQty = cartItem.quantity + delta;
+        return {
+          success: true,
+          message: `Updated! Now you have ${newQty}x **${cartItem.name}** in your cart.`,
+          type: 'cart-action'
+        };
+      }
+    }
+    
+    if (action === 'changeSize') {
+      const cartItem = findCartItemFromInput(userInput);
+      if (cartItem) {
+        // Extract new size from input
+        const sizes = cartItem.availableSizes || Object.keys(cartItem.pricing || {});
+        const lowerInput = userInput.toLowerCase();
+        
+        let newSize = null;
+        for (const size of sizes) {
+          if (lowerInput.includes(size.toLowerCase())) {
+            newSize = size;
+            break;
+          }
+        }
+        
+        if (newSize && newSize !== cartItem.selectedSize) {
+          onUpdateSize(cartItem._id, cartItem.selectedSize, newSize);
+          return {
+            success: true,
+            message: `Changed **${cartItem.name}** to ${newSize} size! New price: ₱${cartItem.pricing[newSize]}`,
+            type: 'cart-action'
+          };
+        } else {
+          return {
+            success: false,
+            message: `What size would you like for **${cartItem.name}**? Available: ${sizes.join(', ')}`,
+            type: 'text'
+          };
+        }
+      }
+    }
+    
+    return null;
+  };
+
   const extractItemNameFromInput = (text) => {
     // Simple extraction - look for quoted text or common food words
     const quoted = text.match(/"([^"]+)"/);
@@ -669,23 +985,366 @@ Example responses:
     return text; // Fallback
   };
 
+  // Handle size selection for items with multiple sizes
+  const handleItemWithSizeSelection = (item) => {
+    const sizes = Object.keys(item.pricing || {});
+    
+    if (sizes.length > 1) {
+      // Show size selection UI
+      const sizeMessage = {
+        id: generateUniqueId(),
+        text: `**${item.name}** comes in different sizes! Pick one:`,
+        sender: 'bot',
+        timestamp: new Date(),
+        type: 'size-selection',
+        pendingItem: item
+      };
+      setMessages(prev => [...prev, sizeMessage]);
+      setPendingSizeSelection(item);
+      return true; // Size selection needed
+    }
+    
+    return false; // No size selection needed, proceed with add
+  };
+
+  // Handle size selection callback
+  const handleSizeSelected = (item, size) => {
+    setPendingSizeSelection(null);
+    onAddToCart(item, { size });
+    
+    // Add confirmation message
+    const confirmMessage = {
+      id: generateUniqueId(),
+      text: `Added **${item.name}** (${size}) to your cart! 🎉`,
+      sender: 'bot',
+      timestamp: new Date(),
+      type: 'cart-action'
+    };
+    setMessages(prev => [...prev, confirmMessage]);
+    
+    // Suggest upsell after a short delay
+    setTimeout(() => {
+      suggestUpsell(item);
+    }, 1000);
+  };
+
+  // Handle size selection cancel
+  const handleSizeCancel = () => {
+    setPendingSizeSelection(null);
+    const cancelMessage = {
+      id: generateUniqueId(),
+      text: "No problem! Let me know if you'd like something else.",
+      sender: 'bot',
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, cancelMessage]);
+  };
+
+  // Suggest upsell/cross-sell items
+  const suggestUpsell = (addedItem) => {
+    // Check if cart has drinks
+    const hasDrink = currentOrder.some(item => item.category === 'Beverages');
+    const isFood = addedItem.category !== 'Beverages';
+    
+    // Suggest drink if they added food but have no drinks
+    if (isFood && !hasDrink) {
+      const drinks = menuItems.filter(item => 
+        item.category === 'Beverages' && 
+        item.isAvailable !== false
+      ).slice(0, 2);
+      
+      if (drinks.length > 0) {
+        const drinkSuggestions = drinks.map(drink => {
+          const pricing = drink.pricing || {};
+          const sizes = Object.keys(pricing);
+          const basePrice = sizes.length > 0 ? Math.min(...Object.values(pricing)) : 0;
+          return {
+            ...drink,
+            price: basePrice,
+            defaultSize: sizes[0] || 'regular'
+          };
+        });
+        
+        const upsellMessage = {
+          id: generateUniqueId(),
+          text: "🥤 How about a refreshing drink to go with that?",
+          sender: 'bot',
+          timestamp: new Date(),
+          type: 'menu-suggestions',
+          suggestions: drinkSuggestions
+        };
+        setMessages(prev => [...prev, upsellMessage]);
+      }
+    }
+    
+    // Check for combo upgrade opportunity
+    const comboVersion = menuItems.find(item => 
+      item.name.toLowerCase().includes(addedItem.name.toLowerCase()) && 
+      item.name.toLowerCase().includes('combo') &&
+      item.isAvailable !== false
+    );
+    
+    if (comboVersion && comboVersion._id !== addedItem._id) {
+      const pricing = comboVersion.pricing || {};
+      const sizes = Object.keys(pricing);
+      const comboPrice = sizes.length > 0 ? Math.min(...Object.values(pricing)) : 0;
+      const addedPrice = addedItem.price || 0;
+      const savings = comboPrice - addedPrice;
+      
+      if (savings > 0 && savings < 100) { // Only suggest if combo is reasonably priced
+        const comboMessage = {
+          id: generateUniqueId(),
+          text: `💡 **Pro tip:** Upgrade to **${comboVersion.name}** for just ₱${savings} more and get a drink + side included!`,
+          sender: 'bot',
+          timestamp: new Date(),
+          type: 'menu-suggestions',
+          suggestions: [{
+            ...comboVersion,
+            price: comboPrice,
+            defaultSize: sizes[0] || 'regular'
+          }]
+        };
+        setMessages(prev => [...prev, comboMessage]);
+      }
+    }
+  };
+
+  // Enhanced add to cart handler with size selection
+  const handleAddToCartWithSize = (item) => {
+    const needsSize = handleItemWithSizeSelection(item);
+    if (!needsSize) {
+      // Single size, add directly
+      const sizes = Object.keys(item.pricing || {});
+      const size = sizes[0] || 'regular';
+      onAddToCart(item, { size });
+      
+      const confirmMessage = {
+        id: generateUniqueId(),
+        text: `Added **${item.name}** to your cart! 🎉`,
+        sender: 'bot',
+        timestamp: new Date(),
+        type: 'cart-action'
+      };
+      setMessages(prev => [...prev, confirmMessage]);
+      
+      // Suggest upsell
+      setTimeout(() => {
+        suggestUpsell(item);
+      }, 1000);
+    }
+  };
+
+  // Detect confirmation intent (user saying yes to add something)
+  const detectConfirmationIntent = (userInput) => {
+    const lowerInput = userInput.toLowerCase().trim();
+    const confirmationPhrases = [
+      'yes', 'yeah', 'yep', 'yup', 'sure', 'ok', 'okay', 'alright',
+      'add it', 'add that', 'add this', 'i\'ll take it', 'i\'ll have it',
+      'sounds good', 'perfect', 'let\'s do it', 'go ahead', 'please add',
+      'that one', 'the first one', 'i want it', 'i\'ll get it',
+      'add to cart', 'add to my cart', 'add to order', 'add to my order'
+    ];
+    return confirmationPhrases.some(phrase => lowerInput.includes(phrase) || lowerInput === phrase);
+  };
+
+  // Detect direct add intent ("add fries", "I want wings", "give me burger")
+  const detectDirectAddIntent = (userInput) => {
+    const lowerInput = userInput.toLowerCase();
+    const addPhrases = [
+      'add ', 'i want ', 'i\'ll have ', 'i\'ll take ', 'give me ', 
+      'get me ', 'order ', 'can i have ', 'can i get ', 'i need ',
+      'i\'d like ', 'let me have ', 'put ', 'include '
+    ];
+    return addPhrases.some(phrase => lowerInput.startsWith(phrase) || lowerInput.includes(phrase));
+  };
+
+  // Find menu item from user input
+  const findMenuItemFromInput = (userInput) => {
+    const lowerInput = userInput.toLowerCase();
+    
+    // First try exact match
+    for (const item of menuItems) {
+      if (item.isAvailable !== false && lowerInput.includes(item.name.toLowerCase())) {
+        return item;
+      }
+    }
+    
+    // Try partial match with key words
+    for (const item of menuItems) {
+      if (item.isAvailable === false) continue;
+      const itemWords = item.name.toLowerCase().split(' ');
+      for (const word of itemWords) {
+        // Skip common words
+        if (word.length <= 3 || ['with', 'and', 'the', 'ala', 'con'].includes(word)) continue;
+        if (lowerInput.includes(word)) {
+          return item;
+        }
+      }
+    }
+    
+    return null;
+  };
+
   // Process user message with full AI functionality
   const processUserMessage = async (userInput) => {
     try {
-      // Enhanced input processing for better context
-      const isUnavailableQuery = detectUnavailableItemIntent(userInput);
+      const lowerInput = userInput.toLowerCase().trim();
       
+      // ========== 1. CHECK FOR CART MODIFICATION FIRST ==========
+      const cartIntent = detectCartModificationIntent(userInput);
+      if (cartIntent && currentOrder.length > 0) {
+        const result = handleCartModification(cartIntent, userInput);
+        if (result) {
+          return result;
+        }
+      }
+      
+      if (cartIntent && currentOrder.length === 0) {
+        return {
+          success: false,
+          message: "Your cart is empty! Let me help you find something delicious to add. 😋",
+          type: 'text'
+        };
+      }
+
+      // ========== 2. CHECK FOR DIRECT ADD INTENT ==========
+      // User says "add fries" or "I want wings" - find and add the item directly
+      if (detectDirectAddIntent(userInput)) {
+        const itemToAdd = findMenuItemFromInput(userInput);
+        if (itemToAdd) {
+          // Check if needs size selection
+          const sizes = Object.keys(itemToAdd.pricing || {}).filter(k => k !== '_id');
+          if (sizes.length > 1) {
+            // Multiple sizes - need to ask
+            setPendingSizeSelection(itemToAdd);
+            setLastSuggestedItems([itemToAdd]);
+            setConversationContext({ type: 'awaiting_size', item: itemToAdd });
+            return {
+              success: true,
+              message: `**${itemToAdd.name}** comes in different sizes! Which would you like?`,
+              type: 'size-selection-prompt',
+              item: itemToAdd
+            };
+          } else {
+            // Single size - add directly!
+            const size = sizes[0] || 'base';
+            onAddToCart(itemToAdd, { size });
+            setConversationContext(null);
+            setLastSuggestedItems([]);
+            return {
+              success: true,
+              message: `Added **${itemToAdd.name}** to your cart! 🎉 Anything else you'd like?`,
+              type: 'cart-action'
+            };
+          }
+        }
+      }
+
+      // ========== 3. CHECK FOR CONFIRMATION INTENT ==========
+      // User says "yes", "add it", etc. - check if we have context
+      if (detectConfirmationIntent(userInput)) {
+        // Check if user mentioned a specific item in their confirmation
+        const mentionedItem = findMenuItemFromInput(userInput);
+        
+        if (mentionedItem) {
+          // User confirmed with specific item name
+          const sizes = Object.keys(mentionedItem.pricing || {}).filter(k => k !== '_id');
+          if (sizes.length > 1) {
+            setPendingSizeSelection(mentionedItem);
+            setLastSuggestedItems([mentionedItem]);
+            setConversationContext({ type: 'awaiting_size', item: mentionedItem });
+            return {
+              success: true,
+              message: `Great choice! **${mentionedItem.name}** comes in different sizes. Which would you like?`,
+              type: 'size-selection-prompt',
+              item: mentionedItem
+            };
+          } else {
+            const size = sizes[0] || 'base';
+            onAddToCart(mentionedItem, { size });
+            setConversationContext(null);
+            return {
+              success: true,
+              message: `Added **${mentionedItem.name}** to your cart! 🎉`,
+              type: 'cart-action'
+            };
+          }
+        }
+        
+        // No specific item mentioned - check last suggested items
+        if (lastSuggestedItems.length === 1) {
+          // Only one item was suggested - add it!
+          const item = lastSuggestedItems[0];
+          const sizes = Object.keys(item.pricing || {}).filter(k => k !== '_id');
+          if (sizes.length > 1) {
+            setPendingSizeSelection(item);
+            setConversationContext({ type: 'awaiting_size', item });
+            return {
+              success: true,
+              message: `**${item.name}** comes in different sizes. Which would you like?`,
+              type: 'size-selection-prompt',
+              item
+            };
+          } else {
+            const size = sizes[0] || 'base';
+            onAddToCart(item, { size });
+            setConversationContext(null);
+            setLastSuggestedItems([]);
+            return {
+              success: true,
+              message: `Added **${item.name}** to your cart! 🎉 Would you like anything else?`,
+              type: 'cart-action'
+            };
+          }
+        } else if (lastSuggestedItems.length > 1) {
+          // Multiple items were suggested - need clarification
+          const itemNames = lastSuggestedItems.map(i => `**${i.name}**`).join(' or ');
+          return {
+            success: false,
+            message: `Which one would you like? ${itemNames}? Just say the name!`,
+            type: 'text'
+          };
+        }
+      }
+      
+      // ========== 4. CHECK FOR UNAVAILABLE ITEM QUERY ==========
+      const isUnavailableQuery = detectUnavailableItemIntent(userInput);
       if (isUnavailableQuery) {
         const itemName = extractItemNameFromInput(userInput);
         const enhancedInput = `The customer is asking about "${itemName}" which might not be available. Please suggest similar alternatives from our menu with specific items and prices.`;
         return await getAIResponse(enhancedInput, abortControllerRef.current?.signal);
       }
       
+      // ========== 5. DEFAULT: GET AI RESPONSE ==========
       return await getAIResponse(userInput, abortControllerRef.current?.signal);
     } catch (error) {
       console.error('Error processing user message:', error);
       return "Sorry, I'm having trouble right now. Please try again in a moment.";
     }
+  };
+
+  // Check if user input matches a size for pending selection
+  const matchSizeFromInput = (input, availableSizes) => {
+    const lowerInput = input.toLowerCase().trim();
+    const sizeAliases = {
+      'small': ['small', 's', 'sm'],
+      'medium': ['medium', 'm', 'med'],
+      'large': ['large', 'l', 'lg'],
+      'base': ['base', 'regular', 'reg'],
+      'solo': ['solo'],
+      'barkada': ['barkada', 'group'],
+      'extra large': ['extra large', 'xl', 'extra-large']
+    };
+    
+    for (const size of availableSizes) {
+      const sizeLower = size.toLowerCase();
+      // Direct match
+      if (lowerInput.includes(sizeLower)) return size;
+      // Check aliases
+      const aliases = sizeAliases[sizeLower] || [];
+      if (aliases.some(alias => lowerInput.includes(alias))) return size;
+    }
+    return null;
   };
 
   // Handle sending message
@@ -702,6 +1361,33 @@ Example responses:
     setMessages(prev => [...prev, userMessage]);
     const currentInput = inputText.trim();
     setInputText('');
+
+    // ========== CHECK PENDING SIZE SELECTION FIRST ==========
+    // If user has a pending item waiting for size selection, check if they typed a size
+    if (pendingSizeSelection) {
+      const availableSizes = Object.keys(pendingSizeSelection.pricing || {});
+      const matchedSize = matchSizeFromInput(currentInput, availableSizes);
+      
+      if (matchedSize) {
+        // User typed a valid size - complete the order!
+        handleSizeSelected(pendingSizeSelection, matchedSize);
+        return;
+      } else {
+        // User typed something else but we have pending selection
+        // Show a helpful message reminding them
+        const sizeOptions = availableSizes.map(s => `**${s}** (₱${pendingSizeSelection.pricing[s]})`).join(', ');
+        const reminderMessage = {
+          id: generateUniqueId(),
+          text: `I still need to know which size for **${pendingSizeSelection.name}**! Options: ${sizeOptions}. Or tap one of the size buttons above.`,
+          sender: 'bot',
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, reminderMessage]);
+        return;
+      }
+    }
+    // ========== END PENDING SIZE CHECK ==========
+
     setIsThinking(true);
 
     // Cancel any existing request
@@ -714,6 +1400,35 @@ Example responses:
       const aiResponse = await processUserMessage(currentInput);
       
       if (aiResponse === null) return; // Request was cancelled
+
+      // Handle cart modification responses (they return an object with message and type)
+      if (typeof aiResponse === 'object' && aiResponse.message) {
+        // Handle size selection prompt specially
+        if (aiResponse.type === 'size-selection-prompt' && aiResponse.item) {
+          const sizeMessage = {
+            id: generateUniqueId(),
+            text: aiResponse.message,
+            sender: 'bot',
+            timestamp: new Date(),
+            type: 'size-selection',
+            pendingItem: aiResponse.item
+          };
+          setMessages(prev => [...prev, sizeMessage]);
+          setIsThinking(false);
+          return;
+        }
+        
+        const botMessage = {
+          id: generateUniqueId(),
+          text: aiResponse.message,
+          sender: 'bot',
+          timestamp: new Date(),
+          type: aiResponse.type || 'text'
+        };
+        setMessages(prev => [...prev, botMessage]);
+        setIsThinking(false);
+        return;
+      }
 
       // Check if this was an unavailable item query
       const isUnavailableQuery = detectUnavailableItemIntent(currentInput);
@@ -743,6 +1458,13 @@ Example responses:
       // Extract suggestions
       const suggestions = extractMenuSuggestions(aiResponse, suggestionContext);
       
+      // ========== TRACK SUGGESTED ITEMS FOR CONTEXT ==========
+      if (suggestions.length > 0) {
+        setLastSuggestedItems(suggestions);
+        setConversationContext({ type: 'suggested_items', items: suggestions });
+      }
+      // ========== END TRACKING ==========
+      
       // Create bot message
       const botMessage = {
         id: generateUniqueId(),
@@ -758,10 +1480,12 @@ Example responses:
       // Add follow-up message for suggestions
       if (suggestions.length > 0) {
         setTimeout(() => {
-          let followUpText = "Tap any item above to add it to your cart!";
+          let followUpText = suggestions.length === 1 
+            ? `Say "yes" or tap above to add **${suggestions[0].name}** to your cart!`
+            : "Tap any item above to add it, or tell me which one you'd like!";
           
           if (isUnavailableQuery) {
-            followUpText = "These alternatives should satisfy your craving! Tap any item to add it to your cart, or let me know if you'd like other suggestions.";
+            followUpText = "These alternatives should satisfy your craving! Tap any item to add it, or just say the name!";
           }
           
           const followUpMessage = {
@@ -871,7 +1595,9 @@ Example responses:
                   <ChatMessage 
                     key={message.id} 
                     message={message} 
-                    onAddToCart={onAddToCart}
+                    onAddToCart={handleAddToCartWithSize}
+                    onSelectSize={handleSizeSelected}
+                    onCancelSize={handleSizeCancel}
                     menuItems={menuItems}
                   />
                 ))}
@@ -976,7 +1702,9 @@ Example responses:
               <ChatMessage 
                 key={message.id} 
                 message={message} 
-                onAddToCart={onAddToCart}
+                onAddToCart={handleAddToCartWithSize}
+                onSelectSize={handleSizeSelected}
+                onCancelSize={handleSizeCancel}
                 menuItems={menuItems}
               />
             ))}
@@ -1093,7 +1821,9 @@ Example responses:
                 <ChatMessage 
                   key={message.id} 
                   message={message} 
-                  onAddToCart={onAddToCart}
+                  onAddToCart={handleAddToCartWithSize}
+                  onSelectSize={handleSizeSelected}
+                  onCancelSize={handleSizeCancel}
                   menuItems={menuItems}
                 />
               ))}
@@ -1188,6 +1918,10 @@ AssistantPanel.propTypes = {
   menuItems: PropTypes.array,
   currentOrder: PropTypes.array,
   onAddToCart: PropTypes.func,
+  onRemoveFromCart: PropTypes.func,
+  onUpdateQuantity: PropTypes.func,
+  onUpdateSize: PropTypes.func,
+  onClearCart: PropTypes.func,
   onOrderSuggestion: PropTypes.func,
   onOpenChange: PropTypes.func,
   onSubmitOrder: PropTypes.func,
