@@ -300,6 +300,13 @@ const OrderDetails = () => {
             });
           }
           
+          // Notes if available
+          if (item.notes || item.specialInstructions) {
+            pdf.setFontSize(7);
+            pdf.text(`  📝 ${item.notes || item.specialInstructions}`, margin, yPos);
+            yPos += 3;
+          }
+          
           yPos += 1;
         });
       }
@@ -542,8 +549,8 @@ const OrderDetails = () => {
                       Add-ons: {item.addOns.map(a => a.name).join(', ')}
                     </div>
                   )}
-                  {item.specialInstructions && (
-                    <div className="item-instructions">Note: {item.specialInstructions}</div>
+                  {(item.notes || item.specialInstructions) && (
+                    <div className="item-instructions">📝 {item.notes || item.specialInstructions}</div>
                   )}
                 </div>
                 <div className="item-quantity">x{item.quantity}</div>

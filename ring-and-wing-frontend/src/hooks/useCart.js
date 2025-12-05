@@ -47,7 +47,7 @@ export const getCartItemCount = (cartItems) => {
 const cartReducer = (state, action) => {
   switch (action.type) {
     case CART_ACTIONS.ADD_ITEM: {
-      const { item, selectedSize, variant, addOns, quantity } = action.payload;
+      const { item, selectedSize, variant, addOns, quantity, notes } = action.payload;
       
       // Sanitize variant to prevent circular references (only keep serializable data)
       const sanitizedVariant = variant ? {
@@ -62,18 +62,24 @@ const cartReducer = (state, action) => {
         price: Number(addon.price) || 0
       })) : [];
       
-      // Create a unique key that includes variant and addOns for matching
+      // Sanitize notes (max 150 chars)
+      const sanitizedNotes = typeof notes === 'string' ? notes.slice(0, 150).trim() : '';
+      
+      // Create a unique key that includes variant, addOns, and notes for matching
       const variantKey = sanitizedVariant ? JSON.stringify(sanitizedVariant) : '';
       const addOnsKey = sanitizedAddOns.length > 0 ? JSON.stringify(sanitizedAddOns.map(a => a._id).sort()) : '';
+      const notesKey = sanitizedNotes;
       
-      // Check if item with same size, variant, and addOns already exists
+      // Check if item with same size, variant, addOns, and notes already exists
       const existingIndex = state.findIndex(cartItem => {
         const cartVariantKey = cartItem.variant ? JSON.stringify(cartItem.variant) : '';
         const cartAddOnsKey = cartItem.addOns?.length > 0 ? JSON.stringify(cartItem.addOns.map(a => a._id).sort()) : '';
+        const cartNotesKey = cartItem.notes || '';
         return cartItem._id === item._id && 
                cartItem.selectedSize === selectedSize &&
                cartVariantKey === variantKey &&
-               cartAddOnsKey === addOnsKey;
+               cartAddOnsKey === addOnsKey &&
+               cartNotesKey === notesKey;
       });
       
       if (existingIndex >= 0) {
@@ -98,6 +104,7 @@ const cartReducer = (state, action) => {
           modifiers: Array.isArray(item.modifiers) ? [...item.modifiers] : [],
           variant: sanitizedVariant,
           addOns: sanitizedAddOns,
+          notes: sanitizedNotes,
           quantity: quantity || 1
         };
         return [...state, cartItem];
@@ -137,7 +144,7 @@ const cartReducer = (state, action) => {
     }
 
     case CART_ACTIONS.REPLACE_ITEM: {
-      const { oldItemId, oldSelectedSize, newItem, selectedSize, variant, addOns, quantity } = action.payload;
+      const { oldItemId, oldSelectedSize, newItem, selectedSize, variant, addOns, quantity, notes } = action.payload;
       
       // Sanitize variant to prevent circular references
       const sanitizedVariant = variant ? {
@@ -151,6 +158,9 @@ const cartReducer = (state, action) => {
         name: String(addon.name || ''),
         price: Number(addon.price) || 0
       })) : [];
+      
+      // Sanitize notes (max 150 chars)
+      const sanitizedNotes = typeof notes === 'string' ? notes.slice(0, 150).trim() : '';
 
       // Find the index of the item to replace
       const indexToReplace = state.findIndex(cartItem => 
@@ -172,6 +182,7 @@ const cartReducer = (state, action) => {
           modifiers: Array.isArray(newItem.modifiers) ? [...newItem.modifiers] : [],
           variant: sanitizedVariant,
           addOns: sanitizedAddOns,
+          notes: sanitizedNotes,
           quantity: quantity || 1
         };
         return [...state, cartItem];
@@ -191,6 +202,7 @@ const cartReducer = (state, action) => {
         modifiers: Array.isArray(newItem.modifiers) ? [...newItem.modifiers] : [],
         variant: sanitizedVariant,
         addOns: sanitizedAddOns,
+        notes: sanitizedNotes,
         quantity: quantity || 1
       };
 
@@ -257,6 +269,7 @@ export const useCart = () => {
         selectedSize,
         variant: options.variant || null,
         addOns: options.addOns || [],
+        notes: options.notes || '',
         quantity: options.quantity || 1
       } 
     });
@@ -300,6 +313,7 @@ export const useCart = () => {
         selectedSize,
         variant: options.variant || null,
         addOns: options.addOns || [],
+        notes: options.notes || '',
         quantity: options.quantity || 1
       }
     });

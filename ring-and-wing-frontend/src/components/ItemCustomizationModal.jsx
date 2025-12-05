@@ -23,6 +23,7 @@ const ItemCustomizationModal = ({
   const [selectedSize, setSelectedSize] = useState(null);
   const [selectedAddOns, setSelectedAddOns] = useState([]);
   const [quantity, setQuantity] = useState(1);
+  const [itemNotes, setItemNotes] = useState(''); // Notes for special requests (max 150 chars)
   
   // Per-quantity variant selection - array of variants, one per quantity unit
   const [variantsPerUnit, setVariantsPerUnit] = useState([]);
@@ -182,6 +183,7 @@ const ItemCustomizationModal = ({
           availableSizes: sizes.length > 0 ? sizes : ['base'],
           selectedVariant: variant,
           selectedAddOns: selectedAddOns,
+          notes: itemNotes.trim() || '', // Include notes
           quantity: quantity
         });
       } else {
@@ -196,6 +198,7 @@ const ItemCustomizationModal = ({
             availableSizes: sizes.length > 0 ? sizes : ['base'],
             selectedVariant: variant,
             selectedAddOns: selectedAddOns,
+            notes: itemNotes.trim() || '', // Include notes
             quantity: count
           });
         });
@@ -212,6 +215,7 @@ const ItemCustomizationModal = ({
         availableSizes: sizes.length > 0 ? sizes : ['base'],
         selectedVariant: variant,
         selectedAddOns: selectedAddOns,
+        notes: itemNotes.trim() || '', // Include notes
         quantity: quantity
       });
     }
@@ -505,6 +509,30 @@ const ItemCustomizationModal = ({
                   </div>
                 </div>
               )}
+
+              {/* Notes Section (Optional) */}
+              <div>
+                <label className="block text-sm font-semibold mb-2" style={{ color: colors.primary }}>
+                  Notes (Optional)
+                </label>
+                <textarea
+                  value={itemNotes}
+                  onChange={(e) => setItemNotes(e.target.value.slice(0, 150))}
+                  placeholder="Less sugar, no ice, extra pearls..."
+                  rows={3}
+                  maxLength={150}
+                  className="w-full p-3 rounded-xl border-2 transition-all duration-200 resize-none focus:outline-none focus:ring-2"
+                  style={{
+                    borderColor: colors.muted + '40',
+                    backgroundColor: 'transparent',
+                    color: colors.primary,
+                    '--tw-ring-color': colors.accent + '40'
+                  }}
+                />
+                <p className="text-xs mt-1 text-right" style={{ color: colors.muted }}>
+                  {itemNotes.length}/150
+                </p>
+              </div>
             </div>
 
             {/* Footer - Add to Cart Button */}

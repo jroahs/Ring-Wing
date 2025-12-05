@@ -673,6 +673,7 @@ const PointOfSale = () => {
   };
 
   // Check if item needs customization (has multiple sizes, variants, or relevant add-ons)
+  // Note: Modal now always shown to allow notes input
   const needsCustomization = (item) => {
     const sizes = Object.keys(item.pricing || {}).filter(key => key !== '_id');
     const hasMultipleSizes = sizes.length > 1 || (sizes.length === 1 && sizes[0] !== 'base');
@@ -692,23 +693,10 @@ const PointOfSale = () => {
       return;
     }
     
-    // Check if item needs customization (multiple sizes, variants, or add-ons)
-    if (needsCustomization(item)) {
-      // Show item customization modal
-      setSelectedItemForSize(item);
-      setShowSizeModal(true);
-      return;
-    }
-    
-    // If only one price (base price) and no customization needed, add directly to cart
-    const sizes = Object.keys(item.pricing || {}).filter(key => key !== '_id');
-    addToCartWithSize({
-      ...item,
-      selectedSize: 'base',
-      price: item.pricing.base || item.pricing[sizes[0]] || 0,
-      availableSizes: ['base'], // Include available sizes
-      quantity: 1
-    });
+    // Always show customization modal for POS to allow notes input
+    // Staff can add notes even if item has no other customization options
+    setSelectedItemForSize(item);
+    setShowSizeModal(true);
   };
   
   // New function to handle adding item with selected size
@@ -719,6 +707,11 @@ const PointOfSale = () => {
       orderItem.availableSizes = sizes.length > 0 ? sizes : ['base'];
     }
     
+    // Ensure notes is set (default to empty string)
+    if (orderItem.notes === undefined) {
+      orderItem.notes = '';
+    }
+    
     // If in pending orders view, only allow adding items when editing a pending order
     if (orderViewType === 'pending') {
       if (!isPendingOrderMode) {
@@ -726,19 +719,34 @@ const PointOfSale = () => {
         return;
       }
 
-      // Update pending order items
+      // Update pending order items - match by id, size, variant, addOns, and notes
       const existing = pendingOrderItems.find(
-        i => i._id === orderItem._id && i.selectedSize === orderItem.selectedSize
+        i => i._id === orderItem._id && 
+             i.selectedSize === orderItem.selectedSize &&
+             JSON.stringify(i.variant || null) === JSON.stringify(orderItem.selectedVariant || orderItem.variant || null) &&
+             JSON.stringify((i.addOns || []).map(a => a._id).sort()) === JSON.stringify((orderItem.selectedAddOns || orderItem.addOns || []).map(a => a._id).sort()) &&
+             (i.notes || '') === (orderItem.notes || '')
       );
 
       if (existing) {
         setPendingOrderItems(pendingOrderItems.map(i =>
-          i._id === orderItem._id && i.selectedSize === orderItem.selectedSize
+          i._id === orderItem._id && 
+          i.selectedSize === orderItem.selectedSize &&
+          JSON.stringify(i.variant || null) === JSON.stringify(orderItem.selectedVariant || orderItem.variant || null) &&
+          JSON.stringify((i.addOns || []).map(a => a._id).sort()) === JSON.stringify((orderItem.selectedAddOns || orderItem.addOns || []).map(a => a._id).sort()) &&
+          (i.notes || '') === (orderItem.notes || '')
             ? { ...i, quantity: i.quantity + orderItem.quantity }
             : i
         ));
       } else {
-        setPendingOrderItems([...pendingOrderItems, orderItem]);
+        // Normalize the item structure before adding
+        const normalizedItem = {
+          ...orderItem,
+          variant: orderItem.selectedVariant || orderItem.variant || null,
+          addOns: orderItem.selectedAddOns || orderItem.addOns || [],
+          notes: orderItem.notes || ''
+        };
+        setPendingOrderItems([...pendingOrderItems, normalizedItem]);
       }
       return;
     }
@@ -748,20 +756,36 @@ const PointOfSale = () => {
       [readyOrderCart, setReadyOrderCart] : 
       [pendingOrderCart, setPendingOrderCart];
 
+    // Match by id, size, variant, addOns, and notes
     const existing = currentCart.find(
-      i => i._id === orderItem._id && i.selectedSize === orderItem.selectedSize
+      i => i._id === orderItem._id && 
+           i.selectedSize === orderItem.selectedSize &&
+           JSON.stringify(i.variant || null) === JSON.stringify(orderItem.selectedVariant || orderItem.variant || null) &&
+           JSON.stringify((i.addOns || []).map(a => a._id).sort()) === JSON.stringify((orderItem.selectedAddOns || orderItem.addOns || []).map(a => a._id).sort()) &&
+           (i.notes || '') === (orderItem.notes || '')
     );
 
     if (existing) {
       setCart(
         currentCart.map(i =>
-          i._id === orderItem._id && i.selectedSize === orderItem.selectedSize
+          i._id === orderItem._id && 
+          i.selectedSize === orderItem.selectedSize &&
+          JSON.stringify(i.variant || null) === JSON.stringify(orderItem.selectedVariant || orderItem.variant || null) &&
+          JSON.stringify((i.addOns || []).map(a => a._id).sort()) === JSON.stringify((orderItem.selectedAddOns || orderItem.addOns || []).map(a => a._id).sort()) &&
+          (i.notes || '') === (orderItem.notes || '')
             ? { ...i, quantity: i.quantity + orderItem.quantity }
             : i
         )
       );
     } else {
-      setCart([...currentCart, orderItem]);
+      // Normalize the item structure before adding
+      const normalizedItem = {
+        ...orderItem,
+        variant: orderItem.selectedVariant || orderItem.variant || null,
+        addOns: orderItem.selectedAddOns || orderItem.addOns || [],
+        notes: orderItem.notes || ''
+      };
+      setCart([...currentCart, normalizedItem]);
     }
 
     // Keep currentOrder in sync for backward compatibility

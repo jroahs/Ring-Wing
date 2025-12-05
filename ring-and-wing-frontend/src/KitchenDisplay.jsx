@@ -57,7 +57,13 @@ const KitchenDisplay = ({ orders }) => {
                   <ul className="mt-2 space-y-1">
                     {order.items.map((item, idx) => (
                       <li key={idx} className="text-sm">
-                        {item.quantity}x {item.name}
+                        <span className="font-medium">{item.quantity}x {item.name}</span>
+                        {item.selectedSize && <span className="text-gray-500 ml-1">({item.selectedSize})</span>}
+                        {item.notes && (
+                          <div className="ml-4 mt-1 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded border border-yellow-300">
+                            📝 {item.notes}
+                          </div>
+                        )}
                       </li>
                     ))}
                   </ul>

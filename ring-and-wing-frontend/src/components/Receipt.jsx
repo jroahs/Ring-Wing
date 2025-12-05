@@ -105,6 +105,12 @@ export const Receipt = React.forwardRef(({ order, totals, paymentMethod }, ref) 
                     ))}
                   </div>
                 )}
+                {/* Notes */}
+                {item.notes && (
+                  <div className="text-xs italic" style={{ color: theme.colors.secondary }}>
+                    📝 {item.notes}
+                  </div>
+                )}
               </td>
               <td 
                 className="py-1 md:py-2 text-center" 

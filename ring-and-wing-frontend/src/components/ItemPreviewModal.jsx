@@ -42,6 +42,7 @@ const ItemPreviewModal = ({
   const [quantity, setQuantity] = useState(1);
   const [recommendations, setRecommendations] = useState([]);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [itemNotes, setItemNotes] = useState(''); // Notes for special requests (max 150 chars)
   
   // Per-quantity variant selection - array of variants, one per quantity unit
   const [variantsPerUnit, setVariantsPerUnit] = useState([]);
@@ -74,6 +75,7 @@ const ItemPreviewModal = ({
       setSelectedSize(cartItem.selectedSize);
       setQuantity(cartItem.quantity || 1);
       setSelectedAddOns(cartItem.addOns || []);
+      setItemNotes(cartItem.notes || ''); // Load existing notes
       
       // Set variants for editing
       if (hasVariants && cartItem.variant) {
@@ -89,6 +91,8 @@ const ItemPreviewModal = ({
         const defaultVariant = variants.length === 1 ? variants[0] : null;
         setVariantsPerUnit([defaultVariant]);
       }
+      // Reset notes for new items
+      setItemNotes('');
     }
   }, [item, isEditing, cartItem]);
 
@@ -234,6 +238,7 @@ const ItemPreviewModal = ({
           availableSizes: sizes.length > 0 ? sizes : ['base'],
           selectedVariant: variant,
           selectedAddOns: selectedAddOns,
+          notes: itemNotes.trim() || '', // Include notes
           quantity: quantity,
           isEditing: isEditing
         });
@@ -249,6 +254,7 @@ const ItemPreviewModal = ({
             availableSizes: sizes.length > 0 ? sizes : ['base'],
             selectedVariant: variant,
             selectedAddOns: selectedAddOns,
+            notes: itemNotes.trim() || '', // Include notes
             quantity: count,
             isEditing: isEditing
           });
@@ -266,6 +272,7 @@ const ItemPreviewModal = ({
         availableSizes: sizes.length > 0 ? sizes : ['base'],
         selectedVariant: variant,
         selectedAddOns: selectedAddOns,
+        notes: itemNotes.trim() || '', // Include notes
         quantity: quantity,
         isEditing: isEditing
       });
@@ -590,6 +597,30 @@ const ItemPreviewModal = ({
                   </div>
                 </div>
               )}
+
+              {/* Notes Section (Optional) */}
+              <div>
+                <label className="block text-sm font-semibold mb-2" style={{ color: colors.primary }}>
+                  Notes (Optional)
+                </label>
+                <textarea
+                  value={itemNotes}
+                  onChange={(e) => setItemNotes(e.target.value.slice(0, 150))}
+                  placeholder="Less sugar, no ice, extra pearls..."
+                  rows={3}
+                  maxLength={150}
+                  className="w-full p-3 rounded-xl border-2 transition-all duration-200 resize-none focus:outline-none focus:ring-2"
+                  style={{
+                    borderColor: colors.muted + '40',
+                    backgroundColor: 'transparent',
+                    color: colors.primary,
+                    '--tw-ring-color': colors.accent + '40'
+                  }}
+                />
+                <p className="text-xs mt-1 text-right" style={{ color: colors.muted }}>
+                  {itemNotes.length}/150
+                </p>
+              </div>
 
               {/* Recommendations Section - Only show for new items, not when editing */}
               {!isEditing && recommendations.length > 0 && (

@@ -102,6 +102,13 @@ export const OrderItem = ({
             </div>
           )}
 
+          {/* Item Notes */}
+          {item.notes && (
+            <div className="mt-1 text-xs px-2 py-1 rounded" style={{ backgroundColor: theme.colors.warning + '20', color: theme.colors.primary }}>
+              <span className="font-medium">Notes:</span> {item.notes}
+            </div>
+          )}
+
           {/* PWD/Senior Discount Info */}
           {hasDiscount && (
             <div className="mt-1 text-xs bg-blue-50 px-2 py-1 rounded" style={{ color: theme.colors.primary }}>

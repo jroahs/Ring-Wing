@@ -25,6 +25,8 @@ const orderSchema = new mongoose.Schema({
       name: { type: String },
       price: { type: Number, default: 0 }
     }],
+    // Item-level notes for special requests
+    notes: { type: String, maxlength: 150, default: '' },
     pwdSeniorDiscount: {
       applied: { type: Boolean, default: false },
       discountedQuantity: { type: Number, default: 0 },

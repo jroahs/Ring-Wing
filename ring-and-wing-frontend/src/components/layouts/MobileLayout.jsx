@@ -112,6 +112,7 @@ const MobileLayout = ({
           size: customizedItem.selectedSize,
           variant: customizedItem.selectedVariant,
           addOns: customizedItem.selectedAddOns,
+          notes: customizedItem.notes || '',
           quantity: customizedItem.quantity
         }
       );
@@ -122,6 +123,7 @@ const MobileLayout = ({
         size: customizedItem.selectedSize,
         variant: customizedItem.selectedVariant,
         addOns: customizedItem.selectedAddOns,
+        notes: customizedItem.notes || '',
         quantity: customizedItem.quantity
       });
     }
@@ -551,6 +553,12 @@ const MobileLayout = ({
                           {idx < item.addOns.length - 1 && ','}
                         </span>
                       ))}
+                    </div>
+                  )}
+                  {/* Item Notes */}
+                  {item.notes && (
+                    <div className="mt-1 text-xs px-2 py-1 rounded bg-yellow-50 text-yellow-700">
+                      <span className="font-medium">Notes:</span> {item.notes}
                     </div>
                   )}
                   <div className="flex items-center justify-between mt-2">

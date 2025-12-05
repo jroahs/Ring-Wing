@@ -108,7 +108,7 @@ export const KitchenOrderCard = ({
                   : 'none' 
               }}
             >
-              <div>
+              <div className="flex-1">
                 <div 
                   className="font-medium"
                   style={{ color: theme.colors.primary }}
@@ -121,18 +121,32 @@ export const KitchenOrderCard = ({
                 >
                   {item.selectedSize}
                 </div>
+                {/* Add-ons display */}
+                {item.addOns && item.addOns.length > 0 && (
+                  <div 
+                    className="text-xs mt-1"
+                    style={{ color: theme.colors.muted }}
+                  >
+                    Add-ons: {item.addOns.map(a => a.name).join(', ')}
+                  </div>
+                )}
+                {/* Notes - Highlighted for kitchen visibility */}
                 {item.notes && (
                   <div 
-                    className="text-sm mt-1"
-                    style={{ color: theme.colors.accent }}
+                    className="text-sm mt-1 px-2 py-1 rounded font-medium"
+                    style={{ 
+                      backgroundColor: theme.colors.warning + '30',
+                      color: theme.colors.primary,
+                      border: `1px solid ${theme.colors.warning}`
+                    }}
                   >
-                    Note: {item.notes}
+                    📝 {item.notes}
                   </div>
                 )}
               </div>
               {item.isComplete && (
                 <FiCheckCircle 
-                  className="w-5 h-5"
+                  className="w-5 h-5 flex-shrink-0 ml-2"
                   style={{ color: theme.colors.success }}
                 />
               )}
