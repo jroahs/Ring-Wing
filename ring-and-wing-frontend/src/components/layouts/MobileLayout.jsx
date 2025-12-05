@@ -936,7 +936,16 @@ const MobileLayout = ({
       <AssistantPanel
         menuItems={menuItems}
         currentOrder={cartItems}
-        onAddToCart={(item, options) => addItem(item, options)}
+        addOns={addOns || []}
+        onAddToCart={(item, options) => {
+          // If item needs customization and no options provided, open modal
+          if (needsCustomization(item) && !options?.skipCustomization) {
+            setCustomizationItem(item);
+          } else {
+            addItem(item, options);
+          }
+        }}
+        onRequestCustomization={(item) => setCustomizationItem(item)}
         onRemoveFromCart={(itemId, selectedSize) => removeItem(itemId, selectedSize)}
         onUpdateQuantity={(itemId, selectedSize, delta) => updateCartQuantity(itemId, selectedSize, delta)}
         onUpdateSize={(itemId, oldSize, newSize) => updateCartSize(itemId, oldSize, newSize)}

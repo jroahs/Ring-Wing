@@ -50,7 +50,250 @@ FormattedText.propTypes = {
   menuItems: PropTypes.array
 };
 
-// Size Selection Component - Inline buttons for selecting item size
+// Dialog Customization Component - Handles size, variants, and add-ons with buttons
+const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete, onCancel }) => {
+  const sizes = Object.keys(item.pricing || {}).filter(k => k !== '_id');
+  const variants = item.variants || [];
+  
+  // Get unique add-ons (filter duplicates by name)
+  // More flexible matching: check if addon applies to this item's category or is universal
+  const relevantAddOns = (addOns || []).filter(addon => {
+    const addonCat = (addon.category || '').toLowerCase();
+    const itemCat = (item.category || '').toLowerCase();
+    const itemSubCat = (item.subCategory || '').toLowerCase();
+    
+    // Match if: addon is for 'All', categories match, or addon is for Beverages and item is a beverage type
+    return addonCat === 'all' || 
+           addonCat === itemCat || 
+           addonCat === itemSubCat ||
+           (addonCat === 'beverages' && (itemCat.includes('beverage') || itemSubCat.includes('frappe') || itemSubCat.includes('milk') || itemSubCat.includes('tea') || itemSubCat.includes('lemonade')));
+  });
+  const uniqueAddOns = relevantAddOns.reduce((acc, addon) => {
+    if (!acc.find(a => a.name === addon.name)) {
+      acc.push(addon);
+    }
+    return acc;
+  }, []);
+  
+  // Check if we have an initial size to pre-select
+  const preSelectedSize = initialSize 
+    ? sizes.find(s => s.toLowerCase() === initialSize.toLowerCase() || s.toLowerCase().startsWith(initialSize.toLowerCase()))
+    : (sizes.length === 1 ? sizes[0] : null);
+  
+  const [selectedSize, setSelectedSize] = useState(preSelectedSize);
+  const [selectedVariant, setSelectedVariant] = useState(null);
+  const [selectedAddOns, setSelectedAddOns] = useState([]);
+  const [step, setStep] = useState('size'); // 'size', 'variant', 'addons', 'confirm'
+  
+  // Determine initial step based on pre-selected size or single size
+  useEffect(() => {
+    if (preSelectedSize) {
+      // Size already selected, skip to next step
+      if (variants.length > 0) {
+        setStep('variant');
+      } else if (uniqueAddOns.length > 0) {
+        setStep('addons');
+      } else {
+        // No further customization needed, complete immediately
+        onComplete({ size: preSelectedSize });
+      }
+    }
+  }, []);
+  
+  const toggleAddOn = (addon) => {
+    setSelectedAddOns(prev => {
+      const exists = prev.find(a => a.name === addon.name);
+      if (exists) {
+        return prev.filter(a => a.name !== addon.name);
+      }
+      return [...prev, addon];
+    });
+  };
+  
+  const handleSizeSelect = (size) => {
+    setSelectedSize(size);
+    if (variants.length > 0) {
+      setStep('variant');
+    } else if (uniqueAddOns.length > 0) {
+      setStep('addons');
+    } else {
+      onComplete({ size });
+    }
+  };
+  
+  const handleVariantSelect = (variant) => {
+    setSelectedVariant(variant);
+    if (uniqueAddOns.length > 0) {
+      setStep('addons');
+    } else {
+      onComplete({ size: selectedSize, variant: variant.name });
+    }
+  };
+  
+  const handleAddOnsConfirm = () => {
+    onComplete({
+      size: selectedSize,
+      variant: selectedVariant?.name,
+      addOns: selectedAddOns
+    });
+  };
+  
+  const handleSkipAddOns = () => {
+    onComplete({
+      size: selectedSize,
+      variant: selectedVariant?.name,
+      addOns: []
+    });
+  };
+  
+  // Calculate total price
+  const basePrice = selectedSize ? (item.pricing[selectedSize] || 0) : 0;
+  const variantPrice = selectedVariant?.priceAdjustment || 0;
+  const addOnsPrice = selectedAddOns.reduce((sum, a) => sum + (a.price || 0), 0);
+  const totalPrice = basePrice + variantPrice + addOnsPrice;
+  
+  return (
+    <div className="flex gap-2">
+      <AIAvatar size="small" />
+      <div className="flex-1 bg-orange-50 border border-orange-200 rounded-xl p-3 space-y-3 max-w-sm">
+        {/* Item Header */}
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0">
+            <img 
+              src={item.image || '/placeholders/meal.png'} 
+              alt={item.name}
+              className="w-full h-full object-cover"
+              onError={(e) => { e.target.src = '/placeholders/meal.png'; }}
+            />
+          </div>
+          <div>
+            <h4 className="font-semibold text-gray-800 text-sm">{item.name}</h4>
+            {selectedSize && (
+              <p className="text-xs text-orange-600">
+                {selectedSize}{selectedVariant ? ` • ${selectedVariant.name}` : ''} 
+                {selectedAddOns.length > 0 && ` • +${selectedAddOns.length} add-on${selectedAddOns.length > 1 ? 's' : ''}`}
+              </p>
+            )}
+          </div>
+        </div>
+        
+        {/* Size Selection */}
+        {step === 'size' && sizes.length > 1 && (
+          <div className="space-y-2">
+            <p className="text-xs text-gray-600 font-medium">Choose size:</p>
+            <div className="grid grid-cols-2 gap-2">
+              {sizes.map(size => (
+                <button
+                  key={size}
+                  onClick={() => handleSizeSelect(size)}
+                  className="flex items-center justify-between px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 transition-all text-sm"
+                >
+                  <span className="font-medium text-gray-700 capitalize">{size}</span>
+                  <span className="font-bold text-orange-600">₱{item.pricing[size]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Variant Selection */}
+        {step === 'variant' && variants.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs text-gray-600 font-medium">Choose flavor:</p>
+            <div className="grid grid-cols-2 gap-2">
+              {variants.map(variant => (
+                <button
+                  key={variant.name}
+                  onClick={() => handleVariantSelect(variant)}
+                  className="px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 transition-all text-sm text-center"
+                >
+                  <span className="font-medium text-gray-700">{variant.name}</span>
+                  {variant.priceAdjustment > 0 && (
+                    <span className="text-xs text-orange-600 ml-1">+₱{variant.priceAdjustment}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Add-ons Selection */}
+        {step === 'addons' && uniqueAddOns.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs text-gray-600 font-medium">Add extras? (optional)</p>
+            <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
+              {uniqueAddOns.map(addon => {
+                const isSelected = selectedAddOns.find(a => a.name === addon.name);
+                return (
+                  <button
+                    key={addon.name}
+                    onClick={() => toggleAddOn(addon)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all text-sm ${
+                      isSelected 
+                        ? 'bg-orange-100 border-2 border-orange-400' 
+                        : 'bg-white border border-gray-200 hover:border-orange-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                        isSelected ? 'bg-orange-500 border-orange-500' : 'border-gray-300'
+                      }`}>
+                        {isSelected && (
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      <span className="font-medium text-gray-700">{addon.name}</span>
+                    </div>
+                    <span className={`font-medium ${isSelected ? 'text-orange-600' : 'text-gray-500'}`}>
+                      +₱{addon.price || 0}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            
+            {/* Add-ons action buttons */}
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={handleSkipAddOns}
+                className="flex-1 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Skip
+              </button>
+              <button
+                onClick={handleAddOnsConfirm}
+                className="flex-1 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {selectedAddOns.length > 0 ? `Add (₱${totalPrice})` : 'Continue'}
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {/* Cancel button (for size/variant steps) */}
+        {(step === 'size' || step === 'variant') && (
+          <button
+            onClick={onCancel}
+            className="w-full py-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+DialogCustomization.propTypes = {
+  item: PropTypes.object.isRequired,
+  addOns: PropTypes.array,
+  onComplete: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired
+};
+
+// Size Selection Component - Inline buttons for selecting item size (legacy, kept for simple cases)
 const SizeSelectionMessage = ({ item, onSelectSize, onCancel }) => {
   const sizes = Object.keys(item.pricing || {}).filter(k => k !== '_id');
   
@@ -144,7 +387,20 @@ AIAvatar.propTypes = {
 };
 
 // Chat Message Component
-const ChatMessage = ({ message, onAddToCart, onSelectSize, onCancelSize, menuItems = [] }) => {
+const ChatMessage = ({ message, onAddToCart, onManualTap, onSelectSize, onCancelSize, onCustomizationComplete, onCustomizationCancel, addOns = [], menuItems = [] }) => {
+  // Handle dialog customization message type (size + variant + add-ons with buttons)
+  if (message.type === 'dialog-customization' && message.pendingItem) {
+    return (
+      <DialogCustomization
+        item={message.pendingItem}
+        addOns={addOns}
+        initialSize={message.initialSize}
+        onComplete={(options) => onCustomizationComplete(message.pendingItem, options)}
+        onCancel={onCustomizationCancel}
+      />
+    );
+  }
+  
   // Handle size selection message type
   if (message.type === 'size-selection' && message.pendingItem) {
     return (
@@ -186,7 +442,7 @@ const ChatMessage = ({ message, onAddToCart, onSelectSize, onCancelSize, menuIte
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                   className="bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-xl p-3 transition-all duration-200 cursor-pointer"
-                  onClick={() => onAddToCart(menuItem)}
+                  onClick={() => onManualTap ? onManualTap(menuItem) : onAddToCart(menuItem)}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0">
@@ -281,8 +537,12 @@ ChatMessage.propTypes = {
     isThinking: PropTypes.bool
   }).isRequired,
   onAddToCart: PropTypes.func.isRequired,
+  onManualTap: PropTypes.func,
   onSelectSize: PropTypes.func,
   onCancelSize: PropTypes.func,
+  onCustomizationComplete: PropTypes.func,
+  onCustomizationCancel: PropTypes.func,
+  addOns: PropTypes.array,
   menuItems: PropTypes.array
 };
 
@@ -290,7 +550,9 @@ ChatMessage.propTypes = {
 const EmbeddedAssistant = ({ 
   menuItems = [], 
   currentOrder = [], 
+  addOns = [],
   onAddToCart = () => {},
+  onRequestCustomization = null,
   onRemoveFromCart = () => {},
   onUpdateQuantity = () => {},
   onUpdateSize = () => {},
@@ -414,7 +676,7 @@ const EmbeddedAssistant = ({
 
     const systemMessage = {
       role: "system",
-      content: `You are a helpful ordering assistant for Ring & Wings restaurant's self-checkout system. You help customers place orders using natural language.
+      content: `You are Ringo, Ring & Wings restaurant's friendly AI assistant. You have a warm, casual personality and you're here to help customers with anything!
 
 CURRENT MENU:
 ${menuContext}
@@ -422,29 +684,37 @@ ${menuContext}
 CUSTOMER'S CART:
 ${currentOrderContext}
 
-FORMATTING RULES (IMPORTANT):
+YOUR PERSONALITY:
+- You're Ringo, the friendly AI ordering buddy at Ring & Wings!
+- Be warm, playful, and genuinely helpful
+- Have natural conversations - you're not a robot!
+- If someone asks random questions, chat naturally then gently steer back to food
+- Never give robotic "I'm here to help" responses - be dynamic!
+- You can joke around and have personality
+
+FORMATTING RULES:
 - Use **double asterisks** around menu item names to make them bold (e.g., **Buffalo Wings**)
 - Always include the price after the item name in this format: **Item Name** (₱price)
-- Use bold for important actions or highlights
 
 RESPONSE GUIDELINES:
-1. Be friendly, warm, and helpful - you're the customer's food ordering buddy!
-2. Keep responses short (2-3 sentences max for readability)
-3. When suggesting items, ALWAYS format as: **Item Name** (₱price)
-4. If items are unavailable, suggest alternatives with empathy
-5. Be proactive in suggesting complementary items (drinks with meals, sides, etc.)
-6. If asked about the cart, provide helpful info about what's in it and the total
-7. If the customer wants to submit/checkout, tell them to tap the Submit Order button
+1. Keep responses conversational and short (2-3 sentences)
+2. When suggesting items, format as: **Item Name** (₱price)
+3. If asked non-food questions, answer naturally then pivot: "By the way, have you tried our...?"
+4. Never deflect with generic "What can I get you?" - always add something interesting!
+5. If items are unavailable, suggest alternatives with empathy
+6. Be proactive with complementary suggestions (drinks with meals, sides, etc.)
 
-UPSELLING (be natural, not pushy):
-- After they add food, suggest a drink if they don't have one
-- Mention combos when they order individual items
-- Suggest popular pairings based on what's in their cart
+CRITICAL - SIZE AND CONTEXT HANDLING:
+- When user mentions an item, ONLY suggest that specific item, not alternatives
+- If user says "iced spanish cafe" - suggest ONLY Iced Spanish Cafe Latte, not the hot version
+- If user says "medium" or "large" after you mentioned sizes, understand they're choosing a size
+- When a user specifies a size, CONFIRM the order, don't ask more questions
+- Example: User: "iced spanish cafe pls" → You: "Perfect! **Iced Spanish Cafe Latte** - do you want Medium (₱90) or Large (₱110)?" → User: "medium" → You: "Great! Adding Medium Iced Spanish Cafe Latte (₱90) to your cart!"
 
-Example responses:
-- "I want wings" → "Great choice! 🍗 We have **Buffalo Wings** (₱180) with our signature spicy sauce, or **Honey Garlic Wings** (₱200) for a sweeter taste!"
-- "Something to drink" → "Perfect! Our **Iced Tea** (₱60) is refreshing, or try our **Mango Shake** (₱80) for something fruity!"
-- "What's popular?" → "Our bestsellers are **Chicken Combo** (₱250) - comes with rice and a drink! Also, the **BBQ Wings** (₱180) are customer favorites."`
+EXAMPLE NATURAL CONVERSATIONS:
+- "hello" → "Hey there! 👋 Welcome to Ring & Wings! Craving something crispy or maybe a cold drink?"
+- "I want iced spanish cafe" → "Awesome choice! **Iced Spanish Cafe Latte** comes in Medium (₱90) or Large (₱110). Which size?"
+- "medium" → "Perfect! Adding your **Iced Spanish Cafe Latte** (Medium - ₱90)! Anything else?"`
     };
 
     const payload = {
@@ -606,35 +876,120 @@ Example responses:
 
   // ========== END INTENT DETECTION ==========
 
-  // Handle adding item with size selection if needed
-  const handleAddToCartWithSize = (item) => {
+  // Check if item needs full customization (has variants, add-ons, or multiple sizes)
+  const needsCustomization = (item) => {
     const sizes = Object.keys(item.pricing || {}).filter(k => k !== '_id');
+    const hasMultipleSizes = sizes.length > 1;
+    const hasVariants = (item.variants || []).length > 0;
+    const relevantAddOns = (addOns || []).filter(addon => 
+      addon.category === item.category || addon.category === 'All'
+    );
+    const hasAddOns = relevantAddOns.length > 0;
     
-    if (sizes.length > 1) {
-      // Multiple sizes - show size selection
+    return hasMultipleSizes || hasVariants || hasAddOns;
+  };
+
+  // Handle MANUAL item tap (+ Add button) - opens modal for customization
+  const handleManualItemTap = (item) => {
+    // For manual taps, always open the customization modal if available
+    if (onRequestCustomization && needsCustomization(item)) {
+      onRequestCustomization(item);
+      return;
+    }
+    
+    // No customization needed or no modal available - add directly
+    const sizes = Object.keys(item.pricing || {}).filter(k => k !== '_id');
+    const size = sizes[0] || 'regular';
+    onAddToCart(item, { size, skipCustomization: true });
+    
+    const confirmMessage = {
+      id: generateUniqueId(),
+      text: `Added **${item.name}** to your cart! 🎉 Anything else?`,
+      sender: 'bot',
+      timestamp: new Date(),
+      type: 'cart-action'
+    };
+    setMessages(prev => [...prev, confirmMessage]);
+  };
+
+  // Handle adding item via DIALOG - uses button-based customization
+  const handleAddToCartWithSize = (item, specifiedSize = null) => {
+    const sizes = Object.keys(item.pricing || {}).filter(k => k !== '_id');
+    const hasVariants = (item.variants || []).length > 0;
+    
+    // Get unique add-ons for this item (flexible matching)
+    const relevantAddOns = (addOns || []).filter(addon => {
+      const addonCat = (addon.category || '').toLowerCase();
+      const itemCat = (item.category || '').toLowerCase();
+      const itemSubCat = (item.subCategory || '').toLowerCase();
+      
+      return addonCat === 'all' || 
+             addonCat === itemCat || 
+             addonCat === itemSubCat ||
+             (addonCat === 'beverages' && (itemCat.includes('beverage') || itemSubCat.includes('frappe') || itemSubCat.includes('milk') || itemSubCat.includes('tea') || itemSubCat.includes('lemonade')));
+    });
+    const uniqueAddOns = relevantAddOns.reduce((acc, addon) => {
+      if (!acc.find(a => a.name === addon.name)) {
+        acc.push(addon);
+      }
+      return acc;
+    }, []);
+    const hasAddOns = uniqueAddOns.length > 0;
+    
+    // If a size was specified and no variants AND no add-ons, add directly
+    if (specifiedSize && !hasVariants && !hasAddOns) {
+      const matchedSize = sizes.find(s => 
+        s.toLowerCase() === specifiedSize.toLowerCase() ||
+        s.toLowerCase().startsWith(specifiedSize.toLowerCase())
+      );
+      if (matchedSize) {
+        onAddToCart(item, { size: matchedSize, skipCustomization: true });
+        const confirmMessage = {
+          id: generateUniqueId(),
+          text: `Added **${item.name}** (${matchedSize}) to your cart! 🎉 Anything else?`,
+          sender: 'bot',
+          timestamp: new Date(),
+          type: 'cart-action'
+        };
+        setMessages(prev => [...prev, confirmMessage]);
+        setPendingSizeSelection(null);
+        setLastSuggestedItems([]);
+        return;
+      }
+    }
+    
+    // Check if item needs any customization (sizes, variants, or add-ons)
+    const needsCustomization = sizes.length > 1 || hasVariants || hasAddOns;
+    
+    if (needsCustomization) {
       setPendingSizeSelection(item);
-      const sizeMessage = {
+      setLastSuggestedItems([item]);
+      
+      // Show dialog customization with buttons (pass size if specified)
+      const customizationMessage = {
         id: generateUniqueId(),
-        text: `**${item.name}** comes in different sizes! Pick one:`,
+        text: specifiedSize ? `Great choice! Let me get that **${item.name}** ready for you.` : `Let's customize your **${item.name}**!`,
         sender: 'bot',
         timestamp: new Date(),
-        type: 'size-selection',
-        pendingItem: item
+        type: 'dialog-customization',
+        pendingItem: item,
+        initialSize: specifiedSize // Pass specified size to dialog
       };
-      setMessages(prev => [...prev, sizeMessage]);
+      setMessages(prev => [...prev, customizationMessage]);
     } else {
-      // Single size - add directly
+      // Single size, no variants, no add-ons - add directly
       const size = sizes[0] || 'regular';
-      onAddToCart(item, { size });
+      onAddToCart(item, { size, skipCustomization: true });
       
       const confirmMessage = {
         id: generateUniqueId(),
-        text: `Added **${item.name}** to your cart! 🎉`,
+        text: `Added **${item.name}** to your cart! 🎉 Anything else?`,
         sender: 'bot',
         timestamp: new Date(),
         type: 'cart-action'
       };
       setMessages(prev => [...prev, confirmMessage]);
+      setLastSuggestedItems([]);
     }
   };
 
@@ -643,7 +998,7 @@ Example responses:
     setPendingSizeSelection(null);
     setLastSuggestedItems([]); // Clear so "yes" doesn't re-add
     setConversationContext(null);
-    onAddToCart(item, { size });
+    onAddToCart(item, { size, skipCustomization: true });
     
     const confirmMessage = {
       id: generateUniqueId(),
@@ -653,6 +1008,52 @@ Example responses:
       type: 'cart-action'
     };
     setMessages(prev => [...prev, confirmMessage]);
+  };
+
+  // Handle dialog customization complete (size + variant + add-ons)
+  const handleCustomizationComplete = (item, options) => {
+    setPendingSizeSelection(null);
+    setLastSuggestedItems([]);
+    setConversationContext(null);
+    
+    onAddToCart(item, { 
+      size: options.size, 
+      variant: options.variant,
+      addOns: options.addOns,
+      skipCustomization: true 
+    });
+    
+    // Build confirmation message
+    let details = options.size;
+    if (options.variant) details += `, ${options.variant}`;
+    if (options.addOns && options.addOns.length > 0) {
+      const addOnNames = options.addOns.map(a => a.name).join(', ');
+      details += ` + ${addOnNames}`;
+    }
+    
+    const confirmMessage = {
+      id: generateUniqueId(),
+      text: `Added **${item.name}** (${details}) to your cart! 🎉 Anything else?`,
+      sender: 'bot',
+      timestamp: new Date(),
+      type: 'cart-action'
+    };
+    setMessages(prev => [...prev, confirmMessage]);
+  };
+
+  // Handle dialog customization cancel
+  const handleCustomizationCancel = () => {
+    setPendingSizeSelection(null);
+    setLastSuggestedItems([]);
+    setConversationContext(null);
+    
+    const cancelMessage = {
+      id: generateUniqueId(),
+      text: "No worries! Let me know if you'd like to order something else. 😊",
+      sender: 'bot',
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, cancelMessage]);
   };
 
   // Handle size selection cancel
@@ -712,7 +1113,8 @@ Example responses:
       const matchedSize = matchSizeFromInput(currentInput, availableSizes);
       
       if (matchedSize) {
-        handleSizeSelected(pendingSizeSelection, matchedSize);
+        // Use handleAddToCartWithSize to show dialog for variants/add-ons
+        handleAddToCartWithSize(pendingSizeSelection, matchedSize);
         return;
       } else {
         const sizeOptions = availableSizes.map(s => `**${s}** (₱${pendingSizeSelection.pricing[s]})`).join(', ');
@@ -728,6 +1130,30 @@ Example responses:
     }
     // ========== END PENDING SIZE CHECK ==========
     
+    // ========== CHECK FOR "ADD ANOTHER" WITH SIZE ==========
+    // When user says "add another medium" or "another large please"
+    const anotherMatch = currentInput.toLowerCase().match(/another\s+(small|medium|large|s|m|l|xl)/i);
+    if (anotherMatch && lastSuggestedItems.length === 1) {
+      const item = lastSuggestedItems[0];
+      const sizes = Object.keys(item.pricing || {}).filter(k => k !== '_id');
+      const matchedSize = matchSizeFromInput(anotherMatch[1], sizes);
+      if (matchedSize) {
+        onAddToCart(item, { size: matchedSize, skipCustomization: true });
+        const price = item.pricing[matchedSize];
+        const confirmMessage = {
+          id: generateUniqueId(),
+          text: `Added another **${item.name}** (${matchedSize}) to your cart! 🎉 Anything else?`,
+          sender: 'bot',
+          timestamp: new Date(),
+          type: 'cart-action'
+        };
+        setMessages(prev => [...prev, confirmMessage]);
+        // Keep lastSuggestedItems so they can add more
+        return;
+      }
+    }
+    // ========== END ADD ANOTHER CHECK ==========
+    
     // ========== CHECK FOR SIZE RESPONSE WITH LAST SUGGESTED ITEM ==========
     // When AI asked about sizes and user types "medium" or "large"
     if (lastSuggestedItems.length === 1) {
@@ -736,11 +1162,13 @@ Example responses:
       if (sizes.length > 1) {
         const matchedSize = matchSizeFromInput(currentInput, sizes);
         if (matchedSize) {
-          onAddToCart(item, { size: matchedSize });
+          onAddToCart(item, { size: matchedSize, skipCustomization: true });
           setLastSuggestedItems([]);
+          setPendingSizeSelection(null);
+          const price = item.pricing[matchedSize];
           const confirmMessage = {
             id: generateUniqueId(),
-            text: `Added **${item.name}** (${matchedSize.toUpperCase()}) to your cart! 🎉 Anything else?`,
+            text: `Added **${item.name}** (${matchedSize}) to your cart! 🎉 Anything else?`,
             sender: 'bot',
             timestamp: new Date(),
             type: 'cart-action'
@@ -752,40 +1180,70 @@ Example responses:
     }
     // ========== END SIZE RESPONSE CHECK ==========
     
+    // ========== CHECK FOR VARIANT/SIZE COMBO RESPONSE ==========
+    // When AI asked about variants and user says "chocolate medium" or just "vanilla"
+    if (lastSuggestedItems.length === 1 && pendingSizeSelection) {
+      const item = lastSuggestedItems[0];
+      const hasVariants = (item.variants || []).length > 0;
+      
+      if (hasVariants) {
+        const lowerInput = currentInput.toLowerCase();
+        const matchedVariant = item.variants.find(v => 
+          lowerInput.includes(v.name.toLowerCase())
+        );
+        
+        if (matchedVariant) {
+          const sizes = Object.keys(item.pricing || {}).filter(k => k !== '_id');
+          const matchedSize = matchSizeFromInput(currentInput, sizes);
+          
+          if (matchedSize || sizes.length === 1) {
+            const finalSize = matchedSize || sizes[0];
+            const basePrice = item.pricing[finalSize] || 0;
+            const variantPrice = matchedVariant.priceAdjustment || 0;
+            
+            onAddToCart(item, { 
+              size: finalSize, 
+              variant: matchedVariant.name,
+              skipCustomization: true 
+            });
+            
+            setLastSuggestedItems([]);
+            setPendingSizeSelection(null);
+            
+            const confirmMessage = {
+              id: generateUniqueId(),
+              text: `Added **${item.name}** (${matchedVariant.name}, ${finalSize}) to your cart! 🎉 Anything else?`,
+              sender: 'bot',
+              timestamp: new Date(),
+              type: 'cart-action'
+            };
+            setMessages(prev => [...prev, confirmMessage]);
+            return;
+          } else {
+            // Have variant but need size
+            const sizeOptions = sizes.map(s => `${s} (₱${item.pricing[s]})`).join(' or ');
+            const sizeMessage = {
+              id: generateUniqueId(),
+              text: `Great choice - ${matchedVariant.name}! What size? ${sizeOptions}`,
+              sender: 'bot',
+              timestamp: new Date(),
+              type: 'text'
+            };
+            setMessages(prev => [...prev, sizeMessage]);
+            return;
+          }
+        }
+      }
+    }
+    // ========== END VARIANT CHECK ==========
+    
     // ========== CHECK FOR DIRECT ADD INTENT ==========
     if (detectDirectAddIntent(currentInput)) {
       const itemToAdd = findMenuItemFromInput(currentInput);
       if (itemToAdd) {
-        const sizes = Object.keys(itemToAdd.pricing || {}).filter(k => k !== '_id');
-        if (sizes.length > 1) {
-          // Multiple sizes - show size selection
-          setPendingSizeSelection(itemToAdd);
-          setLastSuggestedItems([itemToAdd]);
-          const sizeMessage = {
-            id: generateUniqueId(),
-            text: `**${itemToAdd.name}** comes in different sizes! Pick one:`,
-            sender: 'bot',
-            timestamp: new Date(),
-            type: 'size-selection',
-            pendingItem: itemToAdd
-          };
-          setMessages(prev => [...prev, sizeMessage]);
-          return;
-        } else {
-          // Single size - add directly!
-          const size = sizes[0] || 'base';
-          onAddToCart(itemToAdd, { size });
-          setLastSuggestedItems([]);
-          const confirmMessage = {
-            id: generateUniqueId(),
-            text: `Added **${itemToAdd.name}** to your cart! 🎉 Anything else?`,
-            sender: 'bot',
-            timestamp: new Date(),
-            type: 'cart-action'
-          };
-          setMessages(prev => [...prev, confirmMessage]);
-          return;
-        }
+        // Dialog-based: ask about size in conversation
+        handleAddToCartWithSize(itemToAdd);
+        return;
       }
     }
 
@@ -794,65 +1252,16 @@ Example responses:
       const mentionedItem = findMenuItemFromInput(currentInput);
       
       if (mentionedItem) {
-        const sizes = Object.keys(mentionedItem.pricing || {}).filter(k => k !== '_id');
-        if (sizes.length > 1) {
-          setPendingSizeSelection(mentionedItem);
-          setLastSuggestedItems([mentionedItem]);
-          const sizeMessage = {
-            id: generateUniqueId(),
-            text: `Great choice! **${mentionedItem.name}** comes in different sizes:`,
-            sender: 'bot',
-            timestamp: new Date(),
-            type: 'size-selection',
-            pendingItem: mentionedItem
-          };
-          setMessages(prev => [...prev, sizeMessage]);
-          return;
-        } else {
-          const size = sizes[0] || 'base';
-          onAddToCart(mentionedItem, { size });
-          const confirmMessage = {
-            id: generateUniqueId(),
-            text: `Added **${mentionedItem.name}** to your cart! 🎉`,
-            sender: 'bot',
-            timestamp: new Date(),
-            type: 'cart-action'
-          };
-          setMessages(prev => [...prev, confirmMessage]);
-          return;
-        }
+        // Dialog-based: ask about size in conversation
+        handleAddToCartWithSize(mentionedItem);
+        return;
       }
       
-      // Check last suggested items
+      // Check last suggested items - if only one, add it
       if (lastSuggestedItems.length === 1) {
         const item = lastSuggestedItems[0];
-        const sizes = Object.keys(item.pricing || {}).filter(k => k !== '_id');
-        if (sizes.length > 1) {
-          setPendingSizeSelection(item);
-          const sizeMessage = {
-            id: generateUniqueId(),
-            text: `**${item.name}** comes in different sizes:`,
-            sender: 'bot',
-            timestamp: new Date(),
-            type: 'size-selection',
-            pendingItem: item
-          };
-          setMessages(prev => [...prev, sizeMessage]);
-          return;
-        } else {
-          const size = sizes[0] || 'base';
-          onAddToCart(item, { size });
-          setLastSuggestedItems([]);
-          const confirmMessage = {
-            id: generateUniqueId(),
-            text: `Added **${item.name}** to your cart! 🎉 Anything else?`,
-            sender: 'bot',
-            timestamp: new Date(),
-            type: 'cart-action'
-          };
-          setMessages(prev => [...prev, confirmMessage]);
-          return;
-        }
+        handleAddToCartWithSize(item);
+        return;
       } else if (lastSuggestedItems.length > 1) {
         const itemNames = lastSuggestedItems.map(i => `**${i.name}**`).join(' or ');
         const clarifyMessage = {
@@ -913,20 +1322,30 @@ Example responses:
 
       setMessages(prev => [...prev, botMessage]);
       
-      // Add helpful follow-up for suggestions
+      // Add helpful follow-up for suggestions (only if not asking for size)
       if (suggestions.length > 0) {
-        setTimeout(() => {
-          const followUpText = suggestions.length === 1 
-            ? `Say "yes" or tap to add **${suggestions[0].name}**!`
-            : "Tap any item or tell me which one you'd like!";
-          setMessages(prev => [...prev, {
-            id: generateUniqueId(),
-            text: followUpText,
-            sender: 'bot',
-            timestamp: new Date(),
-            type: 'follow-up'
-          }]);
-        }, 1000);
+        // Check if AI is asking about size (don't show "say yes" in that case)
+        const isAskingForSize = aiResponse.toLowerCase().includes('medium') && aiResponse.toLowerCase().includes('large') ||
+                                aiResponse.toLowerCase().includes('what size') ||
+                                aiResponse.toLowerCase().includes('which size');
+        
+        if (isAskingForSize && suggestions.length === 1) {
+          // AI is asking for size - set pending selection so we can handle the size response
+          setPendingSizeSelection(suggestions[0]);
+        } else if (!isAskingForSize) {
+          setTimeout(() => {
+            const followUpText = suggestions.length === 1 
+              ? `Say "yes" or tap to add **${suggestions[0].name}**!`
+              : "Tap any item or tell me which one you'd like!";
+            setMessages(prev => [...prev, {
+              id: generateUniqueId(),
+              text: followUpText,
+              sender: 'bot',
+              timestamp: new Date(),
+              type: 'follow-up'
+            }]);
+          }, 1000);
+        }
       }
     } catch (error) {
       console.error('Error:', error);
@@ -966,8 +1385,12 @@ Example responses:
             key={message.id} 
             message={message} 
             onAddToCart={handleAddToCartWithSize}
+            onManualTap={handleManualItemTap}
             onSelectSize={handleSizeSelected}
             onCancelSize={handleSizeCancel}
+            onCustomizationComplete={handleCustomizationComplete}
+            onCustomizationCancel={handleCustomizationCancel}
+            addOns={addOns}
             menuItems={menuItems}
           />
         ))}

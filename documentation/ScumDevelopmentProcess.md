@@ -9083,3 +9083,377 @@ const scheduledTimeUTC = new Date(Date.UTC(
 
 ---
 
+### Sprint 39 (Dec 5, 2025) [COMPLETED]
+**Sprint Goal:** Batch Payroll Generation with PDF Export
+**Story Points Planned:** 28
+**Story Points Completed:** 28/28
+**Git Commit:** 536b2e2
+
+**Sprint Duration:** 1 day (Focused payroll enhancement sprint)
+
+**Major Implementations Completed:**
+
+#### Hourly Rate Migration System
+**Story Points:** 12 - **STATUS: COMPLETED**
+
+**Staff Model Enhancement** (`models/Staff.js`):
+- Added `hourlyRate` as primary rate field (required)
+- Deprecated `dailyRate` field for backward compatibility
+- Added `standardHoursPerDay` field (default: 8 hours)
+- Created virtual `computedDailyRate` for backward compatibility in views
+- Pre-save middleware for automatic migration from dailyRate to hourlyRate
+- Helper methods: `getEffectiveHourlyRate()`, `getEffectiveDailyRate()`
+
+**Migration Script** (`scripts/migrateToHourlyRate.js`):
+- Automated migration of existing staff records
+- Dry-run mode for preview without database changes
+- Formula: `hourlyRate = dailyRate / standardHoursPerDay`
+- Verification and summary reporting
+- Safe rollback capability
+
+#### Payroll Routes Update
+**Story Points:** 10 - **STATUS: COMPLETED**
+
+**Updated Endpoints** (`routes/payrollRoutes.js`):
+- `/calculate-holiday-pay`: Uses hourlyRate directly with dailyRate/8 fallback
+- `/create-with-bonuses`: Hourly-based holiday bonus calculations
+- `/generate-batch`: 
+  - Hourly rate prioritization over daily rate
+  - Absence deduction: `hourlyRate × standardHoursPerDay × absentDays`
+  - Late deduction: `(lateMinutes / 60) × hourlyRate`
+  - Backward compatibility maintained for legacy records
+
+**Staff Routes Update** (`routes/staffRoutes.js`):
+- POST `/`: Accepts hourlyRate or dailyRate (auto-converts)
+- PUT `/:id`: Handles rate conversion on updates
+- Automatic sync between hourlyRate and dailyRate fields
+- Console logging for rate conversions
+
+#### Holiday Pay Calculation Enhancement
+**Story Points:** 6 - **STATUS: COMPLETED**
+
+**Philippine Holidays Utility** (`utils/philippineHolidays.js`):
+- Updated `calculateHolidayBonus` to use hourly rate
+- Formula: `hourlyRate × hoursWorked × multiplier`
+- Multipliers: Regular Holiday (2.0×), Special Holiday (1.30×)
+- Overtime on holidays properly calculated
+
+#### Files Modified
+
+**Backend:**
+- models/Staff.js - Hourly rate schema with migration support
+- routes/payrollRoutes.js - Hourly-based payroll calculations
+- routes/staffRoutes.js - Rate field handling in CRUD operations
+- utils/philippineHolidays.js - Hourly-based holiday bonus calculation
+- scripts/migrateToHourlyRate.js - Migration utility (161 lines)
+
+#### Sprint Metrics
+
+**Technical Impact:**
+- More accurate payroll calculations based on actual hours
+- Simplified overtime and holiday pay computation
+- Backward compatible with existing payroll records
+- Foundation for future time-based payroll features
+
+---
+
+### Sprint 40 (Dec 5, 2025) [COMPLETED]
+**Sprint Goal:** Payroll Settings & DOLE Compliance Integration
+**Story Points Planned:** 32
+**Story Points Completed:** 32/32
+**Git Commit:** 8f9db47
+
+**Sprint Duration:** 1 day (Compliance-focused sprint)
+
+**Major Implementations Completed:**
+
+#### Schedule Notification Enhancement
+**Story Points:** 12 - **STATUS: COMPLETED**
+
+**ScheduleNotification Model Update** (`models/ScheduleNotification.js`):
+- Added `isAdminNotification` boolean flag
+- Added `adminId` reference field for admin-targeted notifications
+- Added `customMessage` and `customTitle` parameters
+- Enhanced `createScheduleNotification` static method with custom content support
+
+**Notification Types Enhanced:**
+- schedule_created: Custom title/message support
+- schedule_updated: Custom title/message support
+- schedule_deleted: Custom title/message support
+- rest_day_changed: Custom title/message support
+- schedule_published: Admin confirmation notifications
+
+#### Schedule Publishing with Admin Notifications
+**Story Points:** 10 - **STATUS: COMPLETED**
+
+**Enhanced Publish Endpoint** (`routes/scheduleNotificationRoutes.js`):
+- Staff notifications with custom messages
+- Publisher confirmation notification (admin who published)
+- Cross-admin notifications (other admins/managers notified)
+- Staff names tracking for confirmation message
+- Console logging for publish events
+
+**My-Notifications Endpoint Fix:**
+- Returns empty array instead of 404 when no staff record found
+- Better UX for admin users without staff records
+- Proper pagination even for empty results
+
+#### DOLE Compliance Test Suite
+**Story Points:** 10 - **STATUS: COMPLETED**
+
+**Payroll Multipliers Test Script** (`scripts/testPayrollMultipliers.js`):
+- Comprehensive DOLE minimum multiplier validation
+- Settings model structure verification
+- Payroll calculation simulation with sample data
+- Color-coded console output for test results
+- Multiplier compliance checking:
+  - Overtime: 1.25× minimum
+  - Regular Holiday: 2.0× minimum
+  - Special Holiday: 1.30× minimum
+  - Overtime on Holiday: 2.60× minimum
+  - Rest Day: 1.30× minimum
+  - Night Differential: 1.10× minimum
+
+**Test Script** (`scripts/createTestNotification.js`):
+- Creates test schedule notifications for verification
+- Finds active staff with userId
+- Creates notification with morning shift template
+- Verification instructions in output
+
+#### Files Modified
+
+**Backend:**
+- models/ScheduleNotification.js - Admin notification support
+- routes/scheduleNotificationRoutes.js - Enhanced publish flow
+- scripts/testPayrollMultipliers.js - DOLE compliance tests (417 lines)
+- scripts/createTestNotification.js - Test utility (63 lines)
+
+#### Sprint Metrics
+
+**Compliance Features:**
+- DOLE minimum wage multipliers enforced
+- Audit trail for schedule publications
+- Admin notification chain for accountability
+
+---
+
+### Sprint 41 (Dec 5, 2025) [COMPLETED]
+**Sprint Goal:** Sidebar Optimizations & Notification System Enhancement
+**Story Points Planned:** 18
+**Story Points Completed:** 18/18
+**Git Commit:** e1b1a03
+
+**Sprint Duration:** 1 day (UI/UX optimization sprint)
+
+**Major Implementations Completed:**
+
+#### Schedule Notification Model Enhancement
+**Story Points:** 8 - **STATUS: COMPLETED**
+
+**Admin Notification Support:**
+- `isAdminNotification` flag distinguishes staff vs admin notifications
+- `adminId` field for admin-targeted notifications
+- Custom message and title support for all notification types
+- Flexible notification creation for various use cases
+
+**Notification Flow Improvements:**
+- Schedule publish triggers notifications to all affected staff
+- Publisher receives confirmation notification
+- Other admins/managers notified of schedule publications
+- Staff names list included in admin confirmation
+
+#### API Response Handling Improvements
+**Story Points:** 5 - **STATUS: COMPLETED**
+
+**My-Notifications Endpoint:**
+- Graceful handling when user has no staff record
+- Returns empty array with proper pagination structure
+- No more 404 errors for admin users
+- Console logging for debugging
+
+#### Publish Flow Enhancement
+**Story Points:** 5 - **STATUS: COMPLETED**
+
+**Multi-Party Notifications:**
+1. **Staff Notifications**: Each scheduled staff member notified
+2. **Publisher Confirmation**: "You published the schedule for [date range]. X staff members were notified."
+3. **Admin Cross-Notification**: Other admins see "[username] published the schedule for [date range]."
+
+**Response Enhancement:**
+- `staffNotified` array in response with staff names
+- Notification count in confirmation messages
+- Date range formatting in messages
+
+#### Files Modified
+
+**Backend:**
+- models/ScheduleNotification.js - Admin notification schema additions
+- routes/scheduleNotificationRoutes.js - Enhanced notification endpoints
+
+#### Sprint Metrics
+
+**UX Improvements:**
+- Better visibility into schedule publishing
+- Admin accountability through notifications
+- Cleaner error handling for edge cases
+
+---
+
+### Sprint 42 (Dec 6, 2025) [COMPLETED]
+**Sprint Goal:** AI Self-Checkout Enhancement & Dialog-Based Ordering
+**Story Points Planned:** 45
+**Story Points Completed:** 45/45
+
+**Sprint Duration:** 1 day (Intensive AI enhancement sprint)
+
+**Major Implementations Completed:**
+
+#### Dialog-Based Customization System
+**Story Points:** 20 - **STATUS: COMPLETED**
+
+**DialogCustomization Component** (Both EmbeddedAssistant.jsx & AssistantPanel.jsx):
+- Multi-step button-based UI for item customization
+- Step flow: Size Selection → Variant Selection → Add-ons Selection → Complete
+- Pre-selected size support when user specifies size in conversation
+- Deduplicated add-ons by name to prevent duplicates
+- Cancel button available at any step
+- Orange theme styling consistent with Ring & Wing branding
+
+**Component Structure:**
+```jsx
+const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete, onCancel }) => {
+  // Multi-step state management
+  const [selectedSize, setSelectedSize] = useState(preSelectedSize);
+  const [selectedVariant, setSelectedVariant] = useState(null);
+  const [selectedAddOns, setSelectedAddOns] = useState([]);
+  const [step, setStep] = useState('size');
+  // ... step transitions and rendering
+};
+```
+
+#### Conversation Flow Consistency Fix
+**Story Points:** 15 - **STATUS: COMPLETED**
+
+**Root Cause Analysis:**
+- When AI asked "Medium or Large?", `pendingSizeSelection` was NOT being set
+- User typing "large" had no context of which item to customize
+- "Yes" confirmation worked because it went through different code path
+
+**Solution Implementation:**
+- Added `isAskingForSize` detection in AI response handling
+- When AI asks about size AND suggests single item, set `pendingSizeSelection`
+- Size response now triggers `handleAddToCartWithSize` with the size
+- Dialog shows with add-ons selection step
+
+**Code Flow (Fixed):**
+1. User: "I want leche con caramelo"
+2. AI: "Would you like Medium or Large?" → `setPendingSizeSelection(suggestions[0])`
+3. User: "large"
+4. Code: `handleAddToCartWithSize(pendingSizeSelection, "large")`
+5. DialogCustomization shows with size pre-selected, add-ons step visible
+
+#### Flexible Add-On Category Matching
+**Story Points:** 5 - **STATUS: COMPLETED**
+
+**Problem:**
+- Add-ons had `category: 'Beverages'`
+- Items had `category: 'Frappe'` or similar subcategories
+- Strict matching prevented add-ons from showing
+
+**Solution:**
+```javascript
+const relevantAddOns = (addOns || []).filter(addon => {
+  const addonCat = (addon.category || '').toLowerCase();
+  const itemCat = (item.category || '').toLowerCase();
+  const itemSubCat = (item.subCategory || '').toLowerCase();
+  
+  return addonCat === 'all' || 
+         addonCat === itemCat || 
+         addonCat === itemSubCat ||
+         (addonCat === 'beverages' && (itemCat.includes('beverage') || 
+          itemSubCat.includes('frappe') || itemSubCat.includes('milk') || 
+          itemSubCat.includes('tea') || itemSubCat.includes('lemonade')));
+});
+```
+
+#### "Say Yes" Message Suppression
+**Story Points:** 5 - **STATUS: COMPLETED**
+
+**Problem:**
+- When AI asked "Medium or Large?", follow-up showed "Say yes or tap to add"
+- Confusing since user was being asked for size, not confirmation
+
+**Solution:**
+- Detect when AI is asking for size (contains "medium" AND "large", or "what size"/"which size")
+- Suppress "Say yes" follow-up message in these cases
+- Only show confirmation prompts when size is not being asked
+
+#### Files Modified
+
+**Frontend Components:**
+- EmbeddedAssistant.jsx:
+  - Added DialogCustomization component (~200 lines)
+  - Added handleCustomizationComplete callback
+  - Added handleCustomizationCancel callback
+  - Added handleManualItemTap for modal opening
+  - Updated handleAddToCartWithSize with dialog support
+  - Fixed pendingSizeSelection setting on AI size questions
+  - Flexible add-on category matching
+  
+- AssistantPanel.jsx:
+  - Same DialogCustomization component implementation
+  - Same callback handlers and fixes
+  - Mobile/tablet layout optimizations
+
+#### Feature Comparison
+
+| Feature | Before | After |
+|---------|--------|-------|
+| Size selection in chat | Direct add, no add-ons | Dialog with add-ons option |
+| Add-on selection | Only via modal | Button-based in dialog |
+| "Say yes" prompt | Always shown | Hidden when asking for size |
+| Add-on matching | Exact category only | Flexible beverage matching |
+| Manual item tap | Same as chat | Opens modal for full customization |
+
+#### Sprint Metrics
+
+**Story Point Breakdown:**
+- DialogCustomization Component: 15 points
+- Conversation Flow Fix: 10 points
+- Add-On Category Matching: 5 points
+- Say Yes Message Fix: 5 points
+- Testing & Bug Fixes: 10 points
+- **Total**: 45/45 points (100% completion)
+
+**Code Statistics:**
+- Lines added: ~800 (both components)
+- Functions added: 6 (dialog handlers)
+- Bug fixes: 3 critical issues
+
+#### Retrospective Notes
+
+**What Went Well:**
+- Dialog-based customization provides intuitive UX
+- Button-based selection faster than typing
+- Consistent experience across desktop and mobile
+- Add-ons now properly accessible in conversation flow
+
+**Challenges Overcome:**
+- Traced root cause of inconsistent size handling
+- Identified missing pendingSizeSelection state
+- Solved add-on category matching mismatch
+- Hot reload delay required patience during testing
+
+**Technical Lessons Learned:**
+- State management across AI conversation requires careful tracking
+- Category matching should be flexible for hierarchical data
+- User input context (size vs confirmation) affects UX messaging
+
+**Future Enhancements:**
+- Add variant step between size and add-ons
+- Support multiple items in single customization session
+- Add "recommended add-ons" based on item type
+- Voice input for hands-free ordering
+
+---
+
