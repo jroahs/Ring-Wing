@@ -137,8 +137,32 @@ exports.updateMenuItem = async (req, res) => {
       variants
     };
 
+    // Handle image deletion (revert to placeholder)
+    if (body.deleteImage === 'true') {
+      console.log('[Menu Update] User requested image deletion for item:', id);
+      
+      // Delete the old image if it exists
+      if (oldItem.image && !oldItem.image.includes('placeholders')) {
+        try {
+          if (oldItem.image.includes('supabase.co')) {
+            await deleteFileByUrl(oldItem.image);
+            console.log(`Successfully deleted Supabase image: ${oldItem.image}`);
+          } else {
+            const deleted = deleteMenuImage(oldItem.image);
+            if (deleted) {
+              console.log(`Successfully deleted local image: ${oldItem.image}`);
+            }
+          }
+        } catch (fileError) {
+          console.error('Error deleting menu image:', fileError);
+        }
+      }
+      
+      // Set image to empty string to use placeholder
+      updates.image = '';
+    }
     // Handle image upload/update
-    if (file || (body.image && body.image.startsWith('data:image'))) {
+    else if (file || (body.image && body.image.startsWith('data:image'))) {
       // Get new image path - now async with Supabase
       const itemCode = oldItem.code || 'ITEM';
       const imagePath = await handleImageUpload(file, body.image, itemCode);

@@ -839,21 +839,7 @@ const DesktopLayout = ({
         </div>
       )}
 
-      {/* Order Confirmation Modal */}
-      {orderSubmitted && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-2xl text-center max-w-md mx-4">
-            <h2 className="text-3xl font-bold mb-4">Order Submitted!</h2>
-            <p className="text-xl mb-4">Your order number is:</p>
-            <p className="text-4xl font-bold mb-6" style={{ color: colors.accent }}>
-              {orderNumber}
-            </p>
-            <p className="text-lg" style={{ color: colors.primary }}>
-              Please proceed to the counter for payment
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Order confirmation is handled by SelfCheckout overlay with z-9999 */}
 
       {/* Alternatives Modal */}
       <AlternativesModal

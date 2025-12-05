@@ -206,7 +206,8 @@ const SelfCheckoutContent = () => {
         availableSizes: Array.isArray(item.availableSizes) ? [...item.availableSizes] : ['base'],
         pricing: item.pricing ? { ...item.pricing } : { base: item.price },
         variant: null,
-        addOns: []
+        addOns: [],
+        notes: String(item.notes || '')
       };
       
       // Safely extract variant data
@@ -322,22 +323,34 @@ const SelfCheckoutContent = () => {
   };
 
   const processOrder = async (orderTypeFromMobile = null) => {
+    // Guard: If an event object is passed instead of a string, treat it as no argument
+    const validOrderTypes = ['dine_in', 'takeout', 'delivery'];
+    const isValidOrderType = typeof orderTypeFromMobile === 'string' && validOrderTypes.includes(orderTypeFromMobile);
+    const effectiveOrderType = isValidOrderType ? orderTypeFromMobile : null;
+    
+    console.log('[SelfCheckout] processOrder called with:', {
+      orderTypeFromMobile,
+      effectiveOrderType,
+      showPaymentFlow,
+      fulfillmentType,
+      selectedPaymentMethod,
+      cartItemsCount: cartItems.length
+    });
+    
     if (cartItems.length === 0) {
       alert('Please add items to your order');
       return;
     }
 
     // If order type is passed from mobile layout, use it
-    if (orderTypeFromMobile) {
-      // Map dine_in to dine-in format if needed
-      const mappedType = orderTypeFromMobile === 'dine_in' ? 'dine_in' : orderTypeFromMobile;
-      setFulfillmentType(mappedType);
+    if (effectiveOrderType) {
+      setFulfillmentType(effectiveOrderType);
       
       // For dine-in, submit immediately with the type passed directly
-      if (mappedType === 'dine_in') {
+      if (effectiveOrderType === 'dine_in') {
         setShowPaymentFlow(true);
         // Pass fulfillment type directly to avoid race condition with setState
-        await saveOrderToDB(mappedType);
+        await saveOrderToDB(effectiveOrderType);
         clearCart();
         return;
       }
@@ -640,6 +653,14 @@ const SelfCheckoutContent = () => {
 
   // Determine current step based on state
   const getCurrentStep = () => {
+    console.log('[SelfCheckout] getCurrentStep called:', {
+      showPaymentFlow,
+      orderSubmitted,
+      fulfillmentType,
+      selectedAddressId,
+      selectedPaymentMethod
+    });
+    
     if (!showPaymentFlow) return 'menu'; // Still browsing menu
     if (orderSubmitted) return 'confirmation';
     if (!fulfillmentType) return 'selectType';
@@ -658,9 +679,12 @@ const SelfCheckoutContent = () => {
   };
 
   const currentStep = getCurrentStep();
+  console.log('[SelfCheckout] currentStep:', currentStep, '| fulfillmentType:', fulfillmentType, '| showPaymentFlow:', showPaymentFlow);
 
   // Render payment verification flow overlay
   const renderPaymentFlow = () => {
+    console.log('[SelfCheckout] renderPaymentFlow called with currentStep:', currentStep);
+    
     // Don't show overlay if user hasn't clicked process order yet
     if (currentStep === 'menu') return null;
 
@@ -731,7 +755,8 @@ const SelfCheckoutContent = () => {
       );
     }
 
-    if (fulfillmentType !== 'dine_in') {
+    // Only show payment-related steps for takeout/delivery (not dine_in and not null)
+    if (fulfillmentType && fulfillmentType !== 'dine_in') {
       if (currentStep === 'selectPayment') {
         return (
           <div style={styles.overlay}>
@@ -776,7 +801,7 @@ const SelfCheckoutContent = () => {
                 <button 
                   onClick={() => {
                     setSelectedPaymentMethod(null);
-                    setCurrentStep('selectPayment');
+                    // currentStep is computed, not state - setting payment method to null will recalculate step
                   }} 
                   style={styles.backButton}
                 >
@@ -901,6 +926,20 @@ const SelfCheckoutContent = () => {
             >
               ← Back
             </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Fallback: If we reach here but showPaymentFlow is true, show order type selector
+    // This handles edge cases where state might be inconsistent
+    if (showPaymentFlow && !orderSubmitted) {
+      console.warn('[SelfCheckout] Unexpected state, falling back to selectType. CurrentStep:', currentStep, 'fulfillmentType:', fulfillmentType);
+      return (
+        <div style={styles.overlay}>
+          <div style={styles.flowContainer}>
+            <h2 style={styles.flowTitle}>Select Order Type</h2>
+            <OrderTypeSelector onSelect={handleFulfillmentTypeSelect} />
           </div>
         </div>
       );

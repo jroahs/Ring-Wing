@@ -947,26 +947,7 @@ const MobileLayout = ({
         </div>
       )}
 
-      {/* Order Confirmation Modal */}
-      {orderSubmitted && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-6 rounded-2xl text-center max-w-sm w-full">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h2 className="text-2xl font-bold mb-2">Order Submitted!</h2>
-            <p className="text-gray-600 mb-4">Your order number is:</p>
-            <p className="text-3xl font-bold mb-4" style={{ color: colors.accent }}>
-              {orderNumber}
-            </p>
-            <p className="text-gray-600">
-              Please proceed to the counter for payment
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Order confirmation is handled by SelfCheckout overlay with z-9999 */}
 
       {/* Alternatives Modal */}
       <AlternativesModal

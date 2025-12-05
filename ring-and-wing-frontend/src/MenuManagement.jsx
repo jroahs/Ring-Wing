@@ -218,7 +218,8 @@ const MenuPage = () => {
   const [showAddOnModal, setShowAddOnModal] = useState(false);
   const [addOnToDelete, setAddOnToDelete] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [imageFile, setImageFile] = useState(null);  
+  const [imageFile, setImageFile] = useState(null);
+  const [deleteImage, setDeleteImage] = useState(false); // Track if user wants to delete existing image
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false); // Add loading state for delete
   const [isSubmitting, setIsSubmitting] = useState(false); // Add loading state for form submission
@@ -1707,7 +1708,12 @@ const MenuPage = () => {
       formData.append('ingredients', JSON.stringify(selectedIngredients));
       formData.append('variants', JSON.stringify(data.variants || []));
   
-      if (imageFile) formData.append('image', imageFile);
+      if (imageFile) {
+        formData.append('image', imageFile);
+      } else if (deleteImage && selectedItem?._id) {
+        // User wants to delete the existing image (revert to placeholder)
+        formData.append('deleteImage', 'true');
+      }
   
       const method = selectedItem?._id ? 'PUT' : 'POST';
       const url = selectedItem?._id
@@ -1761,6 +1767,7 @@ const MenuPage = () => {
         });
         setImagePreview(responseData.image ? `${API_URL}${responseData.image}` : null);
         setImageFile(null);
+        setDeleteImage(false); // Reset delete flag
         
         // Auto-save ingredients if they were added during creation
         if (selectedIngredients.length > 0) {
@@ -2023,7 +2030,13 @@ const MenuPage = () => {
         ...selectedItem,
         code: selectedItem.code || '',
         subCategory: selectedItem.subCategory || defaultSubCategory
-      });      if (selectedItem.image) {
+      });
+      
+      // Reset image-related states
+      setImageFile(null);
+      setDeleteImage(false);
+      
+      if (selectedItem.image) {
         setImagePreview(
           selectedItem.image.startsWith('http') 
             ? selectedItem.image
@@ -2794,8 +2807,10 @@ const MenuPage = () => {
                   onClick={() => {
                     setImagePreview(null);
                     setImageFile(null);
+                    setDeleteImage(true); // Mark that we want to delete the existing image
                   }}
                   className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 text-xs shadow-md"
+                  title="Remove image (use placeholder)"
                 >
                   ×
                 </button>

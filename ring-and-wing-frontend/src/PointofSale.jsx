@@ -1247,6 +1247,8 @@ const PointOfSale = () => {
               name: addon.name,
               price: addon.price || 0
             })),
+            // Add item notes
+            notes: item.notes || '',
             pwdSeniorDiscount: item.pwdSeniorDiscount || {
               applied: false,
               discountedQuantity: 0,
@@ -1380,6 +1382,8 @@ const PointOfSale = () => {
             name: addon.name,
             price: addon.price || 0
           })),
+          // Add item notes
+          notes: item.notes || '',
           pwdSeniorDiscount: item.pwdSeniorDiscount || {
             applied: false,
             discountedQuantity: 0,

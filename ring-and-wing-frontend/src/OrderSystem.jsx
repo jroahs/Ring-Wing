@@ -542,6 +542,11 @@ const OrderSystem = () => {
                                 ({item.selectedSize})
                               </span>
                             )}
+                            {item.notes && (
+                              <span className="block text-xs md:text-sm text-amber-600 bg-amber-50 px-2 py-0.5 rounded mt-1">
+                                📝 {item.notes}
+                              </span>
+                            )}
                           </div>
                           <span className="text-[#2e0304]">{formatPHP(item.price)}</span>
                         </div>

@@ -7,6 +7,7 @@ export { default as PasswordVisibilityToggle } from './PasswordVisibilityToggle'
 export { Card } from './Card';
 export { Modal } from './Modal';
 export { Badge } from './Badge';
+export { default as Dropdown } from './Dropdown';
 export { MenuItemCard } from './MenuItemCard';
 export { OrderItem } from './OrderItem';
 export { PaymentPanel } from './PaymentPanel';
