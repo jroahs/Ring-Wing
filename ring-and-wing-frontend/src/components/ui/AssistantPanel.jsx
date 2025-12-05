@@ -151,7 +151,7 @@ FormattedText.propTypes = {
 
 // Size Selection Component
 const SizeSelectionMessage = ({ item, onSelectSize, onCancel }) => {
-  const sizes = Object.keys(item.pricing || {});
+  const sizes = Object.keys(item.pricing || {}).filter(k => k !== '_id');
   
   return (
     <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-3">
@@ -399,14 +399,14 @@ const ChatMessage = ({ message, onAddToCart, onSelectSize, onCancelSize, menuIte
     return (
       <div className="flex gap-3">
         <AIAvatar size="small" />
-        <div className="max-w-xs lg:max-w-sm px-4 py-3 rounded-2xl bg-green-50 border border-green-200">
+        <div className="max-w-xs lg:max-w-sm px-4 py-3 rounded-2xl bg-orange-50 border border-orange-200">
           <div className="flex items-center gap-2 mb-1">
-            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
-            <span className="text-sm font-medium text-green-800">Done!</span>
+            <span className="text-sm font-medium text-orange-800">Done!</span>
           </div>
-          <p className="text-sm text-green-700">
+          <p className="text-sm text-orange-700">
             <FormattedText text={message.text} menuItems={menuItems} />
           </p>
         </div>
@@ -1010,6 +1010,8 @@ Example responses:
   // Handle size selection callback
   const handleSizeSelected = (item, size) => {
     setPendingSizeSelection(null);
+    setLastSuggestedItems([]); // Clear so "yes" doesn't re-add
+    setConversationContext(null);
     onAddToCart(item, { size });
     
     // Add confirmation message
@@ -1031,6 +1033,8 @@ Example responses:
   // Handle size selection cancel
   const handleSizeCancel = () => {
     setPendingSizeSelection(null);
+    setLastSuggestedItems([]); // Clear context on cancel too
+    setConversationContext(null);
     const cancelMessage = {
       id: generateUniqueId(),
       text: "No problem! Let me know if you'd like something else.",
@@ -1185,10 +1189,96 @@ Example responses:
     return null;
   };
 
+  // Detect if user is responding with a size
+  const detectSizeResponse = (userInput) => {
+    const lowerInput = userInput.toLowerCase().trim();
+    const sizePatterns = {
+      's': ['small', 's', 'sm', 'the small', 'small one', 'smaller'],
+      'm': ['medium', 'm', 'med', 'the medium', 'medium one', 'regular'],
+      'l': ['large', 'l', 'lg', 'the large', 'large one', 'bigger', 'big']
+    };
+    
+    for (const [size, patterns] of Object.entries(sizePatterns)) {
+      if (patterns.some(p => lowerInput === p || lowerInput.includes(p))) {
+        return size;
+      }
+    }
+    return null;
+  };
+
   // Process user message with full AI functionality
   const processUserMessage = async (userInput) => {
     try {
       const lowerInput = userInput.toLowerCase().trim();
+      
+      // ========== 0. CHECK FOR SIZE RESPONSE (when awaiting size) ==========
+      // If we're waiting for a size selection and user types a size
+      if (conversationContext?.type === 'awaiting_size' && conversationContext?.item) {
+        const sizeResponse = detectSizeResponse(lowerInput);
+        if (sizeResponse) {
+          const item = conversationContext.item;
+          const sizes = Object.keys(item.pricing || {}).filter(k => k !== '_id');
+          // Find matching size (case insensitive)
+          const matchedSize = sizes.find(s => s.toLowerCase() === sizeResponse || s.toLowerCase().startsWith(sizeResponse));
+          if (matchedSize) {
+            onAddToCart(item, { size: matchedSize });
+            setConversationContext(null);
+            setPendingSizeSelection(null);
+            setLastSuggestedItems([]);
+            return {
+              success: true,
+              message: `Added **${item.name}** (${matchedSize.toUpperCase()}) to your cart! 🎉 Anything else?`,
+              type: 'cart-action'
+            };
+          }
+        }
+      }
+      
+      // Also check pendingSizeSelection as backup
+      if (pendingSizeSelection) {
+        const sizeResponse = detectSizeResponse(lowerInput);
+        if (sizeResponse) {
+          const item = pendingSizeSelection;
+          const sizes = Object.keys(item.pricing || {}).filter(k => k !== '_id');
+          const matchedSize = sizes.find(s => s.toLowerCase() === sizeResponse || s.toLowerCase().startsWith(sizeResponse));
+          if (matchedSize) {
+            onAddToCart(item, { size: matchedSize });
+            setConversationContext(null);
+            setPendingSizeSelection(null);
+            setLastSuggestedItems([]);
+            return {
+              success: true,
+              message: `Added **${item.name}** (${matchedSize.toUpperCase()}) to your cart! 🎉 Anything else?`,
+              type: 'cart-action'
+            };
+          }
+        }
+      }
+      
+      // ========== CHECK FOR SIZE RESPONSE WITH LAST SUGGESTED ITEM ==========
+      // When AI asked about sizes and user types "medium" or "large"
+      if (lastSuggestedItems.length === 1) {
+        const item = lastSuggestedItems[0];
+        const sizes = Object.keys(item.pricing || {}).filter(k => k !== '_id');
+        if (sizes.length > 1) {
+          const sizeResponse = detectSizeResponse(lowerInput);
+          if (sizeResponse) {
+            const matchedSize = sizes.find(s => s.toLowerCase() === sizeResponse || s.toLowerCase().startsWith(sizeResponse));
+            if (matchedSize) {
+              onAddToCart(item, { size: matchedSize });
+              setConversationContext(null);
+              setPendingSizeSelection(null);
+              setLastSuggestedItems([]);
+              return {
+                success: true,
+                message: `Added **${item.name}** (${matchedSize.toUpperCase()}) to your cart! 🎉 Anything else?`,
+                type: 'cart-action'
+              };
+            }
+          }
+        }
+      }
+      // ========== END SIZE RESPONSE CHECK ==========
       
       // ========== 1. CHECK FOR CART MODIFICATION FIRST ==========
       const cartIntent = detectCartModificationIntent(userInput);

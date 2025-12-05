@@ -223,14 +223,14 @@ const ChatMessage = ({ message, onAddToCart, onSelectSize, onCancelSize, menuIte
     return (
       <div className="flex gap-2">
         <AIAvatar size="small" />
-        <div className="max-w-[85%] px-3 py-2 rounded-2xl bg-green-50 border border-green-200">
+        <div className="max-w-[85%] px-3 py-2 rounded-2xl bg-orange-50 border border-orange-200">
           <div className="flex items-center gap-2 mb-1">
-            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
-            <span className="text-xs font-medium text-green-800">Done!</span>
+            <span className="text-xs font-medium text-orange-800">Done!</span>
           </div>
-          <p className="text-sm text-green-700 leading-relaxed">
+          <p className="text-sm text-orange-700 leading-relaxed">
             <FormattedText text={message.text} menuItems={menuItems} />
           </p>
         </div>
@@ -513,6 +513,10 @@ Example responses:
   const executeCartModification = (modification) => {
     if (modification.action === 'clear') {
       onClearCart();
+      // Reset conversation state
+      setLastSuggestedItems([]);
+      setConversationContext(null);
+      setPendingSizeSelection(null);
       return { 
         text: "Done! I've cleared your cart. Ready to start a new order?",
         type: 'cart-action'
@@ -637,6 +641,8 @@ Example responses:
   // Handle size selection callback
   const handleSizeSelected = (item, size) => {
     setPendingSizeSelection(null);
+    setLastSuggestedItems([]); // Clear so "yes" doesn't re-add
+    setConversationContext(null);
     onAddToCart(item, { size });
     
     const confirmMessage = {
@@ -652,6 +658,8 @@ Example responses:
   // Handle size selection cancel
   const handleSizeCancel = () => {
     setPendingSizeSelection(null);
+    setLastSuggestedItems([]); // Clear context on cancel too
+    setConversationContext(null);
     const cancelMessage = {
       id: generateUniqueId(),
       text: "No problem! Let me know if you'd like something else.",
@@ -719,6 +727,30 @@ Example responses:
       }
     }
     // ========== END PENDING SIZE CHECK ==========
+    
+    // ========== CHECK FOR SIZE RESPONSE WITH LAST SUGGESTED ITEM ==========
+    // When AI asked about sizes and user types "medium" or "large"
+    if (lastSuggestedItems.length === 1) {
+      const item = lastSuggestedItems[0];
+      const sizes = Object.keys(item.pricing || {}).filter(k => k !== '_id');
+      if (sizes.length > 1) {
+        const matchedSize = matchSizeFromInput(currentInput, sizes);
+        if (matchedSize) {
+          onAddToCart(item, { size: matchedSize });
+          setLastSuggestedItems([]);
+          const confirmMessage = {
+            id: generateUniqueId(),
+            text: `Added **${item.name}** (${matchedSize.toUpperCase()}) to your cart! 🎉 Anything else?`,
+            sender: 'bot',
+            timestamp: new Date(),
+            type: 'cart-action'
+          };
+          setMessages(prev => [...prev, confirmMessage]);
+          return;
+        }
+      }
+    }
+    // ========== END SIZE RESPONSE CHECK ==========
     
     // ========== CHECK FOR DIRECT ADD INTENT ==========
     if (detectDirectAddIntent(currentInput)) {

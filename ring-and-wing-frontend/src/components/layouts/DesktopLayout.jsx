@@ -702,8 +702,8 @@ const DesktopLayout = ({
               </>
             )}
 
-            {/* AI Assistant View */}
-            {sidebarView === 'assistant' && (
+            {/* AI Assistant View - Always mounted, visibility controlled */}
+            <div className={sidebarView === 'assistant' ? 'flex-1 flex flex-col overflow-hidden' : 'hidden'}>
               <EmbeddedAssistant
                 menuItems={menuItems}
                 currentOrder={cartItems}
@@ -716,7 +716,7 @@ const DesktopLayout = ({
                 isAuthenticated={isAuthenticated}
                 cartTotal={calculateTotal().total}
               />
-            )}
+            </div>
           </div>
         )}
       </div>
