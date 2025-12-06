@@ -464,7 +464,7 @@ const StaffManagement = () => {
         employmentType: formData.employmentType,
         profilePicture: formData.profilePicture,
         phone: formData.phone,
-        dailyRate: formData.dailyRate,
+        hourlyRate: formData.hourlyRate,
         status: formData.status,
         sssNumber: formData.sssNumber || '',
         tinNumber: formData.tinNumber || '',

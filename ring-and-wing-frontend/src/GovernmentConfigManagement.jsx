@@ -87,7 +87,10 @@ const GovernmentConfigManagement = () => {
   const [newBracket, setNewBracket] = useState({ min: 0, max: 0, msc: 0 });
   const [message, setMessage] = useState({ text: '', type: '' });
 
+  console.log('🚀 GovernmentConfigManagement component loaded - VERSION 2');
+
   useEffect(() => {
+    console.log('🎯 useEffect triggered - fetching config');
     fetchActiveConfig();
     fetchHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -113,12 +116,33 @@ const GovernmentConfigManagement = () => {
   };
 
   const fetchActiveConfig = async () => {
+    console.log('📞 fetchActiveConfig called');
     try {
       // Add cache buster to force fresh data
       const cacheBuster = Date.now();
+      console.log('🌐 Making API call with cacheBuster:', cacheBuster);
       const response = await api.get(`/api/government-config?_=${cacheBuster}`);
-      if (response.data.success) {
-        const config = response.data.data;
+      console.log('📥 RAW API response:', response);
+      console.log('📥 Response data:', response.data);
+      console.log('📥 API response received:', {
+        success: response.data?.success,
+        hasData: !!response.data?.data,
+        status: response.status,
+        mscBracketsInResponse: response.data?.data?.sss?.mscBrackets?.length || 0,
+        mscBracketsDirectly: response.data?.sss?.mscBrackets?.length || 0
+      });
+      
+      // Handle both response formats
+      const config = response.data?.data || response.data;
+      console.log('🔍 Received config:', {
+        year: config.year,
+        isActive: config.isActive,
+        mscBracketsCount: config.sss?.mscBrackets?.length || 0,
+        firstBracket: config.sss?.mscBrackets?.[0],
+        lastBracket: config.sss?.mscBrackets?.[config.sss?.mscBrackets?.length - 1]
+      });
+      
+      if (response.data?.success !== false && config) {
         console.log('🔍 Received config:', {
           year: config.year,
           isActive: config.isActive,
@@ -157,9 +181,15 @@ const GovernmentConfigManagement = () => {
           },
           notes: config.notes || ''
         });
+        console.log('✅ formData set with mscBrackets:', config.sss?.mscBrackets?.length || 0);
       }
     } catch (error) {
-      console.error('Error fetching config:', error);
+      console.error('❌ Error fetching config:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       if (error.response?.status === 404) {
         showMessage('No configuration found. Please create initial configuration.', 'error');
       } else {
