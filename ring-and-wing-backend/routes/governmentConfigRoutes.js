@@ -13,6 +13,14 @@ const router = express.Router();
 // GET /api/government-config - Get active configuration (all authenticated users)
 router.get('/', auth, async (req, res) => {
   try {
+    // Disable caching for this endpoint to ensure fresh data
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store'
+    });
+
     const config = await GovernmentDeductionConfig.getActiveConfig();
     
     if (!config) {
