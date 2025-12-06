@@ -16,7 +16,7 @@ const RATE_LIMITS = {
     ecLowRate: { min: 0, max: 50, default: 10 },
     ecHighRate: { min: 0, max: 100, default: 30 },
     ecThreshold: { min: 10000, max: 30000, default: 15000 },
-    mscMin: { min: 1000, max: 10000, default: 4000 },
+    mscMin: { min: 1000, max: 10000, default: 5000 },  // Updated: MSC starts at 5000
     mscMax: { min: 20000, max: 100000, default: 35000 }
   },
   philHealth: {
@@ -120,7 +120,10 @@ function validateSSSConfig(sss) {
         continue;
       }
       
-      if (bracket.min >= bracket.max && bracket.max !== Infinity) {
+      // Handle Infinity or large max values for the final bracket
+      const isUnboundedMax = bracket.max === Infinity || bracket.max >= 9999999;
+      
+      if (bracket.min >= bracket.max && !isUnboundedMax) {
         errors.push(`SSS bracket ${i + 1}: min must be less than max`);
         continue;
       }
@@ -137,7 +140,8 @@ function validateSSSConfig(sss) {
       
       validated.mscBrackets.push({
         min: Number(bracket.min),
-        max: bracket.max === Infinity ? Infinity : Number(bracket.max),
+        // Use large number for MongoDB instead of Infinity
+        max: isUnboundedMax ? 9999999.99 : Number(bracket.max),
         msc: Number(bracket.msc),
         employeeContribution: Number((bracket.msc * validated.employeeRate).toFixed(2)),
         employerContribution: Number((bracket.msc * validated.employerRate).toFixed(2)),
@@ -424,6 +428,8 @@ function getDefault2024Config() {
 
 /**
  * Generate default MSC brackets for 2024
+ * Based on official SSS Circular No. 2023-033
+ * MSC starts at ₱5,000 (minimum) and goes up to ₱35,000 (maximum)
  */
 function generateDefaultMSCBrackets() {
   const brackets = [];
@@ -431,33 +437,38 @@ function generateDefaultMSCBrackets() {
   const employerRate = 0.10;
   const ecThreshold = 15000;
   
-  // Standard brackets from 4000 to 25000 (500 increments)
-  for (let msc = 4000; msc <= 25000; msc += 500) {
-    const min = msc === 4000 ? 0 : msc - 249.99;
-    const max = msc + 249.99;
+  // First bracket: 0 - 4,999 maps to MSC 5,000
+  brackets.push({
+    min: 0, max: 4999.99, msc: 5000,
+    employeeContribution: Number((5000 * employeeRate).toFixed(2)),
+    employerContribution: Number((5000 * employerRate).toFixed(2)),
+    ecContribution: 10
+  });
+  
+  // Second bracket: 5,000 - 5,249 also maps to MSC 5,000
+  brackets.push({
+    min: 5000, max: 5249.99, msc: 5000,
+    employeeContribution: Number((5000 * employeeRate).toFixed(2)),
+    employerContribution: Number((5000 * employerRate).toFixed(2)),
+    ecContribution: 10
+  });
+  
+  // Standard brackets from 5,500 to 35,000 (500 increments)
+  for (let msc = 5500; msc <= 35000; msc += 500) {
+    const min = msc - 250;
+    // Use large number for MongoDB instead of Infinity
+    const max = msc === 35000 ? 9999999.99 : msc + 249.99;
+    const ec = msc <= ecThreshold ? 10 : 30;
+    
     brackets.push({
-      min: msc === 4000 ? 0 : msc - 250,
+      min: min,
       max: max,
       msc: msc,
       employeeContribution: Number((msc * employeeRate).toFixed(2)),
       employerContribution: Number((msc * employerRate).toFixed(2)),
-      ecContribution: msc <= ecThreshold ? 10 : 30
+      ecContribution: ec
     });
   }
-  
-  // Add higher brackets
-  brackets.push({
-    min: 24750, max: 29999.99, msc: 25000,
-    employeeContribution: 1250, employerContribution: 2500, ecContribution: 30
-  });
-  brackets.push({
-    min: 30000, max: 34999.99, msc: 30000,
-    employeeContribution: 1500, employerContribution: 3000, ecContribution: 30
-  });
-  brackets.push({
-    min: 35000, max: Infinity, msc: 35000,
-    employeeContribution: 1750, employerContribution: 3500, ecContribution: 30
-  });
   
   return brackets;
 }

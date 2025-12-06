@@ -20,11 +20,14 @@ const mongoose = require('mongoose');
 const GovernmentDeductionConfig = require('./models/GovernmentDeductionConfig');
 const User = require('./models/User');
 
-// SSS MSC Brackets - 2024 with pre-computed contributions
+// SSS MSC Brackets - 2024 Official Table
+// Based on SSS Circular No. 2023-033
+// MSC starts at ₱5,000 minimum and goes up to ₱35,000 maximum
 const SSS_MSC_BRACKETS = [
-  { min: 0, max: 4249.99, msc: 4000, employeeContribution: 200, employerContribution: 400, ecContribution: 10 },
-  { min: 4250, max: 4749.99, msc: 4500, employeeContribution: 225, employerContribution: 450, ecContribution: 10 },
-  { min: 4750, max: 5249.99, msc: 5000, employeeContribution: 250, employerContribution: 500, ecContribution: 10 },
+  // First bracket: 0 - 4,999 maps to MSC 5,000
+  { min: 0, max: 4999.99, msc: 5000, employeeContribution: 250, employerContribution: 500, ecContribution: 10 },
+  // Second bracket: 5,000 - 5,249 also maps to MSC 5,000
+  { min: 5000, max: 5249.99, msc: 5000, employeeContribution: 250, employerContribution: 500, ecContribution: 10 },
   { min: 5250, max: 5749.99, msc: 5500, employeeContribution: 275, employerContribution: 550, ecContribution: 10 },
   { min: 5750, max: 6249.99, msc: 6000, employeeContribution: 300, employerContribution: 600, ecContribution: 10 },
   { min: 6250, max: 6749.99, msc: 6500, employeeContribution: 325, employerContribution: 650, ecContribution: 10 },
@@ -65,9 +68,28 @@ const SSS_MSC_BRACKETS = [
   { min: 23750, max: 24249.99, msc: 24000, employeeContribution: 1200, employerContribution: 2400, ecContribution: 30 },
   { min: 24250, max: 24749.99, msc: 24500, employeeContribution: 1225, employerContribution: 2450, ecContribution: 30 },
   { min: 24750, max: 25249.99, msc: 25000, employeeContribution: 1250, employerContribution: 2500, ecContribution: 30 },
-  { min: 25250, max: 29999.99, msc: 25000, employeeContribution: 1250, employerContribution: 2500, ecContribution: 30 },
-  { min: 30000, max: 34999.99, msc: 30000, employeeContribution: 1500, employerContribution: 3000, ecContribution: 30 },
-  { min: 35000, max: Infinity, msc: 35000, employeeContribution: 1750, employerContribution: 3500, ecContribution: 30 }
+  { min: 25250, max: 25749.99, msc: 25500, employeeContribution: 1275, employerContribution: 2550, ecContribution: 30 },
+  { min: 25750, max: 26249.99, msc: 26000, employeeContribution: 1300, employerContribution: 2600, ecContribution: 30 },
+  { min: 26250, max: 26749.99, msc: 26500, employeeContribution: 1325, employerContribution: 2650, ecContribution: 30 },
+  { min: 26750, max: 27249.99, msc: 27000, employeeContribution: 1350, employerContribution: 2700, ecContribution: 30 },
+  { min: 27250, max: 27749.99, msc: 27500, employeeContribution: 1375, employerContribution: 2750, ecContribution: 30 },
+  { min: 27750, max: 28249.99, msc: 28000, employeeContribution: 1400, employerContribution: 2800, ecContribution: 30 },
+  { min: 28250, max: 28749.99, msc: 28500, employeeContribution: 1425, employerContribution: 2850, ecContribution: 30 },
+  { min: 28750, max: 29249.99, msc: 29000, employeeContribution: 1450, employerContribution: 2900, ecContribution: 30 },
+  { min: 29250, max: 29749.99, msc: 29500, employeeContribution: 1475, employerContribution: 2950, ecContribution: 30 },
+  { min: 29750, max: 30249.99, msc: 30000, employeeContribution: 1500, employerContribution: 3000, ecContribution: 30 },
+  { min: 30250, max: 30749.99, msc: 30500, employeeContribution: 1525, employerContribution: 3050, ecContribution: 30 },
+  { min: 30750, max: 31249.99, msc: 31000, employeeContribution: 1550, employerContribution: 3100, ecContribution: 30 },
+  { min: 31250, max: 31749.99, msc: 31500, employeeContribution: 1575, employerContribution: 3150, ecContribution: 30 },
+  { min: 31750, max: 32249.99, msc: 32000, employeeContribution: 1600, employerContribution: 3200, ecContribution: 30 },
+  { min: 32250, max: 32749.99, msc: 32500, employeeContribution: 1625, employerContribution: 3250, ecContribution: 30 },
+  { min: 32750, max: 33249.99, msc: 33000, employeeContribution: 1650, employerContribution: 3300, ecContribution: 30 },
+  { min: 33250, max: 33749.99, msc: 33500, employeeContribution: 1675, employerContribution: 3350, ecContribution: 30 },
+  { min: 33750, max: 34249.99, msc: 34000, employeeContribution: 1700, employerContribution: 3400, ecContribution: 30 },
+  { min: 34250, max: 34749.99, msc: 34500, employeeContribution: 1725, employerContribution: 3450, ecContribution: 30 },
+  // Final bracket: 34,750+ maps to max MSC of 35,000
+  // Note: Using 9999999.99 instead of Infinity because MongoDB cannot store Infinity
+  { min: 34750, max: 9999999.99, msc: 35000, employeeContribution: 1750, employerContribution: 3500, ecContribution: 30 }
 ];
 
 const seedGovernmentConfig = async () => {
@@ -86,40 +108,28 @@ const seedGovernmentConfig = async () => {
       console.log(`Found admin user: ${adminUser.username}`);
     }
 
-    // Check if compliant configuration already exists
-    const existingConfig = await GovernmentDeductionConfig.findOne({ 
-      year: 2024,
-      'sss.employerRate': { $exists: true }  // Check if already updated
-    });
-    
-    if (existingConfig) {
-      console.log('2024 compliant configuration already exists. Skipping...');
-      console.log('Config ID:', existingConfig._id);
-      console.log('Version:', existingConfig.version);
-      process.exit(0);
-    }
+    // Always delete existing configurations and create fresh
+    console.log('Deleting old configurations...');
+    await GovernmentDeductionConfig.deleteMany({});
+    console.log('Old configurations deleted.');
 
-    // Deactivate old configurations
-    await GovernmentDeductionConfig.updateMany({ isActive: true }, { isActive: false });
-
-    console.log('Creating new 2024 compliant configuration...');
+    console.log('Creating new 2025 compliant configuration...');
     
-    // Get latest version for new config
-    const latestConfig = await GovernmentDeductionConfig.findOne().sort({ version: -1 });
-    const newVersion = latestConfig ? latestConfig.version + 1 : 1;
+    // Version 1 for fresh seed
+    const newVersion = 1;
 
     const newConfig = new GovernmentDeductionConfig({
       version: newVersion,
-      previousVersion: latestConfig?._id,
-      year: 2024,
-      effectiveDate: new Date('2024-01-01'),
+      previousVersion: null,
+      year: 2025,
+      effectiveDate: new Date(),
       
       // SSS Configuration - Full compliance
       sss: {
         employeeRate: 0.05,    // 5%
         employerRate: 0.10,    // 10%
         totalRate: 0.15,       // 15% total
-        mscFloor: 4000,        // Minimum MSC
+        mscFloor: 5000,        // Minimum MSC (2024 Official)
         mscCeiling: 35000,     // Maximum MSC (2024)
         mscBrackets: SSS_MSC_BRACKETS,
         ec: {
@@ -205,8 +215,8 @@ const seedGovernmentConfig = async () => {
     console.log('  • Employee Rate: 5% of MSC');
     console.log('  • Employer Rate: 10% of MSC');
     console.log('  • EC (Employees\' Compensation): ₱10 (MSC ≤ ₱15,000) or ₱30 (MSC > ₱15,000)');
-    console.log('  • MSC Range: ₱4,000 - ₱35,000');
-    console.log('  • Brackets: 46');
+    console.log('  • MSC Range: ₱5,000 - ₱35,000 (2024 Official)');
+    console.log('  • Brackets:', SSS_MSC_BRACKETS.length);
     console.log('');
     console.log('PhilHealth (Philippine Health Insurance):');
     console.log('  • Employee Rate: 2.5% of MBS');
