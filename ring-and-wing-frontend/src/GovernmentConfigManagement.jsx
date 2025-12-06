@@ -114,9 +114,18 @@ const GovernmentConfigManagement = () => {
 
   const fetchActiveConfig = async () => {
     try {
-      const response = await api.get('/api/government-config');
+      // Add cache buster to force fresh data
+      const cacheBuster = Date.now();
+      const response = await api.get(`/api/government-config?_=${cacheBuster}`);
       if (response.data.success) {
         const config = response.data.data;
+        console.log('🔍 Received config:', {
+          year: config.year,
+          isActive: config.isActive,
+          mscBracketsCount: config.sss?.mscBrackets?.length || 0,
+          firstBracket: config.sss?.mscBrackets?.[0],
+          lastBracket: config.sss?.mscBrackets?.[config.sss?.mscBrackets?.length - 1]
+        });
         setActiveConfig(config);
         setFormData({
           year: config.year,

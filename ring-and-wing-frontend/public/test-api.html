@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Direct API Test</title>
+</head>
+<body>
+    <h1>Government Config API Test</h1>
+    <button onclick="testAPI()">Test API</button>
+    <pre id="result"></pre>
+
+    <script>
+        async function testAPI() {
+            const resultEl = document.getElementById('result');
+            resultEl.textContent = 'Loading...';
+            
+            try {
+                // Get token from localStorage (if you're logged in on localhost:5173)
+                const token = localStorage.getItem('token');
+                
+                const response = await fetch('https://ring-wing-backend.onrender.com/api/government-config?_=' + Date.now(), {
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                });
+                
+                const data = await response.json();
+                
+                const analysis = {
+                    status: response.status,
+                    success: data.success,
+                    year: data.data?.year,
+                    isActive: data.data?.isActive,
+                    mscBracketsCount: data.data?.sss?.mscBrackets?.length || 0,
+                    firstBracket: data.data?.sss?.mscBrackets?.[0],
+                    lastBracket: data.data?.sss?.mscBrackets?.[data.data?.sss?.mscBrackets?.length - 1],
+                    fullResponse: data
+                };
+                
+                resultEl.textContent = JSON.stringify(analysis, null, 2);
+            } catch (error) {
+                resultEl.textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

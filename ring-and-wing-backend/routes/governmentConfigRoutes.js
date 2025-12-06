@@ -23,6 +23,16 @@ router.get('/', auth, async (req, res) => {
 
     const config = await GovernmentDeductionConfig.getActiveConfig();
     
+    // Debug logging
+    console.log('[Gov Config API] Returning config:', {
+      found: !!config,
+      year: config?.year,
+      isActive: config?.isActive,
+      mscBracketsCount: config?.sss?.mscBrackets?.length || 0,
+      firstBracket: config?.sss?.mscBrackets?.[0],
+      lastBracket: config?.sss?.mscBrackets?.[config?.sss?.mscBrackets?.length - 1]
+    });
+    
     if (!config) {
       return res.status(404).json({
         success: false,
