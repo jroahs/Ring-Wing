@@ -3,6 +3,9 @@
  * Calculates Philippine government-mandated deductions (SSS, PhilHealth, Pag-IBIG)
  * Based on 2024 official rates and tables
  * This mirrors the backend calculations for frontend preview
+ * 
+ * IMPORTANT: This file calculates BOTH employee and employer contributions
+ * for compliance with Philippine government regulations.
  */
 
 // SSS Monthly Salary Credit (MSC) Brackets - 2024
@@ -54,20 +57,30 @@ const SSS_MSC_BRACKETS = [
   { min: 35000, max: Infinity, msc: 35000 }
 ];
 
-const SSS_EMPLOYEE_RATE = 0.05; // 5% employee contribution
+// SSS Rates - 2024 (Employee 5%, Employer 10%)
+const SSS_CONFIG = {
+  employeeRate: 0.05,    // 5% employee contribution
+  employerRate: 0.10,    // 10% employer contribution
+  ecThreshold: 15000,    // MSC threshold for EC rate
+  ecLowRate: 10,         // ₱10 EC for MSC ≤ ₱15,000
+  ecHighRate: 30         // ₱30 EC for MSC > ₱15,000
+};
 
 // PhilHealth Configuration - 2024
 const PHILHEALTH_CONFIG = {
-  floor: 10000,           // Minimum salary for calculation
-  ceiling: 100000,        // Maximum salary for calculation
+  floor: 10000,           // Minimum salary for calculation (MBS floor)
+  ceiling: 100000,        // Maximum salary for calculation (MBS ceiling)
   totalRate: 0.05,        // 5% total premium
-  employeeShare: 0.025    // 2.5% employee portion (50% of total)
+  employeeShare: 0.025,   // 2.5% employee portion (50% of total)
+  employerShare: 0.025    // 2.5% employer portion (50% of total)
 };
 
 // Pag-IBIG Configuration - 2024
 const PAGIBIG_CONFIG = {
-  rate: 0.02,   // 2% employee contribution
-  cap: 200      // Maximum ₱200 monthly contribution
+  employeeRate: 0.02,     // 2% employee contribution
+  employerRate: 0.02,     // 2% employer contribution
+  mfsCap: 10000,          // Maximum Fund Salary (MFS) cap ₱10,000
+  maxContribution: 200    // Maximum ₱200 monthly contribution each
 };
 
 /**
@@ -86,100 +99,184 @@ function findMSC(salary) {
 }
 
 /**
- * Calculate SSS (Social Security System) deduction
+ * Calculate SSS (Social Security System) contributions
+ * Returns BOTH employee and employer shares including EC
  * @param {number} monthlySalary - Monthly salary amount
  * @param {boolean} hasSSSNumber - Whether employee has SSS number
- * @returns {number} - SSS deduction amount (0 if no SSS number)
+ * @returns {object} - SSS contribution breakdown
  */
 export function calculateSSS(monthlySalary, hasSSSNumber) {
   if (!hasSSSNumber || !monthlySalary || monthlySalary <= 0) {
-    return 0;
+    return {
+      employeeAmount: 0,
+      employerAmount: 0,
+      ecAmount: 0,
+      totalContribution: 0,
+      msc: 0,
+      amount: 0 // Legacy field for backward compatibility
+    };
   }
   
   const msc = findMSC(monthlySalary);
-  const sssDeduction = msc * SSS_EMPLOYEE_RATE;
+  const employeeAmount = Number((msc * SSS_CONFIG.employeeRate).toFixed(2));
+  const employerAmount = Number((msc * SSS_CONFIG.employerRate).toFixed(2));
   
-  return Number(sssDeduction.toFixed(2));
+  // EC (Employees' Compensation) is based on MSC threshold
+  const ecAmount = msc <= SSS_CONFIG.ecThreshold ? SSS_CONFIG.ecLowRate : SSS_CONFIG.ecHighRate;
+  
+  const totalContribution = employeeAmount + employerAmount + ecAmount;
+  
+  return {
+    employeeAmount,
+    employerAmount,
+    ecAmount,
+    totalContribution: Number(totalContribution.toFixed(2)),
+    msc,
+    amount: employeeAmount // Legacy field for backward compatibility
+  };
 }
 
 /**
- * Calculate PhilHealth (Philippine Health Insurance) deduction
+ * Calculate PhilHealth (Philippine Health Insurance) contributions
+ * Returns BOTH employee and employer shares
  * @param {number} monthlySalary - Monthly salary amount
  * @param {boolean} hasPhilHealthNumber - Whether employee has PhilHealth number
- * @returns {number} - PhilHealth deduction amount (0 if no PhilHealth number)
+ * @returns {object} - PhilHealth contribution breakdown
  */
 export function calculatePhilHealth(monthlySalary, hasPhilHealthNumber) {
   if (!hasPhilHealthNumber || !monthlySalary || monthlySalary <= 0) {
-    return 0;
+    return {
+      employeeAmount: 0,
+      employerAmount: 0,
+      totalContribution: 0,
+      mbs: 0,
+      amount: 0 // Legacy field for backward compatibility
+    };
   }
   
-  // Apply floor and ceiling
-  const baseSalary = Math.max(
+  // Apply floor and ceiling to get Monthly Basic Salary (MBS)
+  const mbs = Math.max(
     PHILHEALTH_CONFIG.floor, 
     Math.min(monthlySalary, PHILHEALTH_CONFIG.ceiling)
   );
   
-  const philHealthDeduction = baseSalary * PHILHEALTH_CONFIG.employeeShare;
+  const employeeAmount = Number((mbs * PHILHEALTH_CONFIG.employeeShare).toFixed(2));
+  const employerAmount = Number((mbs * PHILHEALTH_CONFIG.employerShare).toFixed(2));
+  const totalContribution = employeeAmount + employerAmount;
   
-  return Number(philHealthDeduction.toFixed(2));
+  return {
+    employeeAmount,
+    employerAmount,
+    totalContribution: Number(totalContribution.toFixed(2)),
+    mbs,
+    amount: employeeAmount // Legacy field for backward compatibility
+  };
 }
 
 /**
- * Calculate Pag-IBIG (Home Development Mutual Fund) deduction
+ * Calculate Pag-IBIG (Home Development Mutual Fund) contributions
+ * Returns BOTH employee and employer shares
  * @param {number} monthlySalary - Monthly salary amount
  * @param {boolean} hasPagIbigNumber - Whether employee has Pag-IBIG number
- * @returns {number} - Pag-IBIG deduction amount (0 if no Pag-IBIG number)
+ * @returns {object} - Pag-IBIG contribution breakdown
  */
 export function calculatePagIbig(monthlySalary, hasPagIbigNumber) {
   if (!hasPagIbigNumber || !monthlySalary || monthlySalary <= 0) {
-    return 0;
+    return {
+      employeeAmount: 0,
+      employerAmount: 0,
+      totalContribution: 0,
+      mfs: 0,
+      amount: 0 // Legacy field for backward compatibility
+    };
   }
   
-  // Calculate 2% of salary, capped at ₱200
-  const pagIbigDeduction = Math.min(
-    monthlySalary * PAGIBIG_CONFIG.rate, 
-    PAGIBIG_CONFIG.cap
+  // Apply MFS cap (Maximum Fund Salary)
+  const mfs = Math.min(monthlySalary, PAGIBIG_CONFIG.mfsCap);
+  
+  // Calculate contributions (capped at max contribution)
+  const employeeAmount = Math.min(
+    mfs * PAGIBIG_CONFIG.employeeRate, 
+    PAGIBIG_CONFIG.maxContribution
+  );
+  const employerAmount = Math.min(
+    mfs * PAGIBIG_CONFIG.employerRate, 
+    PAGIBIG_CONFIG.maxContribution
   );
   
-  return Number(pagIbigDeduction.toFixed(2));
+  const totalContribution = employeeAmount + employerAmount;
+  
+  return {
+    employeeAmount: Number(employeeAmount.toFixed(2)),
+    employerAmount: Number(employerAmount.toFixed(2)),
+    totalContribution: Number(totalContribution.toFixed(2)),
+    mfs,
+    amount: Number(employeeAmount.toFixed(2)) // Legacy field for backward compatibility
+  };
 }
 
 /**
  * Calculate all government deductions for an employee
+ * Returns full breakdown including employee shares, employer shares, and EC
  * @param {number} monthlySalary - Monthly salary amount
  * @param {object} employee - Employee object with government IDs
- * @returns {object} - Object containing all deduction amounts and details
+ * @returns {object} - Object containing all contribution amounts and details
  */
 export function calculateAllGovernmentDeductions(monthlySalary, employee) {
-  const hasSSSNumber = !!(employee.sssNumber && employee.sssNumber.trim());
-  const hasPhilHealthNumber = !!(employee.philHealthNumber && employee.philHealthNumber.trim());
-  const hasPagIbigNumber = !!(employee.pagIbigNumber && employee.pagIbigNumber.trim());
+  const hasSSSNumber = !!(employee?.sssNumber && employee.sssNumber.trim());
+  const hasPhilHealthNumber = !!(employee?.philHealthNumber && employee.philHealthNumber.trim());
+  const hasPagIbigNumber = !!(employee?.pagIbigNumber && employee.pagIbigNumber.trim());
   
   const sss = calculateSSS(monthlySalary, hasSSSNumber);
   const philHealth = calculatePhilHealth(monthlySalary, hasPhilHealthNumber);
   const pagIbig = calculatePagIbig(monthlySalary, hasPagIbigNumber);
   
-  const total = sss + philHealth + pagIbig;
+  // Calculate totals
+  const employeeTotal = sss.employeeAmount + philHealth.employeeAmount + pagIbig.employeeAmount;
+  const employerTotal = sss.employerAmount + sss.ecAmount + philHealth.employerAmount + pagIbig.employerAmount;
+  const grandTotal = employeeTotal + employerTotal;
+  
+  // Legacy total (employee share only, for backward compatibility)
+  const total = employeeTotal;
   
   return {
     sss: {
-      amount: sss,
-      hasId: hasSSSNumber,
-      msc: hasSSSNumber ? findMSC(monthlySalary) : 0
+      ...sss,
+      hasId: hasSSSNumber
     },
     philHealth: {
-      amount: philHealth,
+      ...philHealth,
       hasId: hasPhilHealthNumber
     },
     pagIbig: {
-      amount: pagIbig,
+      ...pagIbig,
       hasId: hasPagIbigNumber
     },
+    // New compliance fields
+    totals: {
+      employeeTotal: Number(employeeTotal.toFixed(2)),
+      employerTotal: Number(employerTotal.toFixed(2)),
+      grandTotal: Number(grandTotal.toFixed(2))
+    },
+    // Employer breakdown for reporting
+    employerBreakdown: {
+      sss: sss.employerAmount,
+      sssEc: sss.ecAmount,
+      philHealth: philHealth.employerAmount,
+      pagIbig: pagIbig.employerAmount
+    },
+    // Contribution basis for compliance reporting
+    contributionBasis: {
+      sss: { msc: sss.msc },
+      philHealth: { mbs: philHealth.mbs },
+      pagIbig: { mfs: pagIbig.mfs }
+    },
+    // Legacy fields for backward compatibility
     total,
     breakdown: {
-      sss,
-      philHealth,
-      pagIbig
+      sss: sss.employeeAmount,
+      philHealth: philHealth.employeeAmount,
+      pagIbig: pagIbig.employeeAmount
     }
   };
 }
@@ -191,17 +288,21 @@ export function calculateAllGovernmentDeductions(monthlySalary, employee) {
 export function getGovernmentDeductionConfig() {
   return {
     sss: {
-      employeeRate: SSS_EMPLOYEE_RATE,
+      employeeRate: SSS_CONFIG.employeeRate,
+      employerRate: SSS_CONFIG.employerRate,
+      ecThreshold: SSS_CONFIG.ecThreshold,
+      ecLowRate: SSS_CONFIG.ecLowRate,
+      ecHighRate: SSS_CONFIG.ecHighRate,
       mscBrackets: SSS_MSC_BRACKETS,
-      description: 'Social Security System - 5% of Monthly Salary Credit'
+      description: 'Social Security System - Employee 5% + Employer 10% of MSC + EC'
     },
     philHealth: {
       ...PHILHEALTH_CONFIG,
-      description: 'Philippine Health Insurance - 2.5% of salary (floor: ₱10,000, ceiling: ₱100,000)'
+      description: 'Philippine Health Insurance - Employee 2.5% + Employer 2.5% of MBS (floor: ₱10,000, ceiling: ₱100,000)'
     },
     pagIbig: {
       ...PAGIBIG_CONFIG,
-      description: 'Home Development Mutual Fund - 2% of salary (capped at ₱200)'
+      description: 'Home Development Mutual Fund - Employee 2% + Employer 2% of MFS (cap: ₱10,000, max ₱200 each)'
     }
   };
 }

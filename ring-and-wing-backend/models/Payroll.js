@@ -87,6 +87,7 @@ const payrollSchema = new mongoose.Schema({
       min: 0
     }
   }],
+  // Employee Deductions (from net pay)
   deductions: {
     late: {
       type: Number,
@@ -98,6 +99,7 @@ const payrollSchema = new mongoose.Schema({
       default: 0,
       min: 0
     },
+    // Government Deductions - Employee Share
     sss: {
       type: Number,
       default: 0,
@@ -119,6 +121,73 @@ const payrollSchema = new mongoose.Schema({
       min: 0
     }
   },
+  
+  // ============================================
+  // Employer Contributions (for reporting/remittance)
+  // These do NOT affect employee net pay
+  // ============================================
+  employerContributions: {
+    sss: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    sssEc: {
+      type: Number,
+      default: 0,
+      min: 0  // Employees' Compensation - employer only
+    },
+    philHealth: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    pagIbig: {
+      type: Number,
+      default: 0,
+      min: 0
+    }
+  },
+  
+  // ============================================
+  // Contribution Basis Details (for audit)
+  // ============================================
+  contributionBasis: {
+    sss: {
+      msc: {
+        type: Number  // Monthly Salary Credit used
+      },
+      grossSalary: {
+        type: Number  // Original salary
+      }
+    },
+    philHealth: {
+      mbs: {
+        type: Number  // Monthly Basic Salary (clamped)
+      },
+      grossSalary: {
+        type: Number
+      }
+    },
+    pagIbig: {
+      mfs: {
+        type: Number  // Monthly Fund Salary (capped at ₱10,000)
+      },
+      grossSalary: {
+        type: Number
+      }
+    }
+  },
+  
+  // Reference to the government config version used
+  governmentConfigId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'GovernmentDeductionConfig'
+  },
+  governmentConfigVersion: {
+    type: Number
+  },
+  
   totalHoursWorked: {
     type: Number,
     required: true,
@@ -186,8 +255,9 @@ const payrollSchema = new mongoose.Schema({
 
 // Add compound index for efficient period-based queries
 payrollSchema.index({ staffId: 1, payrollPeriod: 1 }, { unique: true });
+payrollSchema.index({ governmentConfigId: 1 });
 
-// Virtual for calculating total deductions
+// Virtual for calculating total employee deductions (from net pay)
 payrollSchema.virtual('totalDeductions').get(function() {
   return (this.deductions.late || 0) + 
          (this.deductions.absence || 0) + 
@@ -195,6 +265,42 @@ payrollSchema.virtual('totalDeductions').get(function() {
          (this.deductions.philHealth || 0) + 
          (this.deductions.pagIbig || 0) + 
          (this.deductions.withholdingTax || 0);
+});
+
+// Virtual for calculating total employer contributions (for reporting)
+payrollSchema.virtual('totalEmployerContributions').get(function() {
+  return (this.employerContributions?.sss || 0) + 
+         (this.employerContributions?.sssEc || 0) + 
+         (this.employerContributions?.philHealth || 0) + 
+         (this.employerContributions?.pagIbig || 0);
+});
+
+// Virtual for total government contributions (employee + employer)
+payrollSchema.virtual('totalGovernmentContributions').get(function() {
+  const employeeShare = (this.deductions.sss || 0) + 
+                        (this.deductions.philHealth || 0) + 
+                        (this.deductions.pagIbig || 0);
+  const employerShare = this.totalEmployerContributions;
+  return employeeShare + employerShare;
+});
+
+// Virtual for SSS total (employee + employer + EC)
+payrollSchema.virtual('sssTotalContribution').get(function() {
+  return (this.deductions.sss || 0) + 
+         (this.employerContributions?.sss || 0) + 
+         (this.employerContributions?.sssEc || 0);
+});
+
+// Virtual for PhilHealth total (employee + employer)
+payrollSchema.virtual('philHealthTotalContribution').get(function() {
+  return (this.deductions.philHealth || 0) + 
+         (this.employerContributions?.philHealth || 0);
+});
+
+// Virtual for Pag-IBIG total (employee + employer)
+payrollSchema.virtual('pagIbigTotalContribution').get(function() {
+  return (this.deductions.pagIbig || 0) + 
+         (this.employerContributions?.pagIbig || 0);
 });
 
 // Virtual for calculating total bonuses

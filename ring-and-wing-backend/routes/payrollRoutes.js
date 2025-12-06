@@ -480,19 +480,29 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
     }
 
     // Calculate government deductions based on monthly salary
+    // Now returns BOTH employee and employer contributions
     const monthlySalary = basicPay; // Basic pay represents monthly salary for payroll period
-    const govtDeductions = calculateAllGovernmentDeductions(monthlySalary, staff);
+    const govtDeductions = await calculateAllGovernmentDeductions(monthlySalary, staff);
     
     console.log('Government deductions calculated:', {
       staffName: staff.name,
       monthlySalary,
-      sss: govtDeductions.sss.amount,
-      philHealth: govtDeductions.philHealth.amount,
-      pagIbig: govtDeductions.pagIbig.amount,
-      total: govtDeductions.total
+      employee: {
+        sss: govtDeductions.sss.employeeAmount,
+        philHealth: govtDeductions.philHealth.employeeAmount,
+        pagIbig: govtDeductions.pagIbig.employeeAmount,
+        total: govtDeductions.totals.employeeTotal
+      },
+      employer: {
+        sss: govtDeductions.sss.employerAmount,
+        sssEc: govtDeductions.sss.ecAmount,
+        philHealth: govtDeductions.philHealth.employerAmount,
+        pagIbig: govtDeductions.pagIbig.employerAmount,
+        total: govtDeductions.totals.employerTotal
+      }
     });
 
-    // Calculate net pay
+    // Calculate net pay (only employee deductions affect net pay)
     const grossPay =
       basicPay +
       (overtimePay || 0) +
@@ -505,9 +515,9 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
     const totalDeductions =
       (deductions?.late || 0) +
       (deductions?.absence || 0) +
-      govtDeductions.sss.amount +
-      govtDeductions.philHealth.amount +
-      govtDeductions.pagIbig.amount;
+      govtDeductions.sss.employeeAmount +
+      govtDeductions.philHealth.employeeAmount +
+      govtDeductions.pagIbig.employeeAmount;
       
     const netPay = grossPay - totalDeductions;
 
@@ -529,7 +539,7 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
       }
     }
 
-    // Create payroll record
+    // Create payroll record with BOTH employee and employer contributions
     const payroll = new Payroll({
       staffId,
       payrollPeriod: period,
@@ -545,16 +555,29 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
         other: manualBonuses.other || 0
       },
       holidaysWorked,
+      // Employee deductions (from net pay)
       deductions: {
         late: deductions?.late || 0,
         absence: deductions?.absence || 0,
-        sss: govtDeductions.sss.amount,
-        philHealth: govtDeductions.philHealth.amount,
-        pagIbig: govtDeductions.pagIbig.amount,
+        sss: govtDeductions.sss.employeeAmount,
+        philHealth: govtDeductions.philHealth.employeeAmount,
+        pagIbig: govtDeductions.pagIbig.employeeAmount,
         withholdingTax: 0 // Placeholder for future implementation
       },
-      totalHoursWorked: finalTotalHours, // Use frontend-provided values with fallback
-      overtimeHours: finalOvertimeHours, // Use frontend-provided values with fallback
+      // NEW: Employer contributions (for reporting/remittance)
+      employerContributions: {
+        sss: govtDeductions.sss.employerAmount,
+        sssEc: govtDeductions.sss.ecAmount,
+        philHealth: govtDeductions.philHealth.employerAmount,
+        pagIbig: govtDeductions.pagIbig.employerAmount
+      },
+      // NEW: Contribution basis for audit trail
+      contributionBasis: govtDeductions.contributionBasis,
+      // NEW: Reference to government config used
+      governmentConfigId: govtDeductions.configId,
+      governmentConfigVersion: govtDeductions.configVersion,
+      totalHoursWorked: finalTotalHours,
+      overtimeHours: finalOvertimeHours,
       grossPay,
       netPay
     });
@@ -576,7 +599,9 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
           sss: govtDeductions.sss,
           philHealth: govtDeductions.philHealth,
           pagIbig: govtDeductions.pagIbig,
-          total: govtDeductions.total
+          totals: govtDeductions.totals,
+          employerBreakdown: govtDeductions.employerBreakdown,
+          contributionBasis: govtDeductions.contributionBasis
         },
         grossPay: populatedPayroll.grossPay,
         netPay: populatedPayroll.netPay
@@ -774,12 +799,12 @@ router.post('/generate-batch', auth, async (req, res) => {
       const standardHoursPerDay = staff.standardHoursPerDay || 8;
       const absenceDeduction = absentDays * hourlyRate * standardHoursPerDay;
 
-      // Calculate government deductions
+      // Calculate government deductions (returns full breakdown with employee/employer shares)
       const govtDeductions = await calculateAllGovernmentDeductions(basicPay, staff);
 
-      // Calculate gross and net pay
+      // Calculate gross and net pay (only employee share is deducted from pay)
       const grossPay = basicPay + overtimePay + (staff.allowances || 0);
-      const totalDeductions = lateDeduction + absenceDeduction + govtDeductions.total;
+      const totalDeductions = lateDeduction + absenceDeduction + govtDeductions.totals.employeeTotal;
       const netPay = Math.max(0, grossPay - totalDeductions);
 
       return {
@@ -805,17 +830,29 @@ router.post('/generate-batch', auth, async (req, res) => {
           other: 0
         },
         
-        // Deductions
+        // Employee Deductions (deducted from employee pay)
         lateDeduction: Number(lateDeduction.toFixed(2)),
         absenceDeduction: Number(absenceDeduction.toFixed(2)),
         lateMinutes: lateMinutes,
         absentDays: absentDays,
-        sssDeduction: govtDeductions.sss.amount,
-        philHealthDeduction: govtDeductions.philHealth.amount,
-        pagIbigDeduction: govtDeductions.pagIbig.amount,
+        sssDeduction: govtDeductions.sss.employeeAmount,
+        philHealthDeduction: govtDeductions.philHealth.employeeAmount,
+        pagIbigDeduction: govtDeductions.pagIbig.employeeAmount,
         withholdingTax: 0,
         cashAdvance: 0,
         otherDeductions: 0,
+        
+        // Employer Contributions (company expense, not deducted from employee)
+        employerContributions: {
+          sss: govtDeductions.sss.employerAmount,
+          sssEc: govtDeductions.sss.ecAmount,
+          philHealth: govtDeductions.philHealth.employerAmount,
+          pagIbig: govtDeductions.pagIbig.employerAmount,
+          total: govtDeductions.totals.employerTotal
+        },
+        
+        // Contribution Basis for compliance reporting
+        contributionBasis: govtDeductions.contributionBasis,
         
         // Attendance summary
         scheduleSummary: {
@@ -849,6 +886,7 @@ router.post('/generate-batch', auth, async (req, res) => {
       totalBonuses: payrollData.reduce((sum, p) => sum + (p.bonuses?.performance || 0) + (p.bonuses?.other || 0), 0),
       totalGrossPay: payrollData.reduce((sum, p) => sum + p.grossPay, 0),
       
+      // Employee Deductions Summary
       totalLateDeductions: payrollData.reduce((sum, p) => sum + p.lateDeduction, 0),
       totalAbsenceDeductions: payrollData.reduce((sum, p) => sum + p.absenceDeduction, 0),
       totalSSSDeductions: payrollData.reduce((sum, p) => sum + p.sssDeduction, 0),
@@ -858,8 +896,27 @@ router.post('/generate-batch', auth, async (req, res) => {
         sum + p.sssDeduction + p.philHealthDeduction + p.pagIbigDeduction, 0),
       totalDeductions: payrollData.reduce((sum, p) => sum + p.totalDeductions, 0),
       
+      // Employer Contributions Summary (company expense for compliance reporting)
+      totalEmployerSSS: payrollData.reduce((sum, p) => sum + (p.employerContributions?.sss || 0), 0),
+      totalEmployerSSSEc: payrollData.reduce((sum, p) => sum + (p.employerContributions?.sssEc || 0), 0),
+      totalEmployerPhilHealth: payrollData.reduce((sum, p) => sum + (p.employerContributions?.philHealth || 0), 0),
+      totalEmployerPagIbig: payrollData.reduce((sum, p) => sum + (p.employerContributions?.pagIbig || 0), 0),
+      totalEmployerContributions: payrollData.reduce((sum, p) => sum + (p.employerContributions?.total || 0), 0),
+      
+      // Grand total for government remittance (employee + employer)
+      totalSSSRemittance: 0, // Will be calculated below
+      totalPhilHealthRemittance: 0,
+      totalPagIbigRemittance: 0,
+      totalGovernmentRemittance: 0,
+      
       totalNetPay: payrollData.reduce((sum, p) => sum + p.netPay, 0)
     };
+    
+    // Calculate remittance totals (employee + employer shares)
+    summary.totalSSSRemittance = summary.totalSSSDeductions + summary.totalEmployerSSS + summary.totalEmployerSSSEc;
+    summary.totalPhilHealthRemittance = summary.totalPhilHealthDeductions + summary.totalEmployerPhilHealth;
+    summary.totalPagIbigRemittance = summary.totalPagIbigDeductions + summary.totalEmployerPagIbig;
+    summary.totalGovernmentRemittance = summary.totalSSSRemittance + summary.totalPhilHealthRemittance + summary.totalPagIbigRemittance;
 
     // Round summary values
     Object.keys(summary).forEach(key => {

@@ -298,7 +298,8 @@ const PayrollSystem = () => {
     const monthlySalary = regularPay; // Using regular pay as monthly salary basis
     const govtDeductions = calculateAllGovernmentDeductions(monthlySalary, selectedEmployee);
     
-    const totalDeductions = lateDeduction + absenceDeduction + govtDeductions.total;
+    // Total deductions use employee share only (totals.employeeTotal)
+    const totalDeductions = lateDeduction + absenceDeduction + govtDeductions.totals.employeeTotal;
 
     // Net pay calculation
     const netPay = (
@@ -320,10 +321,11 @@ const PayrollSystem = () => {
       totalBonuses,
       lateDeduction,
       absenceDeduction,
-      sssDeduction: govtDeductions.sss.amount,
-      philHealthDeduction: govtDeductions.philHealth.amount,
-      pagIbigDeduction: govtDeductions.pagIbig.amount,
-      governmentDeductions: govtDeductions.total,
+      // Employee deductions (deducted from pay)
+      sssDeduction: govtDeductions.sss.employeeAmount,
+      philHealthDeduction: govtDeductions.philHealth.employeeAmount,
+      pagIbigDeduction: govtDeductions.pagIbig.employeeAmount,
+      governmentDeductions: govtDeductions.totals.employeeTotal,
       totalDeductions,
       allowances,
       hourlyRate, // NEW: Primary rate field
@@ -331,7 +333,13 @@ const PayrollSystem = () => {
       regularHours,
       overtimeHours,
       totalHours,
-      govtDeductionsDetail: govtDeductions
+      // Full deduction details including employer shares for display
+      govtDeductionsDetail: govtDeductions,
+      // Employer contributions (company expense, for display/reporting)
+      employerContributions: govtDeductions.employerBreakdown,
+      employerTotal: govtDeductions.totals.employerTotal,
+      // Contribution basis for compliance
+      contributionBasis: govtDeductions.contributionBasis
     };
   };
   // Handle payroll submission
