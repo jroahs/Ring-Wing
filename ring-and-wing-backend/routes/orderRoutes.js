@@ -8,6 +8,7 @@ const paymentVerificationController = require('../controllers/paymentVerificatio
 const { auth, isManager } = require('../middleware/authMiddleware');
 const uploadMiddleware = require('../config/multer');
 const SocketService = require('../services/socketService');
+const { generateReceiptNumber } = require('../utils/receiptNumberGenerator');
 
 // Advanced validation middleware
 const validateOrder = (req, res, next) => {
@@ -32,9 +33,12 @@ router.post('/', validateOrder, criticalCheck, async (req, res, next) => {
       fulfillmentType: req.body.fulfillmentType
     });
     
+    // Generate unified receipt number (YYYYMMDD-###)
+    const receiptNumber = await generateReceiptNumber();
+    
     const orderData = {
       ...req.body,
-      receiptNumber: `RNG-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`,
+      receiptNumber: receiptNumber,
     };
 
     // Convert numeric values to proper numbers

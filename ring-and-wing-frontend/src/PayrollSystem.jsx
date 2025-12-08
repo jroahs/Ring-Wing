@@ -287,12 +287,29 @@ const PayrollSystem = () => {
     const otherBonus = Number(manualBonuses.other) || 0;
     const totalBonuses = holidayPay + thirteenthMonthPay + performanceBonus + otherBonus;
     
-    // Deductions
+    // Deductions - use settings if available
     const lateMinutes = Number(deductions.lateMinutes) || 0;
     const absences = Number(deductions.absences) || 0;
-    const lateDeduction = lateMinutes * (hourlyRate / 60);
-    // Absence deduction: use hourlyRate * standardHoursPerDay
-    const absenceDeduction = absences * hourlyRate * standardHoursPerDay;
+    
+    // Late deduction: use configured rate if available, otherwise use hourly rate method
+    const lateDeductionPerMinute = payrollSettings?.deductions?.lateDeductionPerMinute;
+    let lateDeduction = 0;
+    if (lateDeductionPerMinute !== undefined && lateDeductionPerMinute > 0) {
+      lateDeduction = lateMinutes * lateDeductionPerMinute;
+    } else {
+      lateDeduction = lateMinutes * (hourlyRate / 60); // Fallback to hourly rate method
+    }
+    
+    // Absence deduction: use configured type
+    const absentDeductionType = payrollSettings?.deductions?.absentDeductionType || 'daily_rate';
+    let absenceDeduction = 0;
+    if (absentDeductionType === 'daily_rate') {
+      absenceDeduction = absences * hourlyRate * standardHoursPerDay;
+    } else if (absentDeductionType === 'hourly') {
+      absenceDeduction = absences * hourlyRate * standardHoursPerDay;
+    } else if (absentDeductionType === 'none') {
+      absenceDeduction = 0;
+    }
     
     // Calculate government deductions based on basic pay (monthly salary)
     const monthlySalary = regularPay; // Using regular pay as monthly salary basis

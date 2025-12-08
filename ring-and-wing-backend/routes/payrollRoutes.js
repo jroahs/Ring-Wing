@@ -793,11 +793,28 @@ router.post('/generate-batch', auth, async (req, res) => {
       const basicPay = regularHours * hourlyRate;
       const overtimePay = overtimeHours * hourlyRate * overtimeMultiplier;
 
-      // Calculate deductions
-      const lateDeduction = (lateMinutes / 60) * hourlyRate;
-      // Absence deduction: use hourlyRate * standardHoursPerDay instead of dailyRate
+      // Calculate deductions using system settings
+      const lateDeductionPerMinute = settings.payroll?.deductions?.lateDeductionPerMinute;
+      const absentDeductionType = settings.payroll?.deductions?.absentDeductionType || 'daily_rate';
       const standardHoursPerDay = staff.standardHoursPerDay || 8;
-      const absenceDeduction = absentDays * hourlyRate * standardHoursPerDay;
+      
+      // Late deduction: use configured rate if set, otherwise use hourly rate method
+      let lateDeduction = 0;
+      if (lateDeductionPerMinute !== undefined && lateDeductionPerMinute > 0) {
+        lateDeduction = lateMinutes * lateDeductionPerMinute;
+      } else {
+        lateDeduction = (lateMinutes / 60) * hourlyRate; // Fallback to hourly rate method
+      }
+      
+      // Absence deduction: use configured type
+      let absenceDeduction = 0;
+      if (absentDeductionType === 'daily_rate') {
+        absenceDeduction = absentDays * hourlyRate * standardHoursPerDay;
+      } else if (absentDeductionType === 'hourly') {
+        absenceDeduction = absentDays * hourlyRate * standardHoursPerDay; // Same as daily_rate
+      } else if (absentDeductionType === 'none') {
+        absenceDeduction = 0;
+      }
 
       // Calculate government deductions (returns full breakdown with employee/employer shares)
       const govtDeductions = await calculateAllGovernmentDeductions(basicPay, staff);

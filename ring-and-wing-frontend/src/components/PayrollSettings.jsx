@@ -12,6 +12,26 @@ import {
 } from 'react-icons/fi';
 import { API_URL } from '../App';
 
+/*
+ * PAYROLL SETTINGS USAGE AUDIT:
+ * 
+ * ✅ USED SETTINGS:
+ * - regularHoursPerDay: Used in payroll calculations (backend: payrollRoutes.js line 750)
+ * - multipliers.*: All multipliers used in payroll calculations (backend: getPayrollMultipliers)
+ * - deductions.lateDeductionPerMinute: NOW USED in late deduction calculations (backend: payrollRoutes.js, frontend: PayrollSystem.jsx)
+ * - deductions.absentDeductionType: NOW USED in absence deduction calculations
+ * - deductions.sssEnabled/philhealthEnabled/pagibigEnabled/taxEnabled: Used in government deductions
+ * 
+ * ⚠️ PARTIALLY USED:
+ * - workDaysPerWeek: Only used in PayrollSchedule creation, not in actual payroll calculations
+ * - defaultPayoutType/defaultPayoutDays/defaultCutoffDays: Only used as defaults for new schedules
+ * 
+ * 📝 NOTES:
+ * - All settings are persisted in Settings model and accessible globally
+ * - Multipliers are validated against DOLE minimums before saving
+ * - Late deduction: 0 = uses hourly rate method, >0 = uses fixed penalty rate
+ */
+
 // DOLE Minimum Multipliers (Philippine Labor Code)
 const DOLE_MINIMUMS = {
   overtime: 1.25,
@@ -111,14 +131,83 @@ const PayrollSettings = () => {
     }));
   };
 
+  const handlePayoutTypeChange = (type) => {
+    let payoutDays = [];
+    let cutoffDays = [];
+
+    switch (type) {
+      case 'monthly':
+        payoutDays = [30];
+        cutoffDays = [29];
+        break;
+      case 'semi-monthly':
+        payoutDays = [15, 30];
+        cutoffDays = [14, 29];
+        break;
+      case 'weekly':
+        // For weekly, use day of week (0=Sunday, 6=Saturday)
+        payoutDays = [5]; // Friday
+        cutoffDays = [4]; // Thursday
+        break;
+      case 'bi-weekly':
+        payoutDays = [15, 30];
+        cutoffDays = [14, 29];
+        break;
+      default:
+        payoutDays = [15, 30];
+        cutoffDays = [14, 29];
+    }
+
+    setSettings(prev => ({
+      ...prev,
+      defaultPayoutType: type,
+      defaultPayoutDays: payoutDays,
+      defaultCutoffDays: cutoffDays
+    }));
+  };
+
   const handlePayoutDaysChange = (value) => {
-    const days = value.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d) && d >= 1 && d <= 31);
-    setSettings(prev => ({ ...prev, defaultPayoutDays: days }));
+    // Remove all non-digit and non-comma characters
+    const cleanValue = value.replace(/[^\d,]/g, '');
+    
+    // Split by comma and parse numbers
+    const days = cleanValue.split(',')
+      .map(d => parseInt(d.trim()))
+      .filter(d => !isNaN(d) && d >= 1 && d <= 31);
+    
+    // Enforce limits based on payout type
+    let maxDays = 2;
+    if (settings.defaultPayoutType === 'monthly' || settings.defaultPayoutType === 'weekly') {
+      maxDays = 1;
+    } else if (settings.defaultPayoutType === 'semi-monthly' || settings.defaultPayoutType === 'bi-weekly') {
+      maxDays = 2;
+    }
+    
+    // Limit to max allowed days
+    const limitedDays = days.slice(0, maxDays);
+    setSettings(prev => ({ ...prev, defaultPayoutDays: limitedDays }));
   };
 
   const handleCutoffDaysChange = (value) => {
-    const days = value.split(',').map(d => parseInt(d.trim())).filter(d => !isNaN(d) && d >= 1 && d <= 31);
-    setSettings(prev => ({ ...prev, defaultCutoffDays: days }));
+    // Remove all non-digit and non-comma characters
+    const cleanValue = value.replace(/[^\d,]/g, '');
+    
+    // Split by comma and parse numbers
+    const days = cleanValue.split(',')
+      .map(d => parseInt(d.trim()))
+      .filter(d => !isNaN(d) && d >= 1 && d <= 31);
+    
+    // Enforce limits based on payout type
+    let maxDays = 2;
+    if (settings.defaultPayoutType === 'monthly' || settings.defaultPayoutType === 'weekly') {
+      maxDays = 1;
+    } else if (settings.defaultPayoutType === 'semi-monthly' || settings.defaultPayoutType === 'bi-weekly') {
+      maxDays = 2;
+    }
+    
+    // Limit to max allowed days
+    const limitedDays = days.slice(0, maxDays);
+    setSettings(prev => ({ ...prev, defaultCutoffDays: limitedDays }));
   };
 
   const validateMultipliers = () => {
@@ -214,8 +303,14 @@ const PayrollSettings = () => {
         <div className="relative">
           <input
             type="number"
-            value={value}
-            onChange={(e) => handleMultiplierChange(fieldKey, e.target.value)}
+            value={value ?? ''}
+            onChange={(e) => {
+              const val = e.target.value === '' ? '' : e.target.value;
+              handleMultiplierChange(fieldKey, val);
+            }}
+            onFocus={(e) => {
+              if (parseFloat(e.target.value) === 0) e.target.select();
+            }}
             className="w-full p-2.5 pr-10 border rounded-lg transition-colors"
             style={{
               borderColor: isBelow ? '#DC2626' : theme.colors.muted,
@@ -223,6 +318,7 @@ const PayrollSettings = () => {
             }}
             min={min}
             step="0.01"
+            placeholder={min.toString()}
           />
           <span 
             className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium"
@@ -309,12 +405,19 @@ const PayrollSettings = () => {
               </label>
               <input
                 type="number"
-                value={settings.regularHoursPerDay}
-                onChange={(e) => setSettings(prev => ({ ...prev, regularHoursPerDay: parseInt(e.target.value) || 8 }))}
+                value={settings.regularHoursPerDay ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? '' : parseInt(e.target.value);
+                  setSettings(prev => ({ ...prev, regularHoursPerDay: val === '' ? 8 : val }));
+                }}
+                onFocus={(e) => {
+                  if (e.target.value === '0' || e.target.value === '8') e.target.select();
+                }}
                 className="w-full p-2.5 border rounded-lg"
                 style={{ borderColor: theme.colors.muted }}
                 min="1"
                 max="12"
+                placeholder="8"
               />
               <p className="text-xs mt-1" style={{ color: theme.colors.muted }}>
                 Standard 8 hours per DOLE
@@ -327,12 +430,19 @@ const PayrollSettings = () => {
               </label>
               <input
                 type="number"
-                value={settings.workDaysPerWeek}
-                onChange={(e) => setSettings(prev => ({ ...prev, workDaysPerWeek: parseInt(e.target.value) || 6 }))}
+                value={settings.workDaysPerWeek ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? '' : parseInt(e.target.value);
+                  setSettings(prev => ({ ...prev, workDaysPerWeek: val === '' ? 6 : val }));
+                }}
+                onFocus={(e) => {
+                  if (e.target.value === '0' || e.target.value === '6') e.target.select();
+                }}
                 className="w-full p-2.5 border rounded-lg"
                 style={{ borderColor: theme.colors.muted }}
                 min="1"
                 max="7"
+                placeholder="6"
               />
             </div>
           </div>
@@ -445,15 +555,39 @@ const PayrollSettings = () => {
                 Late Deduction (₱/min)
               </label>
               <input
-                type="number"
-                value={settings.deductions?.lateDeductionPerMinute || 0}
-                onChange={(e) => handleDeductionChange('lateDeductionPerMinute', parseFloat(e.target.value) || 0)}
+                type="text"
+                inputMode="decimal"
+                value={settings.deductions?.lateDeductionPerMinute === 0 ? '' : settings.deductions?.lateDeductionPerMinute ?? ''}
+                onChange={(e) => {
+                  const value = e.target.value.trim();
+                  if (value === '' || value === '.') {
+                    handleDeductionChange('lateDeductionPerMinute', 0);
+                  } else {
+                    const parsed = parseFloat(value);
+                    if (!isNaN(parsed) && parsed >= 0) {
+                      handleDeductionChange('lateDeductionPerMinute', parsed);
+                    }
+                  }
+                }}
                 className="w-full p-2.5 border rounded-lg"
-                style={{ borderColor: theme.colors.muted }}
-                min="0"
-                step="0.01"
+                style={{ 
+                  borderColor: (settings.deductions?.lateDeductionPerMinute > 10) 
+                    ? theme.colors.accent 
+                    : theme.colors.muted 
+                }}
+                placeholder="0"
               />
-              <p className="text-xs mt-1" style={{ color: theme.colors.muted }}>0 = no late deduction</p>
+              <p className="text-xs mt-1" style={{ 
+                color: (settings.deductions?.lateDeductionPerMinute > 10) 
+                  ? theme.colors.accent 
+                  : theme.colors.muted 
+              }}>
+                {settings.deductions?.lateDeductionPerMinute > 10 ? (
+                  <>⚠️ High rate: ₱{settings.deductions.lateDeductionPerMinute}/min = ₱{(settings.deductions.lateDeductionPerMinute * 60).toFixed(0)}/hour</>
+                ) : (
+                  <>0 = uses hourly rate method (actual pay lost)</>
+                )}
+              </p>
             </div>
 
             <div>
@@ -488,7 +622,7 @@ const PayrollSettings = () => {
               </label>
               <select
                 value={settings.defaultPayoutType}
-                onChange={(e) => setSettings(prev => ({ ...prev, defaultPayoutType: e.target.value }))}
+                onChange={(e) => handlePayoutTypeChange(e.target.value)}
                 className="w-full p-2.5 border rounded-lg"
                 style={{ borderColor: theme.colors.muted }}
               >
@@ -509,8 +643,19 @@ const PayrollSettings = () => {
                 onChange={(e) => handlePayoutDaysChange(e.target.value)}
                 className="w-full p-2.5 border rounded-lg"
                 style={{ borderColor: theme.colors.muted }}
-                placeholder="e.g., 15, 30"
+                placeholder={
+                  settings.defaultPayoutType === 'monthly' ? 'e.g., 30' :
+                  settings.defaultPayoutType === 'semi-monthly' ? 'e.g., 15, 30' :
+                  settings.defaultPayoutType === 'weekly' ? 'e.g., 5 (Friday)' :
+                  'e.g., 15, 30'
+                }
               />
+              <p className="text-xs mt-1" style={{ color: theme.colors.muted }}>
+                {settings.defaultPayoutType === 'monthly' && 'One day per month (1-31)'}
+                {settings.defaultPayoutType === 'semi-monthly' && 'Two days per month (1-31)'}
+                {settings.defaultPayoutType === 'weekly' && 'Day of week (0=Sun, 6=Sat)'}
+                {settings.defaultPayoutType === 'bi-weekly' && 'Two days per month (1-31)'}
+              </p>
             </div>
 
             <div>
@@ -523,8 +668,19 @@ const PayrollSettings = () => {
                 onChange={(e) => handleCutoffDaysChange(e.target.value)}
                 className="w-full p-2.5 border rounded-lg"
                 style={{ borderColor: theme.colors.muted }}
-                placeholder="e.g., 14, 29"
+                placeholder={
+                  settings.defaultPayoutType === 'monthly' ? 'e.g., 29' :
+                  settings.defaultPayoutType === 'semi-monthly' ? 'e.g., 14, 29' :
+                  settings.defaultPayoutType === 'weekly' ? 'e.g., 4 (Thursday)' :
+                  'e.g., 14, 29'
+                }
               />
+              <p className="text-xs mt-1" style={{ color: theme.colors.muted }}>
+                {settings.defaultPayoutType === 'monthly' && 'One day per month (1-31)'}
+                {settings.defaultPayoutType === 'semi-monthly' && 'Two days per month (1-31)'}
+                {settings.defaultPayoutType === 'weekly' && 'Day of week (0=Sun, 6=Sat)'}
+                {settings.defaultPayoutType === 'bi-weekly' && 'Two days per month (1-31)'}
+              </p>
             </div>
           </div>
         </div>
