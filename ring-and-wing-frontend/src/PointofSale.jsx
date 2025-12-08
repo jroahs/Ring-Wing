@@ -18,6 +18,7 @@ import ItemCustomizationModal from './components/ItemCustomizationModal';
 import io from 'socket.io-client';
 import { API_URL } from './App';
 import { useDataCoordinator } from './contexts/DataCoordinatorContext';
+import { toast } from 'react-toastify';
 
 const PointOfSale = () => {
   // Get preloaded data from coordinator
@@ -447,10 +448,10 @@ const PointOfSale = () => {
         setPendingOrderItems([]);
       }
 
-      alert('Pending order deleted successfully');
+      toast.success('Pending order deleted successfully');
     } catch (error) {
       console.error('Error deleting pending order:', error);
-      alert('Failed to delete pending order. Please try again.');
+      toast.error('Failed to delete pending order. Please try again.');
     }
   };
 
@@ -536,6 +537,35 @@ const PointOfSale = () => {
     fetchTakeoutOrders();
   }, []);
 
+  // Add toast animation styles
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes slideIn {
+        from {
+          transform: translateX(400px);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      @keyframes slideOut {
+        from {
+          transform: translateX(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateX(400px);
+          opacity: 0;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
+
   const processExistingOrderPayment = async (orderId, newStatus) => {    try {
       // Case 1: Payment processing flow from legacy payment component or ready orders
       if (typeof orderId === 'object' && orderId._id) {
@@ -553,7 +583,7 @@ const PointOfSale = () => {
           // Use centralized cash float validation
           const changeValidation = validateChange(cashAmount, totalDue);
           if (!changeValidation.valid) {
-            alert(changeValidation.message);
+            toast.error(changeValidation.message);
             return;
           }paymentData = {
             ...paymentData,
@@ -604,11 +634,7 @@ const PointOfSale = () => {
         }// Show receipt
         setShowReceipt(true);
         await new Promise(resolve => setTimeout(resolve, 100));
-        try {
-          await handlePrint();
-        } finally {
-          setShowReceipt(false);
-        }
+        await handlePrint();
         
         // Update order lists
         setActiveOrders(prev => prev.filter(o => o._id !== order._id));        // Reset state
@@ -652,11 +678,11 @@ const PointOfSale = () => {
           setActiveOrders(prev => prev.filter(o => o._id !== orderId));
         }
 
-        alert(`Order status updated to ${newStatus}`);
+        toast.success(`Order status updated to ${newStatus}`);
       }
     } catch (error) {
       console.error('Order processing error:', error);
-      alert('Error updating order');
+      toast.error('Error updating order');
     }
   };
 
@@ -689,7 +715,7 @@ const PointOfSale = () => {
   const addToOrder = item => {
     // Check if item is available
     if (item.isAvailable === false) {
-      alert(`${item.name} is currently unavailable due to insufficient ingredients.`);
+      toast.warning(`${item.name} is currently unavailable due to insufficient ingredients.`);
       return;
     }
     
@@ -715,7 +741,7 @@ const PointOfSale = () => {
     // If in pending orders view, only allow adding items when editing a pending order
     if (orderViewType === 'pending') {
       if (!isPendingOrderMode) {
-        alert('Please select a pending order to add items to.');
+        toast.warning('Please select a pending order to add items to.');
         return;
       }
 
@@ -979,19 +1005,17 @@ const PointOfSale = () => {
         setShowReceipt(true);
         await new Promise(resolve => setTimeout(resolve, 100));
         await handlePrint();
-        
-        // Close receipt after printing
-        setShowReceipt(false);
       }
 
       // Step 5: Remove from takeout orders list and refresh
       setTakeoutOrders(prev => prev.filter(order => order._id !== orderId));
       fetchActiveOrders();
       
-      alert('Payment verified! Order is now preparing. Receipt printed.');
+      // Show toast notification
+      toast.success('Payment verified! Order is now preparing.');
     } catch (error) {
       console.error('Error verifying payment:', error);
-      alert(`Failed to verify payment: ${error.message}`);
+      toast.error(`Failed to verify payment: ${error.message}`);
     }
   };
 
@@ -1024,20 +1048,34 @@ const PointOfSale = () => {
       // Remove from takeout orders list
       setTakeoutOrders(prev => prev.filter(order => order._id !== orderId));
       
-      alert('Payment rejected. Customer will be notified.');
+      toast.warning('Payment rejected. Customer will be notified.');
     } catch (error) {
       console.error('Error rejecting payment:', error);
-      alert(`Failed to reject payment: ${error.message}`);
+      toast.error(`Failed to reject payment: ${error.message}`);
     }
   };
 
   // Process PayMongo order (generate receipt and move to kitchen)
   const handleProcessPayMongoOrder = async (orderId) => {
     try {
-      console.log('[MainPOS] Fetching PayMongo order for receipt preview:', orderId);
+      console.log('[MainPOS] Processing PayMongo order:', orderId);
       
       const token = localStorage.getItem('token') || localStorage.getItem('authToken');
       
+      // Process the order first
+      const processResponse = await fetch(`${API_URL}/api/orders/${orderId}/process-paymongo`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (!processResponse.ok) {
+        const errorData = await processResponse.json();
+        throw new Error(errorData.message || 'Failed to process order');
+      }
+
       // Fetch full order details for receipt
       const orderResponse = await fetch(`${API_URL}/api/orders/${orderId}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -1050,17 +1088,17 @@ const PointOfSale = () => {
       const orderData = await orderResponse.json();
       const fullOrder = orderData.data || orderData;
 
-      console.log('[MainPOS] Fetched order for receipt preview:', fullOrder);
+      console.log('[MainPOS] Order processed, showing receipt:', fullOrder);
 
       // Set up order data for receipt preview
       setSavedOrderData(fullOrder);
       
-      // Show receipt modal (staff can print/review before processing)
+      // Show receipt modal
       setShowReceipt(true);
 
     } catch (error) {
-      console.error('[MainPOS] Error fetching PayMongo order:', error);
-      alert(`Failed to load order: ${error.message}`);
+      console.error('[MainPOS] Error processing PayMongo order:', error);
+      toast.error(`Failed to process order: ${error.message}`);
     }
   };
 
@@ -1078,7 +1116,7 @@ const PointOfSale = () => {
       // Use centralized cash float validation
       const changeValidation = validateChange(cashValue, totalDue);
       if (!changeValidation.valid) {
-        alert(changeValidation.message);
+        toast.error(changeValidation.message);
         return;
       }
     }
@@ -1146,16 +1184,15 @@ const PointOfSale = () => {
       setCart([]);
       setCurrentOrder([]);      setCashAmount(0);
       setSearchTerm('');
-      setShowReceipt(false);
       setSavedOrderData(null); // Clear saved order data
       // Reset payment details
       setEWalletDetails({ provider: 'gcash', referenceNumber: '', name: '' });
       setCustomerName(''); // Reset customer name
 
-      alert('Order completed successfully!');
+      toast.success('Order completed successfully!');
     } catch (error) {
       console.error('Payment processing error:', error);
-      alert('Error processing payment. Please try again.');
+      toast.error('Error processing payment. Please try again.');
     }
   };  const processPendingOrderPayment = async (paymentDetails = null) => {
     // Calculate totals for pending order items
@@ -1186,7 +1223,7 @@ const PointOfSale = () => {
       // Use centralized cash float validation
       const changeValidation = validateChange(cashValue, totalDue);
       if (!changeValidation.valid) {
-        alert(changeValidation.message);
+        toast.error(changeValidation.message);
         return;
       }
     }
@@ -1337,10 +1374,10 @@ const PointOfSale = () => {
       // Refresh orders list
       await fetchActiveOrders();
 
-      alert('Payment processed successfully!');
+      toast.success('Payment processed successfully!');
     } catch (error) {
       console.error('Payment processing error:', error);
-      alert('Error processing payment. Please try again.');
+      toast.error('Error processing payment. Please try again.');
     }
   };
   const saveOrderToDB = async () => {
@@ -1515,7 +1552,7 @@ const PointOfSale = () => {
           addToOrder(matchedItem);
           setSearchTerm('');
         } else if (!filteredItems.length) {
-          alert('No matching items found');
+          toast.warning('No matching items found');
         }
       }
     };
@@ -2617,11 +2654,11 @@ const PointOfSale = () => {
               <Receipt
                 ref={receiptRef}
                 order={{
-                  items: isPendingOrderMode ? pendingOrderItems : (orderViewType === 'ready' ? readyOrderCart : pendingOrderCart),
-                  receiptNumber: isPendingOrderMode && editingPendingOrder ? 
+                  items: savedOrderData?.items || (isPendingOrderMode ? pendingOrderItems : (orderViewType === 'ready' ? readyOrderCart : pendingOrderCart)),
+                  receiptNumber: savedOrderData?.receiptNumber || (isPendingOrderMode && editingPendingOrder ? 
                     editingPendingOrder.receiptNumber : 
-                    (savedOrderData?.receiptNumber || generateReceiptNumber()),
-                  server: (() => {
+                    generateReceiptNumber()),
+                  server: savedOrderData?.processedBy?.username || (() => {
                     try {
                       const userData = localStorage.getItem('userData');
                       if (userData) {
@@ -2633,30 +2670,30 @@ const PointOfSale = () => {
                     }
                     return '';
                   })(),
-                  discountCardDetails: parseFloat(isPendingOrderMode 
+                  discountCardDetails: savedOrderData?.discountCards || (parseFloat(isPendingOrderMode 
                     ? calculatePendingOrderTotal().discount
-                    : calculateTotal().discount) > 0 ? discountCardDetails : null
+                    : calculateTotal().discount) > 0 ? discountCardDetails : null)
                 }}                totals={{
-                  subtotal: isPendingOrderMode 
+                  subtotal: savedOrderData?.totals?.subtotal || (isPendingOrderMode 
                     ? calculatePendingOrderTotal().subtotal
-                    : calculateTotal().subtotal,
-                  discount: isPendingOrderMode 
+                    : calculateTotal().subtotal),
+                  discount: savedOrderData?.totals?.discount || (isPendingOrderMode 
                     ? calculatePendingOrderTotal().discount
-                    : calculateTotal().discount,
-                  total: isPendingOrderMode
+                    : calculateTotal().discount),
+                  total: savedOrderData?.totals?.total || (isPendingOrderMode
                     ? calculatePendingOrderTotal().total
-                    : calculateTotal().total,
-                  customerName: customerName || '', // Add customer name to receipt
-                  cashReceived: isPendingOrderMode && editingPendingOrder?.totals?.cashReceived 
+                    : calculateTotal().total),
+                  customerName: savedOrderData?.customerName || customerName || '',
+                  cashReceived: savedOrderData?.totals?.cashReceived || (isPendingOrderMode && editingPendingOrder?.totals?.cashReceived 
                     ? editingPendingOrder.totals.cashReceived.toFixed(2)
-                    : (paymentMethod === 'cash' ? parseFloat(cashAmount).toFixed(2) : "0.00"),
-                  change: isPendingOrderMode && editingPendingOrder?.totals?.change !== undefined
+                    : (paymentMethod === 'cash' ? parseFloat(cashAmount).toFixed(2) : "0.00")),
+                  change: savedOrderData?.totals?.change !== undefined ? savedOrderData.totals.change : (isPendingOrderMode && editingPendingOrder?.totals?.change !== undefined
                     ? editingPendingOrder.totals.change.toFixed(2)
                     : (paymentMethod === 'cash' ? 
                         (parseFloat(cashAmount) - (isPendingOrderMode 
                           ? parseFloat(calculatePendingOrderTotal().total)
                           : parseFloat(calculateTotal().total)
-                        )).toFixed(2) : "0.00"),
+                        )).toFixed(2) : "0.00")),
                   eWalletProvider: paymentMethod === 'e-wallet' ? eWalletDetails?.provider || '' : '',
                   eWalletReferenceNumber: paymentMethod === 'e-wallet' ? eWalletDetails?.referenceNumber || '' : '',
                   eWalletName: paymentMethod === 'e-wallet' ? eWalletDetails?.name || '' : ''
@@ -2664,92 +2701,41 @@ const PointOfSale = () => {
                 paymentMethod={paymentMethod}
               />
               <div className="mt-4">
-                {/* Check if this is a PayMongo order being previewed */}
-                {savedOrderData?.paymentMethod === 'paymongo' && savedOrderData?.status === 'paymongo_verified' ? (
-                  <div className="space-y-2">
-                    <button
-                      className="w-full py-3 md:py-4 text-base md:text-lg rounded-2xl font-semibold text-white"
-                      style={{
-                        backgroundColor: theme.colors.accent
-                      }}
-                      onClick={async () => {
-                        try {
-                          // Process the PayMongo order
-                          const token = localStorage.getItem('token') || localStorage.getItem('authToken');
-                          const response = await fetch(`${API_URL}/api/orders/${savedOrderData._id}/process-paymongo`, {
-                            method: 'POST',
-                            headers: {
-                              'Content-Type': 'application/json',
-                              Authorization: `Bearer ${token}`
-                            }
-                          });
-
-                          if (!response.ok) {
-                            const errorData = await response.json();
-                            throw new Error(errorData.message || 'Failed to process order');
-                          }
-
-                          // Print receipt
-                          await handlePrint();
-                          
-                          // Close modal and refresh orders
-                          setShowReceipt(false);
-                          setSavedOrderData(null);
-                          fetchActiveOrders();
-                          fetchTakeoutOrders();
-                          
-                          alert('Order processed successfully and moved to kitchen!');
-                        } catch (error) {
-                          console.error('Error processing PayMongo order:', error);
-                          alert(`Failed to process order: ${error.message}`);
-                        }
-                      }}
-                    >
-                      Print & Process Order
-                    </button>
-                    <button
-                      className="w-full py-2 md:py-3 text-sm md:text-base rounded-2xl font-medium"
-                      style={{
-                        backgroundColor: theme.colors.muted,
-                        color: 'white'
-                      }}
-                      onClick={() => {
-                        setShowReceipt(false);
+                <button
+                  className="w-full py-3 md:py-4 text-base md:text-lg rounded-2xl mt-4 font-semibold"
+                  style={{
+                    backgroundColor: theme.colors.primary,
+                    color: theme.colors.background
+                  }}                  onClick={async () => {
+                    try {
+                      await handlePrint();
+                    } finally {
+                      setShowReceipt(false);
+                      
+                      // If this was a PayMongo order, refresh the lists
+                      if (savedOrderData?.paymentMethod === 'paymongo') {
                         setSavedOrderData(null);
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    className="w-full py-3 md:py-4 text-base md:text-lg rounded-2xl mt-4 font-semibold"
-                    style={{
-                      backgroundColor: theme.colors.primary,
-                      color: theme.colors.background
-                    }}                  onClick={async () => {
-                      try {
-                        await handlePrint();
-                      } finally {
-                        setShowReceipt(false);
-                          // Reset pending order states when closing receipt
-                        if (isPendingOrderMode) {
-                          setEditingPendingOrder(null);
-                          setIsPendingOrderMode(false);
-                          setPendingOrderItems([]);
-                          setCurrentOrder([]);
-                          setCashAmount(0);
-                          setSearchTerm('');
-                          // Reset payment details
-                          setEWalletDetails({ provider: 'gcash', referenceNumber: '', name: '' });
-                          setCustomerName(''); // Reset customer name when closing receipt
-                        }
+                        fetchActiveOrders();
+                        fetchTakeoutOrders();
                       }
-                    }}
-                  >
-                    CLOSE
-                  </button>
-                )}
+                      
+                      // Reset pending order states when closing receipt
+                      if (isPendingOrderMode) {
+                        setEditingPendingOrder(null);
+                        setIsPendingOrderMode(false);
+                        setPendingOrderItems([]);
+                        setCurrentOrder([]);
+                        setCashAmount(0);
+                        setSearchTerm('');
+                        // Reset payment details
+                        setEWalletDetails({ provider: 'gcash', referenceNumber: '', name: '' });
+                        setCustomerName(''); // Reset customer name when closing receipt
+                      }
+                    }
+                  }}
+                >
+                  CLOSE
+                </button>
               </div>
             </Modal>
 
@@ -2777,7 +2763,7 @@ const PointOfSale = () => {
                   }
                 } catch (error) {
                   console.error('Error updating cash float settings:', error);
-                  alert('Error updating cash float settings: ' + error.message);
+                  toast.error('Error updating cash float settings: ' + error.message);
                 }
               }}
             />            {/* End of Shift Modal - Manager Only */}
@@ -3079,3 +3065,4 @@ const PointOfSale = () => {
 };
 
 export default PointOfSale;
+

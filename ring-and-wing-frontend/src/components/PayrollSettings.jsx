@@ -16,20 +16,23 @@ import { API_URL } from '../App';
  * PAYROLL SETTINGS USAGE AUDIT:
  * 
  * ✅ USED SETTINGS:
- * - regularHoursPerDay: Used in payroll calculations (backend: payrollRoutes.js line 750)
  * - multipliers.*: All multipliers used in payroll calculations (backend: getPayrollMultipliers)
- * - deductions.lateDeductionPerMinute: NOW USED in late deduction calculations (backend: payrollRoutes.js, frontend: PayrollSystem.jsx)
- * - deductions.absentDeductionType: NOW USED in absence deduction calculations
+ * - deductions.lateDeductionPerMinute: Used in late deduction calculations (PayrollSystem.jsx fallback)
+ * - deductions.absentDeductionType: Used in absence deduction calculations (PayrollSystem.jsx fallback)
  * - deductions.sssEnabled/philhealthEnabled/pagibigEnabled/taxEnabled: Used in government deductions
  * 
+ * ⚠️ SCHEDULE-SPECIFIC:
+ * - regularHoursPerDay: Managed per schedule, not globally
+ * - workDaysPerWeek: Managed per schedule, not globally
+ * 
  * ⚠️ PARTIALLY USED:
- * - workDaysPerWeek: Only used in PayrollSchedule creation, not in actual payroll calculations
  * - defaultPayoutType/defaultPayoutDays/defaultCutoffDays: Only used as defaults for new schedules
  * 
  * 📝 NOTES:
  * - All settings are persisted in Settings model and accessible globally
  * - Multipliers are validated against DOLE minimums before saving
  * - Late deduction: 0 = uses hourly rate method, >0 = uses fixed penalty rate
+ * - Deduction settings serve as fallback when schedule doesn't have specific settings
  */
 
 // DOLE Minimum Multipliers (Philippine Labor Code)
@@ -46,8 +49,6 @@ const DOLE_MINIMUMS = {
 
 const PayrollSettings = () => {
   const [settings, setSettings] = useState({
-    regularHoursPerDay: 8,
-    workDaysPerWeek: 6,
     multipliers: {
       overtime: 1.25,
       regularHoliday: 2.0,
@@ -391,63 +392,6 @@ const PayrollSettings = () => {
       )}
 
       <div className="space-y-8">
-        {/* Work Hours Section */}
-        <div className="p-5 rounded-lg border" style={{ borderColor: theme.colors.muted + '40' }}>
-          <h3 className="font-semibold mb-4 flex items-center gap-2" style={{ color: theme.colors.primary }}>
-            <FiClock size={18} />
-            Standard Work Hours
-          </h3>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: theme.colors.primary }}>
-                Regular Hours/Day
-              </label>
-              <input
-                type="number"
-                value={settings.regularHoursPerDay ?? ''}
-                onChange={(e) => {
-                  const val = e.target.value === '' ? '' : parseInt(e.target.value);
-                  setSettings(prev => ({ ...prev, regularHoursPerDay: val === '' ? 8 : val }));
-                }}
-                onFocus={(e) => {
-                  if (e.target.value === '0' || e.target.value === '8') e.target.select();
-                }}
-                className="w-full p-2.5 border rounded-lg"
-                style={{ borderColor: theme.colors.muted }}
-                min="1"
-                max="12"
-                placeholder="8"
-              />
-              <p className="text-xs mt-1" style={{ color: theme.colors.muted }}>
-                Standard 8 hours per DOLE
-              </p>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: theme.colors.primary }}>
-                Work Days/Week
-              </label>
-              <input
-                type="number"
-                value={settings.workDaysPerWeek ?? ''}
-                onChange={(e) => {
-                  const val = e.target.value === '' ? '' : parseInt(e.target.value);
-                  setSettings(prev => ({ ...prev, workDaysPerWeek: val === '' ? 6 : val }));
-                }}
-                onFocus={(e) => {
-                  if (e.target.value === '0' || e.target.value === '6') e.target.select();
-                }}
-                className="w-full p-2.5 border rounded-lg"
-                style={{ borderColor: theme.colors.muted }}
-                min="1"
-                max="7"
-                placeholder="6"
-              />
-            </div>
-          </div>
-        </div>
-
         {/* Pay Multipliers Section */}
         <div className="p-5 rounded-lg border" style={{ borderColor: theme.colors.muted + '40' }}>
           <h3 className="font-semibold mb-2 flex items-center gap-2" style={{ color: theme.colors.primary }}>

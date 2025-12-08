@@ -18,7 +18,12 @@ const { calculateAllGovernmentDeductions } = require('../utils/governmentDeducti
 // Helper: Get global payroll settings (multipliers) from Settings model
 const getPayrollMultipliers = async () => {
   try {
-    const settings = await Settings.getSettings();
+    const settings = await Settings.findOne();
+    if (!settings) {
+      console.warn('No settings found, using DOLE defaults');
+      return getDOLEDefaults();
+    }
+    
     // Multipliers are nested under payroll.multipliers
     const multipliers = settings.payroll?.multipliers || {};
     return {
@@ -33,18 +38,20 @@ const getPayrollMultipliers = async () => {
     };
   } catch (error) {
     console.error('Error fetching payroll multipliers, using DOLE defaults:', error);
-    return {
-      overtime: 1.25,
-      regularHoliday: 2.0,
-      specialHoliday: 1.30,
-      overtimeOnHoliday: 2.60,
-      overtimeOnSpecialHoliday: 1.69,
-      restDay: 1.30,
-      restDayOvertime: 1.69,
-      nightDifferential: 1.10
-    };
+    return getDOLEDefaults();
   }
 };
+
+const getDOLEDefaults = () => ({
+  overtime: 1.25,
+  regularHoliday: 2.0,
+  specialHoliday: 1.30,
+  overtimeOnHoliday: 2.60,
+  overtimeOnSpecialHoliday: 1.69,
+  restDay: 1.30,
+  restDayOvertime: 1.69,
+  nightDifferential: 1.10
+});
 
 // Create payroll record
 router.post('/', auth, async (req, res) => {
@@ -479,9 +486,11 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
       thirteenthMonthPay = calculate13thMonthPay(totalBasicPay);
     }
 
-    // Calculate government deductions based on monthly salary
-    // Now returns BOTH employee and employer contributions
-    const monthlySalary = basicPay; // Basic pay represents monthly salary for payroll period
+    // Calculate government deductions based on MONTHLY SALARY (not period gross)
+    // For hourly employees: Monthly Salary = hourlyRate × 208 hours (8 hrs/day × 26 days)
+    // This is the standard Philippine payroll formula for SSS/PhilHealth/Pag-IBIG
+    const hourlyRate = staff.hourlyRate || (staff.dailyRate || 0) / 8;
+    const monthlySalary = hourlyRate * 208;
     const govtDeductions = await calculateAllGovernmentDeductions(monthlySalary, staff);
     
     console.log('Government deductions calculated:', {
@@ -816,8 +825,11 @@ router.post('/generate-batch', auth, async (req, res) => {
         absenceDeduction = 0;
       }
 
-      // Calculate government deductions (returns full breakdown with employee/employer shares)
-      const govtDeductions = await calculateAllGovernmentDeductions(basicPay, staff);
+      // Calculate government deductions based on MONTHLY SALARY (not period gross)
+      // For hourly employees: Monthly Salary = hourlyRate × 208 hours (8 hrs/day × 26 days)
+      // This is the standard Philippine payroll formula for SSS/PhilHealth/Pag-IBIG
+      const monthlySalary = hourlyRate * 208;
+      const govtDeductions = await calculateAllGovernmentDeductions(monthlySalary, staff);
 
       // Calculate gross and net pay (only employee share is deducted from pay)
       const grossPay = basicPay + overtimePay + (staff.allowances || 0);

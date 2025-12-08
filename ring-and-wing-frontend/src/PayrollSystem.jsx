@@ -85,6 +85,9 @@ const PayrollSystem = () => {
   // Batch payroll generator view state
   const [showPayrollGenerator, setShowPayrollGenerator] = useState(false);
   
+  // Global payroll settings (fallback when schedule doesn't have specific settings)
+  const [globalPayrollSettings, setGlobalPayrollSettings] = useState(null);
+  
     // Define fetchEmployees outside of useEffect so it can be called from other functions
   const fetchEmployees = async () => {
     try {
@@ -139,7 +142,25 @@ const PayrollSystem = () => {
   // Fetch employees from backend
   useEffect(() => {
     fetchEmployees();
+    fetchGlobalPayrollSettings();
   }, []);
+
+  // Fetch global payroll settings
+  const fetchGlobalPayrollSettings = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await api.get('/api/settings/payroll', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.data?.success) {
+        setGlobalPayrollSettings(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching global payroll settings:', error);
+      // Don't show error toast - global settings are optional fallback
+    }
+  };
 
   // Fetch payment history when employee is selected
   useEffect(() => {
@@ -273,12 +294,14 @@ const PayrollSystem = () => {
     // Calculate regular hours (total - overtime)
     const regularHours = Math.max(0, totalHours - overtimeHours);
     
-    // Get overtime multiplier from schedule or use default 1.25
-    const overtimeMultiplier = selectedEmployee.payrollScheduleId?.overtimeMultiplier || 1.25;
+    // Get overtime multiplier - Priority: Schedule > Global Settings > Default 1.25
+    const scheduleOTMultiplier = selectedEmployee.payrollScheduleId?.overtimeMultiplier;
+    const globalOTMultiplier = globalPayrollSettings?.multipliers?.overtime;
+    const overtimeMultiplier = scheduleOTMultiplier || globalOTMultiplier || 1.25;
     
     // Payment components - use hourlyRate directly
     const regularPay = regularHours * hourlyRate;
-    const overtimePay = overtimeHours * (hourlyRate * overtimeMultiplier); // Use schedule's OT multiplier
+    const overtimePay = overtimeHours * (hourlyRate * overtimeMultiplier);
     
     // Bonus calculations
     const holidayPay = (includeHolidayPay && holidayData) ? Number(holidayData.totalHolidayPay) || 0 : 0;
@@ -291,8 +314,11 @@ const PayrollSystem = () => {
     const lateMinutes = Number(deductions.lateMinutes) || 0;
     const absences = Number(deductions.absences) || 0;
     
-    // Late deduction: use configured rate if available, otherwise use hourly rate method
-    const lateDeductionPerMinute = payrollSettings?.deductions?.lateDeductionPerMinute;
+    // Late deduction: Priority order - Schedule > Global Settings > Hourly Rate Method
+    const scheduleLatePenalty = selectedEmployee.payrollScheduleId?.deductionSettings?.lateDeductionPerMinute;
+    const globalLatePenalty = globalPayrollSettings?.deductions?.lateDeductionPerMinute;
+    const lateDeductionPerMinute = scheduleLatePenalty !== undefined ? scheduleLatePenalty : globalLatePenalty;
+    
     let lateDeduction = 0;
     if (lateDeductionPerMinute !== undefined && lateDeductionPerMinute > 0) {
       lateDeduction = lateMinutes * lateDeductionPerMinute;
@@ -300,8 +326,11 @@ const PayrollSystem = () => {
       lateDeduction = lateMinutes * (hourlyRate / 60); // Fallback to hourly rate method
     }
     
-    // Absence deduction: use configured type
-    const absentDeductionType = payrollSettings?.deductions?.absentDeductionType || 'daily_rate';
+    // Absence deduction: Priority order - Schedule > Global Settings > Default 'daily_rate'
+    const scheduleAbsentType = selectedEmployee.payrollScheduleId?.deductionSettings?.absentDeductionType;
+    const globalAbsentType = globalPayrollSettings?.deductions?.absentDeductionType;
+    const absentDeductionType = scheduleAbsentType || globalAbsentType || 'daily_rate';
+    
     let absenceDeduction = 0;
     if (absentDeductionType === 'daily_rate') {
       absenceDeduction = absences * hourlyRate * standardHoursPerDay;
@@ -311,8 +340,10 @@ const PayrollSystem = () => {
       absenceDeduction = 0;
     }
     
-    // Calculate government deductions based on basic pay (monthly salary)
-    const monthlySalary = regularPay; // Using regular pay as monthly salary basis
+    // Calculate government deductions based on MONTHLY SALARY (not period gross)
+    // For hourly employees: Monthly Salary = hourlyRate × 208 hours (8 hrs/day × 26 days)
+    // This is the standard Philippine payroll formula for SSS/PhilHealth/Pag-IBIG
+    const monthlySalary = hourlyRate * 208;
     const govtDeductions = calculateAllGovernmentDeductions(monthlySalary, selectedEmployee);
     
     // Total deductions use employee share only (totals.employeeTotal)
