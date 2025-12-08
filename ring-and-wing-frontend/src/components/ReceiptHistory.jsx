@@ -5,6 +5,7 @@ import { FiFilter, FiChevronDown, FiSearch, FiDownload, FiPrinter } from 'react-
 import { useReactToPrint } from 'react-to-print';
 import { Receipt } from './Receipt';
 import { useRef } from 'react';
+import { downloadReceipt, printReceipt } from '../utils/receiptGenerator';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -109,32 +110,15 @@ const ReceiptHistory = () => {
     });
   };
   
-  // Export receipt as PDF
+  // Export receipt as PDF using unified generator
   const exportAsPDF = (order) => {
-    // Set the selected order to prepare for printing/downloading
-    setSelectedOrder(order);
-    // Use setTimeout to ensure the receipt component is rendered
-    setTimeout(() => {
-      handlePrint();
-    }, 100);
+    printReceipt(order);
   };
   
-  // Handle downloading receipt data as JSON
+  // Handle downloading receipt as PDF using unified generator
   const downloadReceiptData = (order) => {
-    // Create a blob with the JSON data
-    const blob = new Blob([JSON.stringify(order, null, 2)], {type: 'application/json'});
-    const url = URL.createObjectURL(blob);
-    
-    // Create a link and click it to trigger download
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `receipt-${order.receiptNumber}.json`;
-    document.body.appendChild(a);
-    a.click();
-    
-    // Clean up
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const filename = `receipt-${order.receiptNumber}.pdf`;
+    downloadReceipt(order, filename);
   };
 
   if (loading) {
@@ -271,7 +255,7 @@ const ReceiptHistory = () => {
                             downloadReceiptData(order);
                           }}
                           className="p-2 rounded-full hover:bg-gray-100"
-                          title="Download Receipt Data"
+                          title="Download Receipt PDF"
                         >
                           <FiDownload style={{ color: theme.colors.accent }} />
                         </button>
@@ -305,7 +289,7 @@ const ReceiptHistory = () => {
                   <button
                     onClick={() => downloadReceiptData(selectedOrder)}
                     className="p-2 rounded-full hover:bg-gray-100"
-                    title="Download Receipt Data"
+                    title="Download Receipt PDF"
                   >
                     <FiDownload style={{ color: theme.colors.accent }} />
                   </button>

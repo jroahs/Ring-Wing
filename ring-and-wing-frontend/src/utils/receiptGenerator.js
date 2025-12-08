@@ -105,6 +105,13 @@ export const generateCustomerReceipt = (order, options = {}) => {
   leftRightText('Type:', fulfillmentLabel, yPos);
   yPos += lineHeight;
 
+  // Staff who processed the order (only show if processedBy exists)
+  if (order.processedBy?.username) {
+    const staffName = order.processedBy.username || order.server || 'Staff';
+    leftRightText('Staff:', staffName, yPos);
+    yPos += lineHeight;
+  }
+
   // Customer info if available (but not internal POS data)
   if (order.customerName && order.customerName !== 'Guest') {
     leftRightText('Customer:', order.customerName, yPos);

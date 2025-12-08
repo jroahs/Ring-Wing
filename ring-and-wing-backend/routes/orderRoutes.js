@@ -30,7 +30,8 @@ router.post('/', validateOrder, criticalCheck, async (req, res, next) => {
     console.log('[orderRoutes POST] Creating order with body:', {
       hasCustomerId: !!req.body.customerId,
       customerId: req.body.customerId,
-      fulfillmentType: req.body.fulfillmentType
+      fulfillmentType: req.body.fulfillmentType,
+      hasProcessedBy: !!req.body.processedBy
     });
     
     // Generate unified receipt number (YYYYMMDD-###)
@@ -40,6 +41,17 @@ router.post('/', validateOrder, criticalCheck, async (req, res, next) => {
       ...req.body,
       receiptNumber: receiptNumber,
     };
+
+    // If processedBy provided from POS, use it. Otherwise leave null until staff processes the order
+    if (!orderData.processedBy && req.user && orderData.orderType === 'pos') {
+      orderData.processedBy = {
+        userId: req.user._id || req.user.id,
+        username: req.user.username || 'Staff',
+        timestamp: new Date()
+      };
+      console.log('[orderRoutes POST] Added processedBy from authenticated POS user:', orderData.processedBy);
+    }
+    // For self-checkout/customer orders, processedBy remains null until staff processes it
 
     // Convert numeric values to proper numbers
     orderData.totals = {

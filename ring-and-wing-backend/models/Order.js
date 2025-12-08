@@ -82,6 +82,17 @@ const orderSchema = new mongoose.Schema({
     deliveryNotes: { type: String }
   },
 
+  // Staff who processed the order
+  processedBy: {
+    userId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: 'User',
+      default: null
+    },
+    username: { type: String, default: 'Self-Service' },
+    timestamp: { type: Date, default: Date.now }
+  },
+
   // Payment details for different payment methods
   paymentDetails: {
     // Cash payment details

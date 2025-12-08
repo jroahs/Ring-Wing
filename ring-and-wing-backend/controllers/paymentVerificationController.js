@@ -175,6 +175,15 @@ exports.verifyPayment = async (req, res) => {
     // proofOfPayment.verificationStatus tracks payment verification separately
     order.status = 'received';
 
+    // Add staff who verified/processed the payment if not already set
+    if (!order.processedBy || !order.processedBy.userId) {
+      order.processedBy = {
+        userId: req.user._id || req.user.id,
+        username: req.user.username || 'Staff',
+        timestamp: new Date()
+      };
+    }
+
     await order.save();
 
     // Emit Socket.io event for real-time updates
@@ -517,7 +526,11 @@ exports.processPayMongoOrder = async (req, res) => {
     // Move order to kitchen workflow
     order.status = 'received';
     order.processedAt = new Date();
-    order.processedBy = req.user.id;
+    order.processedBy = {
+      userId: req.user._id || req.user.id,
+      username: req.user.username || 'Staff',
+      timestamp: new Date()
+    };
     
     await order.save();
 

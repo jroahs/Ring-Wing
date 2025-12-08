@@ -1034,34 +1034,33 @@ const PointOfSale = () => {
   // Process PayMongo order (generate receipt and move to kitchen)
   const handleProcessPayMongoOrder = async (orderId) => {
     try {
-      console.log('[MainPOS] Processing PayMongo order:', orderId);
+      console.log('[MainPOS] Fetching PayMongo order for receipt preview:', orderId);
       
       const token = localStorage.getItem('token') || localStorage.getItem('authToken');
       
-      const response = await fetch(`${API_URL}/api/orders/${orderId}/process-paymongo`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        }
+      // Fetch full order details for receipt
+      const orderResponse = await fetch(`${API_URL}/api/orders/${orderId}`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to process PayMongo order');
+      if (!orderResponse.ok) {
+        throw new Error('Failed to fetch order details');
       }
 
-      const result = await response.json();
-      console.log('[MainPOS] PayMongo order processed successfully:', result);
+      const orderData = await orderResponse.json();
+      const fullOrder = orderData.data || orderData;
 
-      // Refresh orders
-      fetchActiveOrders();
-      fetchTakeoutOrders();
+      console.log('[MainPOS] Fetched order for receipt preview:', fullOrder);
+
+      // Set up order data for receipt preview
+      setSavedOrderData(fullOrder);
       
-      alert('PayMongo order processed! Receipt can be generated and order moved to kitchen.');
+      // Show receipt modal (staff can print/review before processing)
+      setShowReceipt(true);
+
     } catch (error) {
-      console.error('[MainPOS] Error processing PayMongo order:', error);
-      alert(`Failed to process PayMongo order: ${error.message}`);
+      console.error('[MainPOS] Error fetching PayMongo order:', error);
+      alert(`Failed to load order: ${error.message}`);
     }
   };
 
@@ -1406,17 +1405,21 @@ const PointOfSale = () => {
         status: 'received',  // POS orders start as received (first step in workflow)
         orderType: 'pos',  // Changed from 'self_checkout' to 'pos' for orders created in POS
         fulfillmentType: 'dine_in', // POS orders are dine-in by default
-        server: (() => {
+        processedBy: (() => {
           try {
             const userData = localStorage.getItem('userData');
             if (userData) {
               const user = JSON.parse(userData);
-              return user.username || '';
+              return {
+                userId: user._id || user.id,
+                username: user.username || 'Staff',
+                timestamp: new Date()
+              };
             }
           } catch (error) {
             console.error('Error getting staff name:', error);
           }
-          return '';
+          return { username: 'POS Staff', timestamp: new Date() };
         })()
       };
 
@@ -2661,33 +2664,92 @@ const PointOfSale = () => {
                 paymentMethod={paymentMethod}
               />
               <div className="mt-4">
-                <button
-                  className="w-full py-3 md:py-4 text-base md:text-lg rounded-2xl mt-4 font-semibold"
-                  style={{
-                    backgroundColor: theme.colors.primary,
-                    color: theme.colors.background
-                  }}                  onClick={async () => {
-                    try {
-                      await handlePrint();
-                    } finally {
-                      setShowReceipt(false);
-                        // Reset pending order states when closing receipt
-                      if (isPendingOrderMode) {
-                        setEditingPendingOrder(null);
-                        setIsPendingOrderMode(false);
-                        setPendingOrderItems([]);
-                        setCurrentOrder([]);
-                        setCashAmount(0);
-                        setSearchTerm('');
-                        // Reset payment details
-                        setEWalletDetails({ provider: 'gcash', referenceNumber: '', name: '' });
-                        setCustomerName(''); // Reset customer name when closing receipt
+                {/* Check if this is a PayMongo order being previewed */}
+                {savedOrderData?.paymentMethod === 'paymongo' && savedOrderData?.status === 'paymongo_verified' ? (
+                  <div className="space-y-2">
+                    <button
+                      className="w-full py-3 md:py-4 text-base md:text-lg rounded-2xl font-semibold text-white"
+                      style={{
+                        backgroundColor: theme.colors.accent
+                      }}
+                      onClick={async () => {
+                        try {
+                          // Process the PayMongo order
+                          const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+                          const response = await fetch(`${API_URL}/api/orders/${savedOrderData._id}/process-paymongo`, {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              Authorization: `Bearer ${token}`
+                            }
+                          });
+
+                          if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.message || 'Failed to process order');
+                          }
+
+                          // Print receipt
+                          await handlePrint();
+                          
+                          // Close modal and refresh orders
+                          setShowReceipt(false);
+                          setSavedOrderData(null);
+                          fetchActiveOrders();
+                          fetchTakeoutOrders();
+                          
+                          alert('Order processed successfully and moved to kitchen!');
+                        } catch (error) {
+                          console.error('Error processing PayMongo order:', error);
+                          alert(`Failed to process order: ${error.message}`);
+                        }
+                      }}
+                    >
+                      Print & Process Order
+                    </button>
+                    <button
+                      className="w-full py-2 md:py-3 text-sm md:text-base rounded-2xl font-medium"
+                      style={{
+                        backgroundColor: theme.colors.muted,
+                        color: 'white'
+                      }}
+                      onClick={() => {
+                        setShowReceipt(false);
+                        setSavedOrderData(null);
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    className="w-full py-3 md:py-4 text-base md:text-lg rounded-2xl mt-4 font-semibold"
+                    style={{
+                      backgroundColor: theme.colors.primary,
+                      color: theme.colors.background
+                    }}                  onClick={async () => {
+                      try {
+                        await handlePrint();
+                      } finally {
+                        setShowReceipt(false);
+                          // Reset pending order states when closing receipt
+                        if (isPendingOrderMode) {
+                          setEditingPendingOrder(null);
+                          setIsPendingOrderMode(false);
+                          setPendingOrderItems([]);
+                          setCurrentOrder([]);
+                          setCashAmount(0);
+                          setSearchTerm('');
+                          // Reset payment details
+                          setEWalletDetails({ provider: 'gcash', referenceNumber: '', name: '' });
+                          setCustomerName(''); // Reset customer name when closing receipt
+                        }
                       }
-                    }
-                  }}
-                >
-                  CLOSE
-                </button>
+                    }}
+                  >
+                    CLOSE
+                  </button>
+                )}
               </div>
             </Modal>
 

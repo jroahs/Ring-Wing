@@ -953,7 +953,11 @@ const PointOfSaleTablet = () => {
         status: 'received',
         orderType: 'pos',
         fulfillmentType: 'dine_in',
-        server: userData.username || ''
+        processedBy: {
+          userId: userData._id || userData.id,
+          username: userData.username || 'Staff',
+          timestamp: new Date()
+        }
       };
 
       const response = await fetch(`${API_URL}/api/orders`, {

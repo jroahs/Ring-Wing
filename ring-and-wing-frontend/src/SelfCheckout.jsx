@@ -241,6 +241,14 @@ const SelfCheckoutContent = () => {
       fulfillmentType: effectiveFulfillmentType
     };
 
+    // Add customer ID if authenticated (for all fulfillment types)
+    if (customer) {
+      orderData.customerId = customer._id;
+      console.log('[SelfCheckout processOrder] Adding customer ID:', customer._id);
+    } else {
+      console.log('[SelfCheckout processOrder] No customer authenticated - creating guest order');
+    }
+
     // Add payment-specific fields based on fulfillment type
     if (effectiveFulfillmentType === 'dine_in') {
       // Traditional dine-in flow
