@@ -7,6 +7,7 @@ import TimeLogHistory from './components/TimeLogHistory';
 import StaffAvatar from './components/StaffAvatar';
 import PayrollSchedule from './components/PayrollSchedule';
 import PayrollGenerator from './PayrollGenerator';
+import PayrollHistory from './PayrollHistory';
 import api from './services/apiService';
 import { toast } from 'react-toastify';
 import { useMultiTabLogout } from './hooks/useMultiTabLogout';
@@ -84,6 +85,7 @@ const PayrollSystem = () => {
   
   // Batch payroll generator view state
   const [showPayrollGenerator, setShowPayrollGenerator] = useState(false);
+  const [showPayrollHistory, setShowPayrollHistory] = useState(false);
   
   // Global payroll settings (fallback when schedule doesn't have specific settings)
   const [globalPayrollSettings, setGlobalPayrollSettings] = useState(null);
@@ -320,14 +322,29 @@ const PayrollSystem = () => {
     // Calculate regular hours (total - overtime)
     const regularHours = Math.max(0, totalHours - overtimeHours);
     
-    // Get overtime multiplier - Priority: Schedule > Global Settings > Default 1.25
-    const scheduleOTMultiplier = selectedEmployee.payrollScheduleId?.overtimeMultiplier;
+    // Get overtime multiplier - ALWAYS use Global Payroll Settings (schedule-level override is legacy/disabled)
     const globalOTMultiplier = globalPayrollSettings?.multipliers?.overtime;
-    const overtimeMultiplier = scheduleOTMultiplier || globalOTMultiplier || 1.25;
+    const overtimeMultiplier = globalOTMultiplier || 1.25;
+    
+    // DEBUG: Log calculation inputs
+    console.log('[Payroll DEBUG] Calculation inputs:', {
+      totalHours,
+      overtimeHours,
+      regularHours,
+      hourlyRate,
+      '>>> FINAL overtimeMultiplier': overtimeMultiplier,
+      '>>> globalOTMultiplier (from Payroll Settings)': globalOTMultiplier
+    });
     
     // Payment components - use hourlyRate directly
     const regularPay = regularHours * hourlyRate;
     const overtimePay = overtimeHours * (hourlyRate * overtimeMultiplier);
+    
+    console.log('[Payroll DEBUG] Calculation outputs:', {
+      regularPay,
+      overtimePay,
+      formula: `${overtimeHours} * (${hourlyRate} * ${overtimeMultiplier}) = ${overtimePay}`
+    });
     
     // Bonus calculations
     const holidayPay = (includeHolidayPay && holidayData) ? Number(holidayData.totalHolidayPay) || 0 : 0;
@@ -340,10 +357,9 @@ const PayrollSystem = () => {
     const lateMinutes = Number(deductions.lateMinutes) || 0;
     const absences = Number(deductions.absences) || 0;
     
-    // Late deduction: Priority order - Schedule > Global Settings > Hourly Rate Method
-    const scheduleLatePenalty = selectedEmployee.payrollScheduleId?.deductionSettings?.lateDeductionPerMinute;
+    // Late deduction: ALWAYS use Global Payroll Settings (schedule-level override disabled)
     const globalLatePenalty = globalPayrollSettings?.deductions?.lateDeductionPerMinute;
-    const lateDeductionPerMinute = scheduleLatePenalty !== undefined ? scheduleLatePenalty : globalLatePenalty;
+    const lateDeductionPerMinute = globalLatePenalty;
     
     let lateDeduction = 0;
     if (lateDeductionPerMinute !== undefined && lateDeductionPerMinute > 0) {
@@ -352,10 +368,9 @@ const PayrollSystem = () => {
       lateDeduction = lateMinutes * (hourlyRate / 60); // Fallback to hourly rate method
     }
     
-    // Absence deduction: Priority order - Schedule > Global Settings > Default 'daily_rate'
-    const scheduleAbsentType = selectedEmployee.payrollScheduleId?.deductionSettings?.absentDeductionType;
+    // Absence deduction: ALWAYS use Global Payroll Settings (schedule-level override disabled)
     const globalAbsentType = globalPayrollSettings?.deductions?.absentDeductionType;
-    const absentDeductionType = scheduleAbsentType || globalAbsentType || 'daily_rate';
+    const absentDeductionType = globalAbsentType || 'daily_rate';
     
     let absenceDeduction = 0;
     if (absentDeductionType === 'daily_rate') {
@@ -697,7 +712,12 @@ const PayrollSystem = () => {
           paddingTop: windowWidth < 768 ? '4rem' : '0'
         }}
       ><div className="p-6 md:p-8 pt-24 md:pt-8">
-          {showPayrollGenerator ? (
+          {showPayrollHistory ? (
+            <PayrollHistory 
+              onBack={() => setShowPayrollHistory(false)}
+              colors={colors}
+            />
+          ) : showPayrollGenerator ? (
             <PayrollGenerator 
               onBack={() => setShowPayrollGenerator(false)}
               colors={colors}
@@ -798,12 +818,27 @@ const PayrollSystem = () => {
                       </button>
                       
                       <button
-                        onClick={() => setShowScheduleModal(true)}
+                        onClick={() => setShowPayrollHistory(true)}
                         className="px-3 py-1 rounded text-sm font-medium flex items-center"
                         style={{ 
                           backgroundColor: colors.secondary, 
                           color: 'white',
                           fontSize: '0.75rem'
+                        }}
+                        title="View payroll history and archives"
+                      >
+                        <FiFileText className="mr-1" />
+                        History
+                      </button>
+                      
+                      <button
+                        onClick={() => setShowScheduleModal(true)}
+                        className="px-3 py-1 rounded text-sm font-medium flex items-center"
+                        style={{ 
+                          backgroundColor: colors.secondary, 
+                          color: 'white',
+                          fontSize: '0.75rem',
+                          display: 'none' // Hidden: Individual schedules disabled
                         }}
                         title="Manage payroll schedules"
                       >
@@ -837,48 +872,11 @@ const PayrollSystem = () => {
 
                   {selectedEmployee && (
                     <>
-                      {/* Schedule Information */}
-                      <div className="bg-opacity-10 p-4 rounded mb-4" style={{ backgroundColor: colors.primary + '15' }}>
-                        <div className="flex justify-between items-center mb-2">
-                          <h3 className="font-medium" style={{ color: colors.primary }}>
-                            <FiCalendar className="inline mr-2" />
-                            Payroll Schedule
-                          </h3>
-                          {selectedEmployee.payrollScheduleId && (
-                            <button
-                              onClick={() => setShowScheduleModal(true)}
-                              className="text-xs px-2 py-1 rounded"
-                              style={{ backgroundColor: colors.secondary + '20', color: colors.secondary }}
-                            >
-                              Change Schedule
-                            </button>
-                          )}
+                      {/* Schedule Information - HIDDEN: Individual schedules disabled, Global Payroll Settings enforced */}
+                      <div style={{ display: 'none' }} className="bg-opacity-10 p-4 rounded mb-4">
+                        <div className="text-sm p-3 rounded" style={{ backgroundColor: colors.muted + '20', color: colors.muted }}>
+                          ℹ️ Individual schedules disabled. All staff use Global Payroll Settings.
                         </div>
-                        
-                        {selectedEmployee.payrollScheduleId ? (
-                          <div className="text-sm">
-                            <p className="font-medium" style={{ color: colors.secondary }}>
-                              {selectedEmployee.payrollScheduleId.name || "Schedule information not available"}
-                            </p>
-                            {selectedEmployee.payrollScheduleId.type && (
-                              <p style={{ color: colors.muted }}>
-                                Type: {selectedEmployee.payrollScheduleId.type.charAt(0).toUpperCase() + 
-                                      selectedEmployee.payrollScheduleId.type.slice(1)} payment
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm italic" style={{ color: colors.muted }}>No schedule assigned</p>
-                            <button
-                              onClick={() => setShowScheduleModal(true)}
-                              className="text-xs px-2 py-1 rounded"
-                              style={{ backgroundColor: colors.primary, color: 'white' }}
-                            >
-                              Assign Schedule
-                            </button>
-                          </div>
-                        )}
                       </div>
                     
                       {/* Hours Summary - New Section */}

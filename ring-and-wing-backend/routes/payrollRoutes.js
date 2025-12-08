@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Payroll = require('../models/Payroll');
+const PayrollBatch = require('../models/PayrollBatch');
 const Staff = require('../models/Staff');
 const TimeLog = require('../models/TimeLog');
 const Settings = require('../models/Settings');
@@ -1119,5 +1120,605 @@ router.get('/summary', auth, async (req, res) => {
     });
   }
 });
+
+// ============================================
+// PAYROLL BATCH MANAGEMENT ROUTES
+// ============================================
+
+// POST /api/payroll/batch/create - Create draft payroll batch
+router.post('/batch/create', auth, async (req, res) => {
+  try {
+    const { 
+      startDate, 
+      endDate, 
+      payFrequency = 'monthly',
+      notes = ''
+    } = req.body;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Start date and end date are required'
+      });
+    }
+
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    // Check for existing batch in this period
+    const existingBatch = await PayrollBatch.findOne({
+      'payrollPeriod.startDate': { $lte: end },
+      'payrollPeriod.endDate': { $gte: start },
+      status: { $nin: ['cancelled'] }
+    });
+
+    if (existingBatch) {
+      return res.status(400).json({
+        success: false,
+        message: 'A payroll batch already exists for this period',
+        existingBatch: {
+          batchNumber: existingBatch.batchNumber,
+          status: existingBatch.status
+        }
+      });
+    }
+
+    // Generate batch number
+    const batchNumber = await PayrollBatch.generateBatchNumber();
+
+    // Get user info
+    const userName = req.user?.name || req.user?.username || 'System';
+    const userId = req.user?._id;
+
+    // Generate payroll data (same logic as generate-batch)
+    const response = await generatePayrollData(start, end, payFrequency);
+
+    // Create payroll records
+    const payrollRecords = await Promise.all(
+      response.employeeData.map(async (empData) => {
+        const payroll = new Payroll({
+          staffId: empData.staffId,
+          payrollPeriod: start,
+          basicPay: empData.basicPay,
+          overtimePay: empData.overtimePay,
+          allowances: empData.allowances,
+          holidayPay: empData.holidayPay || 0,
+          thirteenthMonthPay: empData.thirteenthMonthPay || 0,
+          bonuses: empData.bonuses,
+          deductions: {
+            late: empData.lateDeduction,
+            absence: empData.absenceDeduction,
+            sss: empData.sssDeduction,
+            philHealth: empData.philHealthDeduction,
+            pagIbig: empData.pagIbigDeduction,
+            withholdingTax: empData.withholdingTax || 0
+          },
+          employerContributions: empData.employerContributions,
+          contributionBasis: empData.contributionBasis,
+          totalHoursWorked: empData.hoursWorked,
+          overtimeHours: empData.overtimeHours,
+          grossPay: empData.grossPay,
+          netPay: empData.netPay,
+          scheduleSummary: empData.scheduleSummary
+        });
+        
+        return await payroll.save();
+      })
+    );
+
+    // Create batch
+    const batch = new PayrollBatch({
+      batchNumber,
+      payrollPeriod: {
+        startDate: start,
+        endDate: end
+      },
+      payFrequency,
+      status: 'draft',
+      preparedBy: {
+        userId,
+        name: userName,
+        timestamp: new Date()
+      },
+      payrollRecords: payrollRecords.map(p => p._id),
+      summary: response.batchSummary,
+      governmentSummary: response.governmentSummary,
+      notes,
+      auditLog: [{
+        action: 'created',
+        performedBy: { userId, name: userName },
+        timestamp: new Date(),
+        details: 'Draft payroll batch created'
+      }]
+    });
+
+    await batch.save();
+
+    res.json({
+      success: true,
+      message: 'Draft payroll batch created successfully',
+      data: {
+        batchId: batch._id,
+        batchNumber: batch.batchNumber,
+        status: batch.status
+      }
+    });
+  } catch (error) {
+    console.error('Error creating payroll batch:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating payroll batch',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/payroll/batch/history - Get all payroll batches with filters
+router.get('/batch/history', auth, async (req, res) => {
+  try {
+    const { 
+      status, 
+      startDate, 
+      endDate,
+      page = 1,
+      limit = 20
+    } = req.query;
+
+    const query = {};
+    
+    if (status) {
+      query.status = status;
+    }
+    
+    if (startDate || endDate) {
+      query['payrollPeriod.startDate'] = {};
+      if (startDate) query['payrollPeriod.startDate'].$gte = new Date(startDate);
+      if (endDate) query['payrollPeriod.endDate'] = { $lte: new Date(endDate) };
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    const batches = await PayrollBatch.find(query)
+      .populate('preparedBy.userId', 'name username')
+      .populate('approvedBy.userId', 'name username')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await PayrollBatch.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: batches,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching payroll batch history:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching payroll batch history',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/payroll/batch/:batchId - Get specific batch details
+router.get('/batch/:batchId', auth, async (req, res) => {
+  try {
+    const batch = await PayrollBatch.findById(req.params.batchId)
+      .populate('payrollRecords')
+      .populate({
+        path: 'payrollRecords',
+        populate: { path: 'staffId', select: 'name position employmentType' }
+      })
+      .populate('preparedBy.userId', 'name username')
+      .populate('submittedBy.userId', 'name username')
+      .populate('approvedBy.userId', 'name username')
+      .populate('lockedBy.userId', 'name username');
+
+    if (!batch) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payroll batch not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: batch
+    });
+  } catch (error) {
+    console.error('Error fetching payroll batch:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching payroll batch',
+      error: error.message
+    });
+  }
+});
+
+// PUT /api/payroll/batch/:batchId/submit - Submit batch for approval
+router.put('/batch/:batchId/submit', auth, async (req, res) => {
+  try {
+    const batch = await PayrollBatch.findById(req.params.batchId);
+    
+    if (!batch) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payroll batch not found'
+      });
+    }
+
+    if (batch.status !== 'draft') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot submit batch with status: ${batch.status}`
+      });
+    }
+
+    const userName = req.user?.name || req.user?.username || 'System';
+    const userId = req.user?._id;
+
+    batch.status = 'pending';
+    batch.submittedBy = {
+      userId,
+      name: userName,
+      timestamp: new Date()
+    };
+    batch.addAuditLog('submitted', { userId, name: userName }, 'Batch submitted for approval');
+
+    await batch.save();
+
+    res.json({
+      success: true,
+      message: 'Payroll batch submitted for approval',
+      data: batch
+    });
+  } catch (error) {
+    console.error('Error submitting payroll batch:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error submitting payroll batch',
+      error: error.message
+    });
+  }
+});
+
+// PUT /api/payroll/batch/:batchId/approve - Approve batch
+router.put('/batch/:batchId/approve', auth, async (req, res) => {
+  try {
+    const { approvalNotes = '' } = req.body;
+    const batch = await PayrollBatch.findById(req.params.batchId);
+    
+    if (!batch) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payroll batch not found'
+      });
+    }
+
+    if (!batch.canApprove()) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot approve batch with status: ${batch.status}`
+      });
+    }
+
+    const userName = req.user?.name || req.user?.username || 'System';
+    const userId = req.user?._id;
+
+    batch.status = 'approved';
+    batch.approvedBy = {
+      userId,
+      name: userName,
+      timestamp: new Date()
+    };
+    batch.approvalNotes = approvalNotes;
+    batch.addAuditLog('approved', { userId, name: userName }, approvalNotes || 'Batch approved');
+
+    await batch.save();
+
+    res.json({
+      success: true,
+      message: 'Payroll batch approved successfully',
+      data: batch
+    });
+  } catch (error) {
+    console.error('Error approving payroll batch:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error approving payroll batch',
+      error: error.message
+    });
+  }
+});
+
+// PUT /api/payroll/batch/:batchId/lock - Lock batch (finalize)
+router.put('/batch/:batchId/lock', auth, async (req, res) => {
+  try {
+    const batch = await PayrollBatch.findById(req.params.batchId);
+    
+    if (!batch) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payroll batch not found'
+      });
+    }
+
+    if (!batch.canLock()) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot lock batch with status: ${batch.status}. Must be approved first.`
+      });
+    }
+
+    const userName = req.user?.name || req.user?.username || 'System';
+    const userId = req.user?._id;
+
+    batch.status = 'locked';
+    batch.lockedBy = {
+      userId,
+      name: userName,
+      timestamp: new Date()
+    };
+    batch.addAuditLog('locked', { userId, name: userName }, 'Batch finalized and locked');
+
+    await batch.save();
+
+    res.json({
+      success: true,
+      message: 'Payroll batch locked successfully. No further edits allowed.',
+      data: batch
+    });
+  } catch (error) {
+    console.error('Error locking payroll batch:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error locking payroll batch',
+      error: error.message
+    });
+  }
+});
+
+// PUT /api/payroll/batch/:batchId/cancel - Cancel batch
+router.put('/batch/:batchId/cancel', auth, async (req, res) => {
+  try {
+    const { reason = '' } = req.body;
+    const batch = await PayrollBatch.findById(req.params.batchId);
+    
+    if (!batch) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payroll batch not found'
+      });
+    }
+
+    if (batch.status === 'locked') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot cancel a locked batch'
+      });
+    }
+
+    const userName = req.user?.name || req.user?.username || 'System';
+    const userId = req.user?._id;
+
+    batch.status = 'cancelled';
+    batch.addAuditLog('cancelled', { userId, name: userName }, reason || 'Batch cancelled');
+
+    await batch.save();
+
+    res.json({
+      success: true,
+      message: 'Payroll batch cancelled',
+      data: batch
+    });
+  } catch (error) {
+    console.error('Error cancelling payroll batch:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error cancelling payroll batch',
+      error: error.message
+    });
+  }
+});
+
+// POST /api/payroll/batch/:batchId/export - Track export
+router.post('/batch/:batchId/export', auth, async (req, res) => {
+  try {
+    const { format = 'pdf' } = req.body;
+    const batch = await PayrollBatch.findById(req.params.batchId);
+    
+    if (!batch) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payroll batch not found'
+      });
+    }
+
+    const userName = req.user?.name || req.user?.username || 'System';
+    const userId = req.user?._id;
+
+    batch.exports.push({
+      format,
+      exportedBy: { userId, name: userName },
+      timestamp: new Date()
+    });
+
+    batch.addAuditLog('exported', { userId, name: userName }, `Exported as ${format.toUpperCase()}`);
+
+    await batch.save();
+
+    res.json({
+      success: true,
+      message: 'Export tracked successfully'
+    });
+  } catch (error) {
+    console.error('Error tracking export:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error tracking export',
+      error: error.message
+    });
+  }
+});
+
+// Helper function to generate payroll data (extracted from generate-batch)
+async function generatePayrollData(start, end, payFrequency) {
+  const globalMultipliers = await getPayrollMultipliers();
+
+  const allStaff = await Staff.find({
+    status: { $nin: ['Terminated', 'Resigned', 'Suspended'] }
+  }).populate('payrollScheduleId').lean();
+
+  const EmployeeSchedule = require('../models/EmployeeSchedule');
+
+  const employeeData = await Promise.all(allStaff.map(async (staff) => {
+    const timeLogs = await TimeLog.find({
+      staffId: staff._id,
+      timestamp: { $gte: start, $lte: end }
+    }).sort('timestamp');
+
+    let totalHours = 0;
+    let overtimeHours = 0;
+    const settings = await Settings.getSettings();
+    const regularHoursPerDay = settings.payroll?.regularHoursPerDay || 8;
+    const overtimeMultiplier = globalMultipliers.overtime;
+
+    const clockOuts = timeLogs.filter(l => l.type === 'clockOut');
+    clockOuts.forEach(clockOut => {
+      if (clockOut.totalHours) {
+        totalHours += clockOut.totalHours;
+        if (clockOut.isOvertime && clockOut.totalHours > regularHoursPerDay) {
+          overtimeHours += clockOut.totalHours - regularHoursPerDay;
+        }
+      }
+    });
+
+    let lateMinutes = 0;
+    let absentDays = 0;
+
+    try {
+      const schedules = await EmployeeSchedule.find({
+        staffId: staff._id,
+        date: { $gte: start, $lte: end }
+      });
+
+      schedules.forEach(schedule => {
+        if (schedule.status === 'absent' && !schedule.isRestDay && !schedule.isLeave) {
+          absentDays++;
+        }
+        lateMinutes += schedule.variance?.lateMinutes || 0;
+      });
+    } catch (error) {
+      console.log(`[Payroll] Schedule data not available for ${staff.name}`);
+    }
+
+    const hourlyRate = staff.hourlyRate || (staff.dailyRate || 0) / regularHoursPerDay;
+    const regularHours = Math.max(0, totalHours - overtimeHours);
+    const basicPay = regularHours * hourlyRate;
+    const overtimePay = overtimeHours * hourlyRate * overtimeMultiplier;
+
+    const lateDeductionPerMinute = settings.payroll?.deductions?.lateDeductionPerMinute;
+    const absentDeductionType = settings.payroll?.deductions?.absentDeductionType || 'daily_rate';
+    const standardHoursPerDay = staff.standardHoursPerDay || 8;
+    
+    let lateDeduction = 0;
+    if (lateDeductionPerMinute !== undefined && lateDeductionPerMinute > 0) {
+      lateDeduction = lateMinutes * lateDeductionPerMinute;
+    } else {
+      lateDeduction = (lateMinutes / 60) * hourlyRate;
+    }
+    
+    let absenceDeduction = 0;
+    if (absentDeductionType === 'daily_rate') {
+      absenceDeduction = absentDays * hourlyRate * standardHoursPerDay;
+    } else if (absentDeductionType === 'none') {
+      absenceDeduction = 0;
+    }
+
+    const monthlySalary = hourlyRate * 208;
+    const govtDeductions = await calculateAllGovernmentDeductions(monthlySalary, staff);
+
+    const grossPay = basicPay + overtimePay + (staff.allowances || 0);
+    const totalDeductions = lateDeduction + absenceDeduction + govtDeductions.totals.employeeTotal;
+    const netPay = Math.max(0, grossPay - totalDeductions);
+
+    return {
+      staffId: staff._id,
+      staffName: staff.name,
+      position: staff.position,
+      employmentType: staff.employmentType || 'Regular',
+      hourlyRate,
+      hoursWorked: Number(totalHours.toFixed(2)),
+      overtimeHours: Number(overtimeHours.toFixed(2)),
+      basicPay: Number(basicPay.toFixed(2)),
+      overtimePay: Number(overtimePay.toFixed(2)),
+      holidayPay: 0,
+      thirteenthMonthPay: 0,
+      allowances: staff.allowances || 0,
+      bonuses: { performance: 0, other: 0 },
+      lateDeduction: Number(lateDeduction.toFixed(2)),
+      absenceDeduction: Number(absenceDeduction.toFixed(2)),
+      sssDeduction: govtDeductions.sss.employeeAmount,
+      philHealthDeduction: govtDeductions.philHealth.employeeAmount,
+      pagIbigDeduction: govtDeductions.pagIbig.employeeAmount,
+      withholdingTax: 0,
+      employerContributions: {
+        sss: govtDeductions.sss.employerAmount,
+        sssEc: govtDeductions.sss.ecAmount,
+        philHealth: govtDeductions.philHealth.employerAmount,
+        pagIbig: govtDeductions.pagIbig.employerAmount,
+        total: govtDeductions.totals.employerTotal
+      },
+      contributionBasis: govtDeductions.contributionBasis,
+      scheduleSummary: {
+        scheduledDays: 0,
+        workedDays: clockOuts.length,
+        absentDays,
+        totalLateMinutes: lateMinutes
+      },
+      grossPay: Number(grossPay.toFixed(2)),
+      totalDeductions: Number(totalDeductions.toFixed(2)),
+      netPay: Number(netPay.toFixed(2))
+    };
+  }));
+
+  // Calculate summaries
+  const batchSummary = {
+    totalEmployees: employeeData.length,
+    totalGrossPay: employeeData.reduce((sum, e) => sum + e.grossPay, 0),
+    totalDeductions: employeeData.reduce((sum, e) => sum + e.totalDeductions, 0),
+    totalNetPay: employeeData.reduce((sum, e) => sum + e.netPay, 0),
+    totalEmployerContributions: employeeData.reduce((sum, e) => sum + e.employerContributions.total, 0),
+    totalHoursWorked: employeeData.reduce((sum, e) => sum + e.hoursWorked, 0),
+    totalOvertimeHours: employeeData.reduce((sum, e) => sum + e.overtimeHours, 0)
+  };
+
+  const governmentSummary = {
+    sss: {
+      employeeTotal: employeeData.reduce((sum, e) => sum + e.sssDeduction, 0),
+      employerTotal: employeeData.reduce((sum, e) => sum + e.employerContributions.sss, 0),
+      ecTotal: employeeData.reduce((sum, e) => sum + e.employerContributions.sssEc, 0)
+    },
+    philHealth: {
+      employeeTotal: employeeData.reduce((sum, e) => sum + e.philHealthDeduction, 0),
+      employerTotal: employeeData.reduce((sum, e) => sum + e.employerContributions.philHealth, 0)
+    },
+    pagIbig: {
+      employeeTotal: employeeData.reduce((sum, e) => sum + e.pagIbigDeduction, 0),
+      employerTotal: employeeData.reduce((sum, e) => sum + e.employerContributions.pagIbig, 0)
+    }
+  };
+
+  return { employeeData, batchSummary, governmentSummary };
+}
 
 module.exports = router;
