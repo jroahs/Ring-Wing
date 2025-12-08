@@ -88,6 +88,9 @@ const PayrollSystem = () => {
   // Global payroll settings (fallback when schedule doesn't have specific settings)
   const [globalPayrollSettings, setGlobalPayrollSettings] = useState(null);
   
+  // Cached salary calculation result (updated whenever inputs change)
+  const [calculatedSalary, setCalculatedSalary] = useState({ netPay: 0 });
+  
     // Define fetchEmployees outside of useEffect so it can be called from other functions
   const fetchEmployees = async () => {
     try {
@@ -185,6 +188,29 @@ const PayrollSystem = () => {
     };
     fetchPaymentHistory();  }, [selectedEmployee]);
 
+  // Recalculate salary whenever inputs change
+  useEffect(() => {
+    const updateCalculation = async () => {
+      const result = await calculateNetSalary();
+      setCalculatedSalary(result);
+    };
+    
+    if (selectedEmployee) {
+      updateCalculation();
+    }
+  }, [
+    selectedEmployee,
+    attendance,
+    deductions,
+    hoursData,
+    includeHolidayPay,
+    holidayData,
+    include13thMonth,
+    thirteenthMonthData,
+    manualBonuses,
+    globalPayrollSettings
+  ]);
+
   const fetchTimeLogs = async (staffId, startDate, endDate) => {
     try {
       const params = new URLSearchParams({ 
@@ -270,7 +296,7 @@ const PayrollSystem = () => {
   };
 
   // Salary calculation with flexible hours and bonuses
-  const calculateNetSalary = () => {
+  const calculateNetSalary = async () => {
     if (!selectedEmployee) return { netPay: 0 };
   
     // Get values with proper validation
@@ -344,7 +370,7 @@ const PayrollSystem = () => {
     // For hourly employees: Monthly Salary = hourlyRate × 208 hours (8 hrs/day × 26 days)
     // This is the standard Philippine payroll formula for SSS/PhilHealth/Pag-IBIG
     const monthlySalary = hourlyRate * 208;
-    const govtDeductions = calculateAllGovernmentDeductions(monthlySalary, selectedEmployee);
+    const govtDeductions = await calculateAllGovernmentDeductions(monthlySalary, selectedEmployee);
     
     // Total deductions use employee share only (totals.employeeTotal)
     const totalDeductions = lateDeduction + absenceDeduction + govtDeductions.totals.employeeTotal;
@@ -401,7 +427,7 @@ const PayrollSystem = () => {
         lateDeduction, absenceDeduction,
         sssDeduction, philHealthDeduction, pagIbigDeduction,
         regularHours, overtimeHours, totalHours
-      } = calculateNetSalary();
+      } = await calculateNetSalary();
 
       // Add auth token to request headers
       const token = localStorage.getItem('authToken');
@@ -1159,11 +1185,11 @@ const PayrollSystem = () => {
                         </div>
                         <div className="flex justify-between items-center mb-2">
                           <span>Regular Hours Pay:</span>
-                          <span>₱{calculateNetSalary().regularPay?.toFixed(2)}</span>
+                          <span>₱{calculatedSalary.regularPay?.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between items-center mb-2">
                           <span>Overtime Pay:</span>
-                          <span>₱{calculateNetSalary().overtimePay?.toFixed(2)}</span>
+                          <span>₱{calculatedSalary.overtimePay?.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between items-center mb-2">
                           <span>Allowances:</span>
@@ -1171,37 +1197,37 @@ const PayrollSystem = () => {
                         </div>
                         
                         {/* Bonus Breakdown */}
-                        {(calculateNetSalary().holidayPay > 0 || calculateNetSalary().thirteenthMonthPay > 0 || 
-                          calculateNetSalary().performanceBonus > 0 || calculateNetSalary().otherBonus > 0) && (
+                        {(calculatedSalary.holidayPay > 0 || calculatedSalary.thirteenthMonthPay > 0 || 
+                          calculatedSalary.performanceBonus > 0 || calculatedSalary.otherBonus > 0) && (
                           <>
                             <hr className="my-2" style={{ borderColor: colors.muted + '30' }} />
-                            {calculateNetSalary().holidayPay > 0 && (
+                            {calculatedSalary.holidayPay > 0 && (
                               <div className="flex justify-between items-center mb-2" style={{ color: colors.secondary }}>
                                 <span>Holiday Pay:</span>
-                                <span>₱{calculateNetSalary().holidayPay?.toFixed(2)}</span>
+                                <span>₱{calculatedSalary.holidayPay?.toFixed(2)}</span>
                               </div>
                             )}
-                            {calculateNetSalary().thirteenthMonthPay > 0 && (
+                            {calculatedSalary.thirteenthMonthPay > 0 && (
                               <div className="flex justify-between items-center mb-2" style={{ color: colors.secondary }}>
                                 <span>13th Month Pay:</span>
-                                <span>₱{calculateNetSalary().thirteenthMonthPay?.toFixed(2)}</span>
+                                <span>₱{calculatedSalary.thirteenthMonthPay?.toFixed(2)}</span>
                               </div>
                             )}
-                            {calculateNetSalary().performanceBonus > 0 && (
+                            {calculatedSalary.performanceBonus > 0 && (
                               <div className="flex justify-between items-center mb-2" style={{ color: colors.secondary }}>
                                 <span>Performance Bonus:</span>
-                                <span>₱{calculateNetSalary().performanceBonus?.toFixed(2)}</span>
+                                <span>₱{calculatedSalary.performanceBonus?.toFixed(2)}</span>
                               </div>
                             )}
-                            {calculateNetSalary().otherBonus > 0 && (
+                            {calculatedSalary.otherBonus > 0 && (
                               <div className="flex justify-between items-center mb-2" style={{ color: colors.secondary }}>
                                 <span>Other Bonus:</span>
-                                <span>₱{calculateNetSalary().otherBonus?.toFixed(2)}</span>
+                                <span>₱{calculatedSalary.otherBonus?.toFixed(2)}</span>
                               </div>
                             )}
                             <div className="flex justify-between items-center mb-2 font-medium" style={{ color: colors.secondary }}>
                               <span>Total Bonuses:</span>
-                              <span>₱{calculateNetSalary().totalBonuses?.toFixed(2)}</span>
+                              <span>₱{calculatedSalary.totalBonuses?.toFixed(2)}</span>
                             </div>
                           </>
                         )}
@@ -1210,57 +1236,57 @@ const PayrollSystem = () => {
                         <div className="border-t border-gray-200 pt-3 mt-3">
                           <div className="flex justify-between items-center mb-3 font-medium" style={{ color: colors.accent }}>
                             <span>Deductions</span>
-                            <span>- ₱{calculateNetSalary().totalDeductions?.toFixed(2)}</span>
+                            <span>- ₱{calculatedSalary.totalDeductions?.toFixed(2)}</span>
                           </div>
                           
                           {/* Attendance Deductions */}
-                          {(calculateNetSalary().lateDeduction > 0 || calculateNetSalary().absenceDeduction > 0) && (
+                          {(calculatedSalary.lateDeduction > 0 || calculatedSalary.absenceDeduction > 0) && (
                             <div className="ml-4 mb-3">
                               <div className="text-sm font-medium mb-1" style={{ color: colors.secondary }}>Attendance Deductions:</div>
-                              {calculateNetSalary().lateDeduction > 0 && (
+                              {calculatedSalary.lateDeduction > 0 && (
                                 <div className="flex justify-between items-center text-sm mb-1" style={{ color: colors.secondary }}>
                                   <span className="ml-2">Late:</span>
-                                  <span>- ₱{calculateNetSalary().lateDeduction?.toFixed(2)}</span>
+                                  <span>- ₱{calculatedSalary.lateDeduction?.toFixed(2)}</span>
                                 </div>
                               )}
-                              {calculateNetSalary().absenceDeduction > 0 && (
+                              {calculatedSalary.absenceDeduction > 0 && (
                                 <div className="flex justify-between items-center text-sm mb-1" style={{ color: colors.secondary }}>
                                   <span className="ml-2">Absence:</span>
-                                  <span>- ₱{calculateNetSalary().absenceDeduction?.toFixed(2)}</span>
+                                  <span>- ₱{calculatedSalary.absenceDeduction?.toFixed(2)}</span>
                                 </div>
                               )}
                             </div>
                           )}
                           
                           {/* Government Deductions */}
-                          {calculateNetSalary().governmentDeductions > 0 && (
+                          {calculatedSalary.governmentDeductions > 0 && (
                             <div className="ml-4 mb-3">
                               <div className="text-sm font-medium mb-1" style={{ color: colors.secondary }}>Government Deductions:</div>
-                              {calculateNetSalary().sssDeduction > 0 && selectedEmployee.sssNumber && (
+                              {calculatedSalary.sssDeduction > 0 && selectedEmployee.sssNumber && (
                                 <div className="flex justify-between items-center text-sm mb-1" style={{ color: colors.secondary }}>
                                   <span className="ml-2">
                                     SSS (5%)
                                     <span className="text-xs ml-1" title={`SSS#: ${selectedEmployee.sssNumber}`}>✓</span>
                                   </span>
-                                  <span>- ₱{calculateNetSalary().sssDeduction?.toFixed(2)}</span>
+                                  <span>- ₱{calculatedSalary.sssDeduction?.toFixed(2)}</span>
                                 </div>
                               )}
-                              {calculateNetSalary().philHealthDeduction > 0 && selectedEmployee.philHealthNumber && (
+                              {calculatedSalary.philHealthDeduction > 0 && selectedEmployee.philHealthNumber && (
                                 <div className="flex justify-between items-center text-sm mb-1" style={{ color: colors.secondary }}>
                                   <span className="ml-2">
                                     PhilHealth (2.5%)
                                     <span className="text-xs ml-1" title={`PhilHealth#: ${selectedEmployee.philHealthNumber}`}>✓</span>
                                   </span>
-                                  <span>- ₱{calculateNetSalary().philHealthDeduction?.toFixed(2)}</span>
+                                  <span>- ₱{calculatedSalary.philHealthDeduction?.toFixed(2)}</span>
                                 </div>
                               )}
-                              {calculateNetSalary().pagIbigDeduction > 0 && selectedEmployee.pagIbigNumber && (
+                              {calculatedSalary.pagIbigDeduction > 0 && selectedEmployee.pagIbigNumber && (
                                 <div className="flex justify-between items-center text-sm mb-1" style={{ color: colors.secondary }}>
                                   <span className="ml-2">
                                     Pag-IBIG (2%)
                                     <span className="text-xs ml-1" title={`Pag-IBIG#: ${selectedEmployee.pagIbigNumber}`}>✓</span>
                                   </span>
-                                  <span>- ₱{calculateNetSalary().pagIbigDeduction?.toFixed(2)}</span>
+                                  <span>- ₱{calculatedSalary.pagIbigDeduction?.toFixed(2)}</span>
                                 </div>
                               )}
                             </div>
@@ -1281,7 +1307,7 @@ const PayrollSystem = () => {
                         <div className="flex justify-between items-center font-semibold pt-2">
                           <span style={{ color: colors.secondary }}>Net Pay:</span>
                           <span style={{ color: colors.secondary }}>
-                            ₱{calculateNetSalary().netPay.toFixed(2)}
+                            ₱{calculatedSalary.netPay.toFixed(2)}
                           </span>
                         </div>
                       </div>
@@ -1432,3 +1458,4 @@ const PayrollSystem = () => {
 };
 
 export default PayrollSystem;
+

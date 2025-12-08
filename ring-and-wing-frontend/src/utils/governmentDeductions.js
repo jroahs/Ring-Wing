@@ -1,15 +1,122 @@
 /**
  * Government Deductions Utility (Frontend)
  * Calculates Philippine government-mandated deductions (SSS, PhilHealth, Pag-IBIG)
- * Based on 2024 official rates and tables
- * This mirrors the backend calculations for frontend preview
+ * Fetches configuration from backend API for real-time accuracy
+ * Falls back to hardcoded 2024/2025 rates if API fails
  * 
  * IMPORTANT: This file calculates BOTH employee and employer contributions
  * for compliance with Philippine government regulations.
  */
 
+import api from '../services/api';
+
+// ============================================
+// CACHE MANAGEMENT
+// ============================================
+let cachedConfig = null;
+let cacheTimestamp = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Fetch government deduction config from backend API
+ * @returns {Object|null} - Active configuration or null if unavailable
+ */
+async function fetchConfigFromAPI() {
+  try {
+    const response = await api.get('/api/government-config');
+    if (response.data?.success && response.data?.data) {
+      return response.data.data;
+    }
+    return null;
+  } catch (error) {
+    console.warn('Failed to fetch government config from API, using fallback:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Get configuration with caching
+ * @returns {Object} - Configuration object
+ */
+async function getConfig() {
+  // Check cache validity
+  const now = Date.now();
+  if (cachedConfig && cacheTimestamp && (now - cacheTimestamp) < CACHE_DURATION) {
+    return cachedConfig;
+  }
+
+  // Try to fetch from API
+  const apiConfig = await fetchConfigFromAPI();
+  
+  if (apiConfig) {
+    // Use API config
+    cachedConfig = {
+      _id: apiConfig._id,
+      version: apiConfig.version,
+      year: apiConfig.year,
+      sss: {
+        employeeRate: apiConfig.sss.employeeRate,
+        employerRate: apiConfig.sss.employerRate,
+        ecThreshold: apiConfig.sss.ec?.lowMscThreshold || 15000,
+        ecLowRate: apiConfig.sss.ec?.lowMscAmount || 10,
+        ecHighRate: apiConfig.sss.ec?.highMscAmount || 30,
+        mscBrackets: apiConfig.sss.mscBrackets || FALLBACK_SSS_MSC_BRACKETS
+      },
+      philHealth: {
+        floor: apiConfig.philHealth.floor,
+        ceiling: apiConfig.philHealth.ceiling,
+        totalRate: apiConfig.philHealth.totalRate,
+        employeeShare: apiConfig.philHealth.employeeRate,
+        employerShare: apiConfig.philHealth.employerRate
+      },
+      pagIbig: {
+        employeeRate: apiConfig.pagIbig.employeeRate,
+        employerRate: apiConfig.pagIbig.employerRate,
+        mfsCap: apiConfig.pagIbig.mfsCap,
+        maxContribution: apiConfig.pagIbig.maxEmployeeContribution
+      }
+    };
+    cacheTimestamp = now;
+    console.log('[Gov Config] Loaded from API:', { version: cachedConfig.version, year: cachedConfig.year });
+  } else {
+    // Use fallback config
+    cachedConfig = {
+      _id: null,
+      version: 0,
+      year: 2024,
+      sss: {
+        employeeRate: FALLBACK_SSS_CONFIG.employeeRate,
+        employerRate: FALLBACK_SSS_CONFIG.employerRate,
+        ecThreshold: FALLBACK_SSS_CONFIG.ecThreshold,
+        ecLowRate: FALLBACK_SSS_CONFIG.ecLowRate,
+        ecHighRate: FALLBACK_SSS_CONFIG.ecHighRate,
+        mscBrackets: FALLBACK_SSS_MSC_BRACKETS
+      },
+      philHealth: FALLBACK_PHILHEALTH_CONFIG,
+      pagIbig: FALLBACK_PAGIBIG_CONFIG
+    };
+    cacheTimestamp = now;
+    console.warn('[Gov Config] Using fallback configuration');
+  }
+
+  return cachedConfig;
+}
+
+/**
+ * Clear config cache (call when config is updated)
+ */
+export function clearConfigCache() {
+  cachedConfig = null;
+  cacheTimestamp = null;
+}
+
+// ============================================
+// FALLBACK CONFIGURATION - 2024/2025 Rates
+// Used if API is unavailable
+// ============================================
+
 // SSS Monthly Salary Credit (MSC) Brackets - 2024
-const SSS_MSC_BRACKETS = [
+const FALLBACK_SSS_MSC_BRACKETS = [
   { min: 0, max: 4249.99, msc: 4000 },
   { min: 4250, max: 4749.99, msc: 4500 },
   { min: 4750, max: 5249.99, msc: 5000 },
@@ -57,8 +164,8 @@ const SSS_MSC_BRACKETS = [
   { min: 35000, max: Infinity, msc: 35000 }
 ];
 
-// SSS Rates - 2024 (Employee 5%, Employer 10%)
-const SSS_CONFIG = {
+// SSS Fallback Config - 2024 (Employee 5%, Employer 10%)
+const FALLBACK_SSS_CONFIG = {
   employeeRate: 0.05,    // 5% employee contribution
   employerRate: 0.10,    // 10% employer contribution
   ecThreshold: 15000,    // MSC threshold for EC rate
@@ -66,8 +173,8 @@ const SSS_CONFIG = {
   ecHighRate: 30         // ₱30 EC for MSC > ₱15,000
 };
 
-// PhilHealth Configuration - 2024
-const PHILHEALTH_CONFIG = {
+// PhilHealth Fallback Configuration - 2024
+const FALLBACK_PHILHEALTH_CONFIG = {
   floor: 10000,           // Minimum salary for calculation (MBS floor)
   ceiling: 100000,        // Maximum salary for calculation (MBS ceiling)
   totalRate: 0.05,        // 5% total premium
@@ -75,8 +182,8 @@ const PHILHEALTH_CONFIG = {
   employerShare: 0.025    // 2.5% employer portion (50% of total)
 };
 
-// Pag-IBIG Configuration - 2024
-const PAGIBIG_CONFIG = {
+// Pag-IBIG Fallback Configuration - 2024
+const FALLBACK_PAGIBIG_CONFIG = {
   employeeRate: 0.02,     // 2% employee contribution
   employerRate: 0.02,     // 2% employer contribution
   mfsCap: 10000,          // Maximum Fund Salary (MFS) cap ₱10,000
@@ -86,16 +193,17 @@ const PAGIBIG_CONFIG = {
 /**
  * Find the appropriate Monthly Salary Credit (MSC) for a given salary
  * @param {number} salary - Monthly salary amount
+ * @param {Array} mscBrackets - MSC brackets from configuration
  * @returns {number} - Monthly Salary Credit
  */
-function findMSC(salary) {
-  for (const bracket of SSS_MSC_BRACKETS) {
+function findMSC(salary, mscBrackets) {
+  for (const bracket of mscBrackets) {
     if (salary >= bracket.min && salary <= bracket.max) {
       return bracket.msc;
     }
   }
   // Default to highest MSC if salary exceeds all brackets
-  return SSS_MSC_BRACKETS[SSS_MSC_BRACKETS.length - 1].msc;
+  return mscBrackets[mscBrackets.length - 1].msc;
 }
 
 /**
@@ -103,9 +211,10 @@ function findMSC(salary) {
  * Returns BOTH employee and employer shares including EC
  * @param {number} monthlySalary - Monthly salary amount
  * @param {boolean} hasSSSNumber - Whether employee has SSS number
+ * @param {Object} config - Configuration object (optional, will fetch if not provided)
  * @returns {object} - SSS contribution breakdown
  */
-export function calculateSSS(monthlySalary, hasSSSNumber) {
+export async function calculateSSS(monthlySalary, hasSSSNumber, config = null) {
   if (!hasSSSNumber || !monthlySalary || monthlySalary <= 0) {
     return {
       employeeAmount: 0,
@@ -117,12 +226,16 @@ export function calculateSSS(monthlySalary, hasSSSNumber) {
     };
   }
   
-  const msc = findMSC(monthlySalary);
-  const employeeAmount = Number((msc * SSS_CONFIG.employeeRate).toFixed(2));
-  const employerAmount = Number((msc * SSS_CONFIG.employerRate).toFixed(2));
+  if (!config) {
+    config = await getConfig();
+  }
+  
+  const msc = findMSC(monthlySalary, config.sss.mscBrackets);
+  const employeeAmount = Number((msc * config.sss.employeeRate).toFixed(2));
+  const employerAmount = Number((msc * config.sss.employerRate).toFixed(2));
   
   // EC (Employees' Compensation) is based on MSC threshold
-  const ecAmount = msc <= SSS_CONFIG.ecThreshold ? SSS_CONFIG.ecLowRate : SSS_CONFIG.ecHighRate;
+  const ecAmount = msc <= config.sss.ecThreshold ? config.sss.ecLowRate : config.sss.ecHighRate;
   
   const totalContribution = employeeAmount + employerAmount + ecAmount;
   
@@ -141,9 +254,10 @@ export function calculateSSS(monthlySalary, hasSSSNumber) {
  * Returns BOTH employee and employer shares
  * @param {number} monthlySalary - Monthly salary amount
  * @param {boolean} hasPhilHealthNumber - Whether employee has PhilHealth number
+ * @param {Object} config - Configuration object (optional, will fetch if not provided)
  * @returns {object} - PhilHealth contribution breakdown
  */
-export function calculatePhilHealth(monthlySalary, hasPhilHealthNumber) {
+export async function calculatePhilHealth(monthlySalary, hasPhilHealthNumber, config = null) {
   if (!hasPhilHealthNumber || !monthlySalary || monthlySalary <= 0) {
     return {
       employeeAmount: 0,
@@ -154,14 +268,18 @@ export function calculatePhilHealth(monthlySalary, hasPhilHealthNumber) {
     };
   }
   
+  if (!config) {
+    config = await getConfig();
+  }
+  
   // Apply floor and ceiling to get Monthly Basic Salary (MBS)
   const mbs = Math.max(
-    PHILHEALTH_CONFIG.floor, 
-    Math.min(monthlySalary, PHILHEALTH_CONFIG.ceiling)
+    config.philHealth.floor, 
+    Math.min(monthlySalary, config.philHealth.ceiling)
   );
   
-  const employeeAmount = Number((mbs * PHILHEALTH_CONFIG.employeeShare).toFixed(2));
-  const employerAmount = Number((mbs * PHILHEALTH_CONFIG.employerShare).toFixed(2));
+  const employeeAmount = Number((mbs * config.philHealth.employeeShare).toFixed(2));
+  const employerAmount = Number((mbs * config.philHealth.employerShare).toFixed(2));
   const totalContribution = employeeAmount + employerAmount;
   
   return {
@@ -178,9 +296,10 @@ export function calculatePhilHealth(monthlySalary, hasPhilHealthNumber) {
  * Returns BOTH employee and employer shares
  * @param {number} monthlySalary - Monthly salary amount
  * @param {boolean} hasPagIbigNumber - Whether employee has Pag-IBIG number
+ * @param {Object} config - Configuration object (optional, will fetch if not provided)
  * @returns {object} - Pag-IBIG contribution breakdown
  */
-export function calculatePagIbig(monthlySalary, hasPagIbigNumber) {
+export async function calculatePagIbig(monthlySalary, hasPagIbigNumber, config = null) {
   if (!hasPagIbigNumber || !monthlySalary || monthlySalary <= 0) {
     return {
       employeeAmount: 0,
@@ -191,17 +310,21 @@ export function calculatePagIbig(monthlySalary, hasPagIbigNumber) {
     };
   }
   
+  if (!config) {
+    config = await getConfig();
+  }
+  
   // Apply MFS cap (Maximum Fund Salary)
-  const mfs = Math.min(monthlySalary, PAGIBIG_CONFIG.mfsCap);
+  const mfs = Math.min(monthlySalary, config.pagIbig.mfsCap);
   
   // Calculate contributions (capped at max contribution)
   const employeeAmount = Math.min(
-    mfs * PAGIBIG_CONFIG.employeeRate, 
-    PAGIBIG_CONFIG.maxContribution
+    mfs * config.pagIbig.employeeRate, 
+    config.pagIbig.maxContribution
   );
   const employerAmount = Math.min(
-    mfs * PAGIBIG_CONFIG.employerRate, 
-    PAGIBIG_CONFIG.maxContribution
+    mfs * config.pagIbig.employerRate, 
+    config.pagIbig.maxContribution
   );
   
   const totalContribution = employeeAmount + employerAmount;
@@ -222,14 +345,17 @@ export function calculatePagIbig(monthlySalary, hasPagIbigNumber) {
  * @param {object} employee - Employee object with government IDs
  * @returns {object} - Object containing all contribution amounts and details
  */
-export function calculateAllGovernmentDeductions(monthlySalary, employee) {
+export async function calculateAllGovernmentDeductions(monthlySalary, employee) {
   const hasSSSNumber = !!(employee?.sssNumber && employee.sssNumber.trim());
   const hasPhilHealthNumber = !!(employee?.philHealthNumber && employee.philHealthNumber.trim());
   const hasPagIbigNumber = !!(employee?.pagIbigNumber && employee.pagIbigNumber.trim());
   
-  const sss = calculateSSS(monthlySalary, hasSSSNumber);
-  const philHealth = calculatePhilHealth(monthlySalary, hasPhilHealthNumber);
-  const pagIbig = calculatePagIbig(monthlySalary, hasPagIbigNumber);
+  // Fetch config once and reuse for all calculations
+  const config = await getConfig();
+  
+  const sss = await calculateSSS(monthlySalary, hasSSSNumber, config);
+  const philHealth = await calculatePhilHealth(monthlySalary, hasPhilHealthNumber, config);
+  const pagIbig = await calculatePagIbig(monthlySalary, hasPagIbigNumber, config);
   
   // Calculate totals
   const employeeTotal = sss.employeeAmount + philHealth.employeeAmount + pagIbig.employeeAmount;
@@ -285,24 +411,36 @@ export function calculateAllGovernmentDeductions(monthlySalary, employee) {
  * Get configuration details (for display/info purposes)
  * @returns {object} - Current configuration settings
  */
-export function getGovernmentDeductionConfig() {
+export async function getGovernmentDeductionConfig() {
+  const config = await getConfig();
+  
   return {
+    _id: config._id,
+    version: config.version,
+    year: config.year,
     sss: {
-      employeeRate: SSS_CONFIG.employeeRate,
-      employerRate: SSS_CONFIG.employerRate,
-      ecThreshold: SSS_CONFIG.ecThreshold,
-      ecLowRate: SSS_CONFIG.ecLowRate,
-      ecHighRate: SSS_CONFIG.ecHighRate,
-      mscBrackets: SSS_MSC_BRACKETS,
-      description: 'Social Security System - Employee 5% + Employer 10% of MSC + EC'
+      employeeRate: config.sss.employeeRate,
+      employerRate: config.sss.employerRate,
+      ecThreshold: config.sss.ecThreshold,
+      ecLowRate: config.sss.ecLowRate,
+      ecHighRate: config.sss.ecHighRate,
+      mscBrackets: config.sss.mscBrackets,
+      description: `Social Security System - Employee ${(config.sss.employeeRate * 100).toFixed(0)}% + Employer ${(config.sss.employerRate * 100).toFixed(0)}% of MSC + EC`
     },
     philHealth: {
-      ...PHILHEALTH_CONFIG,
-      description: 'Philippine Health Insurance - Employee 2.5% + Employer 2.5% of MBS (floor: ₱10,000, ceiling: ₱100,000)'
+      floor: config.philHealth.floor,
+      ceiling: config.philHealth.ceiling,
+      totalRate: config.philHealth.totalRate,
+      employeeShare: config.philHealth.employeeShare,
+      employerShare: config.philHealth.employerShare,
+      description: `Philippine Health Insurance - Employee ${(config.philHealth.employeeShare * 100).toFixed(1)}% + Employer ${(config.philHealth.employerShare * 100).toFixed(1)}% of MBS (floor: ₱${config.philHealth.floor.toLocaleString()}, ceiling: ₱${config.philHealth.ceiling.toLocaleString()})`
     },
     pagIbig: {
-      ...PAGIBIG_CONFIG,
-      description: 'Home Development Mutual Fund - Employee 2% + Employer 2% of MFS (cap: ₱10,000, max ₱200 each)'
+      employeeRate: config.pagIbig.employeeRate,
+      employerRate: config.pagIbig.employerRate,
+      mfsCap: config.pagIbig.mfsCap,
+      maxContribution: config.pagIbig.maxContribution,
+      description: `Home Development Mutual Fund - Employee ${(config.pagIbig.employeeRate * 100).toFixed(0)}% + Employer ${(config.pagIbig.employerRate * 100).toFixed(0)}% of MFS (cap: ₱${config.pagIbig.mfsCap.toLocaleString()}, max ₱${config.pagIbig.maxContribution} each)`
     }
   };
 }
