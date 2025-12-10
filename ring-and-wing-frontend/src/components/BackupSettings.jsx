@@ -341,7 +341,7 @@ const BackupSettings = () => {
               <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: `${muted}30` }}>
                 <div 
                   className="h-full transition-all duration-300" 
-                  style={{ width: `${restoreProgress.percent || 0}%`, backgroundColor: '#16a34a' }}
+                  style={{ width: `${restoreProgress.percent || 0}%`, backgroundColor: accent }}
                 />
               </div>
               {restoreProgress.details && (
@@ -368,7 +368,7 @@ const BackupSettings = () => {
                     onClick={() => runRestore(rp.id)}
                     disabled={restoring}
                     className="px-3 py-1 text-xs rounded-md text-white"
-                    style={{ backgroundColor: restoring ? muted : '#16a34a' }}
+                    style={{ backgroundColor: restoring ? muted : accent }}
                   >
                     {restoring ? 'Restoring...' : 'Restore'}
                   </button>
@@ -381,7 +381,7 @@ const BackupSettings = () => {
 
           {/* Danger Zone - Delete All */}
           <div className="mt-6 pt-4 border-t" style={{ borderColor: `${muted}30` }}>
-            <div className="flex items-center gap-2 mb-2" style={{ color: '#dc2626' }}>
+            <div className="flex items-center gap-2 mb-2" style={{ color: accent }}>
               <FiAlertTriangle />
               <span className="font-semibold text-sm">Danger Zone</span>
             </div>
@@ -392,7 +392,7 @@ const BackupSettings = () => {
               onClick={deleteAllData}
               disabled={deleting}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-white text-sm"
-              style={{ backgroundColor: deleting ? muted : '#dc2626' }}
+              style={{ backgroundColor: deleting ? muted : accent }}
             >
               <FiTrash2 />
               {deleting ? 'Deleting...' : 'Delete All Data'}
