@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { FiDatabase, FiClock, FiRefreshCw, FiDownload, FiShield, FiUpload } from 'react-icons/fi';
+import { FiDatabase, FiClock, FiRefreshCw, FiDownload, FiShield, FiUpload, FiTrash2, FiAlertTriangle } from 'react-icons/fi';
 import { io } from 'socket.io-client';
 import { API_URL } from '../App';
 import { theme } from '../theme';
@@ -18,6 +18,7 @@ const BackupSettings = () => {
   const [showRestore, setShowRestore] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [restoreProgress, setRestoreProgress] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const socketRef = useRef(null);
 
   const token = localStorage.getItem('authToken');
@@ -131,7 +132,7 @@ const BackupSettings = () => {
   };
 
   const runRestore = async (backupId) => {
-    if (!confirm(`Restore from backup?\n\nThis will ADD data from the backup (not replace existing). Continue?`)) return;
+    if (!confirm(`Restore from backup?\n\nThis will UPDATE existing data and add new documents from the backup.\n\nContinue?`)) return;
     try {
       setRestoring(true);
       setRestoreProgress({ step: 'Starting restore...', percent: 0 });
@@ -153,6 +154,38 @@ const BackupSettings = () => {
     } finally {
       setRestoring(false);
       setRestoreProgress(null);
+    }
+  };
+
+  const deleteAllData = async () => {
+    const confirmText = prompt(
+      '⚠️ DANGER: This will DELETE ALL DATA from the database except users/sessions.\n\n' +
+      'This action CANNOT be undone!\n\n' +
+      'Type "DELETE ALL" to confirm:'
+    );
+    if (confirmText !== 'DELETE ALL') {
+      if (confirmText !== null) toast.info('Deletion cancelled - text did not match');
+      return;
+    }
+    try {
+      setDeleting(true);
+      const res = await fetch(`${API_URL}/api/backups/delete-all`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ excludeCollections: ['users', 'sessions'] })
+      });
+      const json = await res.json();
+      if (!json.success) {
+        throw new Error(json.message || json.error || 'Delete failed');
+      }
+      toast.success(`Deleted ${json.data?.totalDeleted || 0} documents from ${json.data?.deletedCollections?.length || 0} collections`);
+    } catch (err) {
+      toast.error(err.message || 'Delete failed');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -320,7 +353,7 @@ const BackupSettings = () => {
           )}
 
           <p className="text-sm mb-3" style={{ color: muted }}>
-            ⚠️ Restore will import data from a backup. Select a restore point below.
+            Restore will update existing data and insert new documents from the backup. No duplicates will be created.
           </p>
           
           {restorePoints.length > 0 ? (
@@ -347,6 +380,26 @@ const BackupSettings = () => {
           ) : (
             <p className="text-sm" style={{ color: muted }}>No restore points available.</p>
           )}
+
+          {/* Danger Zone - Delete All */}
+          <div className="mt-6 pt-4 border-t" style={{ borderColor: `${muted}30` }}>
+            <div className="flex items-center gap-2 mb-2" style={{ color: '#dc2626' }}>
+              <FiAlertTriangle />
+              <span className="font-semibold text-sm">Danger Zone</span>
+            </div>
+            <p className="text-xs mb-3" style={{ color: muted }}>
+              If you have duplicate data from a failed restore, use this to clear all data then restore from a clean backup.
+            </p>
+            <button
+              onClick={deleteAllData}
+              disabled={deleting}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-white text-sm"
+              style={{ backgroundColor: deleting ? muted : '#dc2626' }}
+            >
+              <FiTrash2 />
+              {deleting ? 'Deleting...' : 'Delete All Data'}
+            </button>
+          </div>
         </div>
       )}
     </div>

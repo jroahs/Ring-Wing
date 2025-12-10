@@ -20,4 +20,7 @@ router.get('/list', auth, requireAdmin, backupController.list);
 router.get('/restore-points', auth, requireAdmin, backupController.listRestorePoints);
 router.post('/restore', auth, requireAdmin, backupController.restore);
 
+// Delete all data (emergency cleanup)
+router.delete('/delete-all', auth, requireAdmin, backupController.deleteAll);
+
 module.exports = router;

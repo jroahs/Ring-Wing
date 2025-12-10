@@ -200,6 +200,7 @@ const runMongoExportBackup = async (backupId, progressCallback = null) => {
 
 /**
  * Restore a single collection from a backup file
+ * Uses upsert to avoid duplicates when not dropping existing data
  */
 const restoreCollection = async (backupId, collectionName, options = {}) => {
   const { dropExisting = false } = options;
@@ -228,19 +229,23 @@ const restoreCollection = async (backupId, collectionName, options = {}) => {
     // Optionally drop existing collection
     if (dropExisting) {
       await collection.drop().catch(() => {}); // Ignore error if collection doesn't exist
-    }
-    
-    // Insert the documents
-    if (exportData.data && exportData.data.length > 0) {
-      // Remove _id fields to avoid conflicts if not dropping
-      const docsToInsert = dropExisting 
-        ? exportData.data 
-        : exportData.data.map(doc => {
-            const { _id, ...rest } = doc;
-            return rest;
-          });
-      
-      await collection.insertMany(docsToInsert, { ordered: false });
+      // After dropping, just insert all documents
+      if (exportData.data && exportData.data.length > 0) {
+        await collection.insertMany(exportData.data, { ordered: false });
+      }
+    } else {
+      // Use bulkWrite with upsert to update existing or insert new
+      if (exportData.data && exportData.data.length > 0) {
+        const bulkOps = exportData.data.map(doc => ({
+          replaceOne: {
+            filter: { _id: doc._id },
+            replacement: doc,
+            upsert: true
+          }
+        }));
+        
+        await collection.bulkWrite(bulkOps, { ordered: false });
+      }
     }
     
     return {
@@ -454,6 +459,54 @@ const getBackupDetails = async (backupId) => {
   return JSON.parse(buffer.toString('utf-8'));
 };
 
+/**
+ * Delete all data from all collections (DANGEROUS - use with caution!)
+ * Keeps the collection structure but removes all documents
+ * @param {Array} excludeCollections - Collections to exclude from deletion
+ */
+const deleteAllData = async (excludeCollections = ['users', 'sessions']) => {
+  const db = mongoose.connection.db;
+  if (!db) {
+    throw new Error('MongoDB not connected');
+  }
+  
+  const collectionNames = await getCollectionNames();
+  const results = {
+    deletedCollections: [],
+    skippedCollections: [],
+    totalDeleted: 0,
+    errors: []
+  };
+  
+  for (const collectionName of collectionNames) {
+    // Skip system collections and excluded collections
+    if (collectionName.startsWith('system.') || excludeCollections.includes(collectionName)) {
+      results.skippedCollections.push(collectionName);
+      continue;
+    }
+    
+    try {
+      const collection = db.collection(collectionName);
+      const deleteResult = await collection.deleteMany({});
+      results.deletedCollections.push({
+        name: collectionName,
+        deletedCount: deleteResult.deletedCount
+      });
+      results.totalDeleted += deleteResult.deletedCount;
+      logger.info(`[DeleteAllData] Deleted ${deleteResult.deletedCount} documents from ${collectionName}`);
+    } catch (err) {
+      results.errors.push({
+        collection: collectionName,
+        error: err.message
+      });
+      logger.error(`[DeleteAllData] Failed to delete from ${collectionName}: ${err.message}`);
+    }
+  }
+  
+  results.success = results.errors.length === 0;
+  return results;
+};
+
 module.exports = {
   runMongoExportBackup,
   restoreCollection,
@@ -461,5 +514,6 @@ module.exports = {
   listDatabaseBackups,
   getBackupDetails,
   getCollectionNames,
-  exportCollection
+  exportCollection,
+  deleteAllData
 };

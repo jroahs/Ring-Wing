@@ -1,5 +1,5 @@
 const { runBackup, listBackups, getLatestStatus, getRetentionDays } = require('../utils/backupService');
-const { restoreFromBackup, listDatabaseBackups } = require('../utils/mongoExportBackup');
+const { restoreFromBackup, listDatabaseBackups, deleteAllData } = require('../utils/mongoExportBackup');
 const { logger } = require('../config/logger');
 
 // Track in-progress backup with detailed progress
@@ -214,4 +214,28 @@ const listRestorePoints = async (_req, res) => {
   }
 };
 
-module.exports = { run, status, list, restore, listRestorePoints };
+// NEW: Delete all database data (for cleanup before restore)
+const deleteAll = async (req, res) => {
+  try {
+    const { excludeCollections = ['users', 'sessions'] } = req.body;
+    
+    const initiatedBy = {
+      userId: req.user?._id,
+      username: req.user?.username,
+      position: req.user?.position
+    };
+
+    logger.warn(`[DeleteAll] User ${initiatedBy.username} initiated database deletion`, { initiatedBy, excludeCollections });
+
+    const result = await deleteAllData(excludeCollections);
+
+    logger.warn(`[DeleteAll] Deleted ${result.totalDeleted} documents from ${result.deletedCollections.length} collections`);
+
+    return res.json({ success: result.success, data: result });
+  } catch (error) {
+    logger.error('[DeleteAll] Delete all failed:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = { run, status, list, restore, listRestorePoints, deleteAll };
