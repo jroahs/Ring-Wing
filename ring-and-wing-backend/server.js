@@ -69,32 +69,40 @@ console.log(`PORT environment variable: ${process.env.PORT}`);
 console.log(`Parsed PORT: ${PORT}`);
 
 // Log public egress IP once at startup to help allowlisting Atlas API
-const logPublicIp = () => {
-  try {
-    const req = https.get('https://ifconfig.me/ip', { timeout: 4000 }, (res) => {
+const logPublicIp = async () => {
+  const endpoints = [
+    'https://ifconfig.me/ip',
+    'https://api.ipify.org',
+    'https://ifconfig.co/ip'
+  ];
+
+  const fetchIp = (url) => new Promise((resolve, reject) => {
+    const req = https.get(url, { timeout: 4000 }, (res) => {
       let data = '';
       res.on('data', (chunk) => (data += chunk));
       res.on('end', () => {
         const ip = data.trim();
-        if (ip) {
-          logger.info(`[Egress] Public IP detected: ${ip}`);
-        } else {
-          logger.warn('[Egress] Public IP lookup returned empty response');
-        }
+        ip ? resolve(ip) : reject(new Error('empty response'));
       });
     });
-
     req.on('timeout', () => {
-      logger.warn('[Egress] Public IP lookup timed out');
       req.destroy();
+      reject(new Error('timeout'));
     });
+    req.on('error', reject);
+  });
 
-    req.on('error', (err) => {
-      logger.warn(`[Egress] Public IP lookup failed: ${err.message}`);
-    });
-  } catch (err) {
-    logger.warn(`[Egress] Public IP lookup errored: ${err.message}`);
+  for (const url of endpoints) {
+    try {
+      const ip = await fetchIp(url);
+      logger.info(`[Egress] Public IP detected (${url}): ${ip}`);
+      return;
+    } catch (err) {
+      logger.warn(`[Egress] IP lookup failed at ${url}: ${err.message}`);
+    }
   }
+
+  logger.warn('[Egress] Public IP lookup failed on all endpoints');
 };
 
 logPublicIp();
