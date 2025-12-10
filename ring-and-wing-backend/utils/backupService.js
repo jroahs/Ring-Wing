@@ -247,18 +247,28 @@ const runBackup = async (initiatedBy = {}) => {
     const dbName = mongoUri.split('/').pop()?.split('?')[0] || 'database';
 
     if (useAtlasBackup()) {
-      logger.info('[Backup] Using MongoDB Atlas snapshot metadata instead of mongodump');
-      const snapshot = await getLatestSnapshot();
-      manifest.mongo = {
-        mode: 'atlas-snapshot',
-        dbName,
-        snapshot,
-        uri: maskMongoUri(mongoUri)
-      };
-      if (!snapshot) {
-        partial = true;
-        manifest.mongo.warning = 'No Atlas snapshot found';
-      }
+        logger.info('[Backup] Using MongoDB Atlas snapshot metadata instead of mongodump');
+        try {
+          const snapshot = await getLatestSnapshot();
+          manifest.mongo = {
+            mode: 'atlas-snapshot',
+            dbName,
+            snapshot,
+            uri: maskMongoUri(mongoUri)
+          };
+          if (!snapshot) {
+            partial = true;
+            manifest.mongo.warning = 'No Atlas snapshot found';
+          }
+        } catch (err) {
+          partial = true;
+          manifest.mongo = {
+            mode: 'atlas-snapshot',
+            error: err.message,
+            uri: maskMongoUri(mongoUri)
+          };
+          logger.warn('[Backup] Atlas snapshot lookup failed; continuing with partial backup:', err);
+        }
     } else {
       try {
         const archiveName = `${dbName}-${id}.gz`;

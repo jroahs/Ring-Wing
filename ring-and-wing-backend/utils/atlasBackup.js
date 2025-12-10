@@ -40,24 +40,31 @@ async function getLatestSnapshot() {
   const url = `/clusters/${cfg.clusterName}/backup/snapshots`;
   const params = { limit: 1, sort: 'createdAt', order: 'desc' };
 
-  const { data } = await client.get(url, { params });
-  const snapshot = data?.results?.[0];
+  try {
+    const { data } = await client.get(url, { params });
+    const snapshot = data?.results?.[0];
 
-  if (!snapshot) {
-    logger.warn('[AtlasBackup] No snapshots returned by Atlas API');
-    return null;
+    if (!snapshot) {
+      logger.warn('[AtlasBackup] No snapshots returned by Atlas API');
+      return null;
+    }
+
+    return {
+      id: snapshot.id,
+      clusterName: cfg.clusterName,
+      createdAt: snapshot.createdAt,
+      expiresAt: snapshot.expiresAt,
+      type: snapshot.type,
+      status: snapshot.status,
+      complete: snapshot.complete,
+      links: snapshot.links
+    };
+  } catch (err) {
+    const status = err?.response?.status;
+    const detail = err?.response?.data?.detail || err?.response?.data?.error || err.message;
+    logger.warn(`[AtlasBackup] Snapshot lookup failed (status ${status || 'unknown'}): ${detail}`);
+    throw new Error(detail || 'Atlas snapshot lookup failed');
   }
-
-  return {
-    id: snapshot.id,
-    clusterName: cfg.clusterName,
-    createdAt: snapshot.createdAt,
-    expiresAt: snapshot.expiresAt,
-    type: snapshot.type,
-    status: snapshot.status,
-    complete: snapshot.complete,
-    links: snapshot.links
-  };
 }
 
 module.exports = {
