@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 const morgan = require('morgan');
+const https = require('https');
 const connectDB = require('./config/db');
 const connectionMonitor = require('./utils/connectionMonitor');
 const dotenv = require('dotenv');
@@ -66,6 +67,37 @@ const PORT = parseInt(process.env.PORT) || 5000;
 
 console.log(`PORT environment variable: ${process.env.PORT}`);
 console.log(`Parsed PORT: ${PORT}`);
+
+// Log public egress IP once at startup to help allowlisting Atlas API
+const logPublicIp = () => {
+  try {
+    const req = https.get('https://ifconfig.me/ip', { timeout: 4000 }, (res) => {
+      let data = '';
+      res.on('data', (chunk) => (data += chunk));
+      res.on('end', () => {
+        const ip = data.trim();
+        if (ip) {
+          logger.info(`[Egress] Public IP detected: ${ip}`);
+        } else {
+          logger.warn('[Egress] Public IP lookup returned empty response');
+        }
+      });
+    });
+
+    req.on('timeout', () => {
+      logger.warn('[Egress] Public IP lookup timed out');
+      req.destroy();
+    });
+
+    req.on('error', (err) => {
+      logger.warn(`[Egress] Public IP lookup failed: ${err.message}`);
+    });
+  } catch (err) {
+    logger.warn(`[Egress] Public IP lookup errored: ${err.message}`);
+  }
+};
+
+logPublicIp();
 
 // Import database error handler
 const dbErrorHandler = require('./middleware/dbErrorHandler');
