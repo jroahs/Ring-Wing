@@ -11,8 +11,13 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
+// Backup routes
 router.post('/run', auth, requireAdmin, backupController.run);
 router.get('/status', auth, requireAdmin, backupController.status);
 router.get('/list', auth, requireAdmin, backupController.list);
+
+// Restore routes
+router.get('/restore-points', auth, requireAdmin, backupController.listRestorePoints);
+router.post('/restore', auth, requireAdmin, backupController.restore);
 
 module.exports = router;

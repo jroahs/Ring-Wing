@@ -224,11 +224,18 @@ const enforceRetention = async (retentionDays) => {
   }
 };
 
-const runBackup = async (initiatedBy = {}) => {
+const runBackup = async (initiatedBy = {}, progressCallback = null) => {
   ensureSupabaseConfigured();
   const id = timestampId();
   const retentionDays = getRetentionDays();
   let partial = false;
+
+  // Helper to report progress
+  const reportProgress = (step, percent, details = '', extra = {}) => {
+    if (progressCallback) {
+      progressCallback({ step, percent, details, ...extra });
+    }
+  };
 
   const manifest = {
     id,
@@ -242,6 +249,8 @@ const runBackup = async (initiatedBy = {}) => {
   };
 
   try {
+    reportProgress('Initializing backup', 5, 'Reading configuration...');
+    
     const mongoUri = process.env.MONGO_URI;
     if (!mongoUri) throw new Error('MONGO_URI is not set.');
 
@@ -316,8 +325,19 @@ const runBackup = async (initiatedBy = {}) => {
     } else {
       // No Atlas credentials - use MongoDB export directly (Free Tier compatible)
       try {
+        reportProgress('Exporting database', 10, 'Using MongoDB collection export (Free Tier compatible)');
         logger.info('[Backup] Using MongoDB collection export (Free Tier compatible)');
-        const exportResult = await runMongoExportBackup(id);
+        
+        // Create a sub-progress callback for the export
+        const exportProgressCallback = (progress) => {
+          reportProgress(progress.step, progress.percent, progress.details, {
+            currentCollection: progress.currentCollection,
+            collectionsCompleted: progress.collectionsCompleted,
+            totalCollections: progress.totalCollections
+          });
+        };
+        
+        const exportResult = await runMongoExportBackup(id, exportProgressCallback);
         manifest.mongo = {
           mode: 'mongo-export',
           dbName,
@@ -365,11 +385,19 @@ const runBackup = async (initiatedBy = {}) => {
       }
     }
 
+    reportProgress('Backing up storage', 55, 'Copying storage buckets...');
     const storagePrefix = `storage/${id}`;
     try {
       let totalFiles = 0;
       let totalBytes = 0;
-      for (const bucket of BUCKETS_TO_BACKUP) {
+      for (let i = 0; i < BUCKETS_TO_BACKUP.length; i++) {
+        const bucket = BUCKETS_TO_BACKUP[i];
+        const bucketPercent = Math.round(55 + (i / BUCKETS_TO_BACKUP.length) * 25);
+        reportProgress('Backing up storage', bucketPercent, `Copying bucket: ${bucket}`, {
+          currentBucket: bucket,
+          bucketsCompleted: i,
+          totalBuckets: BUCKETS_TO_BACKUP.length
+        });
         const result = await copyBucket(bucket, storagePrefix);
         totalFiles += result.fileCount;
         totalBytes += result.totalBytes;
@@ -390,6 +418,7 @@ const runBackup = async (initiatedBy = {}) => {
       logger.error('[Backup] Storage copy failed:', err);
     }
 
+    reportProgress('Backing up logs', 85, 'Copying logs and reports...');
     const logsDir = path.join(__dirname, '..', 'logs');
     const reportsDir = path.join(__dirname, '..', 'reports');
     const logsPrefix = `logs-reports/${id}`;
@@ -410,11 +439,13 @@ const runBackup = async (initiatedBy = {}) => {
       logger.error('[Backup] Logs/reports copy failed:', err);
     }
 
+    reportProgress('Finalizing backup', 95, 'Saving backup manifest...');
     manifest.completedAt = new Date().toISOString();
     manifest.status = partial ? 'partial' : 'success';
     const manifestPath = `manifests/${id}.json`;
     await uploadToBackup(manifestPath, Buffer.from(JSON.stringify(manifest, null, 2)), 'application/json');
 
+    reportProgress('Cleaning up', 98, 'Enforcing retention policy...');
     try {
       await enforceRetention(retentionDays);
     } catch (err) {
