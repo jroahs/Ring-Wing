@@ -7,6 +7,7 @@
  */
 
 const mongoose = require('mongoose');
+const { ObjectId } = require('mongodb');
 const { logger } = require('../config/logger');
 const supabase = require('../config/supabase');
 const zlib = require('zlib');
@@ -226,23 +227,40 @@ const restoreCollection = async (backupId, collectionName, options = {}) => {
     
     const collection = db.collection(collectionName);
     
+    // Helper to convert _id strings back to ObjectId
+    const convertIds = (doc) => {
+      const converted = { ...doc };
+      // Convert _id if it's a valid ObjectId string
+      if (converted._id && typeof converted._id === 'string' && ObjectId.isValid(converted._id)) {
+        converted._id = new ObjectId(converted._id);
+      } else if (converted._id && typeof converted._id === 'object' && converted._id.$oid) {
+        // Handle MongoDB Extended JSON format
+        converted._id = new ObjectId(converted._id.$oid);
+      }
+      return converted;
+    };
+    
     // Optionally drop existing collection
     if (dropExisting) {
       await collection.drop().catch(() => {}); // Ignore error if collection doesn't exist
       // After dropping, just insert all documents
       if (exportData.data && exportData.data.length > 0) {
-        await collection.insertMany(exportData.data, { ordered: false });
+        const docsWithIds = exportData.data.map(convertIds);
+        await collection.insertMany(docsWithIds, { ordered: false });
       }
     } else {
       // Use bulkWrite with upsert to update existing or insert new
       if (exportData.data && exportData.data.length > 0) {
-        const bulkOps = exportData.data.map(doc => ({
-          replaceOne: {
-            filter: { _id: doc._id },
-            replacement: doc,
-            upsert: true
-          }
-        }));
+        const bulkOps = exportData.data.map(doc => {
+          const converted = convertIds(doc);
+          return {
+            replaceOne: {
+              filter: { _id: converted._id },
+              replacement: converted,
+              upsert: true
+            }
+          };
+        });
         
         await collection.bulkWrite(bulkOps, { ordered: false });
       }

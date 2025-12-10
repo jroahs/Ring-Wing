@@ -53,13 +53,9 @@ const BackupSettings = () => {
     });
 
     socket.on('restore:complete', (result) => {
+      // Just update state - don't show toast here since runRestore handles it
       setRestoreProgress(null);
       setRestoring(false);
-      if (result.success) {
-        toast.success(`Restored ${result.data?.totalDocuments || 0} documents!`);
-      } else {
-        toast.error(`Restore failed: ${result.error}`);
-      }
     });
 
     return () => {
@@ -132,6 +128,8 @@ const BackupSettings = () => {
   };
 
   const runRestore = async (backupId) => {
+    // Prevent double execution
+    if (restoring) return;
     if (!confirm(`Restore from backup?\n\nThis will UPDATE existing data and add new documents from the backup.\n\nContinue?`)) return;
     try {
       setRestoring(true);
