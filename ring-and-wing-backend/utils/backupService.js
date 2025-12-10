@@ -5,6 +5,7 @@ const os = require('os');
 const { logger } = require('../config/logger');
 const supabase = require('../config/supabase');
 const { getLatestSnapshot } = require('./atlasBackup');
+const { runMongoExportBackup } = require('./mongoExportBackup');
 
 const BACKUP_BUCKET = 'backups';
 const DEFAULT_RETENTION_DAYS = 14;
@@ -261,59 +262,105 @@ const runBackup = async (initiatedBy = {}) => {
             manifest.mongo.warning = 'No Atlas snapshot found';
           }
         } catch (err) {
-          logger.warn('[Backup] Atlas snapshot lookup failed; attempting mongodump fallback:', err);
+          logger.warn('[Backup] Atlas snapshot lookup failed; attempting MongoDB export fallback:', err.message);
+          // Use MongoDB export as primary fallback (works with Free Tier M0)
           try {
-            const archiveName = `${dbName}-${id}.gz`;
-            const { archivePath, size } = await runMongoDump(mongoUri, archiveName);
-            const dbTargetPath = `db/${archiveName}`;
-            const dbBuffer = await fs.promises.readFile(archivePath);
-            await uploadToBackup(dbTargetPath, dbBuffer, 'application/gzip');
+            logger.info('[Backup] Using MongoDB collection export (Free Tier compatible)');
+            const exportResult = await runMongoExportBackup(id);
             manifest.mongo = {
-              mode: 'mongodump-fallback',
+              mode: 'mongo-export',
               dbName,
-              archivePath: `backups/${dbTargetPath}`,
-              size,
+              collections: exportResult.collections,
+              totalDocuments: exportResult.totalDocuments,
+              totalSize: exportResult.totalSize,
+              manifestPath: exportResult.manifestPath,
               uri: maskMongoUri(mongoUri)
             };
-          } catch (dumpErr) {
-            if (dumpErr.message?.toLowerCase().includes('mongodump not found')) {
+            if (!exportResult.success) {
               partial = true;
+              manifest.mongo.errors = exportResult.errors;
+              manifest.mongo.warning = 'Some collections failed to export';
+            }
+            logger.info(`[Backup] MongoDB export completed: ${exportResult.totalDocuments} documents in ${exportResult.collections?.length || 0} collections`);
+          } catch (exportErr) {
+            // Final fallback: try mongodump
+            logger.warn('[Backup] MongoDB export failed; attempting mongodump fallback:', exportErr.message);
+            try {
+              const archiveName = `${dbName}-${id}.gz`;
+              const { archivePath, size } = await runMongoDump(mongoUri, archiveName);
+              const dbTargetPath = `db/${archiveName}`;
+              const dbBuffer = await fs.promises.readFile(archivePath);
+              await uploadToBackup(dbTargetPath, dbBuffer, 'application/gzip');
               manifest.mongo = {
-                mode: 'atlas-snapshot',
-                error: `${err.message}; mongodump not available for fallback`,
+                mode: 'mongodump-fallback',
+                dbName,
+                archivePath: `backups/${dbTargetPath}`,
+                size,
                 uri: maskMongoUri(mongoUri)
               };
-              logger.warn('[Backup] Atlas snapshot failed and mongodump not available; continuing with partial backup.');
-            } else {
-              throw dumpErr;
+            } catch (dumpErr) {
+              if (dumpErr.message?.toLowerCase().includes('mongodump not found')) {
+                partial = true;
+                manifest.mongo = {
+                  mode: 'mongo-export',
+                  error: `Atlas snapshot failed; MongoDB export failed: ${exportErr.message}; mongodump not available`,
+                  uri: maskMongoUri(mongoUri)
+                };
+                logger.warn('[Backup] All database backup methods failed; continuing with partial backup.');
+              } else {
+                throw dumpErr;
+              }
             }
           }
         }
     } else {
+      // No Atlas credentials - use MongoDB export directly (Free Tier compatible)
       try {
-        const archiveName = `${dbName}-${id}.gz`;
-        const { archivePath, size } = await runMongoDump(mongoUri, archiveName);
-        const dbTargetPath = `db/${archiveName}`;
-        const dbBuffer = await fs.promises.readFile(archivePath);
-        await uploadToBackup(dbTargetPath, dbBuffer, 'application/gzip');
+        logger.info('[Backup] Using MongoDB collection export (Free Tier compatible)');
+        const exportResult = await runMongoExportBackup(id);
         manifest.mongo = {
-          mode: 'mongodump',
+          mode: 'mongo-export',
           dbName,
-          archivePath: `backups/${dbTargetPath}`,
-          size,
+          collections: exportResult.collections,
+          totalDocuments: exportResult.totalDocuments,
+          totalSize: exportResult.totalSize,
+          manifestPath: exportResult.manifestPath,
           uri: maskMongoUri(mongoUri)
         };
-      } catch (err) {
-        if (err.message?.toLowerCase().includes('mongodump not found')) {
+        if (!exportResult.success) {
           partial = true;
+          manifest.mongo.errors = exportResult.errors;
+          manifest.mongo.warning = 'Some collections failed to export';
+        }
+        logger.info(`[Backup] MongoDB export completed: ${exportResult.totalDocuments} documents in ${exportResult.collections?.length || 0} collections`);
+      } catch (err) {
+        // Fallback to mongodump if export fails
+        logger.warn('[Backup] MongoDB export failed; attempting mongodump fallback:', err.message);
+        try {
+          const archiveName = `${dbName}-${id}.gz`;
+          const { archivePath, size } = await runMongoDump(mongoUri, archiveName);
+          const dbTargetPath = `db/${archiveName}`;
+          const dbBuffer = await fs.promises.readFile(archivePath);
+          await uploadToBackup(dbTargetPath, dbBuffer, 'application/gzip');
           manifest.mongo = {
             mode: 'mongodump',
-            error: err.message,
+            dbName,
+            archivePath: `backups/${dbTargetPath}`,
+            size,
             uri: maskMongoUri(mongoUri)
           };
-          logger.warn('[Backup] Skipping DB dump; mongodump not available. Storage/logs will still be backed up.');
-        } else {
-          throw err;
+        } catch (dumpErr) {
+          if (dumpErr.message?.toLowerCase().includes('mongodump not found')) {
+            partial = true;
+            manifest.mongo = {
+              mode: 'mongo-export',
+              error: `MongoDB export failed: ${err.message}; mongodump not available`,
+              uri: maskMongoUri(mongoUri)
+            };
+            logger.warn('[Backup] Skipping DB dump; all methods failed. Storage/logs will still be backed up.');
+          } else {
+            throw dumpErr;
+          }
         }
       }
     }
