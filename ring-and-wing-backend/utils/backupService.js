@@ -261,13 +261,33 @@ const runBackup = async (initiatedBy = {}) => {
             manifest.mongo.warning = 'No Atlas snapshot found';
           }
         } catch (err) {
-          partial = true;
-          manifest.mongo = {
-            mode: 'atlas-snapshot',
-            error: err.message,
-            uri: maskMongoUri(mongoUri)
-          };
-          logger.warn('[Backup] Atlas snapshot lookup failed; continuing with partial backup:', err);
+          logger.warn('[Backup] Atlas snapshot lookup failed; attempting mongodump fallback:', err);
+          try {
+            const archiveName = `${dbName}-${id}.gz`;
+            const { archivePath, size } = await runMongoDump(mongoUri, archiveName);
+            const dbTargetPath = `db/${archiveName}`;
+            const dbBuffer = await fs.promises.readFile(archivePath);
+            await uploadToBackup(dbTargetPath, dbBuffer, 'application/gzip');
+            manifest.mongo = {
+              mode: 'mongodump-fallback',
+              dbName,
+              archivePath: `backups/${dbTargetPath}`,
+              size,
+              uri: maskMongoUri(mongoUri)
+            };
+          } catch (dumpErr) {
+            if (dumpErr.message?.toLowerCase().includes('mongodump not found')) {
+              partial = true;
+              manifest.mongo = {
+                mode: 'atlas-snapshot',
+                error: `${err.message}; mongodump not available for fallback`,
+                uri: maskMongoUri(mongoUri)
+              };
+              logger.warn('[Backup] Atlas snapshot failed and mongodump not available; continuing with partial backup.');
+            } else {
+              throw dumpErr;
+            }
+          }
         }
     } else {
       try {
