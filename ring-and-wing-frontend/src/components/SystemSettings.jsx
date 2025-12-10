@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSettings, FiCreditCard, FiClock, FiChevronRight, FiDollarSign, FiCalendar } from 'react-icons/fi';
+import { FiSettings, FiCreditCard, FiClock, FiChevronRight, FiDollarSign, FiCalendar, FiDatabase } from 'react-icons/fi';
 import PaymentSettings from './PaymentSettings';
 import AttendanceSettings from './AttendanceSettings';
 import SchedulingSettings from './SchedulingSettings';
 import PayrollSettings from './PayrollSettings';
+import BackupSettings from './BackupSettings';
 import { theme } from '../theme';
 
 const SystemSettings = () => {
@@ -38,6 +39,13 @@ const SystemSettings = () => {
       description: 'DOLE-compliant multipliers and deductions',
       icon: FiDollarSign,
       component: PayrollSettings
+    },
+    {
+      id: 'backups',
+      name: 'Backups',
+      description: 'Database and storage backups',
+      icon: FiDatabase,
+      component: BackupSettings
     }
   ];
 

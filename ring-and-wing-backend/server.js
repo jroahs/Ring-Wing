@@ -440,6 +440,7 @@ const payrollScheduleRoutes = require('./routes/payrollScheduleRoutes');
 const staffRoutes = require('./routes/staffRoutes');
 const revenueRoutes = require('./routes/revenueRoutes');
 const healthRoutes = require('./routes/healthRoutes');
+const backupRoutes = require('./routes/backupRoutes');
 
 // API Routes
 logger.info('[Setup] Registering time-log routes...');
@@ -478,6 +479,7 @@ app.use('/api/settings', require('./routes/settingsRoutes'));
 app.use('/api/inventory', require('./routes/inventoryRoutes'));
 app.use('/api/inventory-audit-logs', require('./routes/inventoryAuditLogRoutes'));
 app.use('/api/paymongo', require('./routes/paymongoRoutes'));
+app.use('/api/backups', backupRoutes);
 
 // Scheduling routes
 app.use('/api/shift-templates', require('./routes/shiftTemplateRoutes'));
