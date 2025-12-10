@@ -77,7 +77,6 @@ const runMongoDump = (mongoUri, archiveName) => new Promise((resolve, reject) =>
 const listAllFiles = async (bucket, prefix = '') => {
   ensureSupabaseConfigured();
   const files = [];
-  let offset = 0;
   const pageSize = 100;
 
   const walk = async (currentPrefix, currentOffset = 0) => {
@@ -94,8 +93,12 @@ const listAllFiles = async (bucket, prefix = '') => {
         const nextPrefix = currentPrefix ? `${currentPrefix}/${item.name}` : item.name;
         await walk(nextPrefix, 0);
       } else {
-        const fullPath = currentPrefix ? `${currentPrefix}/${item.name}` : item.name;
-        files.push({ path: fullPath, size: item.metadata?.size || 0 });
+        const filePath = currentPrefix ? `${currentPrefix}/${item.name}` : item.name;
+        files.push({
+          path: filePath,
+          size: item.metadata?.size || item.size || 0,
+          updatedAt: item.updated_at
+        });
       }
     }
 
@@ -104,20 +107,23 @@ const listAllFiles = async (bucket, prefix = '') => {
     }
   };
 
-  await walk(prefix, offset);
+  await walk(prefix, 0);
   return files;
 };
 
 const downloadFile = async (bucket, filePath) => {
   const { data, error } = await supabase.storage.from(bucket).download(filePath);
   if (error) throw new Error(`Download failed for ${bucket}/${filePath}: ${error.message}`);
+  if (!data) throw new Error(`No data returned for ${bucket}/${filePath}`);
 
-  if (data && typeof data.arrayBuffer === 'function') {
-    return Buffer.from(await data.arrayBuffer());
+  if (Buffer.isBuffer(data)) return data;
+
+  if (typeof data.arrayBuffer === 'function') {
+    const buffer = Buffer.from(await data.arrayBuffer());
+    return buffer;
   }
 
-  // Node fetch may return a Readable stream
-  if (data && typeof data.getReader !== 'function' && data.pipe) {
+  if (typeof data.getReader !== 'function' && typeof data.pipe === 'function') {
     const chunks = [];
     for await (const chunk of data) {
       chunks.push(chunk);
@@ -190,28 +196,25 @@ const enforceRetention = async (retentionDays) => {
 
       if (!createdTime || createdTime >= cutoff) continue;
 
-      // Remove archived DB
       if (manifest.mongo?.archivePath) {
-        await supabase.storage.from(BACKUP_BUCKET).remove([manifest.mongo.archivePath.replace(`${BACKUP_BUCKET}/`, '')]);
+        const dbPath = manifest.mongo.archivePath.replace(`${BACKUP_BUCKET}/`, '');
+        await supabase.storage.from(BACKUP_BUCKET).remove([dbPath]);
       }
 
-      // Remove storage snapshots
       if (manifest.storage?.prefix) {
         const storageFiles = await listAllFiles(BACKUP_BUCKET, manifest.storage.prefix.replace(`${BACKUP_BUCKET}/`, ''));
         if (storageFiles.length) {
-          await supabase.storage.from(BACKUP_BUCKET).remove(storageFiles.map(f => f.path));
+          await supabase.storage.from(BACKUP_BUCKET).remove(storageFiles.map((f) => f.path));
         }
       }
 
-      // Remove logs/reports snapshots
       if (manifest.logs?.prefix) {
         const logFiles = await listAllFiles(BACKUP_BUCKET, manifest.logs.prefix.replace(`${BACKUP_BUCKET}/`, ''));
         if (logFiles.length) {
-          await supabase.storage.from(BACKUP_BUCKET).remove(logFiles.map(f => f.path));
+          await supabase.storage.from(BACKUP_BUCKET).remove(logFiles.map((f) => f.path));
         }
       }
 
-      // Remove manifest last
       await supabase.storage.from(BACKUP_BUCKET).remove([manifestPath]);
       logger.info(`[Backup] Pruned old backup ${manifest.id}`);
     } catch (err) {
@@ -224,6 +227,8 @@ const runBackup = async (initiatedBy = {}) => {
   ensureSupabaseConfigured();
   const id = timestampId();
   const retentionDays = getRetentionDays();
+  let partial = false;
+
   const manifest = {
     id,
     startedAt: new Date().toISOString(),
@@ -241,8 +246,6 @@ const runBackup = async (initiatedBy = {}) => {
 
     const dbName = mongoUri.split('/').pop()?.split('?')[0] || 'database';
 
-    // 1) Database backup: Prefer Atlas snapshots when credentials exist; otherwise attempt mongodump
-    let mongoStatus = 'ok';
     if (useAtlasBackup()) {
       logger.info('[Backup] Using MongoDB Atlas snapshot metadata instead of mongodump');
       const snapshot = await getLatestSnapshot();
@@ -253,7 +256,7 @@ const runBackup = async (initiatedBy = {}) => {
         uri: maskMongoUri(mongoUri)
       };
       if (!snapshot) {
-        mongoStatus = 'partial';
+        partial = true;
         manifest.mongo.warning = 'No Atlas snapshot found';
       }
     } else {
@@ -272,7 +275,7 @@ const runBackup = async (initiatedBy = {}) => {
         };
       } catch (err) {
         if (err.message?.toLowerCase().includes('mongodump not found')) {
-          mongoStatus = 'partial';
+          partial = true;
           manifest.mongo = {
             mode: 'mongodump',
             error: err.message,
@@ -285,42 +288,61 @@ const runBackup = async (initiatedBy = {}) => {
       }
     }
 
-    // 2) Storage buckets copy
     const storagePrefix = `storage/${id}`;
-    let totalFiles = 0;
-    let totalBytes = 0;
-    for (const bucket of BUCKETS_TO_BACKUP) {
-      const result = await copyBucket(bucket, storagePrefix);
-      totalFiles += result.fileCount;
-      totalBytes += result.totalBytes;
+    try {
+      let totalFiles = 0;
+      let totalBytes = 0;
+      for (const bucket of BUCKETS_TO_BACKUP) {
+        const result = await copyBucket(bucket, storagePrefix);
+        totalFiles += result.fileCount;
+        totalBytes += result.totalBytes;
+      }
+      manifest.storage = {
+        buckets: BUCKETS_TO_BACKUP,
+        prefix: `backups/${storagePrefix}`,
+        totalFiles,
+        totalBytes
+      };
+    } catch (err) {
+      partial = true;
+      manifest.storage = {
+        buckets: BUCKETS_TO_BACKUP,
+        prefix: `backups/${storagePrefix}`,
+        error: err.message
+      };
+      logger.error('[Backup] Storage copy failed:', err);
     }
-    manifest.storage = {
-      buckets: BUCKETS_TO_BACKUP,
-      prefix: `backups/${storagePrefix}`,
-      totalFiles,
-      totalBytes
-    };
 
-    // 3) Logs and reports
     const logsDir = path.join(__dirname, '..', 'logs');
     const reportsDir = path.join(__dirname, '..', 'reports');
     const logsPrefix = `logs-reports/${id}`;
-    const logsResult = await copyLocalDirectory(logsDir, `${logsPrefix}/logs`);
-    const reportsResult = await copyLocalDirectory(reportsDir, `${logsPrefix}/reports`);
-    manifest.logs = {
-      prefix: `backups/${logsPrefix}`,
-      fileCount: logsResult.fileCount + reportsResult.fileCount,
-      totalBytes: logsResult.totalBytes + reportsResult.totalBytes
-    };
+    try {
+      const logsResult = await copyLocalDirectory(logsDir, `${logsPrefix}/logs`);
+      const reportsResult = await copyLocalDirectory(reportsDir, `${logsPrefix}/reports`);
+      manifest.logs = {
+        prefix: `backups/${logsPrefix}`,
+        fileCount: logsResult.fileCount + reportsResult.fileCount,
+        totalBytes: logsResult.totalBytes + reportsResult.totalBytes
+      };
+    } catch (err) {
+      partial = true;
+      manifest.logs = {
+        prefix: `backups/${logsPrefix}`,
+        error: err.message
+      };
+      logger.error('[Backup] Logs/reports copy failed:', err);
+    }
 
-    // 4) Write manifest
     manifest.completedAt = new Date().toISOString();
-    manifest.status = manifest.mongo?.warning || manifest.mongo?.error ? 'partial' : 'success';
+    manifest.status = partial ? 'partial' : 'success';
     const manifestPath = `manifests/${id}.json`;
     await uploadToBackup(manifestPath, Buffer.from(JSON.stringify(manifest, null, 2)), 'application/json');
 
-    // 5) Enforce retention
-    await enforceRetention(retentionDays);
+    try {
+      await enforceRetention(retentionDays);
+    } catch (err) {
+      logger.warn(`[Backup] Retention enforcement skipped: ${err.message}`);
+    }
 
     return manifest;
   } catch (error) {
