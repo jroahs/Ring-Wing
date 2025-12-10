@@ -131,7 +131,7 @@ const BackupSettings = () => {
   };
 
   const runRestore = async (backupId) => {
-    if (!confirm(`Restore from backup ${backupId}? This will ADD data (not replace). Use dropExisting for full restore.`)) return;
+    if (!confirm(`Restore from backup?\n\nThis will ADD data from the backup (not replace existing). Continue?`)) return;
     try {
       setRestoring(true);
       setRestoreProgress({ step: 'Starting restore...', percent: 0 });
@@ -144,9 +144,13 @@ const BackupSettings = () => {
         body: JSON.stringify({ backupId, dropExisting: false })
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.message || 'Restore failed');
+      if (!json.success) {
+        throw new Error(json.message || json.error || 'Restore failed');
+      }
+      toast.success(`Restored ${json.data?.totalDocuments || 0} documents successfully!`);
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.message || 'Restore failed');
+    } finally {
       setRestoring(false);
       setRestoreProgress(null);
     }
@@ -259,7 +263,7 @@ const BackupSettings = () => {
         {loading ? (
           <p className="text-sm" style={{ color: muted }}>Loading backups…</p>
         ) : backups && backups.length ? (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-80 overflow-y-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ color: muted, textAlign: 'left' }}>
@@ -290,7 +294,7 @@ const BackupSettings = () => {
 
       {/* Restore Section */}
       {showRestore && (
-        <div className="p-4 rounded-lg shadow-sm" style={{ border: `1px solid ${accent}50`, backgroundColor: `${accent}05` }}>
+        <div className="p-4 rounded-lg shadow-sm" style={{ border: `1px solid ${muted}30`, backgroundColor: 'white' }}>
           <div className="flex items-center gap-2 mb-3" style={{ color: theme.colors.primary }}>
             <FiUpload />
             <span className="font-semibold">Restore from Backup</span>
@@ -298,7 +302,7 @@ const BackupSettings = () => {
           
           {/* Restore Progress */}
           {restoring && restoreProgress && (
-            <div className="mb-4 p-3 rounded-md" style={{ backgroundColor: 'white' }}>
+            <div className="mb-4 p-3 rounded-md" style={{ backgroundColor: `${accent}10`, border: `1px solid ${muted}20` }}>
               <div className="flex justify-between text-xs mb-1" style={{ color: muted }}>
                 <span>{restoreProgress.step || 'Restoring...'}</span>
                 <span>{restoreProgress.percent || 0}%</span>
