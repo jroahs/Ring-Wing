@@ -242,6 +242,7 @@ const runBackup = async (initiatedBy = {}) => {
     const dbName = mongoUri.split('/').pop()?.split('?')[0] || 'database';
 
     // 1) Database backup: Prefer Atlas snapshots when credentials exist; otherwise attempt mongodump
+    let mongoStatus = 'ok';
     if (useAtlasBackup()) {
       logger.info('[Backup] Using MongoDB Atlas snapshot metadata instead of mongodump');
       const snapshot = await getLatestSnapshot();
@@ -251,19 +252,37 @@ const runBackup = async (initiatedBy = {}) => {
         snapshot,
         uri: maskMongoUri(mongoUri)
       };
+      if (!snapshot) {
+        mongoStatus = 'partial';
+        manifest.mongo.warning = 'No Atlas snapshot found';
+      }
     } else {
-      const archiveName = `${dbName}-${id}.gz`;
-      const { archivePath, size } = await runMongoDump(mongoUri, archiveName);
-      const dbTargetPath = `db/${archiveName}`;
-      const dbBuffer = await fs.promises.readFile(archivePath);
-      await uploadToBackup(dbTargetPath, dbBuffer, 'application/gzip');
-      manifest.mongo = {
-        mode: 'mongodump',
-        dbName,
-        archivePath: `backups/${dbTargetPath}`,
-        size,
-        uri: maskMongoUri(mongoUri)
-      };
+      try {
+        const archiveName = `${dbName}-${id}.gz`;
+        const { archivePath, size } = await runMongoDump(mongoUri, archiveName);
+        const dbTargetPath = `db/${archiveName}`;
+        const dbBuffer = await fs.promises.readFile(archivePath);
+        await uploadToBackup(dbTargetPath, dbBuffer, 'application/gzip');
+        manifest.mongo = {
+          mode: 'mongodump',
+          dbName,
+          archivePath: `backups/${dbTargetPath}`,
+          size,
+          uri: maskMongoUri(mongoUri)
+        };
+      } catch (err) {
+        if (err.message?.toLowerCase().includes('mongodump not found')) {
+          mongoStatus = 'partial';
+          manifest.mongo = {
+            mode: 'mongodump',
+            error: err.message,
+            uri: maskMongoUri(mongoUri)
+          };
+          logger.warn('[Backup] Skipping DB dump; mongodump not available. Storage/logs will still be backed up.');
+        } else {
+          throw err;
+        }
+      }
     }
 
     // 2) Storage buckets copy
@@ -296,7 +315,7 @@ const runBackup = async (initiatedBy = {}) => {
 
     // 4) Write manifest
     manifest.completedAt = new Date().toISOString();
-    manifest.status = 'success';
+    manifest.status = manifest.mongo?.warning || manifest.mongo?.error ? 'partial' : 'success';
     const manifestPath = `manifests/${id}.json`;
     await uploadToBackup(manifestPath, Buffer.from(JSON.stringify(manifest, null, 2)), 'application/json');
 
