@@ -715,6 +715,10 @@ const PayrollSystem = () => {
           {showPayrollHistory ? (
             <PayrollHistory 
               onBack={() => setShowPayrollHistory(false)}
+              onCreateNew={() => {
+                setShowPayrollHistory(false);
+                setShowPayrollGenerator(true);
+              }}
               colors={colors}
             />
           ) : showPayrollGenerator ? (
@@ -804,31 +808,17 @@ const PayrollSystem = () => {
                     </h2>
                       <div className="flex gap-2">
                       <button
-                        onClick={() => setShowPayrollGenerator(true)}
+                        onClick={() => setShowPayrollHistory(true)}
                         className="px-3 py-1 rounded text-sm font-medium flex items-center"
                         style={{ 
                           backgroundColor: colors.primary, 
                           color: 'white',
                           fontSize: '0.75rem'
                         }}
-                        title="Generate batch payroll for all employees"
+                        title="View payroll history, drafts, and create new batches"
                       >
                         <FiLayers className="mr-1" />
                         Batch Payroll
-                      </button>
-                      
-                      <button
-                        onClick={() => setShowPayrollHistory(true)}
-                        className="px-3 py-1 rounded text-sm font-medium flex items-center"
-                        style={{ 
-                          backgroundColor: colors.secondary, 
-                          color: 'white',
-                          fontSize: '0.75rem'
-                        }}
-                        title="View payroll history and archives"
-                      >
-                        <FiFileText className="mr-1" />
-                        History
                       </button>
                       
                       <button

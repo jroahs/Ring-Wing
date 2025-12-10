@@ -20,7 +20,7 @@ import api from './services/apiService';
 import { toast } from 'react-toastify';
 import BrandedLoadingScreen from './components/ui/BrandedLoadingScreen';
 
-const PayrollHistory = ({ onBack, colors }) => {
+const PayrollHistory = ({ onBack, onCreateNew, colors }) => {
   const defaultColors = {
     primary: '#2e0304',
     background: '#fefdfd',
@@ -267,6 +267,18 @@ const PayrollHistory = ({ onBack, colors }) => {
             </p>
           </div>
         </div>
+        
+        {/* Create New Batch Button */}
+        {onCreateNew && (
+          <button
+            onClick={onCreateNew}
+            className="px-4 py-2 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2"
+            style={{ backgroundColor: c.accent, color: 'white' }}
+          >
+            <FiEdit size={18} />
+            <span className="font-medium">Create New Batch</span>
+          </button>
+        )}
       </div>
 
       {/* Filters */}
