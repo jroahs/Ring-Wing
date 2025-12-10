@@ -4,6 +4,7 @@ const path = require('path');
 const os = require('os');
 const { logger } = require('../config/logger');
 const supabase = require('../config/supabase');
+const { getLatestSnapshot } = require('./atlasBackup');
 
 const BACKUP_BUCKET = 'backups';
 const DEFAULT_RETENTION_DAYS = 14;
@@ -34,6 +35,13 @@ const maskMongoUri = (uri = '') => {
   }
 };
 
+const useAtlasBackup = () => (
+  process.env.ATLAS_PUBLIC_KEY &&
+  process.env.ATLAS_PRIVATE_KEY &&
+  process.env.ATLAS_PROJECT_ID &&
+  process.env.ATLAS_CLUSTER_NAME
+);
+
 const runMongoDump = (mongoUri, archiveName) => new Promise((resolve, reject) => {
   const archivePath = path.join(os.tmpdir(), archiveName);
   logger.info(`[Backup] Starting mongodump to ${archivePath}`);
@@ -43,6 +51,14 @@ const runMongoDump = (mongoUri, archiveName) => new Promise((resolve, reject) =>
     '--gzip',
     `--archive=${archivePath}`
   ]);
+
+  dump.on('error', (err) => {
+    if (err.code === 'ENOENT') {
+      reject(new Error('mongodump not found in PATH. Please install MongoDB Database Tools or add mongodump to PATH on the server.'));
+    } else {
+      reject(err);
+    }
+  });
 
   dump.stdout.on('data', (data) => logger.debug(`[Backup][mongodump] ${data}`));
   dump.stderr.on('data', (data) => logger.warn(`[Backup][mongodump] ${data}`));
@@ -223,19 +239,32 @@ const runBackup = async (initiatedBy = {}) => {
     const mongoUri = process.env.MONGO_URI;
     if (!mongoUri) throw new Error('MONGO_URI is not set.');
 
-    // 1) Database dump
     const dbName = mongoUri.split('/').pop()?.split('?')[0] || 'database';
-    const archiveName = `${dbName}-${id}.gz`;
-    const { archivePath, size } = await runMongoDump(mongoUri, archiveName);
-    const dbTargetPath = `db/${archiveName}`;
-    const dbBuffer = await fs.promises.readFile(archivePath);
-    await uploadToBackup(dbTargetPath, dbBuffer, 'application/gzip');
-    manifest.mongo = {
-      dbName,
-      archivePath: `backups/${dbTargetPath}`,
-      size,
-      uri: maskMongoUri(mongoUri)
-    };
+
+    // 1) Database backup: Prefer Atlas snapshots when credentials exist; otherwise attempt mongodump
+    if (useAtlasBackup()) {
+      logger.info('[Backup] Using MongoDB Atlas snapshot metadata instead of mongodump');
+      const snapshot = await getLatestSnapshot();
+      manifest.mongo = {
+        mode: 'atlas-snapshot',
+        dbName,
+        snapshot,
+        uri: maskMongoUri(mongoUri)
+      };
+    } else {
+      const archiveName = `${dbName}-${id}.gz`;
+      const { archivePath, size } = await runMongoDump(mongoUri, archiveName);
+      const dbTargetPath = `db/${archiveName}`;
+      const dbBuffer = await fs.promises.readFile(archivePath);
+      await uploadToBackup(dbTargetPath, dbBuffer, 'application/gzip');
+      manifest.mongo = {
+        mode: 'mongodump',
+        dbName,
+        archivePath: `backups/${dbTargetPath}`,
+        size,
+        uri: maskMongoUri(mongoUri)
+      };
+    }
 
     // 2) Storage buckets copy
     const storagePrefix = `storage/${id}`;
