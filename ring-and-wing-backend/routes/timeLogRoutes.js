@@ -16,8 +16,8 @@ router.use((req, res, next) => {
 });
 
 router.get('/staff/:staffId', auth, timeLogController.getTimeLogs);
-router.post('/clock-in', auth, isStaff, timeLogController.clockIn);
-router.post('/clock-out', auth, isStaff, timeLogController.clockOut);
+router.post('/clock-in', auth, timeLogController.clockIn);
+router.post('/clock-out', auth, timeLogController.clockOut);
 
 // Get calculated hours for a staff member in a date range
 router.get('/staff/:staffId/hours', auth, async (req, res) => {
