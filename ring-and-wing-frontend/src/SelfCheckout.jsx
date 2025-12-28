@@ -15,6 +15,7 @@ import ProofOfPaymentUpload from './components/ProofOfPaymentUpload';
 import OrderTimeoutTimer from './components/OrderTimeoutTimer';
 import DeliveryAddressSelector from './components/DeliveryAddressSelector';
 import AddressFormModal from './components/customer/AddressFormModal';
+import { FaCreditCard, FaStore } from 'react-icons/fa';
 import io from 'socket.io-client';
 
 const colors = {
@@ -143,6 +144,7 @@ const SelfCheckoutContent = () => {
   const [readyToUploadProof, setReadyToUploadProof] = useState(false); // User confirms they've made payment
   const [currentOrder, setCurrentOrder] = useState(null); // Stores order with timer info
   const [socket, setSocket] = useState(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false); // Prevent double-click on PayMongo
   const { customer } = useCustomerAuth();
 
   // Initialize Socket.io connection
@@ -412,7 +414,14 @@ const SelfCheckoutContent = () => {
   };
 
   const handlePayMongoCheckout = async () => {
+    // Prevent double-click - if already processing, do nothing
+    if (isProcessingPayment) {
+      console.log('[PayMongo] Already processing payment, ignoring duplicate click');
+      return;
+    }
+    
     try {
+      setIsProcessingPayment(true); // Lock to prevent duplicate orders
       console.log('Initiating PayMongo checkout');
       console.log('[PayMongo Debug] Cart items:', cartItems.length);
       console.log('[PayMongo Debug] fulfillmentType:', fulfillmentType, 'type:', typeof fulfillmentType);
@@ -430,6 +439,7 @@ const SelfCheckoutContent = () => {
       // Validate address for delivery orders
       if (safeFulfillmentType === 'delivery' && !selectedAddressId) {
         alert('Please select a delivery address before proceeding to payment');
+        setIsProcessingPayment(false);
         return;
       }
       
@@ -627,7 +637,7 @@ const SelfCheckoutContent = () => {
         // Store order info for tracking
         setCurrentOrder(orderResult);
         
-        // Redirect to PayMongo checkout page
+        // Redirect to PayMongo checkout page (isProcessingPayment stays true during redirect)
         window.location.href = checkoutResult.data.checkout_url;
       } else {
         throw new Error(checkoutResult.message || 'Failed to create checkout session');
@@ -637,6 +647,7 @@ const SelfCheckoutContent = () => {
       console.error('PayMongo checkout error:', error);
       alert(`Payment setup failed: ${error.message}. Please try again or contact support.`);
       setSelectedPaymentMethod(null);
+      setIsProcessingPayment(false); // Unlock on error to allow retry
     }
   };
 
@@ -660,6 +671,7 @@ const SelfCheckoutContent = () => {
     setCurrentOrder(null);
     setOrderSubmitted(false);
     setOrderNumber('');
+    setIsProcessingPayment(false); // Reset payment processing lock
   };
 
   // Determine current step based on state
@@ -794,7 +806,12 @@ const SelfCheckoutContent = () => {
                   backgroundColor: '#fff'
                 }}
               >
-                <div style={styles.paymentChoiceIcon}>💳</div>
+                <div style={{
+                  ...styles.paymentChoiceIconContainer,
+                  backgroundColor: colors.accent
+                }}>
+                  <FaCreditCard style={styles.paymentChoiceIconSvg} />
+                </div>
                 <div style={styles.paymentChoiceContent}>
                   <h3 style={styles.paymentChoiceTitle}>Pay Now</h3>
                   <p style={styles.paymentChoiceDesc}>
@@ -812,7 +829,12 @@ const SelfCheckoutContent = () => {
                   backgroundColor: '#fff'
                 }}
               >
-                <div style={styles.paymentChoiceIcon}>🏪</div>
+                <div style={{
+                  ...styles.paymentChoiceIconContainer,
+                  backgroundColor: colors.primary
+                }}>
+                  <FaStore style={styles.paymentChoiceIconSvg} />
+                </div>
                 <div style={styles.paymentChoiceContent}>
                   <h3 style={styles.paymentChoiceTitle}>Pay at Counter</h3>
                   <p style={styles.paymentChoiceDesc}>
@@ -1203,9 +1225,18 @@ const styles = {
     transition: 'all 0.3s ease',
     textAlign: 'left'
   },
-  paymentChoiceIcon: {
-    fontSize: '48px',
+  paymentChoiceIconContainer: {
+    width: '64px',
+    height: '64px',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     flexShrink: 0
+  },
+  paymentChoiceIconSvg: {
+    fontSize: '28px',
+    color: '#fff'
   },
   paymentChoiceContent: {
     flex: 1

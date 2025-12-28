@@ -274,7 +274,7 @@ const AttendanceSettings = () => {
                   className="sr-only"
                 />
                 <div className={`w-14 h-8 rounded-full transition-colors ${
-                  settings.nfcSettings.testMode ? 'bg-green-500' : 'bg-gray-300'
+                  settings.nfcSettings.testMode ? 'bg-orange-500' : 'bg-gray-300'
                 }`}>
                   <div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform ${
                     settings.nfcSettings.testMode ? 'translate-x-7 translate-y-1' : 'translate-x-1 translate-y-1'
@@ -304,7 +304,7 @@ const AttendanceSettings = () => {
                   className="sr-only"
                 />
                 <div className={`w-14 h-8 rounded-full transition-colors ${
-                  settings.nfcSettings.requirePhoto ? 'bg-green-500' : 'bg-gray-300'
+                  settings.nfcSettings.requirePhoto ? 'bg-orange-500' : 'bg-gray-300'
                 }`}>
                   <div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform ${
                     settings.nfcSettings.requirePhoto ? 'translate-x-7 translate-y-1' : 'translate-x-1 translate-y-1'
@@ -376,7 +376,7 @@ const AttendanceSettings = () => {
                   className="sr-only"
                 />
                 <div className={`w-14 h-8 rounded-full transition-colors ${
-                  settings.pinSettings.requirePhoto ? 'bg-green-500' : 'bg-gray-300'
+                  settings.pinSettings.requirePhoto ? 'bg-orange-500' : 'bg-gray-300'
                 }`}>
                   <div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform ${
                     settings.pinSettings.requirePhoto ? 'translate-x-7 translate-y-1' : 'translate-x-1 translate-y-1'

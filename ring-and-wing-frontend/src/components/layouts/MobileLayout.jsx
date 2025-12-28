@@ -236,23 +236,23 @@ const MobileLayout = ({
                     : 'bg-white shadow-md hover:shadow-lg border border-gray-100'
                 }`}
               >
-                {/* Unavailable overlay and banner */}
+                {/* Unavailable overlay and badge - Elegant corner badge */}
                 {isUnavailable && (
                   <>
-                    {/* Gray overlay */}
-                    <div className="absolute inset-0 bg-gray-500/30 z-[1] rounded-xl"></div>
+                    {/* Subtle gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-gray-400/20 via-gray-400/30 to-gray-400/40 z-[1] rounded-xl"></div>
                     
-                    {/* Orange banner with UNAVAILABLE text */}
+                    {/* Corner badge - cleaner look */}
                     <div 
-                      className="absolute inset-x-0 z-[2] flex items-center justify-center"
+                      className="absolute top-0 right-0 z-[2]"
                       style={{ 
-                        top: '50%', 
-                        transform: 'translateY(-50%)',
-                        height: '28px',
-                        backgroundColor: colors.primary
+                        backgroundColor: colors.primary,
+                        borderBottomLeftRadius: '12px',
+                        borderTopRightRadius: '10px',
+                        padding: '4px 10px'
                       }}
                     >
-                      <span className="text-white font-bold text-xs tracking-wide">
+                      <span className="text-white font-semibold text-xs tracking-wide">
                         UNAVAILABLE
                       </span>
                     </div>

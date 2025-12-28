@@ -77,10 +77,16 @@ router.post('/', validateOrder, criticalCheck, async (req, res, next) => {
     });
     
     // Emit socket event for real-time updates (POS "Dine/Take-outs" tab)
+    // Note: Only emit for orders that need verification (not PayMongo - they're auto-verified in create-checkout)
     const io = req.app.get('io');
-    if (io && (order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery' || order.fulfillmentType === 'dine-in')) {
+    const isPayMongoOrder = order.paymentMethod === 'paymongo';
+    const shouldEmitSocket = (order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery' || order.fulfillmentType === 'dine_in');
+    
+    if (io && shouldEmitSocket && !isPayMongoOrder) {
       SocketService.emitNewOrder(io, order.toObject());
       console.log(`[OrderRoutes] Emitted newPaymentOrder for ${order.fulfillmentType} order ${order._id}`);
+    } else if (isPayMongoOrder) {
+      console.log(`[OrderRoutes] Skipping socket emission for PayMongo order ${order._id} - will emit after payment verification`);
     }
     
     res.status(201).json({

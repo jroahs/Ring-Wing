@@ -274,23 +274,23 @@ const DesktopLayout = ({
         }`}
         style={{ minHeight: '200px' }} // Consistent card height
       >
-        {/* Unavailable overlay and banner */}
+        {/* Unavailable overlay and badge - Desktop optimized styling */}
         {isUnavailable && (
           <>
-            {/* Gray overlay */}
-            <div className="absolute inset-0 bg-gray-500/30 z-[1] rounded-xl"></div>
+            {/* Subtle gradient overlay - less heavy than banner */}
+            <div className="absolute inset-0 bg-gradient-to-b from-gray-400/20 via-gray-400/30 to-gray-400/40 z-[1] rounded-xl"></div>
             
-            {/* Orange banner with UNAVAILABLE text */}
+            {/* Corner badge - cleaner for desktop cards */}
             <div 
-              className="absolute inset-x-0 z-[2] flex items-center justify-center"
+              className="absolute top-0 right-0 z-[2]"
               style={{ 
-                top: '50%', 
-                transform: 'translateY(-50%)',
-                height: '32px',
-                backgroundColor: colors.primary
+                backgroundColor: colors.primary,
+                borderBottomLeftRadius: '12px',
+                borderTopRightRadius: '10px',
+                padding: '6px 12px'
               }}
             >
-              <span className="text-white font-bold text-sm tracking-wide">
+              <span className="text-white font-semibold text-xs tracking-wide">
                 UNAVAILABLE
               </span>
             </div>

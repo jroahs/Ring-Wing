@@ -543,7 +543,7 @@ const PaymentSettings = () => {
                   />
                   <div className={`w-14 h-8 rounded-full transition-colors ${
                     settings.merchantWallets.gcash.enabled 
-                      ? 'bg-green-500' 
+                      ? 'bg-orange-500' 
                       : 'bg-gray-300'
                   }`}>
                     <div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform ${
@@ -676,7 +676,7 @@ const PaymentSettings = () => {
                   />
                   <div className={`w-14 h-8 rounded-full transition-colors ${
                     settings.merchantWallets.paymaya.enabled 
-                      ? 'bg-green-500' 
+                      ? 'bg-orange-500' 
                       : 'bg-gray-300'
                   }`}>
                     <div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform ${
@@ -831,7 +831,7 @@ const PaymentSettings = () => {
               />
               <div className={`w-14 h-8 rounded-full transition-colors ${
                 settings.paymentGateways.paymongo.enabled 
-                  ? 'bg-green-500' 
+                  ? 'bg-orange-500' 
                   : 'bg-gray-300'
               }`}>
                 <div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform ${

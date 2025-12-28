@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useCustomerAuth } from '../../contexts/CustomerAuthContext';
+import { FaSignInAlt, FaUserPlus } from 'react-icons/fa';
 import './CustomerAuthModal.css';
 
 const CustomerAuthModal = ({ isOpen, onClose }) => {
@@ -149,12 +150,14 @@ const CustomerAuthModal = ({ isOpen, onClose }) => {
             className={`tab-btn ${activeTab === 'login' ? 'active' : ''}`}
             onClick={() => handleTabChange('login')}
           >
+            <FaSignInAlt className="tab-icon" />
             Login
           </button>
           <button
             className={`tab-btn ${activeTab === 'signup' ? 'active' : ''}`}
             onClick={() => handleTabChange('signup')}
           >
+            <FaUserPlus className="tab-icon" />
             Sign Up
           </button>
         </div>

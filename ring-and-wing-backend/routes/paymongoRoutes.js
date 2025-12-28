@@ -118,6 +118,18 @@ router.post('/create-checkout', async (req, res) => {
     }
     
     await order.save();
+    
+    // Emit socket event for TEST MODE auto-verified orders so they appear in POS immediately
+    if (process.env.PAYMONGO_SECRET_KEY && process.env.PAYMONGO_SECRET_KEY.includes('test')) {
+      const io = req.app.get('io');
+      if (io) {
+        io.to('staff').emit('newPaymentOrder', {
+          order: order.toObject(),
+          timestamp: Date.now()
+        });
+        console.log(`[TEST MODE] Emitted newPaymentOrder for auto-verified order ${order._id}`);
+      }
+    }
 
     logger.info('PayMongo checkout session created successfully:', {
       orderId: order._id,

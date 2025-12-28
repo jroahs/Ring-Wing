@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { theme } from '../../theme';
 
@@ -79,6 +79,16 @@ export const AlternativesModal = ({
   onAddToCart,
   loading = false 
 }) => {
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   if (!isOpen) return null;
 
   return (
@@ -94,21 +104,24 @@ export const AlternativesModal = ({
             onClick={onClose}
           />
           
-          {/* Modal - Mobile Bottom Sheet */}
+          {/* Modal - Responsive: Desktop center modal or Mobile bottom sheet */}
           <motion.div
-            className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl max-h-[85vh] w-full shadow-2xl"
-            initial={{ 
-              y: '100%',
-              opacity: 0 
-            }}
-            animate={{ 
-              y: 0,
-              opacity: 1 
-            }}
-            exit={{ 
-              y: '100%',
-              opacity: 0 
-            }}
+            className={isDesktop 
+              ? "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl max-h-[90vh] w-full max-w-4xl shadow-2xl"
+              : "fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl max-h-[85vh] w-full shadow-2xl"
+            }
+            initial={isDesktop
+              ? { scale: 0.9, opacity: 0 }
+              : { y: '100%', opacity: 0 }
+            }
+            animate={isDesktop
+              ? { scale: 1, opacity: 1 }
+              : { y: 0, opacity: 1 }
+            }
+            exit={isDesktop
+              ? { scale: 0.9, opacity: 0 }
+              : { y: '100%', opacity: 0 }
+            }
             transition={{ 
               type: 'spring',
               damping: 25,
@@ -116,11 +129,11 @@ export const AlternativesModal = ({
             }}
           >
             {/* Header */}
-            <div className="p-4 pb-2 border-b border-gray-200 relative">
-              {/* Pull indicator */}
-              <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-10 h-1 bg-gray-300 rounded-full"></div>
+            <div className={isDesktop ? "p-6 pb-4 border-b border-gray-200 relative" : "p-4 pb-2 border-b border-gray-200 relative"}>
+              {/* Pull indicator - mobile only */}
+              {!isDesktop && <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-10 h-1 bg-gray-300 rounded-full"></div>}
               
-              <div className="flex items-start justify-between mt-3">
+              <div className={isDesktop ? "flex items-start justify-between" : "flex items-start justify-between mt-3"}>
                 <div className="flex-1 pr-4">
                   <div className="flex items-center mb-2">
                     <h2 className="text-xl font-bold text-gray-900">
@@ -152,14 +165,15 @@ export const AlternativesModal = ({
             </div>
             
             {/* Content */}
-            <div className="px-4 py-2 flex-1 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 140px)' }}>
+            <div className={isDesktop ? "px-6 py-4 flex-1 overflow-y-auto" : "px-4 py-2 flex-1 overflow-y-auto"} style={{ maxHeight: isDesktop ? 'calc(90vh - 180px)' : 'calc(85vh - 140px)' }}>
               {loading ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="animate-spin rounded-full h-10 w-10 border-b-3" style={{ borderColor: theme.colors.primary }}></div>
                   <span className="ml-3 text-lg text-gray-600">Loading alternatives...</span>
                 </div>
               ) : alternatives?.length > 0 ? (
-                <div className="grid grid-cols-1 gap-4 pb-4">
+                <div className={isDesktop ? "grid grid-cols-2 gap-5 pb-4" : "grid grid-cols-1 gap-4 pb-4"}>
+
                   {alternatives.map((item) => (
                     <AlternativeCard
                       key={item._id}
@@ -183,7 +197,7 @@ export const AlternativesModal = ({
             </div>
             
             {/* Footer */}
-            <div className="p-4 pt-2 border-t border-gray-200 bg-gray-50">
+            <div className={isDesktop ? "p-6 pt-4 border-t border-gray-200 bg-gray-50" : "p-4 pt-2 border-t border-gray-200 bg-gray-50"}>
               <button
                 onClick={onClose}
                 className="w-full py-4 px-6 rounded-xl border-2 font-semibold transition-all duration-200 text-lg"
