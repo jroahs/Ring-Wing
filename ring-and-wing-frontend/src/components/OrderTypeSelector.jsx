@@ -99,14 +99,14 @@ const OrderTypeSelector = ({ selectedType, onSelect }) => {
         <div style={styles.infoBox}>
           {selectedType === 'dine_in' ? (
             <div style={styles.infoContent}>
-              <span style={styles.infoIcon}>ℹ️</span>
+              <span style={styles.infoIcon}>💳</span>
               <p style={styles.infoText}>
-                You can pay at the counter when you pick up your order
+                Choose to pay now with GCash/PayMaya or pay at the counter
               </p>
             </div>
           ) : (
             <div style={styles.infoContent}>
-              <span style={styles.infoIcon}>$</span>
+              <span style={styles.infoIcon}>💳</span>
               <p style={styles.infoText}>
                 Payment via GCash or PayMaya is required for {selectedType === 'takeout' ? 'take-out' : 'delivery'} orders
               </p>

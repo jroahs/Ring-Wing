@@ -135,9 +135,10 @@ const SelfCheckoutContent = () => {
   // Payment verification states
   const [showPaymentFlow, setShowPaymentFlow] = useState(false); // Controls when to show overlay
   const [fulfillmentType, setFulfillmentType] = useState(null); // null, 'dine_in', 'takeout', 'delivery'
+  const [dineInPaymentChoice, setDineInPaymentChoice] = useState(null); // null, 'pay_now', 'pay_later' - for dine_in only
   const [selectedAddressId, setSelectedAddressId] = useState(null); // Selected delivery address
   const [showAddressForm, setShowAddressForm] = useState(false); // Show add/edit address modal
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null); // null, 'gcash', 'paymaya'
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null); // null, 'gcash', 'paymaya', 'paymongo'
   const [uploadedProof, setUploadedProof] = useState(null);
   const [readyToUploadProof, setReadyToUploadProof] = useState(false); // User confirms they've made payment
   const [currentOrder, setCurrentOrder] = useState(null); // Stores order with timer info
@@ -249,13 +250,14 @@ const SelfCheckoutContent = () => {
       console.log('[SelfCheckout processOrder] No customer authenticated - creating guest order');
     }
 
-    // Add payment-specific fields based on fulfillment type
-    if (effectiveFulfillmentType === 'dine_in') {
-      // Traditional dine-in flow
+    // Add payment-specific fields based on fulfillment type and payment choice
+    if (effectiveFulfillmentType === 'dine_in' && dineInPaymentChoice !== 'pay_now') {
+      // Traditional dine-in flow (Pay Later at Counter)
       orderData.paymentMethod = 'pending';
       orderData.status = 'pending';
     } else {
-      // Takeout/Delivery with e-wallet verification
+      // Pay First flow: Takeout/Delivery OR Dine-In with Pay Now choice
+      // Note: PayMongo payments are handled separately in handlePayMongoCheckout
       orderData.paymentMethod = 'e-wallet';
       orderData.status = 'pending_payment';
       orderData.paymentDetails = {
@@ -650,6 +652,7 @@ const SelfCheckoutContent = () => {
   const resetFlow = () => {
     setShowPaymentFlow(false);
     setFulfillmentType(null);
+    setDineInPaymentChoice(null);
     setSelectedAddressId(null);
     setSelectedPaymentMethod(null);
     setUploadedProof(null);
@@ -665,6 +668,7 @@ const SelfCheckoutContent = () => {
       showPaymentFlow,
       orderSubmitted,
       fulfillmentType,
+      dineInPaymentChoice,
       selectedAddressId,
       selectedPaymentMethod
     });
@@ -672,22 +676,30 @@ const SelfCheckoutContent = () => {
     if (!showPaymentFlow) return 'menu'; // Still browsing menu
     if (orderSubmitted) return 'confirmation';
     if (!fulfillmentType) return 'selectType';
-    if (fulfillmentType === 'delivery' && !selectedAddressId) return 'selectAddress'; // NEW: Address selection for delivery
-    if (fulfillmentType === 'dine_in') return 'readyToSubmit';
+    if (fulfillmentType === 'delivery' && !selectedAddressId) return 'selectAddress'; // Address selection for delivery
+    
+    // For dine-in: Check if user has chosen payment method (Pay Now vs Pay Later)
+    if (fulfillmentType === 'dine_in') {
+      if (!dineInPaymentChoice) return 'selectDineInPayment'; // NEW: Choose Pay Now or Pay Later
+      if (dineInPaymentChoice === 'pay_later') return 'readyToSubmit'; // Traditional flow
+      // dineInPaymentChoice === 'pay_now' - continue to payment method selection
+    }
+    
+    // Pay First flow: Takeout, Delivery, or Dine-In with Pay Now
     if (!selectedPaymentMethod) return 'selectPayment';
     
     // For PayMongo gateway payments, skip manual payment steps
-    if (selectedPaymentMethod && selectedPaymentMethod.startsWith('paymongo-')) {
+    if (selectedPaymentMethod === 'paymongo') {
       return 'paymongoCheckout'; // Special step for PayMongo processing
     }
     
-    if (!readyToUploadProof) return 'viewPaymentDetails'; // NEW: Show QR code and details
+    if (!readyToUploadProof) return 'viewPaymentDetails'; // Show QR code and details
     if (!uploadedProof) return 'uploadProof';
     return 'readyToSubmit';
   };
 
   const currentStep = getCurrentStep();
-  console.log('[SelfCheckout] currentStep:', currentStep, '| fulfillmentType:', fulfillmentType, '| showPaymentFlow:', showPaymentFlow);
+  console.log('[SelfCheckout] currentStep:', currentStep, '| fulfillmentType:', fulfillmentType, '| dineInPaymentChoice:', dineInPaymentChoice, '| showPaymentFlow:', showPaymentFlow);
 
   // Render payment verification flow overlay
   const renderPaymentFlow = () => {
@@ -697,15 +709,18 @@ const SelfCheckoutContent = () => {
     if (currentStep === 'menu') return null;
 
     if (currentStep === 'confirmation') {
+      // Determine if this is a Pay Later dine-in order
+      const isPayLaterDineIn = fulfillmentType === 'dine_in' && dineInPaymentChoice !== 'pay_now';
+      
       return (
         <div style={styles.overlay}>
           <div style={styles.flowContainer}>
             <h2 style={styles.flowTitle}>
-              {fulfillmentType === 'dine_in' ? 'Order Submitted!' : 'Order Awaiting Verification'}
+              {isPayLaterDineIn ? 'Order Submitted!' : 'Order Awaiting Verification'}
             </h2>
             <p style={styles.orderNumber}>Order Number: <strong>{orderNumber}</strong></p>
             
-            {fulfillmentType === 'dine_in' ? (
+            {isPayLaterDineIn ? (
               <div style={styles.successMessage}>
                 <p>Please proceed to the counter for payment</p>
                 <button onClick={resetFlow} style={styles.newOrderButton}>
@@ -763,9 +778,81 @@ const SelfCheckoutContent = () => {
       );
     }
 
-    // Only show payment-related steps for takeout/delivery (not dine_in and not null)
-    if (fulfillmentType && fulfillmentType !== 'dine_in') {
+    // NEW: Dine-In Payment Choice - Pay Now or Pay Later at Counter
+    if (currentStep === 'selectDineInPayment') {
+      return (
+        <div style={styles.overlay}>
+          <div style={styles.flowContainer}>
+            <h2 style={styles.flowTitle}>How would you like to pay?</h2>
+            <div style={styles.dineInPaymentOptions}>
+              {/* Pay Now Option */}
+              <button
+                onClick={() => setDineInPaymentChoice('pay_now')}
+                style={{
+                  ...styles.paymentChoiceCard,
+                  borderColor: colors.accent,
+                  backgroundColor: '#fff'
+                }}
+              >
+                <div style={styles.paymentChoiceIcon}>💳</div>
+                <div style={styles.paymentChoiceContent}>
+                  <h3 style={styles.paymentChoiceTitle}>Pay Now</h3>
+                  <p style={styles.paymentChoiceDesc}>
+                    Pay via GCash, PayMaya, or PayMongo before your order is prepared
+                  </p>
+                </div>
+              </button>
+
+              {/* Pay Later Option */}
+              <button
+                onClick={() => setDineInPaymentChoice('pay_later')}
+                style={{
+                  ...styles.paymentChoiceCard,
+                  borderColor: colors.primary,
+                  backgroundColor: '#fff'
+                }}
+              >
+                <div style={styles.paymentChoiceIcon}>🏪</div>
+                <div style={styles.paymentChoiceContent}>
+                  <h3 style={styles.paymentChoiceTitle}>Pay at Counter</h3>
+                  <p style={styles.paymentChoiceDesc}>
+                    Traditional dine-in experience - pay when you pick up your order
+                  </p>
+                </div>
+              </button>
+            </div>
+            <button onClick={() => setFulfillmentType(null)} style={styles.backButton}>
+              ← Back to Order Type
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Show payment-related steps for: Takeout, Delivery, OR Dine-In with Pay Now
+    const showPaymentSteps = fulfillmentType && (
+      fulfillmentType !== 'dine_in' || dineInPaymentChoice === 'pay_now'
+    );
+    
+    if (showPaymentSteps) {
       if (currentStep === 'selectPayment') {
+        // Determine back button behavior based on order flow
+        const handleBackFromPayment = () => {
+          if (fulfillmentType === 'delivery') {
+            setSelectedAddressId(null); // Go back to address selection
+          } else if (fulfillmentType === 'dine_in') {
+            setDineInPaymentChoice(null); // Go back to Pay Now/Pay Later choice
+          } else {
+            setFulfillmentType(null); // Go back to type selection (takeout)
+          }
+        };
+        
+        const backLabel = fulfillmentType === 'delivery' 
+          ? 'Delivery Address' 
+          : fulfillmentType === 'dine_in' 
+            ? 'Payment Choice' 
+            : 'Order Type';
+        
         return (
           <div style={styles.overlay}>
             <div style={styles.flowContainer}>
@@ -776,16 +863,10 @@ const SelfCheckoutContent = () => {
                 orderTotal={calculateTotal().total}
               />
               <button 
-                onClick={() => {
-                  if (fulfillmentType === 'delivery') {
-                    setSelectedAddressId(null); // Go back to address selection
-                  } else {
-                    setFulfillmentType(null); // Go back to type selection
-                  }
-                }} 
+                onClick={handleBackFromPayment} 
                 style={styles.backButton}
               >
-                ← Back to {fulfillmentType === 'delivery' ? 'Delivery Address' : 'Order Type'}
+                ← Back to {backLabel}
               </button>
             </div>
           </div>
@@ -911,17 +992,33 @@ const SelfCheckoutContent = () => {
     }
 
     if (currentStep === 'readyToSubmit') {
+      // Determine if this is a Pay First flow (has payment proof)
+      const isPayFirstFlow = dineInPaymentChoice === 'pay_now' || fulfillmentType !== 'dine_in';
+      const isPayLaterDineIn = fulfillmentType === 'dine_in' && dineInPaymentChoice === 'pay_later';
+      
+      // Handle back button based on flow
+      const handleBackFromSubmit = () => {
+        if (isPayLaterDineIn) {
+          setDineInPaymentChoice(null); // Go back to Pay Now/Pay Later choice
+        } else {
+          setUploadedProof(null); // Go back to proof upload
+        }
+      };
+      
       return (
         <div style={styles.overlay}>
           <div style={styles.flowContainer}>
             <h2 style={styles.flowTitle}>Ready to Submit Order</h2>
             <div style={styles.readyMessage}>
               <p>Order Type: <strong>{fulfillmentType === 'dine_in' ? 'Dine-In' : fulfillmentType === 'takeout' ? 'Takeout' : 'Delivery'}</strong></p>
-              {fulfillmentType !== 'dine_in' && (
+              {isPayFirstFlow && uploadedProof && (
                 <>
-                  <p>Payment Method: <strong>{selectedPaymentMethod === 'gcash' ? 'GCash' : 'PayMaya'}</strong></p>
+                  <p>Payment Method: <strong>{selectedPaymentMethod === 'gcash' ? 'GCash' : selectedPaymentMethod === 'paymaya' ? 'PayMaya' : 'PayMongo'}</strong></p>
                   <p>Proof Uploaded: <strong>Yes</strong></p>
                 </>
+              )}
+              {isPayLaterDineIn && (
+                <p>Payment: <strong>Pay at Counter</strong></p>
               )}
               <p>Total: <strong>₱{calculateTotal().total}</strong></p>
             </div>
@@ -929,7 +1026,7 @@ const SelfCheckoutContent = () => {
               Submit Order
             </button>
             <button 
-              onClick={() => fulfillmentType === 'dine_in' ? setFulfillmentType(null) : setUploadedProof(null)} 
+              onClick={handleBackFromSubmit} 
               style={styles.backButton}
             >
               ← Back
@@ -1087,6 +1184,44 @@ const styles = {
     borderTop: '4px solid #2e0304',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite'
+  },
+  // Dine-In Payment Choice Styles
+  dineInPaymentOptions: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+    marginBottom: '24px'
+  },
+  paymentChoiceCard: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '20px',
+    padding: '24px',
+    border: '3px solid',
+    borderRadius: '16px',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    textAlign: 'left'
+  },
+  paymentChoiceIcon: {
+    fontSize: '48px',
+    flexShrink: 0
+  },
+  paymentChoiceContent: {
+    flex: 1
+  },
+  paymentChoiceTitle: {
+    fontSize: '20px',
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: '8px',
+    marginTop: 0
+  },
+  paymentChoiceDesc: {
+    fontSize: '14px',
+    color: colors.secondary,
+    margin: 0,
+    lineHeight: '1.4'
   }
 };
 

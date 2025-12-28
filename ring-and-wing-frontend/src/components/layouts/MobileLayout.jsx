@@ -907,8 +907,8 @@ const MobileLayout = ({
                 <div className="mt-4 p-3 rounded-lg bg-gray-50 text-sm">
                   {selectedOrderType === 'dine_in' ? (
                     <p className="text-gray-600 flex items-center gap-2">
-                      <span>ℹ️</span>
-                      Pay at the counter when you pick up your order
+                      <span>💳</span>
+                      Pay now with GCash/PayMaya or at the counter
                     </p>
                   ) : (
                     <p className="text-gray-600 flex items-center gap-2">

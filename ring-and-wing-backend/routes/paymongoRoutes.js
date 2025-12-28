@@ -42,13 +42,8 @@ router.post('/create-checkout', async (req, res) => {
       total: order.totals.total
     });
 
-    // Validate order can use PayMongo
-    if (order.fulfillmentType === 'dine_in') {
-      return res.status(400).json({
-        success: false,
-        message: 'PayMongo payment not available for dine-in orders'
-      });
-    }
+    // PayMongo is now available for all order types (dine_in, takeout, delivery)
+    // This enables Pay First support for Dine-In orders
 
     // Prepare order data for PayMongo
     const orderData = {

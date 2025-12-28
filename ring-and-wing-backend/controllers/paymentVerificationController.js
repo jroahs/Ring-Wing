@@ -30,13 +30,8 @@ exports.uploadProof = async (req, res) => {
       });
     }
 
-    if (!['dine_in', 'takeout', 'delivery'].includes(order.fulfillmentType) || 
-        order.fulfillmentType === 'dine_in') {
-      return res.status(400).json({
-        success: false,
-        message: 'Payment proof only required for takeout/delivery orders'
-      });
-    }
+    // Payment proof is now accepted for all fulfillment types (dine_in, takeout, delivery)
+    // This enables Pay First support for Dine-In orders with manual verification
 
     // Initialize proofOfPayment if not exists
     if (!order.proofOfPayment) {
