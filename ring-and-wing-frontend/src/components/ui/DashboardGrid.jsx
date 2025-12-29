@@ -239,42 +239,44 @@ export const DashboardGrid = ({
       {/* Additional Panels - Team Overview & Monthly Disbursement */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {/* Team Overview Panel */}
-        <Card className="!p-0 overflow-hidden">
-          <div className="px-3 py-2 border-b flex justify-between items-center" 
-               style={{ borderColor: theme.colors.muted + '15' }}>
+        <Card className="!p-0 overflow-hidden flex flex-col" style={{ maxHeight: '280px' }}>
+          <Link 
+            to="/employees"
+            className="px-3 py-2.5 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors flex-shrink-0" 
+            style={{ borderColor: theme.colors.muted + '15' }}
+          >
             <div className="text-xs font-medium flex items-center gap-1.5" style={{ color: theme.colors.primary }}>
               <FiUsers className="w-3 h-3" /> Team Overview
             </div>
-            <Link 
-              to="/employees" 
-              className="flex items-center text-[10px] font-medium"
+            <div className="flex items-center text-[10px] font-medium"
               style={{ color: theme.colors.accent }}
             >
               View All <FiChevronRight className="ml-0.5 w-2 h-2" />
-            </Link>
-          </div>
+            </div>
+          </Link>
           
-          <div className="overflow-y-auto" style={{ maxHeight: '180px' }}>
+          <div className="flex-1 overflow-y-auto">
             {staffData.team.map((member) => (
               <Link 
                 key={member.id}
                 to={`/employees/${member.id}`}
-                className="px-3 py-1.5 border-b last:border-0 flex items-center justify-between cursor-pointer hover:bg-gray-50"
+                className="px-3 py-3 border-b last:border-0 flex items-center justify-between gap-3 cursor-pointer hover:bg-gray-50 transition-colors"
                 style={{ borderColor: theme.colors.muted + '10' }}
-              >                <div className="flex items-center gap-2">
+              >
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   <StaffAvatar 
                     imagePath={member.profilePicture}
                     alt={`${member.name}'s photo`}
-                    size={24}
-                    className="rounded-sm border"
+                    size={32}
+                    className="rounded-sm border flex-shrink-0"
                   />
-                  <div className="flex flex-col">
-                    <span className="text-[11px] font-medium">{member.name}</span>
-                    <span className="text-[9px]" style={{ color: theme.colors.muted }}>{member.position}</span>
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-xs font-semibold text-gray-900 truncate block">{member.name}</span>
+                    <span className="text-[10px] truncate block" style={{ color: theme.colors.muted }}>{member.position}</span>
                   </div>
                 </div>
                 <span 
-                  className="text-[9px] px-1.5 py-0.5 rounded-full capitalize"
+                  className="text-[10px] px-2.5 py-1 rounded-full capitalize flex-shrink-0 whitespace-nowrap font-medium"
                   style={{ 
                     backgroundColor: member.status === 'Active' ? theme.colors.activeBg : '#f0f0f0',
                     color: member.status === 'Active' ? theme.colors.accent : theme.colors.muted
@@ -285,7 +287,7 @@ export const DashboardGrid = ({
               </Link>
             ))}
             {staffData.team.length === 0 && (
-              <div className="px-3 py-2 text-[10px] text-center" style={{ color: theme.colors.muted }}>
+              <div className="px-3 py-4 text-[10px] text-center" style={{ color: theme.colors.muted }}>
                 No staff data available
               </div>
             )}

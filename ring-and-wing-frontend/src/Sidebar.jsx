@@ -159,12 +159,12 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
   const isParentActive = (subItems) => 
     subItems.some(subItem => isActive(subItem.path));
   const isLargeScreen = windowWidth >= 1920;
-  const sidebarWidth = isLargeScreen ? '8rem' : '5rem';
-  const iconSize = isLargeScreen ? 32 : 24;
-  const chevronSize = isLargeScreen ? 20 : 16;
-  const logoSize = isLargeScreen ? '1.875rem' : '1.5rem';
-  const tooltipTextSize = isLargeScreen ? '1rem' : '0.875rem';
-  const dropdownWidth = isLargeScreen ? '14rem' : '12rem';
+  const sidebarWidth = isLargeScreen ? '9rem' : '6rem';
+  const iconSize = isLargeScreen ? 28 : 22;
+  const chevronSize = isLargeScreen ? 18 : 14;
+  const logoSize = isLargeScreen ? '2rem' : '1.625rem';
+  const tooltipTextSize = isLargeScreen ? '0.9375rem' : '0.8125rem';
+  const dropdownWidth = isLargeScreen ? '15rem' : '13rem';
   const isMobile = windowWidth < 768;const userRole = userData?.role || 'staff';
   const userPosition = userData?.position || 'cashier';
   
@@ -522,21 +522,65 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
       >
         {/* Brand/Logo Section */}
         <div 
-          className="flex flex-col items-center justify-center h-16 border-b"
+          className="flex flex-col items-center justify-center py-6 border-b transition-all duration-300"
           style={{ borderColor: colors.muted }}
         >
-          <div className="font-bold text-white" style={{ fontSize: logoSize }}>RW</div>
-          {/* Role indicator */}
-          <div className="flex items-center mt-1">
-            <FiShield size={12} className="text-white opacity-75 mr-1" />
-            <span className="text-xs text-white opacity-75 capitalize">{userRole}</span>
+          <motion.div 
+            className="font-bold text-white mb-2 tracking-wider"
+            style={{ fontSize: logoSize }}
+            whileHover={{ scale: 1.05 }}
+            transition={{ type: "spring", stiffness: 400, damping: 10 }}
+          >
+            RW
+          </motion.div>
+          {/* Role indicator with subtle badge style */}
+          <div className="flex items-center px-2.5 py-1 rounded-full" style={{ backgroundColor: 'rgba(241, 103, 15, 0.15)' }}>
+            <FiShield size={11} className="text-white opacity-90 mr-1.5" />
+            <span className="text-xs text-white opacity-90 capitalize font-medium">{userRole}</span>
           </div>
         </div>          {/* Navigation Links - Now with overflow-y-auto for scrolling but no horizontal overflow */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-y-2 py-4 px-2 scrollbar-none">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-y-1.5 py-4 px-2.5 nav-scrollbar">
+          <style jsx>{`
+            .nav-scrollbar {
+              scrollbar-gutter: stable;
+            }
+            .nav-scrollbar::-webkit-scrollbar {
+              width: 6px;
+            }
+            .nav-scrollbar::-webkit-scrollbar-track {
+              background: transparent;
+              margin: 8px 0;
+            }
+            .nav-scrollbar::-webkit-scrollbar-thumb {
+              background: rgba(255, 255, 255, 0.2);
+              border-radius: 10px;
+              transition: background 0.3s ease;
+            }
+            .nav-scrollbar:hover::-webkit-scrollbar-thumb {
+              background: rgba(255, 255, 255, 0.35);
+            }
+            .nav-scrollbar::-webkit-scrollbar-thumb:hover {
+              background: rgba(255, 255, 255, 0.5);
+            }
+            /* For Firefox */
+            .nav-scrollbar {
+              scrollbar-width: thin;
+              scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+            }
+            .nav-scrollbar:hover {
+              scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+            }
+          `}</style>
           {allowedNavigationItems.map((item, index) => (
-            <div key={item.path} className="relative">              {item.subItems ? (
-                <div
-                  className={`group flex ${isMobile ? 'flex-row items-center px-3' : 'flex-col items-center'} p-2 rounded-xl cursor-pointer`}
+            <motion.div 
+              key={item.path} 
+              className="relative"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.02, type: "spring", stiffness: 300, damping: 25 }}
+            >              {item.subItems ? (
+                <motion.div
+                  className={`group flex ${isMobile ? 'flex-row items-center px-4' : 'flex-col items-center'} p-3 rounded-2xl cursor-pointer transition-all duration-200 relative`}
                   style={{ 
                     backgroundColor: isParentActive(item.subItems) ? colors.activeBg : 'transparent',
                   }}
@@ -544,51 +588,78 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
                   onMouseEnter={(e) => handleTooltipShow(item.label, e)}
                   onMouseLeave={handleTooltipHide}
                   data-dropdown={item.path}
+                  whileHover={{ scale: 1.03, backgroundColor: isParentActive(item.subItems) ? colors.activeBg : 'rgba(255, 255, 255, 0.05)' }}
+                  whileTap={{ scale: 0.97 }}
                 >
+                  {isParentActive(item.subItems) && (
+                    <motion.div
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full"
+                      style={{ backgroundColor: colors.accent }}
+                      layoutId="activeIndicator"
+                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    />
+                  )}
                   <div className="flex items-center">
                     {item.icon}
                     {isMobile && (
-                      <span className="ml-3 text-white font-medium">{item.label}</span>
+                      <span className="ml-3 text-white font-medium text-sm">{item.label}</span>
                     )}
                   </div>
                     <FiChevronDown 
                     size={chevronSize} 
-                    className={`${isMobile ? 'ml-auto' : 'mt-1'} transition-transform text-white ${
+                    className={`${isMobile ? 'ml-auto' : 'mt-1.5'} transition-all duration-300 text-white opacity-80 ${
                       openDropdown === item.path ? 'rotate-180' : ''
                     }`}
                   />
-                </div>
+                </motion.div>
               ) : (
                 <Link
                   to={item.path}
-                  className={`group flex items-center ${isMobile ? 'px-3' : 'justify-center'} p-2 rounded-xl relative`}
-                  style={{ 
-                    backgroundColor: isActive(item.path) ? colors.activeBg : 'transparent',
-                  }}
+                  className="block"
                   onClick={() => isMobile && setIsOpen(false)}
-                  onMouseEnter={(e) => handleTooltipShow(item.label, e)}
-                  onMouseLeave={handleTooltipHide}
                 >
-                  {item.icon}
-                  {isMobile && (
-                    <span className="ml-3 text-white font-medium">{item.label}</span>
-                  )}
+                  <motion.div
+                    className={`group flex items-center ${isMobile ? 'px-4' : 'justify-center'} p-3 rounded-2xl relative transition-all duration-200`}
+                    style={{ 
+                      backgroundColor: isActive(item.path) ? colors.activeBg : 'transparent',
+                    }}
+                    onMouseEnter={(e) => handleTooltipShow(item.label, e)}
+                    onMouseLeave={handleTooltipHide}
+                    whileHover={{ scale: 1.03, backgroundColor: isActive(item.path) ? colors.activeBg : 'rgba(255, 255, 255, 0.05)' }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    {isActive(item.path) && (
+                      <motion.div
+                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full"
+                        style={{ backgroundColor: colors.accent }}
+                        layoutId="activeIndicator"
+                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                    {item.icon}
+                    {isMobile && (
+                      <span className="ml-3 text-white font-medium text-sm">{item.label}</span>
+                    )}
+                  </motion.div>
                 </Link>
               )}
-            </div>
+            </motion.div>
           ))}
         </nav>
 
         {/* Bottom Section - Always visible with sticky positioning */}
-        <div className="sticky bottom-0 bg-inherit flex flex-col items-center gap-y-2 py-4 px-2 border-t mt-auto" style={{ borderColor: colors.muted }}>
-          <button
+        <div className="sticky bottom-0 bg-inherit flex flex-col items-center gap-y-2 py-5 px-2.5 border-t mt-auto" style={{ borderColor: colors.muted }}>
+          <motion.button
             onClick={handleLogout}
-            className="rounded-full bg-gray-100 flex items-center justify-center p-2 hover:bg-gray-200"
+            className="rounded-full flex items-center justify-center p-3 transition-all duration-200"
+            style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
             onMouseEnter={(e) => handleTooltipShow('Log Out', e)}
             onMouseLeave={handleTooltipHide}
+            whileHover={{ scale: 1.08, backgroundColor: 'rgba(241, 103, 15, 0.2)' }}
+            whileTap={{ scale: 0.95 }}
           >
-            <FiLogOut size={iconSize} className="text-gray-900" />
-          </button>
+            <FiLogOut size={iconSize} className="text-white" />
+          </motion.button>
         </div>
       </motion.div>      {/* Mobile Overlay */}
       {isMobile && isOpen && (
@@ -603,91 +674,124 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
 
       {/* Tooltip Portal - Renders outside sidebar to avoid clipping */}
       {hoveredItem && !isMobile && createPortal(
-        <div 
-          className="fixed bg-white rounded-md shadow-xl border border-gray-200 px-4 py-2 font-semibold text-gray-900 z-[10000] pointer-events-none whitespace-nowrap"
+        <motion.div 
+          className="fixed bg-white rounded-lg shadow-2xl border border-gray-100 px-4 py-2.5 font-semibold text-gray-900 z-[10000] pointer-events-none whitespace-nowrap"
           style={{ 
             top: tooltipPosition.top - 12, // Center vertically
             left: tooltipPosition.left,
             fontSize: tooltipTextSize,
             transform: 'translateY(-50%)'
           }}
+          initial={{ opacity: 0, x: -5 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -5 }}
+          transition={{ duration: 0.15 }}
         >
-          <div className="absolute right-full top-1/2 -translate-y-1/2 w-2 h-2 bg-white border-l border-t border-gray-200 rotate-45 transform" />
+          <div className="absolute right-full top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-white border-l border-t border-gray-100 rotate-45 transform" />
           {hoveredItem}
-        </div>,
+        </motion.div>,
         document.body
       )}
 
       {/* Dropdown Portal - Renders outside sidebar to avoid clipping */}
       {openDropdown && createPortal(
-        <div 
-          className="fixed bg-white rounded-lg shadow-lg py-2 border border-gray-200 z-[9999]"
+        <motion.div 
+          className="fixed bg-white rounded-xl shadow-2xl py-2 border border-gray-100 z-[9999] overflow-hidden"
           style={{ 
             top: dropdownPosition.top,
             left: dropdownPosition.left,
             width: dropdownWidth,
             minWidth: dropdownWidth
           }}
+          initial={{ opacity: 0, scale: 0.95, y: -10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: -10 }}
+          transition={{ duration: 0.15, ease: "easeOut" }}
         >
           {allowedNavigationItems
             .find(item => item.path === openDropdown)
-            ?.subItems?.map(subItem => (
-              <div key={subItem.path || subItem.label}>
+            ?.subItems?.map((subItem, idx) => (
+              <motion.div 
+                key={subItem.path || subItem.label}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.03, duration: 0.15 }}
+              >
                 {subItem.onClick ? (
                   <button
                     onClick={subItem.onClick}
-                    className="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-900 w-full text-left"
+                    className="flex items-center px-4 py-3 hover:bg-gray-50 text-gray-900 w-full text-left transition-colors duration-150 group"
                   >
-                    {subItem.icon}
-                    <span className="ml-2 text-sm">{subItem.label}</span>
+                    <span className="group-hover:scale-110 transition-transform duration-150">{subItem.icon}</span>
+                    <span className="ml-3 text-sm font-medium">{subItem.label}</span>
                   </button>
                 ) : (
                   <Link
                     to={subItem.path}
-                    className="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-900"
+                    className="flex items-center px-4 py-3 hover:bg-gray-50 text-gray-900 transition-colors duration-150 group"
                     onClick={() => {
                       isMobile && setIsOpen(false);
                       setOpenDropdown(null);
                     }}
                   >
-                    {subItem.icon}
-                    <span className="ml-2 text-sm">{subItem.label}</span>
+                    <span className="group-hover:scale-110 transition-transform duration-150">{subItem.icon}</span>
+                    <span className="ml-3 text-sm font-medium">{subItem.label}</span>
                   </Link>
                 )}
-              </div>
+              </motion.div>
             ))}
-        </div>,
+        </motion.div>,
         document.body
       )}
 
       {/* Logout Confirmation Modal */}
       {showLogoutConfirm && createPortal(
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000]">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-            <div className="mb-4">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Confirm Logout</h3>
-              <p className="text-gray-600">
+        <motion.div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000] backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div 
+            className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+          >
+            <div className="mb-6">
+              <div className="flex items-center mb-3">
+                <div className="p-2.5 rounded-full mr-3" style={{ backgroundColor: 'rgba(241, 103, 15, 0.1)' }}>
+                  <FiLogOut size={24} style={{ color: colors.accent }} />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900">Confirm Logout</h3>
+              </div>
+              <p className="text-gray-600 leading-relaxed">
                 Are you sure you want to logout? This will close all your open tabs.
               </p>
             </div>
             
             <div className="flex gap-3 justify-end">
-              <button
+              <motion.button
                 onClick={cancelLogout}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                className="px-6 py-2.5 bg-gray-100 text-gray-800 rounded-xl hover:bg-gray-200 transition-colors font-medium"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 Cancel
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 onClick={confirmLogout}
                 style={{ backgroundColor: colors.accent }}
-                className="px-4 py-2 text-white rounded-lg hover:opacity-90 transition-opacity font-medium"
+                className="px-6 py-2.5 text-white rounded-xl hover:opacity-90 transition-opacity font-medium shadow-lg"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 Logout
-              </button>
+              </motion.button>
             </div>
-          </div>
-        </div>,
+          </motion.div>
+        </motion.div>,
         document.body
       )}
     </>

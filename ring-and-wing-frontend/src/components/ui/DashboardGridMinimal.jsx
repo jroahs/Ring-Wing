@@ -277,43 +277,42 @@ export const DashboardGridMinimal = ({
         </Card>
 
         {/* Team Overview Panel */}
-        <Card className="!p-0 overflow-hidden">
-          <div className="px-3 py-2 border-b flex justify-between items-center" 
-               style={{ borderColor: theme.colors.muted + '15' }}>
+        <Card className="!p-0 overflow-hidden flex flex-col h-full">
+          <Link 
+            to="/employees"
+            className="px-3 py-2 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors flex-shrink-0" 
+            style={{ borderColor: theme.colors.muted + '15' }}
+          >
             <div className="text-sm font-semibold flex items-center gap-1" style={{ color: theme.colors.primary }}>
               <FiUsers className="w-4 h-4" /> Team Overview
             </div>
-            <Link 
-              to="/employees" 
-              className="flex items-center text-sm font-medium"
+            <div className="flex items-center text-sm font-medium"
               style={{ color: theme.colors.accent }}
             >
               <FiChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
+            </div>
+          </Link>
 
-          <div className="overflow-y-auto" style={{ maxHeight: '200px' }}>
+          <div className="flex-1 overflow-y-auto">
             {staffData.team.map((member) => (
               <Link 
                 key={member.id}
                 to={`/employees/${member.id}`}
-                className="px-3 py-1.5 border-b last:border-0 flex items-center justify-between cursor-pointer hover:bg-gray-50"
+                className="px-3 py-2 border-b last:border-0 flex items-start gap-2 cursor-pointer hover:bg-gray-50 transition-colors"
                 style={{ borderColor: theme.colors.muted + '10' }}
               >
-                <div className="flex items-center gap-2">
-                  <StaffAvatar 
-                    imagePath={member.profilePicture}
-                    alt={`${member.name}'s photo`}
-                    size={24}
-                    className="rounded-sm border"
-                  />
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">{member.name}</span>
-                    <span className="text-xs" style={{ color: theme.colors.muted }}>{member.position}</span>
-                  </div>
+                <StaffAvatar 
+                  imagePath={member.profilePicture}
+                  alt={`${member.name}'s photo`}
+                  size={28}
+                  className="rounded-sm border flex-shrink-0 mt-0.5"
+                />
+                <div className="flex-1 min-w-0 flex flex-col">
+                  <span className="text-sm font-medium text-gray-900 leading-tight">{member.name}</span>
+                  <span className="text-xs leading-tight mt-0.5" style={{ color: theme.colors.muted }}>{member.position}</span>
                 </div>
                 <span 
-                  className="text-xs px-1.5 py-0.5 rounded-lg capitalize"
+                  className="text-[10px] px-1.5 py-0.5 rounded capitalize flex-shrink-0 whitespace-nowrap font-medium leading-tight mt-0.5"
                   style={{ 
                     backgroundColor: member.status === 'Active' ? theme.colors.activeBg : '#f0f0f0',
                     color: member.status === 'Active' ? theme.colors.accent : theme.colors.muted
