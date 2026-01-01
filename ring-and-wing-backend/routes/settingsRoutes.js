@@ -16,7 +16,9 @@ const {
   getSchedulingSettings,
   updateSchedulingSettings,
   getPayrollSettings,
-  updatePayrollSettings
+  updatePayrollSettings,
+  getPosSettings,
+  updatePosSettings
 } = require('../controllers/settingsController');
 const {
   getMerchantWallets,
@@ -157,5 +159,23 @@ router.get('/payroll', auth, getPayrollSettings);
  * Note: Multipliers below DOLE minimums will be rejected
  */
 router.put('/payroll', auth, isManager, updatePayrollSettings);
+
+// ========================================
+// POS SETTINGS ROUTES
+// ========================================
+
+/**
+ * Get POS settings (layout, receipt footer, tax rate)
+ * GET /api/settings/pos
+ * Public - needed for POS component to determine layout
+ */
+router.get('/pos', getPosSettings);
+
+/**
+ * Update POS settings
+ * PUT /api/settings/pos
+ * Requires: admin role
+ */
+router.put('/pos', auth, isManager, updatePosSettings);
 
 module.exports = router;

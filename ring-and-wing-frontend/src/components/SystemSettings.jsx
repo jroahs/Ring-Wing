@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSettings, FiCreditCard, FiClock, FiChevronRight, FiDollarSign, FiCalendar, FiDatabase } from 'react-icons/fi';
+import { FiSettings, FiCreditCard, FiClock, FiChevronRight, FiDollarSign, FiCalendar, FiDatabase, FiMonitor } from 'react-icons/fi';
 import PaymentSettings from './PaymentSettings';
 import AttendanceSettings from './AttendanceSettings';
 import SchedulingSettings from './SchedulingSettings';
 import PayrollSettings from './PayrollSettings';
 import BackupSettings from './BackupSettings';
+import PosSettings from './PosSettings';
 import { theme } from '../theme';
 
 const SystemSettings = () => {
-  const [activeSection, setActiveSection] = useState('payment'); // 'payment', 'attendance', 'scheduling', 'payroll'
+  const [activeSection, setActiveSection] = useState('payment'); // 'payment', 'attendance', 'scheduling', 'payroll', 'pos'
 
   const settingsSections = [
     {
@@ -18,6 +19,13 @@ const SystemSettings = () => {
       description: 'Configure payment methods and verification',
       icon: FiCreditCard,
       component: PaymentSettings
+    },
+    {
+      id: 'pos',
+      name: 'POS Settings',
+      description: 'Layout mode, receipt and tax settings',
+      icon: FiMonitor,
+      component: PosSettings
     },
     {
       id: 'attendance',
@@ -52,10 +60,39 @@ const SystemSettings = () => {
   const ActiveComponent = settingsSections.find(s => s.id === activeSection)?.component;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: theme.colors.background }}>
-      <div className="flex flex-col lg:flex-row">
+    <div 
+      className="overflow-hidden" 
+      style={{ 
+        backgroundColor: theme.colors.background,
+        maxHeight: 'calc(100vh - 160px)'
+      }}
+    >
+      <style>{`
+        .settings-nav-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(172, 156, 155, 0.3) transparent;
+          direction: rtl;
+        }
+        .settings-nav-scroll > * {
+          direction: ltr;
+        }
+        .settings-nav-scroll::-webkit-scrollbar {
+          width: 4px;
+        }
+        .settings-nav-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .settings-nav-scroll::-webkit-scrollbar-thumb {
+          background: rgba(172, 156, 155, 0.3);
+          border-radius: 4px;
+        }
+        .settings-nav-scroll::-webkit-scrollbar-thumb:hover {
+          background: rgba(172, 156, 155, 0.5);
+        }
+      `}</style>
+      <div className="flex flex-col lg:flex-row h-full" style={{ maxHeight: 'calc(100vh - 160px)' }}>
         {/* Settings Navigation Sidebar */}
-        <div className="lg:w-72 p-4 lg:p-6 lg:border-r" style={{ borderColor: theme.colors.muted + '30' }}>
+        <div className="lg:w-72 flex-shrink-0 p-4 lg:p-6 lg:border-r lg:overflow-y-auto settings-nav-scroll" style={{ borderColor: theme.colors.muted + '30' }}>
           <div className="flex items-center gap-2 mb-6 pb-4 border-b" style={{ borderColor: theme.colors.muted + '30' }}>
             <FiSettings className="text-xl" style={{ color: theme.colors.accent }} />
             <h2 className="text-lg font-bold" style={{ color: theme.colors.primary }}>
@@ -116,7 +153,7 @@ const SystemSettings = () => {
         </div>
 
         {/* Settings Content */}
-        <div className="flex-1 lg:max-h-screen lg:overflow-y-auto">
+        <div className="flex-1 overflow-y-auto">
           <AnimatePresence mode="wait">
             {ActiveComponent && (
               <motion.div

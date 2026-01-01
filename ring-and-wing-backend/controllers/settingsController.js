@@ -832,6 +832,80 @@ const updatePayrollSettings = async (req, res) => {
   }
 };
 
+// ========================================
+// POS SETTINGS
+// ========================================
+
+// Get POS settings (layout, receipt footer, tax rate)
+const getPosSettings = async (req, res) => {
+  try {
+    const settings = await Settings.getSettings();
+    
+    // Default POS settings
+    const defaultPosSettings = {
+      receiptFooter: 'Thank you for your business!',
+      taxRate: 0.12,
+      layout: 'auto' // 'auto', 'desktop', 'tablet'
+    };
+    
+    res.json({
+      success: true,
+      data: settings.pos || defaultPosSettings
+    });
+  } catch (error) {
+    console.error('Error fetching POS settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch POS settings',
+      error: error.message
+    });
+  }
+};
+
+// Update POS settings (admin only)
+const updatePosSettings = async (req, res) => {
+  try {
+    const { receiptFooter, taxRate, layout } = req.body;
+    
+    const settings = await Settings.getSettings();
+    
+    // Initialize pos object if not exists
+    if (!settings.pos) {
+      settings.pos = {
+        receiptFooter: 'Thank you for your business!',
+        taxRate: 0.12,
+        layout: 'auto'
+      };
+    }
+    
+    // Update settings
+    if (typeof receiptFooter === 'string') {
+      settings.pos.receiptFooter = receiptFooter;
+    }
+    if (typeof taxRate === 'number' && taxRate >= 0 && taxRate <= 1) {
+      settings.pos.taxRate = taxRate;
+    }
+    if (layout && ['auto', 'desktop', 'tablet'].includes(layout)) {
+      settings.pos.layout = layout;
+    }
+    
+    await settings.save();
+    
+    res.json({
+      success: true,
+      message: 'POS settings updated successfully',
+      data: settings.pos
+    });
+  } catch (error) {
+    console.error('Error updating POS settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update POS settings',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getSettings,
   getCashFloatSettings,
@@ -848,5 +922,7 @@ module.exports = {
   getSchedulingSettings,
   updateSchedulingSettings,
   getPayrollSettings,
-  updatePayrollSettings
+  updatePayrollSettings,
+  getPosSettings,
+  updatePosSettings
 };

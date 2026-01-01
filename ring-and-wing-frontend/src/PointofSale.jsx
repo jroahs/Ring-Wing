@@ -197,8 +197,8 @@ const PointOfSale = () => {
       // Extract order from socket payload
       const order = data.order || data;
       console.log('[POS] Extracted order:', order);
-      // Add to takeout orders if it's a takeout/delivery/dine-in order
-      if (order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery' || order.fulfillmentType === 'dine-in') {
+      // Add to takeout orders if it's a takeout/delivery/dine_in order (note: underscore for dine_in)
+      if (order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery' || order.fulfillmentType === 'dine_in') {
         setTakeoutOrders(prev => {
           // Prevent duplicates
           const exists = prev.some(o => o._id === order._id);
@@ -501,9 +501,10 @@ const PointOfSale = () => {
         console.log(`Order ${order.receiptNumber}: fulfillmentType="${order.fulfillmentType}", status="${order.status}", paymentMethod="${order.paymentMethod}"`);
       });
       
-      // Filter for takeout/delivery orders only and exclude expired orders
+      // Filter for takeout/delivery/dine_in orders and exclude expired orders
+      // Note: dine_in PayMongo orders should appear here for receipt generation
       const takeoutDeliveryOrders = ordersArray.filter(order => {
-        const isTakeoutOrDelivery = order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery';
+        const isTakeoutDeliveryOrDineIn = order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery' || order.fulfillmentType === 'dine_in';
         
         // For manual payments, check if not expired
         if (order.paymentMethod === 'e-wallet' && order.proofOfPayment?.expiresAt) {
@@ -514,7 +515,7 @@ const PointOfSale = () => {
           }
         }
         
-        return isTakeoutOrDelivery;
+        return isTakeoutDeliveryOrDineIn;
       });
       
       console.log('Filtered takeout/delivery orders (excluding expired):', takeoutDeliveryOrders.length);
@@ -1598,10 +1599,10 @@ const PointOfSale = () => {
     }
     
     return (
-      <div className="overflow-x-auto whitespace-nowrap py-1 mt-1 flex items-center">
+      <div className="whitespace-nowrap py-1 mt-1 flex items-center flex-wrap gap-y-1">
         {subCategories.map((subCategory, index) => (
           <React.Fragment key={subCategory}>
-            {index > 0 && <span className="text-gray-300 mx-1">•</span>}
+            {index > 0 && <span className="text-gray-300 mx-0.5">•</span>}
             <button
               onClick={() => setSelectedSubCategory(subCategory)}
               className={`text-xs transition-colors ${
@@ -1655,7 +1656,7 @@ const PointOfSale = () => {
     }
     
     return (
-      <div key={category._id || categoryName} className={categoryName === 'Meals' ? 'mb-6' : ''}>
+      <div key={category._id || categoryName}>
         {/* Category Breadcrumb with integrated subcategory selector */}
         <div className="mb-2 bg-white rounded-lg py-1 px-3 shadow-sm">
           <div className="flex items-center justify-between">
@@ -1844,76 +1845,105 @@ const PointOfSale = () => {
         {showTimeClock ? (
           <TimeClockInterface onClose={() => setShowTimeClock(false)} />
         ) : (
-          <div className="min-h-screen flex flex-col md:flex-row">
-            {/* Menu Section */}
-            <div className="flex-1 p-4 md:p-6 order-2 md:order-1">              <div className="relative mb-6 max-w-7xl mx-auto flex">
-                <div className="relative flex-1 mr-2">
-                  <SearchBar
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    placeholder="Search menu..."
-                    size="lg"
-                  />                  {/* Show All Items button */}
-                  {(activeCategory || selectedMealSubCategory || selectedBeverageSubCategory || searchTerm) && (
-                    <button
-                      onClick={showAllItems}
-                      className="absolute right-2 top-2 text-xs py-1 px-2 rounded-md bg-gray-100 hover:bg-gray-200 transition-colors"
-                      style={{ color: theme.colors.primary }}
-                    >
-                      Show All
-                    </button>
-                  )}
-                </div>
-
-                {/* Time Clock and Placeholder Buttons */}
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setShowTimeClockModal(true)}
-                    className="h-12 px-4 flex items-center justify-center rounded-lg hover:opacity-90 transition"
-                    style={{ backgroundColor: theme.colors.accent, color: theme.colors.background }}
-                    title="Quick Time Clock"
-                  >
-                    <FiClock className="mr-2" />
-                    <span className="hidden md:inline">Time Clock</span>
-                  </button>
-                  
-                  {/* Cash Float Settings Button (Manager Only) */}
-                  {isManager && (
-                    <button
-                      onClick={() => setShowCashFloatModal(true)}
-                      className="h-12 px-4 flex items-center justify-center rounded-lg hover:opacity-90 transition"
-                      style={{ backgroundColor: theme.colors.primary, color: theme.colors.background }}
-                      title="Cash Float Settings"
-                    >
-                      <PesoIconSimple width={16} height={16} className="mr-2" />
-                      <span className="hidden md:inline">Cash Float</span>
-                    </button>                  )}                  {/* End of Shift Button (Manager Only) */}
-                  {isManager && (
-                    <button
-                      onClick={() => setShowEndOfShiftModal(true)}
-                      className="h-12 px-4 flex items-center justify-center rounded-lg hover:opacity-90 transition"
-                      style={{ backgroundColor: theme.colors.accent, color: theme.colors.background }}
-                      title="End of Shift Report"
-                    >
-                      <FiPieChart className="mr-2" />
-                      <span className="hidden md:inline">End of Shift</span>
-                    </button>
-                  )}<button
-                    onClick={() => setShowOrderProcessingModal(true)}
-                    className="h-12 px-4 flex items-center justify-center rounded-lg hover:opacity-90 transition"
-                    style={{ backgroundColor: theme.colors.secondary, color: theme.colors.background }}
-                    title="Ready Orders"
-                  >
-                    <FiCoffee className="mr-2" />                    <span className="hidden md:inline">Ready Orders</span>
-                    {activeOrders.filter(o => ['received', 'preparing', 'ready'].includes(o.status)).length > 0 && (
-                      <span className="ml-2 bg-orange-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                        {activeOrders.filter(o => ['received', 'preparing', 'ready'].includes(o.status)).length}
-                      </span>
+          <div className="h-screen flex flex-col md:flex-row overflow-hidden">
+            {/* Menu Section - Left Panel */}
+            <div className="flex-1 m-0 md:m-4 order-2 md:order-1 flex flex-col" style={{ maxHeight: 'calc(100vh - 32px)' }}>
+              {/* Menu Content Container - matches right panel structure */}
+              <div className="flex flex-col flex-1 min-h-0 bg-white rounded-lg shadow-md overflow-hidden">
+                {/* Header Bar - Fixed at top */}
+                <div className="flex-shrink-0 p-4 border-b">
+                  <div className="flex items-center gap-3">
+                    {/* Left: Search Bar and Cash Float */}
+                    <div className="flex items-center gap-3 flex-1">
+                      {/* Search Bar with Show All chip */}
+                      <div className="flex-1 max-w-md relative">
+                        <SearchBar
+                          value={searchTerm}
+                          onChange={e => setSearchTerm(e.target.value)}
+                          placeholder="Search menu..."
+                          size="md"
+                        />
+                        {/* Show All chip - appears when filtering */}
+                        {(activeCategory || selectedMealSubCategory || selectedBeverageSubCategory || searchTerm) && (
+                          <button
+                            onClick={showAllItems}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-md hover:opacity-80 transition-all text-xs font-medium"
+                            style={{ 
+                              backgroundColor: theme.colors.accent,
+                              color: 'white'
+                            }}
+                          >
+                            Show All
+                          </button>
+                        )}
+                      </div>
+                      
+                      {/* Cash Float Display - Compact */}
+                      {isManager && (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg whitespace-nowrap" style={{ backgroundColor: `${theme.colors.accent}20`, border: `1px solid ${theme.colors.accent}` }}>
+                          <PesoIconSimple width={16} height={16} style={{ color: theme.colors.accent }} />
+                          <span className="text-sm font-bold" style={{ color: theme.colors.accent }}>
+                            ₱{formatCurrency(cashFloat)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Right: Action Buttons */}
+                    <div className="flex gap-2">
+                    {isManager && (
+                      <>
+                        <button
+                          onClick={() => setShowCashFloatModal(true)}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                          style={{ color: theme.colors.primary, border: `1px solid ${theme.colors.muted}` }}
+                          title="Manage Cash Float"
+                        >
+                          <PesoIconSimple width={20} height={20} />
+                          <span className="text-sm font-medium hidden lg:inline">Cash Float</span>
+                        </button>
+                        <button
+                          onClick={() => setShowEndOfShiftModal(true)}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                          style={{ color: theme.colors.primary, border: `1px solid ${theme.colors.muted}` }}
+                          title="End of Shift"
+                        >
+                          <FiPieChart size={20} />
+                          <span className="text-sm font-medium hidden lg:inline">End Shift</span>
+                        </button>
+                      </>
                     )}
-                  </button>
+                    <button
+                      onClick={() => setShowTimeClockModal(true)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                      style={{ color: theme.colors.primary, border: `1px solid ${theme.colors.muted}` }}
+                      title="Time Clock"
+                    >
+                      <FiClock size={20} />
+                      <span className="text-sm font-medium hidden lg:inline">Time Clock</span>
+                    </button>
+                    <button
+                      onClick={() => setShowOrderProcessingModal(true)}
+                      className="p-2 rounded-lg hover:bg-gray-100 relative"
+                      style={{ color: theme.colors.primary }}
+                      title="Ready Orders"
+                    >
+                      <FiCoffee size={24} />
+                      {activeOrders.filter(o => ['received', 'preparing', 'ready'].includes(o.status)).length > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                          {activeOrders.filter(o => ['received', 'preparing', 'ready'].includes(o.status)).length}
+                        </span>
+                      )}
+                    </button>
+                    </div>
+                  </div>
                 </div>
-              </div>              {/* Menu Navigation */}
-              <div className="mb-4">
+                {/* End Header Bar */}
+              
+                {/* Menu Content Area - Scrollable content inside white container */}
+                <div className="overflow-y-auto px-4 pt-4 pb-8 subtle-scrollbar" style={{ flex: '1 1 0', minHeight: 0 }}>
+                  {/* Menu Navigation - stack categories vertically */}
+                  <div className="space-y-6">
                 {/* Dynamic Category Sections */}
                 {categories.length > 0 ? (
                   categories.map(category => {
@@ -1927,7 +1957,7 @@ const PointOfSale = () => {
                   /* Fallback to hard-coded categories while loading */
                   <>
                     {/* Meals Section */}
-                    <div className="mb-6">
+                    <div>
                       {/* Meals Breadcrumb with integrated subcategory selector */}
                       <div className="mb-2 bg-white rounded-lg py-1 px-3 shadow-sm">
                         <div className="flex items-center justify-between">
@@ -2165,13 +2195,18 @@ const PointOfSale = () => {
                     </div>
                   </>
                 )}
+                  </div>
+                </div>
+                {/* End scrollable content area */}
               </div>
+              {/* End white container */}
             </div>
+            {/* End left panel wrapper */}
 
             {/* Order Panel */}
             <div
               className="w-full md:w-[45vw] lg:w-[35vw] xl:w-[30vw] max-w-3xl rounded-t-3xl md:rounded-3xl m-0 md:m-4 p-4 md:p-6 shadow-2xl order-1 md:order-2 flex flex-col overflow-visible"
-              style={{ backgroundColor: theme.colors.background, maxHeight: 'calc(100vh - 48px)' }}
+              style={{ backgroundColor: theme.colors.background, maxHeight: 'calc(100vh - 32px)' }}
             >
               <div className="flex-1 min-h-0 flex flex-col">
                 {/* Order View Toggle - three tabs now */}
@@ -2497,7 +2532,7 @@ const PointOfSale = () => {
                                     #{order.receiptNumber}
                                   </div>
                                   <div className="text-xs text-gray-600">
-                                    {order.fulfillmentType === 'delivery' ? 'Delivery' : 'Takeout'} • 
+                                    {order.fulfillmentType === 'delivery' ? 'Delivery' : order.fulfillmentType === 'dine_in' ? 'Dine-In' : 'Takeout'} • 
                                     {isPayMongoOrder ? 
                                       ` PayMongo ${order.paymentMethod?.includes('gcash') ? 'GCash' : 'PayMaya'}` :
                                       (order.paymentMethod === 'gcash' ? ' GCash' : order.paymentMethod === 'paymaya' ? ' PayMaya' : ' E-Wallet')

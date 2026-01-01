@@ -4,7 +4,7 @@ import { MenuItemCard, OrderItem, PaymentPanel, PaymentProcessingModal, SearchBa
 import { theme } from './theme';
 import { Receipt } from './components/Receipt';
 import TimeClockInterface from './components/TimeClockInterface';
-import OrderProcessingModal from './components/OrderProcessingModal';
+import OrderProcessingModalTablet from './components/OrderProcessingModalTablet';
 import CashFloatModal from './components/CashFloatModal';
 import EndOfShiftModal from './components/EndOfShiftModal';
 import ItemCustomizationModal from './components/ItemCustomizationModal';
@@ -513,37 +513,10 @@ const PointOfSaleTablet = () => {
       return;
     }
 
-    // Check if item needs customization
-    if (needsCustomization(item)) {
-      // Show customization modal
-      setSelectedItemForSize(item);
-      setShowSizeModal(true);
-      return;
-    }
-    
-    // If only one size, add directly
-    const singleSize = sizes.length === 1 ? sizes[0] : 'base';
-    const singlePrice = item.pricing[singleSize] || item.pricing.base || Object.values(item.pricing)[0] || 0;
-
-    const currentCart = getActiveCart();
-    const existingItem = currentCart.find(i => i._id === item._id && i.selectedSize === singleSize);
-    
-    if (existingItem) {
-      setActiveCart(currentCart.map(i => 
-        i._id === item._id && i.selectedSize === singleSize
-          ? { ...i, quantity: i.quantity + 1 }
-          : i
-      ));
-    } else {
-      setActiveCart([...currentCart, { 
-        ...item, 
-        quantity: 1, 
-        selectedSize: singleSize,
-        price: singlePrice,
-        availableSizes: sizes.length > 0 ? sizes : ['base'],
-        pricing: item.pricing || { [singleSize]: singlePrice }
-      }]);
-    }
+    // Always show customization modal for POS to allow notes input
+    // Staff can add notes even if item has no other customization options
+    setSelectedItemForSize(item);
+    setShowSizeModal(true);
   };
 
   const addToCartWithSize = (orderItem) => {
@@ -551,6 +524,11 @@ const PointOfSaleTablet = () => {
     if (!orderItem.availableSizes) {
       const sizes = Object.keys(orderItem.pricing || {}).filter(key => key !== '_id');
       orderItem.availableSizes = sizes.length > 0 ? sizes : ['base'];
+    }
+
+    // Ensure notes is set (default to empty string)
+    if (orderItem.notes === undefined) {
+      orderItem.notes = '';
     }
 
     if (isItemLocked()) {
@@ -565,37 +543,68 @@ const PointOfSaleTablet = () => {
         return;
       }
 
-      // Update pending order items
+      // Update pending order items - match by id, size, variant, addOns, and notes
       const existing = pendingOrderCart.find(
-        i => i._id === orderItem._id && i.selectedSize === orderItem.selectedSize
+        i => i._id === orderItem._id && 
+             i.selectedSize === orderItem.selectedSize &&
+             JSON.stringify(i.variant || null) === JSON.stringify(orderItem.selectedVariant || orderItem.variant || null) &&
+             JSON.stringify((i.addOns || []).map(a => a._id).sort()) === JSON.stringify((orderItem.selectedAddOns || orderItem.addOns || []).map(a => a._id).sort()) &&
+             (i.notes || '') === (orderItem.notes || '')
       );
 
       if (existing) {
         setPendingOrderCart(pendingOrderCart.map(i =>
-          i._id === orderItem._id && i.selectedSize === orderItem.selectedSize
+          i._id === orderItem._id && 
+          i.selectedSize === orderItem.selectedSize &&
+          JSON.stringify(i.variant || null) === JSON.stringify(orderItem.selectedVariant || orderItem.variant || null) &&
+          JSON.stringify((i.addOns || []).map(a => a._id).sort()) === JSON.stringify((orderItem.selectedAddOns || orderItem.addOns || []).map(a => a._id).sort()) &&
+          (i.notes || '') === (orderItem.notes || '')
             ? { ...i, quantity: i.quantity + orderItem.quantity }
             : i
         ));
       } else {
-        setPendingOrderCart([...pendingOrderCart, orderItem]);
+        // Normalize the item structure before adding
+        const normalizedItem = {
+          ...orderItem,
+          variant: orderItem.selectedVariant || orderItem.variant || null,
+          addOns: orderItem.selectedAddOns || orderItem.addOns || [],
+          notes: orderItem.notes || ''
+        };
+        setPendingOrderCart([...pendingOrderCart, normalizedItem]);
       }
       return;
     }
 
     // Regular order handling (for ready orders)
+    // Match by id, size, variant, addOns, and notes
     const currentCart = getActiveCart();
     const existing = currentCart.find(
-      i => i._id === orderItem._id && i.selectedSize === orderItem.selectedSize
+      i => i._id === orderItem._id && 
+           i.selectedSize === orderItem.selectedSize &&
+           JSON.stringify(i.variant || null) === JSON.stringify(orderItem.selectedVariant || orderItem.variant || null) &&
+           JSON.stringify((i.addOns || []).map(a => a._id).sort()) === JSON.stringify((orderItem.selectedAddOns || orderItem.addOns || []).map(a => a._id).sort()) &&
+           (i.notes || '') === (orderItem.notes || '')
     );
 
     if (existing) {
       setActiveCart(currentCart.map(i =>
-        i._id === orderItem._id && i.selectedSize === orderItem.selectedSize
+        i._id === orderItem._id && 
+        i.selectedSize === orderItem.selectedSize &&
+        JSON.stringify(i.variant || null) === JSON.stringify(orderItem.selectedVariant || orderItem.variant || null) &&
+        JSON.stringify((i.addOns || []).map(a => a._id).sort()) === JSON.stringify((orderItem.selectedAddOns || orderItem.addOns || []).map(a => a._id).sort()) &&
+        (i.notes || '') === (orderItem.notes || '')
           ? { ...i, quantity: i.quantity + orderItem.quantity }
           : i
       ));
     } else {
-      setActiveCart([...currentCart, orderItem]);
+      // Normalize the item structure before adding
+      const normalizedItem = {
+        ...orderItem,
+        variant: orderItem.selectedVariant || orderItem.variant || null,
+        addOns: orderItem.selectedAddOns || orderItem.addOns || [],
+        notes: orderItem.notes || ''
+      };
+      setActiveCart([...currentCart, normalizedItem]);
     }
     
     setShowSizeModal(false);
@@ -1056,6 +1065,45 @@ const PointOfSaleTablet = () => {
     } catch (error) {
       console.error('Error placing order:', error);
       alert(`Failed to place order: ${error.message}`);
+    }
+  };
+
+  // === ORDER STATUS UPDATE ===
+  
+  const updateOrderStatus = async (orderId, newStatus) => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+      
+      const response = await fetch(`${API_URL}/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (!response.ok) throw new Error('Failed to update order status');
+
+      // Update the local state with the new status
+      setActiveOrders(prev => {
+        return prev.map(order => {
+          if (order._id === orderId) {
+            return { ...order, status: newStatus };
+          }
+          return order;
+        });
+      });
+
+      // If order is completed, remove it from the list
+      if (newStatus === 'completed') {
+        setActiveOrders(prev => prev.filter(o => o._id !== orderId));
+      }
+
+      alert(`Order status updated to ${newStatus}`);
+    } catch (error) {
+      console.error('Order status update error:', error);
+      alert('Error updating order status');
     }
   };
 
@@ -1955,13 +2003,13 @@ const PointOfSaleTablet = () => {
 
       {/* === MODALS === */}
       
-      {/* Order Processing Modal */}
+      {/* Order Processing Modal - Tablet Optimized */}
       {showOrderProcessingModal && (
-        <OrderProcessingModal
+        <OrderProcessingModalTablet
+          isOpen={showOrderProcessingModal}
           onClose={() => setShowOrderProcessingModal(false)}
           orders={activeOrders}
-          onUpdateOrder={fetchActiveOrders}
-          theme={theme}
+          updateOrderStatus={updateOrderStatus}
         />
       )}
 

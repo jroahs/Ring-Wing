@@ -246,3 +246,29 @@ html {
   background: var(--rw-accent);
   box-shadow: 0 1px 4px rgba(133, 54, 25, 0.3);
 }
+
+/* Subtle scrollbar for POS menu - minimal and unobtrusive */
+.subtle-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.subtle-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.subtle-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(172, 156, 155, 0.4);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.subtle-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(172, 156, 155, 0.7);
+}
+
+.subtle-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(172, 156, 155, 0.4) transparent;
+}

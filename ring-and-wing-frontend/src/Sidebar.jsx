@@ -155,9 +155,29 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
     setHoveredItem(null);
   };
 
-  const isActive = (path) => location.pathname.startsWith(path);
+  // More precise active matching to avoid highlighting multiple items
+  const isActive = (path) => {
+    const currentPath = location.pathname;
+    
+    // Exact match
+    if (currentPath === path) return true;
+    
+    // For paths with sub-routes, only match if:
+    // 1. Current path starts with the item path
+    // 2. AND the character after the path is '/' or nothing
+    // This prevents /payroll from matching /payroll-reports
+    if (currentPath.startsWith(path)) {
+      const nextChar = currentPath.charAt(path.length);
+      return nextChar === '' || nextChar === '/';
+    }
+    
+    return false;
+  };
+  
+  // Check if any subitems are active (for dropdown parent highlighting)
   const isParentActive = (subItems) => 
     subItems.some(subItem => isActive(subItem.path));
+    
   const isLargeScreen = windowWidth >= 1920;
   const sidebarWidth = isLargeScreen ? '9rem' : '6rem';
   const iconSize = isLargeScreen ? 28 : 22;

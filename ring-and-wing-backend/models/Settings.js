@@ -82,6 +82,11 @@ const settingsSchema = new mongoose.Schema({
     taxRate: { 
       type: Number, 
       default: 0.12 
+    },
+    layout: {
+      type: String,
+      enum: ['desktop', 'tablet', 'auto'],
+      default: 'auto' // 'auto' = detect based on screen size, 'desktop' = always desktop, 'tablet' = always tablet
     }
   },
   
