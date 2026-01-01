@@ -197,8 +197,8 @@ const PointOfSale = () => {
       // Extract order from socket payload
       const order = data.order || data;
       console.log('[POS] Extracted order:', order);
-      // Add to takeout orders if it's a takeout/delivery/dine_in order (note: underscore for dine_in)
-      if (order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery' || order.fulfillmentType === 'dine_in') {
+      // Add to takeout orders if it's a takeout/delivery/dine-in order
+      if (order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery' || order.fulfillmentType === 'dine-in') {
         setTakeoutOrders(prev => {
           // Prevent duplicates
           const exists = prev.some(o => o._id === order._id);
@@ -501,10 +501,9 @@ const PointOfSale = () => {
         console.log(`Order ${order.receiptNumber}: fulfillmentType="${order.fulfillmentType}", status="${order.status}", paymentMethod="${order.paymentMethod}"`);
       });
       
-      // Filter for takeout/delivery/dine_in orders and exclude expired orders
-      // Note: dine_in PayMongo orders should appear here for receipt generation
+      // Filter for takeout/delivery orders only and exclude expired orders
       const takeoutDeliveryOrders = ordersArray.filter(order => {
-        const isTakeoutDeliveryOrDineIn = order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery' || order.fulfillmentType === 'dine_in';
+        const isTakeoutOrDelivery = order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery';
         
         // For manual payments, check if not expired
         if (order.paymentMethod === 'e-wallet' && order.proofOfPayment?.expiresAt) {
@@ -515,7 +514,7 @@ const PointOfSale = () => {
           }
         }
         
-        return isTakeoutDeliveryOrDineIn;
+        return isTakeoutOrDelivery;
       });
       
       console.log('Filtered takeout/delivery orders (excluding expired):', takeoutDeliveryOrders.length);
@@ -2498,7 +2497,7 @@ const PointOfSale = () => {
                                     #{order.receiptNumber}
                                   </div>
                                   <div className="text-xs text-gray-600">
-                                    {order.fulfillmentType === 'delivery' ? 'Delivery' : order.fulfillmentType === 'dine_in' ? 'Dine-In' : 'Takeout'} • 
+                                    {order.fulfillmentType === 'delivery' ? 'Delivery' : 'Takeout'} • 
                                     {isPayMongoOrder ? 
                                       ` PayMongo ${order.paymentMethod?.includes('gcash') ? 'GCash' : 'PayMaya'}` :
                                       (order.paymentMethod === 'gcash' ? ' GCash' : order.paymentMethod === 'paymaya' ? ' PayMaya' : ' E-Wallet')
