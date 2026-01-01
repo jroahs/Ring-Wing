@@ -364,7 +364,7 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
     // GROUP 7: MOBILE & OTHER
     // ═══════════════════════════════════════════
     { 
-      path: '/mobile', 
+      path: '/self-checkout', 
       icon: <FiSmartphone size={iconSize} className="text-white" />, 
       label: 'Mobile Services',
       positions: ['cashier', 'inventory', 'shift_manager', 'general_manager', 'admin'],

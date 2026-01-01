@@ -195,15 +195,15 @@ const PosSettings = () => {
               
               <ul className="space-y-1 text-sm" style={{ color: theme.colors.secondary }}>
                 <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
                   Always use desktop layout
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
                   Full feature set
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
                   Best for large screens
                 </li>
               </ul>
@@ -244,15 +244,15 @@ const PosSettings = () => {
               
               <ul className="space-y-1 text-sm" style={{ color: theme.colors.secondary }}>
                 <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
                   Always use tablet layout
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
                   Larger touch targets
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
                   60/40 split view
                 </li>
               </ul>

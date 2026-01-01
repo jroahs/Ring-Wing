@@ -433,9 +433,8 @@ const OrderSystem = () => {
                 <FiFilter className="text-[#853619] text-sm" />
                 {[
                   { id: 'all', label: 'All' },
-                  { id: 'counter', label: 'POS' },
-                  { id: 'self_checkout', label: 'Self' },
-                  { id: 'chatbot', label: 'Bot' }
+                  { id: 'pos', label: 'POS' },
+                  { id: 'self_checkout', label: 'Self' }
                 ].map(src => (
                   <button
                     key={src.id}
@@ -514,16 +513,13 @@ const OrderSystem = () => {
                         <h2 className="font-bold text-lg md:text-xl text-[#2e0304]">
                           Order #{order.receiptNumber}
                         </h2>
-                        {order.orderType && order.orderType !== 'counter' && (
+                        {order.orderType && order.orderType !== 'pos' && order.orderType !== 'chatbot' && (
                           <span className={`text-xs px-2 py-1 rounded-full inline-flex items-center w-fit ${
                             order.orderType === 'self_checkout' 
                               ? 'bg-[#fbbf2420] text-[#b45309]'
-                              : order.orderType === 'chatbot'
-                                ? 'bg-[#60a5fa20] text-[#1e40af]' 
-                                : 'bg-[#f1670f20] text-[#f1670f]'
+                              : 'bg-[#f1670f20] text-[#f1670f]'
                           }`}>
-                            {order.orderType === 'self_checkout' ? 'Self Checkout' : 
-                             order.orderType === 'chatbot' ? 'Chatbot' : order.orderType}
+                            {order.orderType === 'self_checkout' ? 'Self Checkout' : order.orderType}
                           </span>
                         )}
                       </div>
