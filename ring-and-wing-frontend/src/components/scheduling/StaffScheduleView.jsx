@@ -14,6 +14,7 @@ import {
   Loader2
 } from 'lucide-react';
 import api from '../../services/api';
+import { businessDateKey } from '../../utils/businessDate';
 
 const StaffScheduleView = () => {
   const [loading, setLoading] = useState(true);
@@ -29,18 +30,20 @@ const StaffScheduleView = () => {
     const month = currentMonth.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
+    const todayKey = businessDateKey(new Date());
     
     const dates = [];
     for (let d = 1; d <= lastDay.getDate(); d++) {
       const date = new Date(year, month, d);
+      const dateKey = businessDateKey(date);
       dates.push({
         date,
-        dateString: date.toISOString().split('T')[0],
+        dateString: dateKey,
         dayOfWeek: date.getDay(),
         dayNumber: d,
-        isToday: date.toDateString() === new Date().toDateString(),
-        isPast: date < new Date().setHours(0, 0, 0, 0),
-        isFuture: date > new Date()
+        isToday: dateKey === todayKey,
+        isPast: dateKey < todayKey,
+        isFuture: dateKey > todayKey
       });
     }
     return dates;
@@ -84,14 +87,14 @@ const StaffScheduleView = () => {
   // Get schedule for a date
   const getScheduleForDate = (dateString) => {
     return schedules.find(s => 
-      new Date(s.date).toISOString().split('T')[0] === dateString
+      businessDateKey(new Date(s.date)) === dateString
     );
   };
 
   // Get holiday for a date
   const getHolidayForDate = (dateString) => {
     return holidays.find(h =>
-      new Date(h.date).toISOString().split('T')[0] === dateString
+      businessDateKey(new Date(h.date)) === dateString
     );
   };
 

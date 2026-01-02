@@ -24,8 +24,12 @@
 }
 
 .toast-icon {
-  font-size: 2rem;
   flex-shrink: 0;
+}
+
+.toast-icon-svg {
+  width: 32px;
+  height: 32px;
 }
 
 .toast-content {
@@ -49,6 +53,17 @@
 .toast-time {
   color: #6b7280;
   font-size: 0.75rem;
+}
+
+.toast-fulfillment {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.toast-fulfillment-icon .toast-icon-svg {
+  width: 16px;
+  height: 16px;
 }
 
 .toast-actions {
@@ -105,8 +120,9 @@
     padding: 0.875rem 1rem;
   }
 
-  .toast-icon {
-    font-size: 1.5rem;
+  .toast-icon-svg {
+    width: 24px;
+    height: 24px;
   }
 
   .toast-title {

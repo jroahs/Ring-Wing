@@ -16,7 +16,6 @@ import ProofOfPaymentUpload from './components/ProofOfPaymentUpload';
 import OrderTimeoutTimer from './components/OrderTimeoutTimer';
 import DeliveryAddressSelector from './components/DeliveryAddressSelector';
 import AddressFormModal from './components/customer/AddressFormModal';
-import { NotificationToasts } from './components/selfcheckout';
 import { FaCreditCard, FaStore } from 'react-icons/fa';
 import io from 'socket.io-client';
 
@@ -1119,9 +1118,6 @@ const SelfCheckoutContent = () => {
 
   return (
     <>
-      {/* Notification Toasts */}
-      <NotificationToasts />
-      
       <LayoutSelector
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}

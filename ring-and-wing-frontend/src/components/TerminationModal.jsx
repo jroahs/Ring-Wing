@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiAlertTriangle, FiUser, FiCalendar, FiFileText } from 'react-icons/fi';
 import { Button } from './ui/Button';
+import { businessDateKey } from '../utils/businessDate';
 
 const TerminationModal = ({ isOpen, onClose, staff, colors, onTerminate }) => {
   const [formData, setFormData] = useState({
     terminationReason: '',
     terminationNotes: '',
-    finalWorkDate: new Date().toISOString().split('T')[0],
+    finalWorkDate: businessDateKey(new Date()),
     isEligibleForRehire: true
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,7 +43,7 @@ const TerminationModal = ({ isOpen, onClose, staff, colors, onTerminate }) => {
       setFormData({
         terminationReason: '',
         terminationNotes: '',
-        finalWorkDate: new Date().toISOString().split('T')[0],
+        finalWorkDate: businessDateKey(new Date()),
         isEligibleForRehire: true
       });
     } catch (error) {
@@ -137,7 +138,7 @@ const TerminationModal = ({ isOpen, onClose, staff, colors, onTerminate }) => {
                   onChange={handleInputChange}
                   className="w-full p-3 border rounded-lg"
                   style={{ borderColor: colors.muted }}
-                  max={new Date().toISOString().split('T')[0]}
+                  max={businessDateKey(new Date())}
                 />
               </div>
 

@@ -227,6 +227,8 @@ In the **Environment Variables** section, add these (click **"Add Environment Va
 |-----|-------|-------|
 | `NODE_ENV` | `production` | Required |
 | `PORT` | `10000` | Render's default port |
+| `TZ` | `Asia/Manila` | Ensures server-local Date() aligns with PH |
+| `BUSINESS_TIMEZONE` | `Asia/Manila` | Used by business-day utilities and daily resets |
 | `MONGO_URI` | Your Atlas connection string | From Phase 1.4 |
 | `JWT_SECRET` | Your generated secret | From Phase 2.1 |
 | `PAYMONGO_SECRET_KEY` | `sk_test_xxxxx` or `sk_live_xxxxx` | Your PayMongo key |

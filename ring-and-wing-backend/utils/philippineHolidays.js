@@ -3,6 +3,12 @@
 
 const axios = require('axios');
 const Settings = require('../models/Settings');
+const { formatBusinessDateKey, getBusinessTimeZone, isDateOnlyString } = require('./businessTime');
+
+function toBusinessDateKey(value) {
+  if (isDateOnlyString(value)) return value;
+  return formatBusinessDateKey(new Date(value), getBusinessTimeZone());
+}
 
 // Holiday pay multipliers based on Philippine labor law
 const HOLIDAY_MULTIPLIERS = {
@@ -177,7 +183,7 @@ function generateFallbackHolidays(year) {
   fixedHolidays.forEach(holiday => {
     const date = new Date(year, holiday.month - 1, holiday.day);
     holidays.push({
-      date: date.toISOString().split('T')[0],
+      date: toBusinessDateKey(date),
       name: holiday.name,
       localName: holiday.name,
       type: holiday.type,
@@ -200,7 +206,7 @@ function generateFallbackHolidays(year) {
     const date = new Date(easter);
     date.setDate(date.getDate() + holiday.offset);
     holidays.push({
-      date: date.toISOString().split('T')[0],
+      date: toBusinessDateKey(date),
       name: holiday.name,
       localName: holiday.name,
       type: holiday.type,
@@ -214,7 +220,7 @@ function generateFallbackHolidays(year) {
   // Calculate National Heroes Day (last Monday of August)
   const heroesDay = getLastMondayOfMonth(year, 8);
   holidays.push({
-    date: heroesDay.toISOString().split('T')[0],
+    date: toBusinessDateKey(heroesDay),
     name: 'National Heroes Day',
     localName: 'National Heroes Day',
     type: 'regular',
@@ -228,7 +234,7 @@ function generateFallbackHolidays(year) {
   const chineseNewYear = getChineseNewYearApprox(year);
   if (chineseNewYear) {
     holidays.push({
-      date: chineseNewYear.toISOString().split('T')[0],
+      date: toBusinessDateKey(chineseNewYear),
       name: 'Chinese New Year',
       localName: 'Chinese New Year',
       type: 'special',
@@ -318,7 +324,7 @@ async function isHoliday(date, holidays = null) {
     holidays = await fetchPhilippineHolidays(year);
   }
   
-  const dateStr = checkDate.toISOString().split('T')[0];
+  const dateStr = toBusinessDateKey(checkDate);
   return holidays.find(holiday => holiday.date === dateStr) || null;
 }
 
@@ -354,8 +360,8 @@ async function getHolidaysInRange(startDate, endDate) {
   }
   
   // Filter holidays within the date range
-  const startStr = start.toISOString().split('T')[0];
-  const endStr = end.toISOString().split('T')[0];
+  const startStr = toBusinessDateKey(startDate);
+  const endStr = toBusinessDateKey(endDate);
   
   return allHolidays.filter(holiday => 
     holiday.date >= startStr && holiday.date <= endStr

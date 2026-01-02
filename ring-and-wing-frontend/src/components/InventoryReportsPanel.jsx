@@ -15,6 +15,7 @@ import {
   Clock
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { businessDateKey } from '../utils/businessDate';
 
 /**
  * Inventory Reports Integration
@@ -231,7 +232,7 @@ const InventoryReportsPanel = ({ className = "" }) => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${filename}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `${filename}-${businessDateKey(new Date())}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };

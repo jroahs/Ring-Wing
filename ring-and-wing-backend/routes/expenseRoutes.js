@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Expense = require('../models/expense');
 const { auth } = require('../middleware/authMiddleware');
+const { getBusinessDayRangeUtc } = require('../utils/businessTime');
 
 // Helper: Check if user is admin/manager (can approve expenses)
 const isAdminOrManager = (user) => {
@@ -517,13 +518,10 @@ router.delete('/:id', auth, async (req, res) => {
 // @access  Private
 router.post('/reset-disbursement', auth, async (req, res) => {
   try {
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const endOfDay = new Date(startOfDay);
-    endOfDay.setDate(startOfDay.getDate() + 1);
+    const { dateKey, startOfDayUtc, startOfNextDayUtc } = getBusinessDayRangeUtc(new Date());
     
     const todayDisbursedCount = await Expense.countDocuments({
-      disbursementDate: { $gte: startOfDay, $lt: endOfDay },
+      disbursementDate: { $gte: startOfDayUtc, $lt: startOfNextDayUtc },
       disbursed: true
     });
     
@@ -536,7 +534,7 @@ router.post('/reset-disbursement', auth, async (req, res) => {
       message: 'Daily disbursement statistics calculated',
       todayCount: todayDisbursedCount,
       allTimeCount: allDisbursedCount,
-      date: startOfDay.toISOString()
+      date: dateKey
     });
   } catch (error) {
     console.error('[Stats Error]:', error);

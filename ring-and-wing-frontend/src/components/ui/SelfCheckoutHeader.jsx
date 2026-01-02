@@ -41,13 +41,10 @@ const SelfCheckoutHeader = () => {
           </button>
         </div>
       ) : (
-        <div className="auth-buttons" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <NotificationDropdown size="md" />
-          <CustomerAccountMenu
-            onOpenOrders={handleOpenOrders}
-            onOpenAddresses={handleOpenAddresses}
-          />
-        </div>
+        <CustomerAccountMenu
+          onOpenOrders={handleOpenOrders}
+          onOpenAddresses={handleOpenAddresses}
+        />
       )}
     </div>
   );

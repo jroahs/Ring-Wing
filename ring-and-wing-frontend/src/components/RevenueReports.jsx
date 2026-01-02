@@ -12,6 +12,7 @@ import { theme } from '../theme';
 import BrandedLoadingScreen from './ui/BrandedLoadingScreen';
 import { PrintableRevenueReport } from './ui/PrintableRevenueReport';
 import { generateRevenuePDF } from '../utils/pdfGenerator';
+import { businessDateKey } from '../utils/businessDate';
 
 const colors = {
   primary: '#2e0304',
@@ -224,7 +225,7 @@ const RevenueReports = () => {
       }
       
       // Generate filename
-      const fileName = `Revenue_Report_With_Charts_${selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1)}_${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `Revenue_Report_With_Charts_${selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1)}_${businessDateKey(new Date())}.pdf`;
       
       // Save the PDF with error handling
       try {
@@ -284,7 +285,7 @@ const RevenueReports = () => {
       
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
       
-      const fileName = `Revenue_Report_Charts_Fallback_${selectedPeriod}_${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `Revenue_Report_Charts_Fallback_${selectedPeriod}_${businessDateKey(new Date())}.pdf`;
       pdf.save(fileName);
     } else {
       throw new Error('Fallback method also failed to capture content');

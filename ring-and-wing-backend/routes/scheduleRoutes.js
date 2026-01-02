@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const EmployeeSchedule = require('../models/EmployeeSchedule');
 const ScheduleNotification = require('../models/ScheduleNotification');
+const { businessDateTimeUtc, formatBusinessDateKey, isDateOnlyString } = require('../utils/businessTime');
 const Staff = require('../models/Staff');
 const ShiftTemplate = require('../models/ShiftTemplate');
 const Payroll = require('../models/Payroll');
@@ -382,21 +383,30 @@ router.post('/apply-template', auth, isManager, async (req, res) => {
       });
     }
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const startKey = isDateOnlyString(startDate) ? startDate : formatBusinessDateKey(new Date(startDate));
+    const endKey = isDateOnlyString(endDate) ? endDate : formatBusinessDateKey(new Date(endDate));
+
+    const start = businessDateTimeUtc(startKey, 0, 0, 0, 0);
+    const end = businessDateTimeUtc(endKey, 23, 59, 59, 999);
+
     const holidays = await getHolidaysInRange(start, end);
-    const holidayDates = holidays.map(h => new Date(h.date).toDateString());
+    const holidayDateKeys = holidays.map(h => formatBusinessDateKey(new Date(h.date)));
 
     const schedulesToCreate = [];
-    const currentDate = new Date(start);
-
-    while (currentDate <= end) {
-      const dateString = currentDate.toDateString();
-      const dayOfWeek = currentDate.getDay();
+    // Iterate day-by-day in PH (fixed +08:00, no DST)
+    for (
+      let cursor = businessDateTimeUtc(startKey, 0, 0, 0, 0);
+      formatBusinessDateKey(cursor) <= endKey;
+      cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000)
+    ) {
+      const dateKey = formatBusinessDateKey(cursor);
+      const phNoon = businessDateTimeUtc(dateKey, 12, 0, 0, 0);
+      const dayOfWeek = phNoon.getUTCDay();
+      const scheduleDate = new Date(`${dateKey}T00:00:00.000Z`); // stored as UTC midnight for date-only
       
       // Check if should skip
       const isRestDay = staff.restDays.includes(dayOfWeek);
-      const isHolidayDate = holidayDates.includes(dateString);
+      const isHolidayDate = holidayDateKeys.includes(dateKey);
       
       if (skipRestDays && isRestDay) {
         currentDate.setDate(currentDate.getDate() + 1);
@@ -409,18 +419,16 @@ router.post('/apply-template', auth, isManager, async (req, res) => {
       }
 
       // Check if payroll is finalized
-      const isFinalized = await Payroll.isPeriodFinalized(staffId, currentDate);
+      const isFinalized = await Payroll.isPeriodFinalized(staffId, scheduleDate);
       if (!isFinalized) {
         schedulesToCreate.push({
           staffId,
-          date: new Date(currentDate),
+          date: scheduleDate,
           shiftTemplateId,
           isRestDay: false,
           notes: `Auto-generated from template: ${template.name}`
         });
       }
-
-      currentDate.setDate(currentDate.getDate() + 1);
     }
 
     // Use bulk route logic
@@ -609,17 +617,23 @@ router.get('/compare/:staffId', auth, async (req, res) => {
       });
     }
 
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
+    const startKey = isDateOnlyString(startDate) ? startDate : formatBusinessDateKey(new Date(startDate));
+    const endKey = isDateOnlyString(endDate) ? endDate : formatBusinessDateKey(new Date(endDate));
 
-    console.log('[Compare] Date range:', { start, end });
+    // Schedules are stored as date-only at UTC midnight.
+    const scheduleStart = new Date(`${startKey}T00:00:00.000Z`);
+    const scheduleEnd = new Date(`${endKey}T23:59:59.999Z`);
+
+    // Time logs should be pulled using PH day boundaries.
+    const timeStart = businessDateTimeUtc(startKey, 0, 0, 0, 0);
+    const timeEnd = businessDateTimeUtc(endKey, 23, 59, 59, 999);
+
+    console.log('[Compare] Date range:', { scheduleStart, scheduleEnd, timeStart, timeEnd });
 
     // Get schedules
     const schedules = await EmployeeSchedule.find({
       staffId,
-      date: { $gte: start, $lte: end }
+      date: { $gte: scheduleStart, $lte: scheduleEnd }
     }).populate('shiftTemplateId', 'name startTime endTime workHours');
 
     console.log('[Compare] Found schedules:', schedules.length);
@@ -631,7 +645,7 @@ router.get('/compare/:staffId', auth, async (req, res) => {
     const TimeLog = require('../models/TimeLog');
     const timeLogs = await TimeLog.find({
       staffId,
-      timestamp: { $gte: start, $lte: end }
+      timestamp: { $gte: timeStart, $lte: timeEnd }
     }).sort('timestamp');
 
     console.log('[Compare] Found time logs:', timeLogs.length);
@@ -641,14 +655,10 @@ router.get('/compare/:staffId', auth, async (req, res) => {
     const settings = await Settings.getSettings();
     const gracePeriodMinutes = settings.scheduling?.gracePeriodMinutes || 15;
 
-    // Compare each scheduled day
-    // Schedule dates and times are stored/expected in Philippine Time (UTC+8)
-    // Server runs in UTC, so we need to handle timezone conversions
-    const PHT_OFFSET_MS = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
+    // Compare each scheduled day (business timezone is PH)
+    const PHT_OFFSET_MS = 8 * 60 * 60 * 1000; // for legacy debug output only
     const now = new Date();
-    
-    // Get current time in PHT for display purposes
-    const nowInPHT = new Date(now.getTime() + PHT_OFFSET_MS);
+    const todayKey = formatBusinessDateKey(now);
     
     console.log('[Compare] Timezone debug:', {
       serverNowUTC: now.toISOString(),
@@ -658,12 +668,9 @@ router.get('/compare/:staffId', auth, async (req, res) => {
     const comparison = schedules.map(schedule => {
       const scheduleDate = new Date(schedule.date);
       
-      // The schedule date is stored as UTC midnight (e.g., 2025-01-17T00:00:00.000Z)
-      // This represents January 17 in the local business timezone (PHT)
-      // Day boundaries for PHT day (midnight to 11:59:59 PM PHT in UTC):
-      // PHT midnight = UTC 16:00 previous day
-      const dayStartUTC = new Date(scheduleDate.getTime() - PHT_OFFSET_MS);
-      const dayEndUTC = new Date(scheduleDate.getTime() - PHT_OFFSET_MS + (24 * 60 * 60 * 1000) - 1);
+      const scheduleDateKey = formatBusinessDateKey(scheduleDate);
+      const dayStartUTC = businessDateTimeUtc(scheduleDateKey, 0, 0, 0, 0);
+      const dayEndUTC = businessDateTimeUtc(scheduleDateKey, 23, 59, 59, 999);
 
       // Find time logs for this day (time logs are in UTC)
       const dayLogs = timeLogs.filter(log => {
@@ -691,16 +698,11 @@ router.get('/compare/:staffId', auth, async (req, res) => {
       let scheduledEndTimeUTC = null;
       if (scheduledStart) {
         const [schedHour, schedMin] = scheduledStart.split(':').map(Number);
-        // Create time in PHT then convert to UTC
-        scheduledStartTimeUTC = new Date(scheduleDate);
-        scheduledStartTimeUTC.setUTCHours(schedHour, schedMin, 0, 0);
-        scheduledStartTimeUTC = new Date(scheduledStartTimeUTC.getTime() - PHT_OFFSET_MS);
+        scheduledStartTimeUTC = businessDateTimeUtc(scheduleDateKey, schedHour, schedMin, 0, 0);
       }
       if (scheduledEnd) {
         const [endHour, endMin] = scheduledEnd.split(':').map(Number);
-        scheduledEndTimeUTC = new Date(scheduleDate);
-        scheduledEndTimeUTC.setUTCHours(endHour, endMin, 0, 0);
-        scheduledEndTimeUTC = new Date(scheduledEndTimeUTC.getTime() - PHT_OFFSET_MS);
+        scheduledEndTimeUTC = businessDateTimeUtc(scheduleDateKey, endHour, endMin, 0, 0);
         
         // Handle overnight shifts (end time is next day if end < start)
         if (scheduledStartTimeUTC && scheduledEndTimeUTC < scheduledStartTimeUTC) {
@@ -708,16 +710,13 @@ router.get('/compare/:staffId', auth, async (req, res) => {
         }
       }
 
-      // Check if today's date in PHT matches schedule date
-      const todayPHT = new Date(now.getTime() + PHT_OFFSET_MS);
-      const scheduleDateStr = scheduleDate.toISOString().split('T')[0];
-      const todayPHTStr = todayPHT.toISOString().split('T')[0];
-      const isToday = scheduleDateStr === todayPHTStr;
-      const isPast = scheduleDate < new Date(todayPHTStr);
+      // Check if today's business date matches schedule date
+      const isToday = scheduleDateKey === todayKey;
+      const isPast = scheduleDateKey < todayKey;
 
       console.log('[Compare] Schedule check:', {
-        scheduleDateStr,
-        todayPHTStr,
+        scheduleDateKey,
+        todayKey,
         scheduledStart,
         scheduledStartTimeUTC: scheduledStartTimeUTC?.toISOString(),
         nowUTC: now.toISOString(),

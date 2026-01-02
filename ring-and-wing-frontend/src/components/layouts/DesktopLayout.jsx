@@ -8,6 +8,7 @@ import { AlternativesModal } from '../ui/AlternativesModal';
 import EmbeddedAssistant from '../ui/EmbeddedAssistant';
 import SelfCheckoutHeader from '../ui/SelfCheckoutHeader';
 import ItemPreviewModal from '../ItemPreviewModal';
+import { NotificationDropdown } from '../selfcheckout';
 
 const colors = {
   primary: '#2e0304',
@@ -377,7 +378,7 @@ const DesktopLayout = ({
       <div className={`flex-1 flex flex-col transition-all duration-300 ${cartCollapsed ? 'mr-20' : 'mr-96'}`}>
         {/* Desktop Header with Search and Shortcuts */}
         <div className="sticky top-0 bg-white/95 backdrop-blur-sm p-6 shadow-sm z-10 border-b border-gray-100">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6 relative">
             {/* Search Bar */}
             <div className="flex-1 max-w-2xl relative">
               <input
@@ -416,6 +417,16 @@ const DesktopLayout = ({
                 Toggle Cart
               </span>
             </div>
+            
+            {/* Notification Bell - Right side of header */}
+            {isAuthenticated && (
+              <div
+                className="absolute"
+                style={{ right: '16px', top: '50%', transform: 'translateY(-50%)' }}
+              >
+                <NotificationDropdown size="md" cartCollapsed={cartCollapsed} />
+              </div>
+            )}
           </div>
         </div>
 

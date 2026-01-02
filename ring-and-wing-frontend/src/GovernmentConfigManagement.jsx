@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FiSave, FiPlus, FiTrash2, FiClock, FiCheckCircle, FiDollarSign, FiInfo, FiAlertCircle } from 'react-icons/fi';
 import api from './services/api';
+import { businessDateKey } from './utils/businessDate';
 
 // Custom number input component for better usability
 const NumberInput = ({ value, onChange, disabled, min, max, step = 1, prefix = '', suffix = '', className = '', placeholder = '' }) => {
@@ -56,7 +57,7 @@ const GovernmentConfigManagement = () => {
   const [previewResult, setPreviewResult] = useState(null);
   const [formData, setFormData] = useState({
     year: new Date().getFullYear(),
-    effectiveDate: new Date().toISOString().split('T')[0],
+    effectiveDate: businessDateKey(new Date()),
     sss: {
       employeeRate: 0.05,
       employerRate: 0.10,
@@ -153,7 +154,7 @@ const GovernmentConfigManagement = () => {
         setActiveConfig(config);
         setFormData({
           year: config.year,
-          effectiveDate: new Date(config.effectiveDate).toISOString().split('T')[0],
+          effectiveDate: businessDateKey(new Date(config.effectiveDate)),
           sss: {
             employeeRate: config.sss?.employeeRate || 0.05,
             employerRate: config.sss?.employerRate || 0.10,

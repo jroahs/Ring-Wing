@@ -17,6 +17,7 @@ import {
   User
 } from 'lucide-react';
 import api from '../../services/api';
+import { businessDateKey } from '../../utils/businessDate';
 
 // Helper to format date as local YYYY-MM-DD (avoids timezone issues)
 const formatLocalDate = (date) => {
@@ -351,7 +352,7 @@ const ScheduleComparisonView = ({ staffId, staffName, colors = {} }) => {
           <tbody>
             {comparison.map((day, index) => {
               const date = new Date(day.date);
-              const isToday = date.toDateString() === new Date().toDateString();
+              const isToday = businessDateKey(date) === businessDateKey(new Date());
               
               return (
                 <motion.tr

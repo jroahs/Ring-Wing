@@ -24,6 +24,14 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+
+      # Ensure the Node process and any server-local Date() calls align with PH business time.
+      # Receipt numbers also explicitly use Asia/Manila in code as the primary fix.
+      - key: TZ
+        value: Asia/Manila
+
+      - key: BUSINESS_TIMEZONE
+        value: Asia/Manila
       
       - key: MONGO_URI
         sync: false # Sensitive - set manually in dashboard

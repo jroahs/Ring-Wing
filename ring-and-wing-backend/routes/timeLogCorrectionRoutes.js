@@ -5,6 +5,7 @@ const TimeLog = require('../models/TimeLog');
 const Staff = require('../models/Staff');
 const Payroll = require('../models/Payroll');
 const { auth, isManager } = require('../middleware/authMiddleware');
+const { businessDateTimeUtc, formatBusinessDateKey, isDateOnlyString } = require('../utils/businessTime');
 
 // Get pending corrections (manager view)
 router.get('/pending', auth, isManager, async (req, res) => {
@@ -467,6 +468,10 @@ router.get('/:id', auth, async (req, res) => {
 async function applyCorrection(correction) {
   const { correctionType, staffId, date, originalTimeLogId, correctedTimestamp } = correction;
 
+  const dateKey = isDateOnlyString(date) ? date : formatBusinessDateKey(new Date(date));
+  const dayStartUtc = businessDateTimeUtc(dateKey, 0, 0, 0, 0);
+  const dayEndUtc = businessDateTimeUtc(dateKey, 23, 59, 59, 999);
+
   switch (correctionType) {
     case 'add_clock_in':
       await TimeLog.create({
@@ -484,8 +489,8 @@ async function applyCorrection(correction) {
         staffId,
         type: 'clockIn',
         timestamp: {
-          $gte: new Date(date).setHours(0, 0, 0, 0),
-          $lt: new Date(date).setHours(23, 59, 59, 999)
+          $gte: dayStartUtc,
+          $lt: dayEndUtc
         }
       }).sort({ timestamp: -1 });
 
@@ -531,11 +536,8 @@ async function applyCorrection(correction) {
 
     case 'add_full_day':
       // Add both clock in and clock out
-      const dayStart = new Date(date);
-      dayStart.setHours(9, 0, 0, 0); // Default 9 AM
-      
-      const dayEnd = new Date(date);
-      dayEnd.setHours(18, 0, 0, 0); // Default 6 PM
+      const dayStart = businessDateTimeUtc(dateKey, 9, 0, 0, 0); // Default 9 AM (PH)
+      const dayEnd = businessDateTimeUtc(dateKey, 18, 0, 0, 0); // Default 6 PM (PH)
 
       await TimeLog.create({
         staffId,

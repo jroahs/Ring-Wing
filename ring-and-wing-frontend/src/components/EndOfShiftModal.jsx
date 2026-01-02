@@ -8,6 +8,7 @@ import { generateRevenuePDF } from '../utils/pdfGenerator';
 import { useCashFloat } from '../hooks/useCashFloat';
 import { FiPrinter, FiDownload, FiFileText, FiAlertCircle } from 'react-icons/fi';
 import { PesoIconSimple } from './ui/PesoIconSimple';
+import { businessDateKey } from '../utils/businessDate';
 
 const EndOfShiftModal = ({ isOpen, onClose, theme, cashFloat }) => {
   const [revenueData, setRevenueData] = useState(null);
@@ -206,7 +207,7 @@ const EndOfShiftModal = ({ isOpen, onClose, theme, cashFloat }) => {
         }
       }
       
-      const today = new Date().toISOString().split('T')[0];
+      const today = businessDateKey(new Date());
       pdf.save(`End_of_Shift_Report_with_Charts_${today}.pdf`);
       
     } catch (error) {

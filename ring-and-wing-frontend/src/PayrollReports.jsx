@@ -17,12 +17,16 @@ import {
 } from 'react-icons/fi';
 import BrandedLoadingScreen from './components/ui/BrandedLoadingScreen';
 import { generatePayrollBatchPDF } from './utils/pdfGenerator';
+import { businessDateKey } from './utils/businessDate';
 
 const PayrollReports = ({ onBack, colors }) => {
   const [reportType, setReportType] = useState('summary');
   const [dateRange, setDateRange] = useState({
-    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0]
+    startDate: (() => {
+      const todayKey = businessDateKey(new Date());
+      return `${todayKey.slice(0, 7)}-01`;
+    })(),
+    endDate: businessDateKey(new Date())
   });
   const [payrollData, setPayrollData] = useState([]);
   const [loading, setLoading] = useState(false);

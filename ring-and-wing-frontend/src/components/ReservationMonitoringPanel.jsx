@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { io } from 'socket.io-client'; // 🔥 NEW: Real-time reservation updates (Sprint 22)
 import { API_URL } from '../App'; // 🔥 NEW: Import API_URL for socket connection
+import { businessDateKey } from '../utils/businessDate';
 
 /**
  * Reservation Monitoring Panel
@@ -308,7 +309,7 @@ const ReservationMonitoringPanel = ({ className = "" }) => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `reservations-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `reservations-${businessDateKey(new Date())}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '../../contexts/CustomerAuthContext';
 import { useCustomerOrders } from '../../hooks/useCustomerOrders';
 import './MyOrders.css';
+import theme from '../../theme';
 
 const MyOrders = () => {
   const navigate = useNavigate();
@@ -39,7 +40,7 @@ const MyOrders = () => {
       paymongo_verified: '#3b82f6',
       received: '#3b82f6',
       preparing: '#3b82f6',
-      ready: '#10b981',
+      ready: theme.colors.accent,
       completed: '#6b7280',
       cancelled: '#ef4444'
     };

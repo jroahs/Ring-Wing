@@ -11,6 +11,7 @@ import {
   Loader2
 } from 'lucide-react';
 import api from '../../services/api';
+import { businessDateKey } from '../../utils/businessDate';
 
 const correctionTypes = [
   { value: 'add_clock_in', label: 'Add Clock In', description: 'Add a missing clock in entry' },
@@ -23,7 +24,7 @@ const correctionTypes = [
 
 const TimeLogCorrectionForm = ({ staffId, onSuccess, onCancel }) => {
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: businessDateKey(new Date()),
     correctionType: 'add_clock_in',
     originalTimeLogId: '',
     correctedTimestamp: '',
@@ -170,7 +171,7 @@ const TimeLogCorrectionForm = ({ staffId, onSuccess, onCancel }) => {
           type="date"
           value={formData.date}
           onChange={handleDateChange}
-          max={new Date().toISOString().split('T')[0]}
+          max={businessDateKey(new Date())}
           className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:outline-none"
           required
         />

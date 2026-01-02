@@ -13,6 +13,7 @@ import {
   Filter
 } from 'lucide-react';
 import { API_URL } from '../App';
+import { businessDateKey } from '../utils/businessDate';
 
 /**
  * Cost Analysis Dashboard
@@ -275,7 +276,7 @@ const CostAnalysisPanel = ({ className = "" }) => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `cost-analysis-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `cost-analysis-${businessDateKey(new Date())}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };

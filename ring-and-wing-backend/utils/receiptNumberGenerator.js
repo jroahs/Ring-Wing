@@ -9,27 +9,66 @@
 
 const Order = require('../models/Order');
 
+const BUSINESS_TIMEZONE = process.env.BUSINESS_TIMEZONE || 'Asia/Manila';
+const MANILA_OFFSET = '+08:00';
+
+function getDatePartsInTimeZone(date, timeZone) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(date);
+
+  const year = parts.find((p) => p.type === 'year')?.value;
+  const month = parts.find((p) => p.type === 'month')?.value;
+  const day = parts.find((p) => p.type === 'day')?.value;
+
+  if (!year || !month || !day) {
+    throw new Error(`Failed to derive date parts for timezone ${timeZone}`);
+  }
+
+  return { year, month, day };
+}
+
+function getBusinessDayRangeUtc(date, timeZone) {
+  // This app’s business timezone is Asia/Manila (PHT, UTC+08:00).
+  // Render containers typically run in UTC; relying on server-local Date() causes
+  // “day rollover” bugs around midnight PHT.
+  if (timeZone !== 'Asia/Manila') {
+    console.warn(
+      `[Receipt Number Generator] BUSINESS_TIMEZONE=${timeZone} is not supported for day-boundary math; falling back to Asia/Manila.`
+    );
+    timeZone = 'Asia/Manila';
+  }
+
+  const { year, month, day } = getDatePartsInTimeZone(date, timeZone);
+
+  const startOfDayUtc = new Date(`${year}-${month}-${day}T00:00:00.000${MANILA_OFFSET}`);
+  const endOfDayUtc = new Date(`${year}-${month}-${day}T23:59:59.999${MANILA_OFFSET}`);
+
+  return { startOfDayUtc, endOfDayUtc, year, month, day };
+}
+
 /**
  * Generate a new receipt number for today
  * @returns {Promise<string>} Receipt number in format YYYYMMDD-###
  */
 async function generateReceiptNumber() {
   try {
-    // Get current date in YYYYMMDD format
     const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const datePrefix = `${year}${month}${day}`;
+    const { startOfDayUtc, endOfDayUtc, year, month, day } = getBusinessDayRangeUtc(
+      now,
+      BUSINESS_TIMEZONE
+    );
 
-    // Get start and end of today
-    const startOfDay = new Date(year, now.getMonth(), now.getDate(), 0, 0, 0);
-    const endOfDay = new Date(year, now.getMonth(), now.getDate(), 23, 59, 59);
+    // Get business date in YYYYMMDD format (Asia/Manila)
+    const datePrefix = `${year}${month}${day}`;
 
     // Find the highest receipt number for today
     const todaysOrders = await Order.find({
       receiptNumber: { $regex: `^${datePrefix}-` },
-      createdAt: { $gte: startOfDay, $lte: endOfDay }
+      createdAt: { $gte: startOfDayUtc, $lte: endOfDayUtc }
     })
     .sort({ receiptNumber: -1 })
     .limit(1);

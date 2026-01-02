@@ -166,11 +166,11 @@ ToastItem.propTypes = {
  * NotificationToasts - Container for toast notifications
  */
 const NotificationToasts = () => {
-  const { toastNotifications, removeNotification, markAsRead } = useSelfCheckoutNotifications();
+  const { toastNotifications, dismissToast, markAsRead } = useSelfCheckoutNotifications();
 
   const handleDismiss = useCallback((id) => {
-    removeNotification(id);
-  }, [removeNotification]);
+    dismissToast(id);
+  }, [dismissToast]);
 
   const handleView = useCallback((id) => {
     markAsRead(id);

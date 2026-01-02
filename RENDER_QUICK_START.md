@@ -103,6 +103,8 @@ VITE_API_URL=https://ring-wing-backend.onrender.com
 ```env
 NODE_ENV=production
 PORT=10000
+TZ=Asia/Manila
+BUSINESS_TIMEZONE=Asia/Manila
 MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/ring-and-wing
 JWT_SECRET=<generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))">
 PAYMONGO_SECRET_KEY=sk_test_xxxxx (or sk_live_xxxxx)

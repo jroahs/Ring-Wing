@@ -13,6 +13,7 @@ import { PrintableInventoryReport } from './components/ui/PrintableInventoryRepo
 import { toast } from 'react-toastify';
 import { getCurrentUser, hasInventoryAccess, hasPermission } from './utils/permissions';
 import { io } from 'socket.io-client'; // 🔥 NEW: Real-time socket events (Sprint 22)
+import { businessDateKey } from './utils/businessDate';
 
 const colors = {
   primary: '#2e0304',
@@ -366,7 +367,7 @@ const InventorySystem = () => {
       }
       
       // Save PDF
-      const fileName = `Inventory_Analytics_${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `Inventory_Analytics_${businessDateKey(new Date())}.pdf`;
       pdf.save(fileName);
       
       toast.success('PDF downloaded successfully!');
@@ -1286,8 +1287,8 @@ const InventorySystem = () => {
       // Convert Date objects to YYYY-MM-DD format for HTML date inputs
       inventory: item.inventory.map(batch => ({
         ...batch,
-        expirationDate: batch.expirationDate 
-          ? new Date(batch.expirationDate).toISOString().split('T')[0] 
+        expirationDate: batch.expirationDate
+          ? businessDateKey(new Date(batch.expirationDate))
           : ''
       })),
       isCountBased: item.isCountBased,

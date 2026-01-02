@@ -426,9 +426,10 @@ class CashFloatService {
   async checkDailyReset() {
     if (!this.dailyResetSettings.enabled) return false;
 
-    const today = new Date().toDateString();
-    
-    if (this.lastResetDate !== today) {
+    const todayKey = this.getBusinessDateKey(new Date());
+    const lastKey = this.normalizeBusinessDateKey(this.lastResetDate);
+
+    if (lastKey !== todayKey) {
       await this.performDailyReset();
       return true;
     }
@@ -442,6 +443,8 @@ class CashFloatService {
   async performDailyReset() {
     const previousAmount = this.currentFloat;
     const resetAmount = this.dailyResetSettings.amount;
+
+    const todayKey = this.getBusinessDateKey(new Date());
     
     const auditEntry = {
       timestamp: new Date().toISOString(),
@@ -451,14 +454,14 @@ class CashFloatService {
       change: resetAmount - previousAmount,
       reason: 'daily_reset',
       metadata: {
-        resetDate: new Date().toDateString(),
+        resetDate: todayKey,
         sessionId: this.getSessionId()
       }
     };
 
     // Update locally first
     this.currentFloat = resetAmount;
-    this.lastResetDate = new Date().toDateString();
+    this.lastResetDate = todayKey;
     this.auditTrail.push(auditEntry);
     
     // Try to persist to backend
@@ -530,7 +533,7 @@ class CashFloatService {
    * before any transactions reduced it by giving change.
    */
   getTodaysStartingFloat(date = new Date()) {
-    const dateString = date.toDateString();
+    const dateKey = this.getBusinessDateKey(date);
     
     // Get all entries sorted by timestamp
     const sortedEntries = [...this.auditTrail].sort((a, b) => 
@@ -539,14 +542,14 @@ class CashFloatService {
     
     // Find today's entries
     const todayEntries = sortedEntries.filter(entry => 
-      new Date(entry.timestamp).toDateString() === dateString
+      this.getBusinessDateKey(new Date(entry.timestamp)) === dateKey
     );
     
     if (todayEntries.length === 0) {
       // No entries for today, check if there was a daily reset or use the current float + all transactions
       const allTransactions = sortedEntries.filter(entry => entry.action === 'transaction');
       const todayTransactions = allTransactions.filter(entry => 
-        new Date(entry.timestamp).toDateString() === dateString
+        this.getBusinessDateKey(new Date(entry.timestamp)) === dateKey
       );
       
       // Calculate starting float by adding back all the change given today
@@ -575,7 +578,7 @@ class CashFloatService {
     
     // Get the last known float amount from yesterday or before
     const preTodayEntries = sortedEntries.filter(entry => 
-      new Date(entry.timestamp).toDateString() !== dateString
+      this.getBusinessDateKey(new Date(entry.timestamp)) !== dateKey
     );
     
     if (preTodayEntries.length === 0) {
@@ -610,9 +613,9 @@ class CashFloatService {
    * Get daily summary statistics
    */
   getDailySummary(date = new Date()) {
-    const dateString = date.toDateString();
+    const dateKey = this.getBusinessDateKey(date);
     const dayEntries = this.auditTrail.filter(entry => 
-      new Date(entry.timestamp).toDateString() === dateString
+      this.getBusinessDateKey(new Date(entry.timestamp)) === dateKey
     );
 
     const transactions = dayEntries.filter(entry => entry.action === 'transaction');
@@ -628,7 +631,7 @@ class CashFloatService {
     const startingFloat = this.getTodaysStartingFloat(date);
 
     return {
-      date: dateString,
+      date: dateKey,
       totalTransactions,
       totalChangeGiven,
       adjustments: adjustments.length,
@@ -636,6 +639,32 @@ class CashFloatService {
       endingFloat: this.currentFloat,
       entries: dayEntries
     };
+  }
+
+  getBusinessDateKey(date = new Date()) {
+    // Use a fixed business timezone so “today” is consistent across devices and backend.
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(date);
+  }
+
+  normalizeBusinessDateKey(value) {
+    if (!value) return null;
+    if (typeof value !== 'string') return null;
+
+    // Already in YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+
+    // Legacy format from older versions: new Date().toDateString()
+    const parsed = new Date(value);
+    if (!isNaN(parsed.getTime())) {
+      return this.getBusinessDateKey(parsed);
+    }
+
+    return value;
   }
 
   /**

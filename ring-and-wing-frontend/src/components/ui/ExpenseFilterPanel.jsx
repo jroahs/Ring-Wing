@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiFilter, FiSearch, FiCalendar, FiTag, FiDollarSign, FiX, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import { businessDateKey } from '../../utils/businessDate';
 
 const ExpenseFilterPanel = ({
   colors,
@@ -62,25 +63,31 @@ const ExpenseFilterPanel = ({
 
   // Quick date presets
   const setQuickDate = (preset) => {
-    const today = new Date();
+    const todayKey = businessDateKey(new Date());
+    const todayStartPH = new Date(`${todayKey}T00:00:00+08:00`);
     let start, end;
 
     switch (preset) {
       case 'today':
-        start = end = today.toISOString().split('T')[0];
+        start = end = todayKey;
         break;
       case 'week':
-        start = new Date(today.setDate(today.getDate() - 7)).toISOString().split('T')[0];
-        end = new Date().toISOString().split('T')[0];
+        start = businessDateKey(new Date(todayStartPH.getTime() - 7 * 24 * 60 * 60 * 1000));
+        end = todayKey;
         break;
       case 'month':
-        start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-        end = new Date().toISOString().split('T')[0];
+        start = `${todayKey.slice(0, 7)}-01`;
+        end = todayKey;
         break;
       case 'quarter':
-        const quarter = Math.floor(today.getMonth() / 3);
-        start = new Date(today.getFullYear(), quarter * 3, 1).toISOString().split('T')[0];
-        end = new Date().toISOString().split('T')[0];
+        {
+          const year = todayKey.slice(0, 4);
+          const month = parseInt(todayKey.slice(5, 7), 10); // 1-12
+          const quarter = Math.floor((month - 1) / 3);
+          const startMonth = String(quarter * 3 + 1).padStart(2, '0');
+          start = `${year}-${startMonth}-01`;
+          end = todayKey;
+        }
         break;
       default:
         return;

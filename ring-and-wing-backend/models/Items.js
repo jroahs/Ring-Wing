@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { formatBusinessDateKey, businessDateTimeUtc } = require('../utils/businessTime');
 
 const inventoryBatchSchema = new mongoose.Schema({
   quantity: { 
@@ -161,18 +162,14 @@ itemSchema.virtual('expirationAlerts').get(function() {
   if (!this.inventory || !Array.isArray(this.inventory)) return [];
   
   const now = new Date();
+  const nowKey = formatBusinessDateKey(now);
+  const nowNoonUtc = businessDateTimeUtc(nowKey, 12, 0, 0, 0);
   return this.inventory.map(batch => {
     const expirationDate = new Date(batch.expirationDate);
 
-    // Convert to PH Time (UTC+8)
-    const phNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-    const phExpiration = new Date(expirationDate.getTime() + 8 * 60 * 60 * 1000);
-
-    // Set to midnight in PH time
-    phNow.setHours(0, 0, 0, 0);
-    phExpiration.setHours(0, 0, 0, 0);
-
-    const timeDiff = phExpiration - phNow;
+    const expKey = formatBusinessDateKey(expirationDate);
+    const expNoonUtc = businessDateTimeUtc(expKey, 12, 0, 0, 0);
+    const timeDiff = expNoonUtc - nowNoonUtc;
     const daysLeft = Math.ceil(timeDiff / (1000 * 3600 * 24));
 
     return { 

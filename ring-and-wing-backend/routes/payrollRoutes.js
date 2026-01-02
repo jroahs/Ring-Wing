@@ -15,6 +15,26 @@ const {
   is13thMonthPayPeriod 
 } = require('../utils/philippineHolidays');
 const { calculateAllGovernmentDeductions } = require('../utils/governmentDeductions');
+const { businessDateTimeUtc, formatBusinessDateKey, isDateOnlyString } = require('../utils/businessTime');
+
+function parseDateKeyInput(value) {
+  return isDateOnlyString(value) ? value : formatBusinessDateKey(new Date(value));
+}
+
+function buildPayrollRanges(startDateInput, endDateInput) {
+  const startKey = parseDateKeyInput(startDateInput);
+  const endKey = parseDateKeyInput(endDateInput);
+
+  // EmployeeSchedule.date and Payroll.payrollPeriod are treated as date-only labels stored at UTC midnight.
+  const scheduleStart = new Date(`${startKey}T00:00:00.000Z`);
+  const scheduleEnd = new Date(`${endKey}T23:59:59.999Z`);
+
+  // TimeLog.timestamp must be filtered by PH business-day boundaries.
+  const timeStart = businessDateTimeUtc(startKey, 0, 0, 0, 0);
+  const timeEnd = businessDateTimeUtc(endKey, 23, 59, 59, 999);
+
+  return { startKey, endKey, scheduleStart, scheduleEnd, timeStart, timeEnd };
+}
 
 // Helper: Get global payroll settings (multipliers) from Settings model
 const getPayrollMultipliers = async () => {
@@ -198,7 +218,7 @@ router.get('/holidays/:year', auth, async (req, res) => {
         year,
         holidays: holidays.map(holiday => ({
           name: holiday.name,
-          date: holiday.date.toISOString().split('T')[0],
+          date: formatBusinessDateKey(holiday.date),
           type: holiday.type,
           payMultiplier: holiday.payMultiplier,
           isApproximate: holiday.isApproximate || false
@@ -255,11 +275,12 @@ router.post('/calculate-holiday-pay', auth, async (req, res) => {
 
     holidays.forEach(holiday => {
       const holidayDate = holiday.date;
+      const holidayKey = formatBusinessDateKey(holidayDate);
       
       // Find time logs for this specific holiday
       const holidayTimeLogs = timeLogs.filter(log => {
-        const logDate = new Date(log.clockIn);
-        return logDate.toDateString() === holidayDate.toDateString();
+        const logKey = formatBusinessDateKey(new Date(log.clockIn));
+        return logKey === holidayKey;
       });
 
       if (holidayTimeLogs.length > 0) {
@@ -297,12 +318,12 @@ router.post('/calculate-holiday-pay', auth, async (req, res) => {
           dailyRate: staff.dailyRate // Keep for backward compatibility
         },
         period: {
-          startDate: start.toISOString().split('T')[0],
-          endDate: end.toISOString().split('T')[0]
+          startDate: formatBusinessDateKey(start),
+          endDate: formatBusinessDateKey(end)
         },
         holidaysInPeriod: holidays.map(h => ({
           name: h.name,
-          date: h.date.toISOString().split('T')[0],
+          date: formatBusinessDateKey(h.date),
           type: h.type,
           payMultiplier: h.payMultiplier
         })),
@@ -414,9 +435,14 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
       });
     }
 
+    const periodKey = parseDateKeyInput(payrollPeriod);
     const period = new Date(payrollPeriod);
-    const startOfMonth = new Date(period.getFullYear(), period.getMonth(), 1);
-    const endOfMonth = new Date(period.getFullYear(), period.getMonth() + 1, 0);
+    const [periodYear, periodMonth] = periodKey.split('-').map(Number);
+    const monthStartKey = `${periodKey.slice(0, 7)}-01`;
+    const lastDayOfMonth = new Date(Date.UTC(periodYear, periodMonth, 0)).getUTCDate();
+    const monthEndKey = `${periodKey.slice(0, 7)}-${String(lastDayOfMonth).padStart(2, '0')}`;
+    const startOfMonth = businessDateTimeUtc(monthStartKey, 0, 0, 0, 0);
+    const endOfMonth = businessDateTimeUtc(monthEndKey, 23, 59, 59, 999);
 
     // Get global multipliers from system settings
     const globalMultipliers = await getPayrollMultipliers();
@@ -432,7 +458,7 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
     let totalHolidayBonus = 0;
     
     if (includeHolidayCalculation) {
-      const holidaysRaw = await getHolidaysInRange(startOfMonth, endOfMonth);
+      const holidaysRaw = await getHolidaysInRange(monthStartKey, monthEndKey);
       const holidays = Array.isArray(holidaysRaw) ? holidaysRaw : [];
       const timeLogRecords = await TimeLog.find({
         staffId: staffId,
@@ -440,10 +466,13 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
       });
 
       holidays.forEach(holiday => {
-        const holidayDate = holiday.date;
+        const holidayKey = isDateOnlyString(holiday.date)
+          ? holiday.date
+          : formatBusinessDateKey(new Date(holiday.date));
+
         const holidayTimeLogs = timeLogRecords.filter(log => {
-          const logDate = new Date(log.clockIn);
-          return logDate.toDateString() === holidayDate.toDateString();
+          const logKey = formatBusinessDateKey(new Date(log.clockIn));
+          return logKey === holidayKey;
         });
 
         if (holidayTimeLogs.length > 0) {
@@ -459,7 +488,7 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
             : customMultipliers.specialHolidayMultiplier;
           
           holidaysWorked.push({
-            date: holidayDate,
+            date: holidayKey,
             holidayName: holiday.name,
             holidayType: holiday.type,
             hoursWorked: totalHoursWorked,
@@ -646,10 +675,9 @@ router.post('/generate-batch', auth, async (req, res) => {
       });
     }
 
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
+    const ranges = buildPayrollRanges(startDate, endDate);
+    const start = ranges.scheduleStart;
+    const end = ranges.scheduleEnd;
 
     // Get global payroll multipliers from system settings
     const globalMultipliers = await getPayrollMultipliers();
@@ -749,7 +777,7 @@ router.post('/generate-batch', auth, async (req, res) => {
       // Get time logs for the period
       const timeLogs = await TimeLog.find({
         staffId: staff._id,
-        timestamp: { $gte: start, $lte: end }
+        timestamp: { $gte: ranges.timeStart, $lte: ranges.timeEnd }
       }).sort('timestamp');
 
       // Calculate hours from time logs
@@ -992,24 +1020,35 @@ router.get('/summary', auth, async (req, res) => {
     let dateFilter = {};
     if (month && year) {
       // Specific month/year
-      const start = new Date(year, month - 1, 1);
-      const end = new Date(year, month, 0, 23, 59, 59, 999);
+      const y = parseInt(year, 10);
+      const m = parseInt(month, 10); // 1-12
+      const mm = String(m).padStart(2, '0');
+      const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      const startKey = `${y}-${mm}-01`;
+      const endKey = `${y}-${mm}-${String(lastDay).padStart(2, '0')}`;
+      const { scheduleStart: start, scheduleEnd: end } = buildPayrollRanges(startKey, endKey);
       dateFilter = {
         payrollPeriod: { $gte: start, $lte: end }
       };
     } else if (startDate && endDate) {
       // Custom date range
+      const { scheduleStart: start, scheduleEnd: end } = buildPayrollRanges(startDate, endDate);
       dateFilter = {
         payrollPeriod: {
-          $gte: new Date(startDate),
-          $lte: new Date(endDate)
+          $gte: start,
+          $lte: end
         }
       };
     } else {
       // Default to current month
-      const now = new Date();
-      const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      const todayKey = formatBusinessDateKey(new Date());
+      const y = parseInt(todayKey.slice(0, 4), 10);
+      const m = parseInt(todayKey.slice(5, 7), 10);
+      const mm = String(m).padStart(2, '0');
+      const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      const startKey = `${y}-${mm}-01`;
+      const endKey = `${y}-${mm}-${String(lastDay).padStart(2, '0')}`;
+      const { scheduleStart: start, scheduleEnd: end } = buildPayrollRanges(startKey, endKey);
       dateFilter = {
         payrollPeriod: { $gte: start, $lte: end }
       };
@@ -1142,10 +1181,9 @@ router.post('/batch/create', auth, async (req, res) => {
       });
     }
 
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
+    const ranges = buildPayrollRanges(startDate, endDate);
+    const start = ranges.scheduleStart;
+    const end = ranges.scheduleEnd;
 
     // Check for existing batch in this period
     const existingBatch = await PayrollBatch.findOne({
@@ -1173,7 +1211,7 @@ router.post('/batch/create', auth, async (req, res) => {
     const userId = req.user?._id;
 
     // Generate payroll data (same logic as generate-batch)
-    const response = await generatePayrollData(start, end, payFrequency);
+    const response = await generatePayrollData(ranges, payFrequency);
 
     // Create payroll records
     const payrollRecords = await Promise.all(
@@ -1571,7 +1609,21 @@ router.post('/batch/:batchId/export', auth, async (req, res) => {
 });
 
 // Helper function to generate payroll data (extracted from generate-batch)
-async function generatePayrollData(start, end, payFrequency) {
+async function generatePayrollData(rangesOrStart, payFrequencyOrEnd, maybePayFrequency) {
+  // Backward compat: previous signature was (start, end, payFrequency)
+  const ranges = (rangesOrStart && rangesOrStart.scheduleStart)
+    ? rangesOrStart
+    : {
+        scheduleStart: rangesOrStart,
+        scheduleEnd: payFrequencyOrEnd,
+        timeStart: rangesOrStart,
+        timeEnd: payFrequencyOrEnd
+      };
+
+  const payFrequency = (rangesOrStart && rangesOrStart.scheduleStart)
+    ? payFrequencyOrEnd
+    : maybePayFrequency;
+
   const globalMultipliers = await getPayrollMultipliers();
 
   const allStaff = await Staff.find({
@@ -1583,7 +1635,7 @@ async function generatePayrollData(start, end, payFrequency) {
   const employeeData = await Promise.all(allStaff.map(async (staff) => {
     const timeLogs = await TimeLog.find({
       staffId: staff._id,
-      timestamp: { $gte: start, $lte: end }
+      timestamp: { $gte: ranges.timeStart, $lte: ranges.timeEnd }
     }).sort('timestamp');
 
     let totalHours = 0;
@@ -1608,7 +1660,7 @@ async function generatePayrollData(start, end, payFrequency) {
     try {
       const schedules = await EmployeeSchedule.find({
         staffId: staff._id,
-        date: { $gte: start, $lte: end }
+        date: { $gte: ranges.scheduleStart, $lte: ranges.scheduleEnd }
       });
 
       schedules.forEach(schedule => {

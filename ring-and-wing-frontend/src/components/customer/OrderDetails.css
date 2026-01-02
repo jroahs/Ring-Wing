@@ -164,7 +164,7 @@
 }
 
 .timeline-step.completed .step-circle {
-  background: #10b981;
+  background: #f1670f;
   color: white;
 }
 
@@ -187,7 +187,7 @@
 }
 
 .timeline-step.completed .step-label {
-  color: #10b981;
+  color: #f1670f;
   font-weight: 600;
 }
 

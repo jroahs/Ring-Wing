@@ -3,35 +3,42 @@ const router = express.Router();
 const Order = require('../models/Order');
 const Expense = require('../models/expense');
 // timezone-aware weekly logic removed to revert to last known working commit
+const {
+  getBusinessTimeZone,
+  getBusinessDayRangeUtc,
+  formatBusinessDateKey,
+  businessDateTimeUtc,
+  isDateOnlyString
+} = require('../utils/businessTime');
 
 // Helper function to get date range
-const getDateRange = (period) => {
+const getDateRange = (period, { weekStart = 0 } = {}) => {
   const now = new Date();
-  const start = new Date();
-  
-  switch(period) {
+  const tz = getBusinessTimeZone();
+  const { dateKey, startOfDayUtc } = getBusinessDayRangeUtc(now, tz);
+
+  switch (period) {
     case 'daily':
-      start.setHours(0, 0, 0, 0);
-      break;
-    case 'weekly':
-      start.setDate(now.getDate() - now.getDay());
-      start.setHours(0, 0, 0, 0);
-      break;
-    case 'monthly':
-      start.setDate(1);
-      start.setHours(0, 0, 0, 0);
-      break;
-    case 'yearly':
-      // Start of the current year
-      start.setMonth(0);
-      start.setDate(1);
-      start.setHours(0, 0, 0, 0);
-      break;
+      return { start: startOfDayUtc, end: now };
+    case 'weekly': {
+      // Determine weekday in PH using noon (avoids cross-day UTC conversion issues).
+      const phNoon = businessDateTimeUtc(dateKey, 12, 0, 0, 0, tz);
+      const weekday = phNoon.getUTCDay(); // safe because PH noon stays same calendar day in UTC
+      const diff = (7 + weekday - weekStart) % 7;
+      const weekStartKey = formatBusinessDateKey(new Date(phNoon.getTime() - diff * 24 * 60 * 60 * 1000), tz);
+      return { start: businessDateTimeUtc(weekStartKey, 0, 0, 0, 0, tz), end: now };
+    }
+    case 'monthly': {
+      const monthStartKey = `${dateKey.slice(0, 7)}-01`;
+      return { start: businessDateTimeUtc(monthStartKey, 0, 0, 0, 0, tz), end: now };
+    }
+    case 'yearly': {
+      const yearStartKey = `${dateKey.slice(0, 4)}-01-01`;
+      return { start: businessDateTimeUtc(yearStartKey, 0, 0, 0, 0, tz), end: now };
+    }
     default:
-      start.setHours(0, 0, 0, 0);
+      return { start: startOfDayUtc, end: now };
   }
-  
-  return { start, end: now };
 };
 
 // ============================================
@@ -42,28 +49,43 @@ const getDateRange = (period) => {
 router.get('/yearly-report', async (req, res) => {
   try {
     const { year, startMonth, endMonth, startDate, endDate } = req.query;
+
+    const tz = getBusinessTimeZone();
+    const asKey = (value) => (isDateOnlyString(value) ? value : formatBusinessDateKey(new Date(value), tz));
     
     // Determine date range
     let start, end;
+    let rangeStartKey, rangeEndKey;
     
     if (startDate && endDate) {
       // Custom date range
-      start = new Date(startDate);
-      end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
+      rangeStartKey = asKey(startDate);
+      rangeEndKey = asKey(endDate);
+      start = businessDateTimeUtc(rangeStartKey, 0, 0, 0, 0, tz);
+      end = businessDateTimeUtc(rangeEndKey, 23, 59, 59, 999, tz);
     } else if (year) {
       // Year-based with optional month range
       const targetYear = parseInt(year, 10);
       const sMonth = startMonth ? parseInt(startMonth, 10) - 1 : 0;
       const eMonth = endMonth ? parseInt(endMonth, 10) - 1 : 11;
-      
-      start = new Date(targetYear, sMonth, 1);
-      end = new Date(targetYear, eMonth + 1, 0, 23, 59, 59, 999);
+
+      const startMonthNum = sMonth + 1;
+      const endMonthNum = eMonth + 1;
+      const endMonthLastDay = new Date(Date.UTC(targetYear, endMonthNum, 0)).getUTCDate();
+
+      rangeStartKey = `${targetYear}-${String(startMonthNum).padStart(2, '0')}-01`;
+      rangeEndKey = `${targetYear}-${String(endMonthNum).padStart(2, '0')}-${String(endMonthLastDay).padStart(2, '0')}`;
+
+      start = businessDateTimeUtc(rangeStartKey, 0, 0, 0, 0, tz);
+      end = businessDateTimeUtc(rangeEndKey, 23, 59, 59, 999, tz);
     } else {
       // Default to current year
-      const currentYear = new Date().getFullYear();
-      start = new Date(currentYear, 0, 1);
-      end = new Date(currentYear, 11, 31, 23, 59, 59, 999);
+      const now = new Date();
+      const yearKey = formatBusinessDateKey(now, tz).slice(0, 4);
+      rangeStartKey = `${yearKey}-01-01`;
+      rangeEndKey = `${yearKey}-12-31`;
+      start = businessDateTimeUtc(rangeStartKey, 0, 0, 0, 0, tz);
+      end = businessDateTimeUtc(rangeEndKey, 23, 59, 59, 999, tz);
     }
     
     console.log('[Yearly Report] Fetching data from', start, 'to', end);
@@ -94,11 +116,18 @@ router.get('/yearly-report', async (req, res) => {
     
     // Generate monthly breakdown
     const monthlyBreakdown = [];
-    const currentDate = new Date(start);
-    
-    while (currentDate <= end) {
-      const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const [startYearNum, startMonthNum] = rangeStartKey.split('-').map(Number);
+    const [endYearNum, endMonthNum] = rangeEndKey.split('-').map(Number);
+    let currentYear = startYearNum;
+    let currentMonth = startMonthNum;
+    while (currentYear < endYearNum || (currentYear === endYearNum && currentMonth <= endMonthNum)) {
+      const monthStartKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+      const lastDay = new Date(Date.UTC(currentYear, currentMonth, 0)).getUTCDate();
+      const monthEndKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+      const monthStart = businessDateTimeUtc(monthStartKey, 0, 0, 0, 0, tz);
+      const monthEnd = businessDateTimeUtc(monthEndKey, 23, 59, 59, 999, tz);
       
       const monthOrders = orders.filter(o => {
         const orderDate = new Date(o.createdAt);
@@ -112,6 +141,12 @@ router.get('/yearly-report', async (req, res) => {
       
       const monthRevenue = monthOrders.reduce((a, o) => a + (o.totals?.total || 0), 0);
       const monthExpenseTotal = monthExpenses.reduce((a, e) => a + (e.amount || 0), 0);
+
+      currentMonth += 1;
+      if (currentMonth > 12) {
+        currentMonth = 1;
+        currentYear += 1;
+      }
       
       monthlyBreakdown.push({
         month: monthStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
@@ -343,7 +378,9 @@ router.get('/:period', async (req, res) => {
     const tz = req.query.tz || process.env.BUSINESS_TIMEZONE || 'Asia/Manila';
 
     // get initial start/end
-    let { start, end } = getDateRange(period);
+    let { start, end } = getDateRange(period, {
+      weekStart: Number.isInteger(weekStartParam) ? weekStartParam : 0
+    });
 
     // weekly logic uses the original simple start/end range
     
@@ -376,7 +413,12 @@ router.get('/:period', async (req, res) => {
 
     // Calculate hourly distribution for daily reports
     const hourlyDistribution = period === 'daily' ? orders.reduce((acc, order) => {
-      const hour = new Date(order.createdAt).getHours();
+      const hourStr = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz,
+        hour: '2-digit',
+        hour12: false
+      }).format(new Date(order.createdAt));
+      const hour = parseInt(hourStr, 10);
       acc[hour] = (acc[hour] || 0) + order.totals.total;
       return acc;
     }, {}) : null;
@@ -401,44 +443,67 @@ router.get('/:period', async (req, res) => {
     // For yearly reports include a monthly breakdown for the year
     let monthlyBreakdown = null;
     if (period === 'yearly') {
-      const yearStart = new Date(start.getFullYear(), 0, 1);
-      const months = Array.from({ length: 12 }).map((_, idx) => {
-        const mStart = new Date(yearStart.getFullYear(), idx, 1);
-        const mEnd = new Date(yearStart.getFullYear(), idx + 1, 0, 23, 59, 59);
-        const monthOrders = orders.filter(o => new Date(o.createdAt) >= mStart && new Date(o.createdAt) <= mEnd);
-        const monthRevenue = monthOrders.reduce((a, o) => a + o.totals.total, 0);
+      const year = formatBusinessDateKey(start, tz).slice(0, 4);
+      const byMonth = orders.reduce((acc, order) => {
+        const monthKey = formatBusinessDateKey(new Date(order.createdAt), tz).slice(0, 7);
+        acc[monthKey] = acc[monthKey] || { revenue: 0, orders: 0 };
+        acc[monthKey].revenue += order.totals.total;
+        acc[monthKey].orders += 1;
+        return acc;
+      }, {});
+
+      monthlyBreakdown = Array.from({ length: 12 }).map((_, idx) => {
+        const mm = String(idx + 1).padStart(2, '0');
+        const monthKey = `${year}-${mm}`;
+        const mStartKey = `${monthKey}-01`;
+        const mStart = businessDateTimeUtc(mStartKey, 0, 0, 0, 0, tz);
+        const nextMonthStart = idx === 11
+          ? businessDateTimeUtc(`${parseInt(year, 10) + 1}-01-01`, 0, 0, 0, 0, tz)
+          : businessDateTimeUtc(`${year}-${String(idx + 2).padStart(2, '0')}-01`, 0, 0, 0, 0, tz);
+        const mEnd = new Date(nextMonthStart.getTime() - 1);
+
         return {
           month: mStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-          revenue: monthRevenue,
-          orders: monthOrders.length,
+          revenue: byMonth[monthKey]?.revenue || 0,
+          orders: byMonth[monthKey]?.orders || 0,
           start: mStart,
           end: mEnd
         };
       });
-      monthlyBreakdown = months;
     }
 
     // For weekly reports include a daily breakdown for the week
     let weeklyBreakdown = null;
     if (period === 'weekly') {
-      // Create an array of days from start to end
-      const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-      const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      const startKey = formatBusinessDateKey(start, tz);
+      const endKey = formatBusinessDateKey(end, tz);
+      const startOfStartKeyUtc = businessDateTimeUtc(startKey, 0, 0, 0, 0, tz);
       const days = [];
-      for (let d = new Date(startDay); d <= endDay; d.setDate(d.getDate() + 1)) {
-        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
-        const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
-        const dayOrders = orders.filter(o => new Date(o.createdAt) >= dayStart && new Date(o.createdAt) <= dayEnd);
+
+      for (
+        let cursor = startOfStartKeyUtc;
+        formatBusinessDateKey(cursor, tz) <= endKey;
+        cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000)
+      ) {
+        const dateKey = formatBusinessDateKey(cursor, tz);
+        const dayStart = businessDateTimeUtc(dateKey, 0, 0, 0, 0, tz);
+        const dayEnd = businessDateTimeUtc(dateKey, 23, 59, 59, 999, tz);
+        const dayOrders = orders.filter(o => {
+          const created = new Date(o.createdAt);
+          return created >= dayStart && created <= dayEnd;
+        });
+
         const dayRevenue = dayOrders.reduce((a, o) => a + o.totals.total, 0);
         days.push({
-          date: dayStart.toISOString().split('T')[0],
-          label: dayStart.toLocaleDateString('en-US', { weekday: 'short' }),
+          date: dateKey,
+          label: new Date(`${dateKey}T00:00:00+08:00`).toLocaleDateString('en-US', { weekday: 'short' }),
           revenue: dayRevenue,
           orders: dayOrders.length,
           start: dayStart,
           end: dayEnd
         });
       }
+
       weeklyBreakdown = days;
     }
 

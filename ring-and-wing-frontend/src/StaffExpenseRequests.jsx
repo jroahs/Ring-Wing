@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FiPlus, FiClock, FiCheck, FiX, FiDollarSign } from 'react-icons/fi';
 import { useMultiTabLogout } from './hooks/useMultiTabLogout';
+import { businessDateKey } from './utils/businessDate';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -53,7 +54,7 @@ const StaffExpenseRequests = () => {
   const [showModal, setShowModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: businessDateKey(new Date()),
     amount: '',
     category: '',
     description: '',
@@ -131,7 +132,7 @@ const StaffExpenseRequests = () => {
       setMyExpenses(prev => [newExpense, ...prev]);
       setShowModal(false);
       setFormData({
-        date: new Date().toISOString().split('T')[0],
+        date: businessDateKey(new Date()),
         amount: '',
         category: '',
         description: '',

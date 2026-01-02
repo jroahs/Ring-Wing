@@ -8,6 +8,7 @@ import ExpenseFilters from './components/ui/ExpenseFilters.jsx';
 import ExpenseSummary from './components/ui/ExpenseSummary.jsx';
 import ExpenseFilterPanel from './components/ui/ExpenseFilterPanel.jsx';
 import { useMultiTabLogout } from './hooks/useMultiTabLogout';
+import { businessDateKey } from './utils/businessDate';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -51,7 +52,7 @@ const ExpenseTracker = ({ colors }) => {
   const [pendingApprovals, setPendingApprovals] = useState([]);
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'pending'
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: businessDateKey(new Date()),
     amount: '',
     category: '',
     description: '',
@@ -173,22 +174,36 @@ const ExpenseTracker = ({ colors }) => {
   }, [searchTerm, dateRange, selectedCategory, paymentStatus]);
   const checkAndGetDailyStats = async () => {
     const now = new Date();
-    const lastCheck = new Date(lastResetCheck);
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const getBusinessDateKey = (date = new Date()) => {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(date);
+    };
+
+    const todayKey = getBusinessDateKey(now);
+    const lastResetKey = (() => {
+      if (!lastResetCheck) return null;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(lastResetCheck)) return lastResetCheck;
+      const parsed = new Date(lastResetCheck);
+      return isNaN(parsed.getTime()) ? null : getBusinessDateKey(parsed);
+    })();
 
     // If last check was before today, get updated stats
-    if (!lastResetCheck || lastCheck < startOfToday) {
+    if (lastResetKey !== todayKey) {
       try {
         const response = await fetch(`${API_URL}/api/expenses/reset-disbursement`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: getAuthHeaders()
         });
         
         if (response.ok) {
           // Update last check time
-          const nowISOString = now.toISOString();
-          setLastResetCheck(nowISOString);
-          localStorage.setItem('lastExpenseResetCheck', nowISOString);
+          setLastResetCheck(todayKey);
+          localStorage.setItem('lastExpenseResetCheck', todayKey);
           
           // Get stats data from response
           const statsData = await response.json();
@@ -250,7 +265,7 @@ const ExpenseTracker = ({ colors }) => {
       setExpenses(prev => [newExpense, ...prev]);
       setShowModal(false);
       setFormData({
-        date: new Date().toISOString().split('T')[0],
+        date: businessDateKey(new Date()),
         amount: '',
         category: '',
         description: '',
@@ -380,7 +395,7 @@ const ExpenseTracker = ({ colors }) => {
     const csvContent = [
       ['Date', 'Description', 'Category', 'Amount', 'Status'],
       ...expenses.map(exp => [
-        new Date(exp.date).toISOString().split('T')[0],
+        businessDateKey(new Date(exp.date)),
         exp.description,
         exp.category,
         exp.amount,
@@ -412,9 +427,9 @@ const ExpenseTracker = ({ colors }) => {
   const dailyDisbursements = useMemo(() => {
     const daily = disbursedExpenses.reduce((acc, exp) => {
       // Use disbursementDate instead of date for the chart
-      const date = exp.disbursementDate ? 
-        new Date(exp.disbursementDate).toISOString().split('T')[0] : 
-        new Date().toISOString().split('T')[0];
+      const date = exp.disbursementDate
+        ? businessDateKey(new Date(exp.disbursementDate))
+        : businessDateKey(new Date());
       
       acc[date] = (acc[date] || 0) + exp.amount;
       return acc;
@@ -423,17 +438,17 @@ const ExpenseTracker = ({ colors }) => {
     return Object.entries(daily).map(([date, amount]) => ({
       date,
       amount,
-      formattedDate: new Date(date).toLocaleDateString('en-PH', {
+      formattedDate: new Date(`${date}T00:00:00+08:00`).toLocaleDateString('en-PH', {
         day: 'numeric',
         month: 'short'
       })
-    })).sort((a, b) => new Date(a.date) - new Date(b.date));
+    })).sort((a, b) => new Date(`${a.date}T00:00:00+08:00`) - new Date(`${b.date}T00:00:00+08:00`));
   }, [disbursedExpenses]);
 
   const monthlyDisbursements = useMemo(() => {
     const monthly = disbursedExpenses.reduce((acc, exp) => {
-      const date = new Date(exp.date);
-      const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+      const dateKey = businessDateKey(new Date(exp.date));
+      const monthYear = dateKey.slice(0, 7);
       acc[monthYear] = (acc[monthYear] || 0) + exp.amount;
       return acc;
     }, {});

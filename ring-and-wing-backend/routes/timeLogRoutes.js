@@ -4,6 +4,15 @@ const { auth, isStaff } = require('../middleware/authMiddleware');
 const timeLogController = require('../controllers/timeLogController');
 const Staff = require('../models/Staff');
 const TimeLog = require('../models/TimeLog');
+const {
+  getBusinessTimeZone,
+  isDateOnlyString,
+  formatBusinessDateKey,
+  businessDateTimeUtc
+} = require('../utils/businessTime');
+
+const tz = getBusinessTimeZone();
+const parseDateKeyInput = (value) => (isDateOnlyString(value) ? value : formatBusinessDateKey(new Date(value), tz));
 
 // Debug logging for each route
 router.use((req, res, next) => {
@@ -40,20 +49,25 @@ router.get('/staff/:staffId/hours', auth, async (req, res) => {
         message: 'Staff member not found'
       });
     }
+
+    const startKey = parseDateKeyInput(startDate);
+    const endKey = parseDateKeyInput(endDate);
+    const startUtc = businessDateTimeUtc(startKey, 0, 0, 0, 0, tz);
+    const endUtc = businessDateTimeUtc(endKey, 23, 59, 59, 999, tz);
     
     // Use the new calculateTotalHours helper from the controller
     const hours = await timeLogController.calculateTotalHours(
       staffId,
-      new Date(startDate),
-      new Date(endDate)
+      startUtc,
+      endUtc
     );
     
     // Fetch the raw logs to include in the response
     const logQuery = {
       staffId,
       timestamp: { 
-        $gte: new Date(startDate), 
-        $lte: new Date(endDate)
+        $gte: startUtc,
+        $lte: endUtc
       }
     };
     
@@ -99,27 +113,31 @@ router.post('/generate-test-data', auth, async (req, res) => {
         message: 'Staff member not found'
       });
     }
+
+    const startKey = parseDateKeyInput(startDate);
+    const endKey = parseDateKeyInput(endDate);
+    const startUtc = businessDateTimeUtc(startKey, 0, 0, 0, 0, tz);
+    const endUtc = businessDateTimeUtc(endKey, 23, 59, 59, 999, tz);
+    const startNoonUtc = businessDateTimeUtc(startKey, 12, 0, 0, 0, tz);
     
     // First, clear any existing time logs in the date range
     await TimeLog.deleteMany({
       staffId,
       timestamp: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
+        $gte: startUtc,
+        $lte: endUtc
       }
     });
-    
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+
     const logs = [];
     
     // Generate logs for a typical work month (e.g. 21 work days)
     for (let day = 0; day < daysToGenerate; day++) {
-      const currentDate = new Date(start);
-      currentDate.setDate(start.getDate() + day);
+      const currentKey = formatBusinessDateKey(new Date(startNoonUtc.getTime() + day * 24 * 60 * 60 * 1000), tz);
+      const currentNoonUtc = businessDateTimeUtc(currentKey, 12, 0, 0, 0, tz);
       
       // Skip weekends (Saturday = 6, Sunday = 0)
-      const dayOfWeek = currentDate.getDay();
+      const dayOfWeek = currentNoonUtc.getUTCDay();
       if (dayOfWeek === 0 || dayOfWeek === 6) {
         continue;
       }
@@ -127,8 +145,7 @@ router.post('/generate-test-data', auth, async (req, res) => {
       // Set clock-in time (e.g., between 8:00 and 8:30 AM)
       const clockInHour = 8;
       const clockInMinuteVariation = Math.floor(Math.random() * 30); // 0-29 minutes past the hour
-      const clockInTime = new Date(currentDate);
-      clockInTime.setHours(clockInHour, clockInMinuteVariation, 0, 0);
+      const clockInTime = businessDateTimeUtc(currentKey, clockInHour, clockInMinuteVariation, 0, 0, tz);
       
       // Add some randomness to work hours (some days slightly under, some over)
       let workHours = hoursPerDay;

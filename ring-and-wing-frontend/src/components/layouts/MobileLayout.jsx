@@ -353,11 +353,6 @@ const MobileLayout = ({
             </svg>
           </div>
           
-          {/* Notification Dropdown */}
-          {isAuthenticated && (
-            <NotificationDropdown size="md" />
-          )}
-          
           {/* Single Auth Button */}
           {!authLoading && (
             !isAuthenticated ? (
@@ -381,6 +376,11 @@ const MobileLayout = ({
                 <span className="max-w-[60px] truncate">{customer?.firstName || 'User'}</span>
               </button>
             )
+          )}
+          
+          {/* Notification Dropdown - Right side */}
+          {isAuthenticated && (
+            <NotificationDropdown size="md" />
           )}
         </div>
       </div>

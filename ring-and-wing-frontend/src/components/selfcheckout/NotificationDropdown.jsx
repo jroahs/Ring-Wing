@@ -1,15 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useSelfCheckoutNotifications, NOTIFICATION_TYPES } from '../../contexts/SelfCheckoutNotificationContext';
+import theme from '../../theme';
 
-const colors = {
-  primary: '#2e0304',
-  accent: '#f1670f',
-  secondary: '#853619',
-  background: '#fefdfd',
-  muted: '#ac9c9b'
-};
+const colors = theme.colors;
 
 /**
  * Get icon for notification type
@@ -66,7 +63,7 @@ const getNotificationIcon = (type) => {
  */
 const getSeverityColor = (severity) => {
   switch (severity) {
-    case 'success': return '#10b981';
+    case 'success': return colors.accent;
     case 'error': return '#ef4444';
     case 'warning': return '#f59e0b';
     case 'info':
@@ -96,8 +93,10 @@ const formatRelativeTime = (timestamp) => {
  */
 const NotificationDropdown = ({ 
   size = 'md', 
-  className = '' 
+  className = '',
+  cartCollapsed = false
 }) => {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const { 
@@ -106,7 +105,7 @@ const NotificationDropdown = ({
     markAsRead, 
     markAllAsRead,
     removeNotification,
-    clearAllNotifications 
+    clearAll 
   } = useSelfCheckoutNotifications();
 
   // Close on click outside
@@ -157,10 +156,18 @@ const NotificationDropdown = ({
   const displayCount = unreadCount > 9 ? '9+' : unreadCount;
   const hasUnread = unreadCount > 0;
 
-  const handleNotificationClick = (notification) => {
+  const handleNotificationClick = useCallback((notification) => {
     markAsRead(notification.id);
-    // Could navigate to order details here if needed
-  };
+    if (notification?.navigateTo) {
+      setIsOpen(false);
+      navigate(notification.navigateTo);
+    }
+  }, [markAsRead, navigate]);
+
+  const anchorRect = dropdownRef.current?.getBoundingClientRect();
+  const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 640;
+  const portalTop = anchorRect ? anchorRect.bottom + 8 : 64;
+  const portalRight = anchorRect ? window.innerWidth - anchorRect.right : 16;
 
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
@@ -206,18 +213,29 @@ const NotificationDropdown = ({
       {/* Dropdown */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-2 w-80 max-h-96 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-50"
-            style={{ maxWidth: 'calc(100vw - 32px)' }}
-          >
+          <>
+            {ReactDOM.createPortal(
+              <div
+                className="fixed"
+                style={{
+                  zIndex: 999999,
+                  top: `${portalTop}px`,
+                  left: isMobileViewport ? '50%' : 'auto',
+                  right: isMobileViewport ? 'auto' : `${portalRight}px`,
+                  transform: isMobileViewport ? 'translateX(-50%)' : undefined
+                }}
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="w-[calc(100vw-2rem)] sm:w-80 max-h-[70vh] sm:max-h-96 bg-white rounded-xl shadow-2xl border border-orange-200 overflow-hidden"
+                >
             {/* Header */}
             <div 
               className="px-4 py-3 border-b flex items-center justify-between"
-              style={{ backgroundColor: colors.primary }}
+              style={{ backgroundColor: colors.accent }}
             >
               <h3 className="font-semibold text-white">Notifications</h3>
               {notifications.length > 0 && (
@@ -231,7 +249,7 @@ const NotificationDropdown = ({
                     </button>
                   )}
                   <button
-                    onClick={clearAllNotifications}
+                    onClick={clearAll}
                     className="text-xs text-white/60 hover:text-white transition-colors"
                   >
                     Clear
@@ -241,7 +259,7 @@ const NotificationDropdown = ({
             </div>
 
             {/* Notification List */}
-            <div className="overflow-y-auto max-h-72">
+            <div className="overflow-y-auto overflow-x-hidden max-h-72">
               {notifications.length === 0 ? (
                 <div className="p-8 text-center text-gray-400">
                   <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -256,8 +274,8 @@ const NotificationDropdown = ({
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 10 }}
-                    className={`px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${
-                      !notification.read ? 'bg-orange-50/50' : ''
+                    className={`px-4 py-3 border-b border-gray-100 hover:bg-orange-50 cursor-pointer transition-colors ${
+                      !notification.read ? 'bg-orange-50/80' : ''
                     }`}
                     onClick={() => handleNotificationClick(notification)}
                   >
@@ -289,7 +307,7 @@ const NotificationDropdown = ({
                             />
                           )}
                         </div>
-                        <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">
+                        <p className="text-xs text-gray-500 line-clamp-2 mt-0.5 break-words">
                           {notification.message}
                         </p>
                         <p className="text-xs text-gray-400 mt-1">
@@ -317,7 +335,11 @@ const NotificationDropdown = ({
                 ))
               )}
             </div>
-          </motion.div>
+                </motion.div>
+              </div>,
+          document.body
+        )}
+          </>
         )}
       </AnimatePresence>
     </div>
@@ -326,7 +348,8 @@ const NotificationDropdown = ({
 
 NotificationDropdown.propTypes = {
   size: PropTypes.oneOf(['sm', 'md', 'lg']),
-  className: PropTypes.string
+  className: PropTypes.string,
+  cartCollapsed: PropTypes.bool
 };
 
 export default NotificationDropdown;

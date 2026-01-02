@@ -16,6 +16,7 @@ import api from './services/apiService';
 import { toast } from 'react-toastify';
 import BrandedLoadingScreen from './components/ui/BrandedLoadingScreen';
 import { generatePayrollBatchPDF } from './utils/pdfGenerator';
+import { businessDateKey } from './utils/businessDate';
 
 const PayrollGenerator = ({ onBack, colors }) => {
   // Default colors if not provided
@@ -31,8 +32,17 @@ const PayrollGenerator = ({ onBack, colors }) => {
   // State
   const [loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState({
-    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-    endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]
+    startDate: (() => {
+      const todayKey = businessDateKey(new Date());
+      return `${todayKey.slice(0, 7)}-01`;
+    })(),
+    endDate: (() => {
+      const todayKey = businessDateKey(new Date());
+      const y = parseInt(todayKey.slice(0, 4), 10);
+      const m = parseInt(todayKey.slice(5, 7), 10); // 1-12
+      const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      return `${String(y)}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    })()
   });
   const [payFrequency, setPayFrequency] = useState('monthly');
   const [preparedBy, setPreparedBy] = useState('');

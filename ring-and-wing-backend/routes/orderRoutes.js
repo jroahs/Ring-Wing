@@ -9,6 +9,11 @@ const { auth, isManager } = require('../middleware/authMiddleware');
 const uploadMiddleware = require('../config/multer');
 const SocketService = require('../services/socketService');
 const { generateReceiptNumber } = require('../utils/receiptNumberGenerator');
+const {
+  getBusinessDayRangeUtc,
+  businessDateTimeUtc,
+  isDateOnlyString
+} = require('../utils/businessTime');
 
 // Advanced validation middleware
 const validateOrder = (req, res, next) => {
@@ -145,48 +150,69 @@ router.get('/', standardCheck, async (req, res, next) => {
     if (dateFilter || startDate || endDate) {
       const now = new Date();
       let start, end;
+
+      const DAY_MS = 24 * 60 * 60 * 1000;
+      const todayRange = getBusinessDayRangeUtc(now);
       
       if (dateFilter) {
         switch (dateFilter) {
           case 'today':
-            start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+            start = todayRange.startOfDayUtc;
+            end = todayRange.startOfNextDayUtc;
             break;
           case 'yesterday':
-            start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-            end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            start = new Date(todayRange.startOfDayUtc.getTime() - DAY_MS);
+            end = todayRange.startOfDayUtc;
             break;
           case 'last7days':
-            start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
-            end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+            start = new Date(todayRange.startOfDayUtc.getTime() - 7 * DAY_MS);
+            end = todayRange.startOfNextDayUtc;
             break;
           case 'thisMonth':
-            start = new Date(now.getFullYear(), now.getMonth(), 1);
-            end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            {
+              const [y, m] = todayRange.dateKey.split('-');
+              const startKey = `${y}-${m}-01`;
+              const yearNum = parseInt(y, 10);
+              const monthNum = parseInt(m, 10);
+              const nextYear = monthNum === 12 ? yearNum + 1 : yearNum;
+              const nextMonth = String(monthNum === 12 ? 1 : monthNum + 1).padStart(2, '0');
+              const endKey = `${String(nextYear).padStart(4, '0')}-${nextMonth}-01`;
+              start = businessDateTimeUtc(startKey, 0, 0, 0, 0);
+              end = businessDateTimeUtc(endKey, 0, 0, 0, 0);
+            }
             break;
           case 'last2hours':
             start = new Date(now.getTime() - 2 * 60 * 60 * 1000);
             end = now;
             break;
           case 'morning':
-            start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 0, 0);
-            end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
+            start = businessDateTimeUtc(todayRange.dateKey, 6, 0, 0, 0);
+            end = businessDateTimeUtc(todayRange.dateKey, 12, 0, 0, 0);
             break;
           case 'afternoon':
-            start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
-            end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0);
+            start = businessDateTimeUtc(todayRange.dateKey, 12, 0, 0, 0);
+            end = businessDateTimeUtc(todayRange.dateKey, 18, 0, 0, 0);
             break;
           case 'evening':
-            start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0);
-            end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
+            start = businessDateTimeUtc(todayRange.dateKey, 18, 0, 0, 0);
+            end = todayRange.startOfNextDayUtc;
             break;
         }
       } else {
         // Custom date range
-        if (startDate) start = new Date(startDate);
+        if (startDate) {
+          if (isDateOnlyString(startDate)) {
+            start = businessDateTimeUtc(startDate, 0, 0, 0, 0);
+          } else {
+            start = new Date(startDate);
+          }
+        }
         if (endDate) {
-          end = new Date(endDate);
-          end.setDate(end.getDate() + 1); // Include the entire end date
+          if (isDateOnlyString(endDate)) {
+            end = new Date(businessDateTimeUtc(endDate, 0, 0, 0, 0).getTime() + DAY_MS);
+          } else {
+            end = new Date(endDate);
+          }
         }
       }
       

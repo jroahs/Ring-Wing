@@ -27,6 +27,7 @@ import ShiftTemplateManager from './ShiftTemplateManager';
 import ScheduleCell from './ScheduleCell';
 import DraggableShift from './DraggableShift';
 import DroppableDay from './DroppableDay';
+import { businessDateKey } from '../../utils/businessDate';
 
 // Helper to format date as local YYYY-MM-DD (avoids timezone issues)
 const formatLocalDate = (date) => {
@@ -112,6 +113,7 @@ const ScheduleCalendar = () => {
   // Get current week's days
   const currentWeekDays = useMemo(() => {
     const today = new Date();
+    const todayKey = businessDateKey(today);
     const startOfWeek = new Date(today);
     startOfWeek.setDate(today.getDate() - today.getDay() + (weekOffset * 7));
     
@@ -125,7 +127,7 @@ const ScheduleCalendar = () => {
         dayNumber: date.getDate(),
         isWeekend: date.getDay() === 0 || date.getDay() === 6,
         dateString: formatLocalDate(date),
-        isToday: date.toDateString() === today.toDateString(),
+        isToday: formatLocalDate(date) === todayKey,
         month: date.getMonth() + 1,
         year: date.getFullYear()
       });

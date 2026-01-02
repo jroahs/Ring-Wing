@@ -1,4 +1,5 @@
 const Settings = require('../models/Settings');
+const { formatBusinessDateKey } = require('../utils/businessTime');
 
 // Get all settings (or create default if none exist)
 const getSettings = async (req, res) => {
@@ -277,6 +278,8 @@ const performDailyReset = async (req, res) => {
     
     const previousAmount = settings.cashFloat.currentAmount;
     const resetAmount = settings.cashFloat.dailyResetSettings.amount;
+
+    const businessDateKey = formatBusinessDateKey(new Date());
     
     // Create audit entry
     const auditEntry = {
@@ -287,7 +290,7 @@ const performDailyReset = async (req, res) => {
       change: resetAmount - previousAmount,
       reason: 'daily_reset',
       metadata: {
-        resetDate: new Date().toDateString(),
+        resetDate: businessDateKey,
         userAgent: req.headers['user-agent'] || 'unknown',
         ipAddress: req.ip || req.connection.remoteAddress || 'unknown'
       }
@@ -295,7 +298,7 @@ const performDailyReset = async (req, res) => {
     
     // Update settings
     settings.cashFloat.currentAmount = resetAmount;
-    settings.cashFloat.lastResetDate = new Date().toDateString();
+    settings.cashFloat.lastResetDate = businessDateKey;
     settings.cashFloat.auditTrail.push(auditEntry);
     
     // Keep only the last 100 audit entries

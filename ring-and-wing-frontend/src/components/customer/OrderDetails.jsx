@@ -7,6 +7,7 @@ import { API_URL } from '../../App';
 import io from 'socket.io-client';
 import { downloadReceipt, printReceipt } from '../../utils/receiptGenerator';
 import './OrderDetails.css';
+import theme from '../../theme';
 
 const OrderDetails = () => {
   const { orderId } = useParams();
@@ -76,7 +77,7 @@ const OrderDetails = () => {
       paymongo_verified: '#3b82f6',
       received: '#3b82f6',
       preparing: '#3b82f6',
-      ready: '#10b981',
+      ready: theme.colors.accent,
       completed: '#6b7280',
       cancelled: '#ef4444'
     };

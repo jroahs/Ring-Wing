@@ -14,6 +14,7 @@ import { toast } from 'react-toastify';
 import { useMultiTabLogout } from './hooks/useMultiTabLogout';
 import { calculateAllGovernmentDeductions } from './utils/governmentDeductions';
 import { generatePayslipPDF } from './utils/pdfGenerator';
+import { businessDateKey } from './utils/businessDate';
 
 const PayrollSystem = () => {  
   // Enable multi-tab logout synchronization
@@ -276,8 +277,8 @@ const PayrollSystem = () => {
       
       const response = await api.get(`/api/schedules/compare/${staffId}`, {
         params: {
-          startDate: new Date(startDate).toISOString().split('T')[0],
-          endDate: new Date(endDate).toISOString().split('T')[0]
+          startDate: businessDateKey(new Date(startDate)),
+          endDate: businessDateKey(new Date(endDate))
         },
         ...config
       });

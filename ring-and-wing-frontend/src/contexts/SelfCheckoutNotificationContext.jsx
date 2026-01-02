@@ -62,6 +62,84 @@ export const SelfCheckoutNotificationProvider = ({ children }) => {
   const socketRef = useRef(null);
   const notificationIdRef = useRef(0);
 
+  // Use a stable key so async auth hydration (guest -> customer) can't wipe stored notifications.
+  const storageKey = 'rw_selfcheckout_notifications_v1';
+
+  const persistNotifications = useCallback((nextNotifications) => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify({ notifications: nextNotifications }));
+    } catch (e) {
+      // Ignore storage quota / privacy mode errors
+    }
+  }, [storageKey]);
+
+  // Restore persisted notifications
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      let raw = window.localStorage.getItem(storageKey);
+
+      // Migration: older builds stored notifications under per-user keys.
+      // If the new stable key is empty, try to migrate the best legacy payload.
+      if (!raw) {
+        let bestLegacyRaw = null;
+        let bestCount = 0;
+
+        for (let i = 0; i < window.localStorage.length; i += 1) {
+          const key = window.localStorage.key(i);
+          if (!key) continue;
+          if (key === storageKey) continue;
+          if (!key.startsWith('rw_selfcheckout_notifications_v1_')) continue;
+
+          const candidateRaw = window.localStorage.getItem(key);
+          if (!candidateRaw) continue;
+
+          try {
+            const candidateParsed = JSON.parse(candidateRaw);
+            const candidateNotifications = Array.isArray(candidateParsed?.notifications)
+              ? candidateParsed.notifications
+              : [];
+            if (candidateNotifications.length > bestCount) {
+              bestCount = candidateNotifications.length;
+              bestLegacyRaw = candidateRaw;
+            }
+          } catch {
+            // ignore malformed legacy data
+          }
+        }
+
+        if (bestLegacyRaw) {
+          raw = bestLegacyRaw;
+          try {
+            window.localStorage.setItem(storageKey, bestLegacyRaw);
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      if (!raw) {
+        setNotifications([]);
+        setUnreadCount(0);
+        return;
+      }
+
+      const parsed = JSON.parse(raw);
+      const stored = Array.isArray(parsed?.notifications) ? parsed.notifications : [];
+
+      setNotifications(stored);
+      setUnreadCount(stored.filter(n => n && !n.read && !n.deleted).length);
+    } catch (e) {
+      // Ignore storage errors and start fresh
+      setNotifications([]);
+      setUnreadCount(0);
+    }
+  }, [storageKey]);
+
+
+
   /**
    * Generate unique notification ID
    */
@@ -84,7 +162,8 @@ export const SelfCheckoutNotificationProvider = ({ children }) => {
       navigateTo: notification.navigateTo || null,
       timestamp: notification.timestamp || new Date(),
       read: false,
-      dismissed: false,
+      dismissed: false, // hides toast only
+      deleted: false, // hides from dropdown/history
       autoHide: notification.autoHide !== false, // Default to true
       duration: notification.duration || 6000 // 6 seconds default
     };
@@ -104,24 +183,46 @@ export const SelfCheckoutNotificationProvider = ({ children }) => {
       
       // Keep only last 20 notifications
       const updated = [newNotification, ...prev].slice(0, 20);
+      persistNotifications(updated);
       return updated;
     });
 
     setUnreadCount(prev => prev + 1);
 
     return newNotification.id;
-  }, [generateId]);
+  }, [generateId, persistNotifications]);
 
   /**
    * Remove a notification
    */
   const removeNotification = useCallback((notificationId) => {
-    setNotifications(prev => 
-      prev.map(n => 
+    setNotifications(prev => {
+      const notification = prev.find(n => n.id === notificationId);
+      if (notification && !notification.read && !notification.deleted) {
+        setUnreadCount(count => Math.max(0, count - 1));
+      }
+
+      const updated = prev.map(n =>
+        n.id === notificationId ? { ...n, deleted: true } : n
+      );
+
+      persistNotifications(updated);
+      return updated;
+    });
+  }, [persistNotifications]);
+
+  /**
+   * Dismiss toast only (keep notification in dropdown/history)
+   */
+  const dismissToast = useCallback((notificationId) => {
+    setNotifications(prev => {
+      const updated = prev.map(n =>
         n.id === notificationId ? { ...n, dismissed: true } : n
-      )
-    );
-  }, []);
+      );
+      persistNotifications(updated);
+      return updated;
+    });
+  }, [persistNotifications]);
 
   /**
    * Mark notification as read
@@ -132,19 +233,26 @@ export const SelfCheckoutNotificationProvider = ({ children }) => {
       if (notification && !notification.read) {
         setUnreadCount(count => Math.max(0, count - 1));
       }
-      return prev.map(n => 
+      const updated = prev.map(n => 
         n.id === notificationId ? { ...n, read: true } : n
       );
+
+      persistNotifications(updated);
+      return updated;
     });
-  }, []);
+  }, [persistNotifications]);
 
   /**
    * Mark all notifications as read
    */
   const markAllAsRead = useCallback(() => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setNotifications(prev => {
+      const updated = prev.map(n => ({ ...n, read: true }));
+      persistNotifications(updated);
+      return updated;
+    });
     setUnreadCount(0);
-  }, []);
+  }, [persistNotifications]);
 
   /**
    * Clear all notifications
@@ -152,7 +260,8 @@ export const SelfCheckoutNotificationProvider = ({ children }) => {
   const clearAll = useCallback(() => {
     setNotifications([]);
     setUnreadCount(0);
-  }, []);
+    persistNotifications([]);
+  }, [persistNotifications]);
 
   /**
    * Toggle drawer open/closed
@@ -178,13 +287,13 @@ export const SelfCheckoutNotificationProvider = ({ children }) => {
   /**
    * Get visible (non-dismissed) notifications
    */
-  const visibleNotifications = notifications.filter(n => !n.dismissed);
+  const visibleNotifications = notifications.filter(n => !n.deleted);
 
   /**
    * Get active toast notifications (not dismissed, auto-hide enabled)
    */
   const toastNotifications = visibleNotifications
-    .filter(n => n.autoHide && !n.read)
+    .filter(n => n.autoHide && !n.read && !n.dismissed)
     .slice(0, 3); // Show max 3 toasts
 
   // Socket.io connection for real-time updates
@@ -231,9 +340,11 @@ export const SelfCheckoutNotificationProvider = ({ children }) => {
     socket.on('reconnect', () => {
       console.log('[SelfCheckoutNotifications] Socket reconnected');
       // Remove any connection lost notifications
-      setNotifications(prev => 
-        prev.filter(n => n.type.id !== 'connection_lost')
-      );
+      setNotifications(prev => {
+        const updated = prev.filter(n => n.type.id !== 'connection_lost');
+        persistNotifications(updated);
+        return updated;
+      });
       addNotification({
         type: NOTIFICATION_TYPES.CONNECTION_RESTORED,
         title: 'Connection Restored',
@@ -294,6 +405,7 @@ export const SelfCheckoutNotificationProvider = ({ children }) => {
     isDrawerOpen,
     addNotification,
     removeNotification,
+    dismissToast,
     markAsRead,
     markAllAsRead,
     clearAll,
