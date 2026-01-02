@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useReactToPrint } from 'react-to-print';
 import { MenuItemCard, OrderItem, PaymentPanel, PaymentProcessingModal, SearchBar, Modal } from './components/ui';
 import { theme } from './theme';
@@ -1424,11 +1425,21 @@ const PointOfSaleTablet = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <motion.div 
+      className="min-h-screen bg-gray-50"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+    >
       {showTimeClock ? (
         <TimeClockInterface onClose={() => setShowTimeClock(false)} />
       ) : (
-        <div className="flex flex-col h-screen">
+        <motion.div 
+          className="flex flex-col h-screen"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
           {/* Header with Order Tabs */}
           <div className="bg-white shadow-md">
             <div className="p-4 flex items-center justify-between border-b">
@@ -1998,7 +2009,7 @@ const PointOfSaleTablet = () => {
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* === MODALS === */}
@@ -2437,7 +2448,7 @@ const PointOfSaleTablet = () => {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

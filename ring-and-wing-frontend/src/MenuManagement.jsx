@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import MenuItemImage from './components/MenuItemImage';
 import ConnectionMonitor from './components/ConnectionMonitor';
@@ -2300,35 +2301,55 @@ const MenuPage = () => {
   }
 
   return (
-    <div style={{ backgroundColor: colors.background }} className="min-h-screen p-8 ml-0 md:ml-20">
-      <div className="max-w-6xl mx-auto">        <div className="mb-8 flex justify-between items-center">
+    <motion.div 
+      style={{ backgroundColor: colors.background }} 
+      className="min-h-screen p-8 ml-0 md:ml-20"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+    >
+      <motion.div 
+        className="max-w-6xl mx-auto"
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+      >        <motion.div 
+          className="mb-8 flex justify-between items-center"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+        >
           <h1 style={{ color: colors.primary }} className="text-3xl font-bold">
             Menu Management
           </h1>
           <div className="flex gap-3">
-            <button
+            <motion.button
               className="px-4 py-2 rounded-lg flex items-center gap-2 hover:opacity-90 transition-opacity shadow-sm"
               style={{ backgroundColor: colors.secondary, color: colors.background }}
               onClick={() => setShowCategoryManager(!showCategoryManager)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
               {showCategoryManager ? 'Hide Categories' : 'Manage Categories'}
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               style={{ backgroundColor: colors.accent, color: colors.background }}
               className="px-4 py-2 rounded-lg hover:opacity-90 flex items-center gap-2 shadow-md transition-all"
               onClick={() => {
                 setSelectedItem(initialItem);
                 setCurrentFormItem(null); // Clear form item for new item creation
               }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
               <PlusIcon className="w-5 h-5" />
               <span>Add New Item</span>
-            </button>
+            </motion.button>
           </div>
-        </div>
+        </motion.div>
 
         {/* Category Management Section */}
         {showCategoryManager && (
@@ -4115,7 +4136,7 @@ const MenuPage = () => {
             </div>
           </div>
         )}
-      </div>
+      </motion.div>
       {/* <ConnectionMonitor /> */}
       
       {/* Admin Override Modal */}
@@ -4291,7 +4312,7 @@ const MenuPage = () => {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

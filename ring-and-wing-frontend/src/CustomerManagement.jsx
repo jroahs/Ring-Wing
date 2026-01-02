@@ -930,8 +930,19 @@ const CustomerManagement = () => {
   };
 
   return (
-    <div className="min-h-screen p-6 pt-16 md:pt-6" style={{ backgroundColor: colors.background }}>
-      <div className="max-w-7xl mx-auto">
+    <motion.div 
+      className="min-h-screen p-6 pt-16 md:pt-6" 
+      style={{ backgroundColor: colors.background }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+    >
+      <motion.div 
+        className="max-w-7xl mx-auto"
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+      >
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <div>
@@ -1154,7 +1165,7 @@ const CustomerManagement = () => {
             </>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* Modals */}
       <AnimatePresence>
@@ -1178,7 +1189,7 @@ const CustomerManagement = () => {
           />
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 };
 

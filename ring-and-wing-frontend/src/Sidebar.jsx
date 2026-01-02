@@ -297,7 +297,7 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
       path: '/my-payslips', 
       icon: <FiFileText size={iconSize} className="text-white" />, 
       label: 'My Payslips',
-      positions: ['cashier', 'inventory', 'shift_manager', 'general_manager', 'admin'],
+      positions: ['cashier', 'inventory', 'shift_manager', 'general_manager'],
       group: 'finance'
     },
     {

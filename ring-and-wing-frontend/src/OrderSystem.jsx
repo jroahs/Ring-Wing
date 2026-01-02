@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { FiClock, FiCoffee, FiCalendar, FiFilter, FiSearch, FiX, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { LoadingSpinner } from './components/ui';
 import BrandedLoadingScreen from './components/ui/BrandedLoadingScreen';
@@ -221,17 +222,18 @@ const OrderSystem = () => {
 
   // Pagination calculations
   const getFilteredOrders = () => {
+    if (!orders || !Array.isArray(orders)) return [];
     return orders.filter(order => 
       (activeTab === 'all' || order.status === activeTab) && 
       (sourceFilter === 'all' || order.orderType === sourceFilter)
     ).sort((a, b) => b.createdAt - a.createdAt);
   };
 
-  const filteredOrders = getFilteredOrders();
+  const filteredOrders = getFilteredOrders() || [];
   const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
   const startIndex = (currentPage - 1) * ordersPerPage;
   const endIndex = startIndex + ordersPerPage;
-  const currentOrders = filteredOrders.slice(startIndex, endIndex);
+  const currentOrders = filteredOrders.slice(startIndex, endIndex) || [];
 
   const goToPage = (page) => {
     setCurrentPage(page);
@@ -304,10 +306,18 @@ const OrderSystem = () => {
   }
 
   return (
-    <div 
+    <motion.div 
       className="h-full flex flex-col bg-[#fefdfd]"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
     >
-      <main className="flex-1 overflow-auto bg-[#f9f9f9]">
+      <motion.main 
+        className="flex-1 overflow-auto bg-[#f9f9f9]"
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+      >
         <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
           {/* Compact Filters & Search Bar */}
           <div className="bg-white rounded-lg shadow-sm mb-4 p-3">
@@ -528,7 +538,7 @@ const OrderSystem = () => {
                       </span>
                     </div>
                     <div className="space-y-2 md:space-y-3">
-                      {order.items.map((item, idx) => (
+                      {order.items?.map((item, idx) => (
                         <div key={idx} className="flex justify-between items-center text-base md:text-lg">
                           <div>
                             <span className="font-medium text-[#2e0304]">{item.quantity}x </span>
@@ -721,8 +731,8 @@ const OrderSystem = () => {
             </div>
           )}
         </div>
-      </main>
-    </div>
+      </motion.main>
+    </motion.div>
   );
 };
 

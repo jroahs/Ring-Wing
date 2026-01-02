@@ -25,6 +25,7 @@ export const DashboardGridMinimal = ({
   className = '',
   staffData = { team: [], activeCount: 0 },
   monthlyExpenses = [],
+  currentMonthExpenses = 0,
   revenueData = [],
   customerStats = null,
   userPosition = null
@@ -41,23 +42,15 @@ export const DashboardGridMinimal = ({
   };
 
   // Calculate profit margin as a percentage
-  const calculateProfitMargin = (totalSales, expenses) => {
-    const totalExpense = calculateTotalExpenses(expenses);
+  const calculateProfitMargin = (totalSales, currentExpenses) => {
     if (totalSales === 0) return 0;
-    const profit = totalSales - totalExpense;
+    const profit = totalSales - currentExpenses;
     return Math.round((profit / totalSales) * 100);
   };
   
   // Calculate cash flow (income - expenses)
-  const calculateCashFlow = (totalSales, expenses) => {
-    const totalExpense = calculateTotalExpenses(expenses);
-    return totalSales - totalExpense;
-  };
-  
-  // Calculate total expenses from monthly expenses data
-  const calculateTotalExpenses = (expenses) => {
-    if (!expenses || !expenses.length) return 0;
-    return expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
+  const calculateCashFlow = (totalSales, currentExpenses) => {
+    return totalSales - currentExpenses;
   };
 
   return (
@@ -350,7 +343,7 @@ export const DashboardGridMinimal = ({
             {/* Mini Revenue Chart */}
             <div className="mb-3">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm" style={{ color: theme.colors.muted }}>Daily Revenue Trend</span>
+                <span className="text-sm" style={{ color: theme.colors.muted }}>Monthly Revenue Trend</span>
                 <span className="text-lg font-bold" style={{ color: theme.colors.primary }}>
                   {formatCurrency(monthlyRevenueSummary?.totalSales || 0)}
                 </span>
@@ -392,21 +385,21 @@ export const DashboardGridMinimal = ({
                 <span 
                   className="text-base font-bold"
                   style={{ 
-                    color: calculateProfitMargin(monthlyRevenueSummary?.totalSales || 0, monthlyExpenses) >= 25 ? '#16a34a' : 
-                           calculateProfitMargin(monthlyRevenueSummary?.totalSales || 0, monthlyExpenses) >= 15 ? theme.colors.accent : 
+                    color: calculateProfitMargin(monthlyRevenueSummary?.totalSales || 0, currentMonthExpenses) >= 25 ? '#16a34a' : 
+                           calculateProfitMargin(monthlyRevenueSummary?.totalSales || 0, currentMonthExpenses) >= 15 ? theme.colors.accent : 
                            'red'
                   }}
                 >
-                  {calculateProfitMargin(monthlyRevenueSummary?.totalSales || 0, monthlyExpenses)}%
+                  {calculateProfitMargin(monthlyRevenueSummary?.totalSales || 0, currentMonthExpenses)}%
                 </span>
               </div>
               <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div 
                   className="h-full rounded-full" 
                   style={{ 
-                    width: `${Math.min(Math.max(calculateProfitMargin(monthlyRevenueSummary?.totalSales || 0, monthlyExpenses), 0), 100)}%`,
-                    backgroundColor: calculateProfitMargin(monthlyRevenueSummary?.totalSales || 0, monthlyExpenses) >= 25 ? '#16a34a' : 
-                                     calculateProfitMargin(monthlyRevenueSummary?.totalSales || 0, monthlyExpenses) >= 15 ? theme.colors.accent : 
+                    width: `${Math.min(Math.max(calculateProfitMargin(monthlyRevenueSummary?.totalSales || 0, currentMonthExpenses), 0), 100)}%`,
+                    backgroundColor: calculateProfitMargin(monthlyRevenueSummary?.totalSales || 0, currentMonthExpenses) >= 25 ? '#16a34a' : 
+                                     calculateProfitMargin(monthlyRevenueSummary?.totalSales || 0, currentMonthExpenses) >= 15 ? theme.colors.accent : 
                                      'red'
                   }}
                 />
@@ -425,10 +418,10 @@ export const DashboardGridMinimal = ({
                 <span 
                   className="text-base font-bold"
                   style={{ 
-                    color: calculateCashFlow(monthlyRevenueSummary?.totalSales || 0, monthlyExpenses) > 0 ? '#16a34a' : 'red' 
+                    color: calculateCashFlow(monthlyRevenueSummary?.totalSales || 0, currentMonthExpenses) > 0 ? '#16a34a' : 'red' 
                   }}
                 >
-                  {formatCurrency(calculateCashFlow(monthlyRevenueSummary?.totalSales || 0, monthlyExpenses))}
+                  {formatCurrency(calculateCashFlow(monthlyRevenueSummary?.totalSales || 0, currentMonthExpenses))}
                 </span>
               </div>
               <div className="p-3 bg-gray-50 rounded-md border" style={{ borderColor: theme.colors.muted + '20' }}>
@@ -438,14 +431,14 @@ export const DashboardGridMinimal = ({
                     <span className="font-semibold text-base">{formatCurrency(monthlyRevenueSummary?.totalSales || 0)}</span>
                   </div>
                   <div className="flex items-center text-lg px-2">
-                    {calculateCashFlow(monthlyRevenueSummary?.totalSales || 0, monthlyExpenses) > 0 ? 
+                    {calculateCashFlow(monthlyRevenueSummary?.totalSales || 0, currentMonthExpenses) > 0 ? 
                       <FiTrendingUp style={{ color: '#16a34a' }} /> : 
                       <FiTrendingDown style={{ color: 'red' }} />
                     }
                   </div>
                   <div className="flex flex-col text-right">
                     <span style={{ color: theme.colors.muted }}>Expenses</span>
-                    <span className="font-semibold text-base">{formatCurrency(calculateTotalExpenses(monthlyExpenses) || 0)}</span>
+                    <span className="font-semibold text-base">{formatCurrency(currentMonthExpenses || 0)}</span>
                   </div>
                 </div>
               </div>

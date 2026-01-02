@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { FiUser, FiCalendar, FiClock, FiFileText, FiPrinter, FiEdit, FiGift, FiStar, FiDownload, FiLayers } from 'react-icons/fi';
 import { PesoIconSimple } from './components/ui/PesoIconSimple';
 import { FaWrench } from 'react-icons/fa';
@@ -704,13 +705,22 @@ const PayrollSystem = () => {
     }
   }, [selectedEmployee, payrollPeriod]);
   return (
-    <div className="flex min-h-screen" style={{ backgroundColor: colors.background }}>
-      <div 
+    <motion.div 
+      className="flex min-h-screen" 
+      style={{ backgroundColor: colors.background }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+    >
+      <motion.div 
         className="flex-1 transition-all duration-300"
         style={{
           marginLeft: getMainContentMargin(),
           paddingTop: windowWidth < 768 ? '4rem' : '0'
         }}
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
       ><div className="p-6 md:p-8 pt-24 md:pt-8">
           {showPayrollHistory ? (
             <PayrollHistory 
@@ -1376,7 +1386,7 @@ const PayrollSystem = () => {
             </>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* Work ID Modal */}
       {isModalOpen && selectedEmployee && (
@@ -1441,7 +1451,7 @@ const PayrollSystem = () => {
         }
         `}
       </style>
-    </div>
+    </motion.div>
   );
 };
 

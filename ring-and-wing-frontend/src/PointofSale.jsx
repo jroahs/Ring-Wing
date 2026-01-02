@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import * as ReactDOM from 'react-dom/client';
 import { useReactToPrint } from 'react-to-print';
 import { MenuItemCard, OrderItem, PaymentPanel, PaymentProcessingModal, SearchBar, Modal } from './components/ui';
@@ -1835,12 +1836,21 @@ const PointOfSale = () => {
       </div>
     );
   }
-  return (    <div className="flex min-h-screen" style={{ backgroundColor: theme.colors.background }}>
-      <div
+  return (    <motion.div 
+      className="flex min-h-screen" 
+      style={{ backgroundColor: theme.colors.background }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+    >
+      <motion.div
         className="flex-1 transition-all duration-300 relative"
         style={{
           paddingTop: windowWidth < 768 ? '4rem' : '0'
         }}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
       >
         {showTimeClock ? (
           <TimeClockInterface onClose={() => setShowTimeClock(false)} />
@@ -3094,8 +3104,8 @@ const PointOfSale = () => {
             }}
           />
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

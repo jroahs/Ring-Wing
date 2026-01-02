@@ -36,6 +36,7 @@ const DashboardMinimal = () => {
     activeCount: 0
   });
   const [monthlyExpenses, setMonthlyExpenses] = useState([]);
+  const [currentMonthExpenses, setCurrentMonthExpenses] = useState(0);
   const [revenueData, setRevenueData] = useState([]);
   const [customerStats, setCustomerStats] = useState(null);
   const [userPosition, setUserPosition] = useState(null);
@@ -148,6 +149,7 @@ const DashboardMinimal = () => {
         
         // Process expenses for monthly disbursements (current month only)
         let monthlyDisbursements = 0;
+        let currentMonthExpenses = 0;
         const monthlyExpenseData = [];
         
         if (Array.isArray(expensesData)) {
@@ -166,6 +168,9 @@ const DashboardMinimal = () => {
               return disbursementDate >= monthStart && disbursementDate <= monthEnd;
             })
             .reduce((sum, exp) => sum + (exp.amount || 0), 0);
+          
+          // Store current month expenses for Revenue Overview
+          currentMonthExpenses = monthlyDisbursements;
             
           // Group expenses by month for the chart
           // Include both legacy (disbursed=true) and new workflow (status='paid')
@@ -194,6 +199,7 @@ const DashboardMinimal = () => {
         }
         
         setMonthlyExpenses(monthlyExpenseData);
+        setCurrentMonthExpenses(currentMonthExpenses);
         
         // Delay before final call
         await new Promise(resolve => setTimeout(resolve, 250));
@@ -210,12 +216,17 @@ const DashboardMinimal = () => {
         let activeStaffCount = 0;
         
         if (Array.isArray(staffData)) {
-          staffList = staffData.map(member => ({
+          // Filter to only show active staff (exclude Terminated and Resigned)
+          const activeStaff = staffData.filter(member => 
+            member.status === 'Active' || member.status === 'active'
+          );
+          
+          staffList = activeStaff.map(member => ({
             ...member,
             id: member._id
-          })).slice(0, 5); // Get top 5 staff members
+          })).slice(0, 5); // Get top 5 active staff members
           
-          activeStaffCount = staffData.filter(member => member.status === 'Active').length;
+          activeStaffCount = activeStaff.length;
         }
         
         setStaffData({
@@ -355,6 +366,7 @@ const DashboardMinimal = () => {
         isLoading={isLoading}
         staffData={staffData}
         monthlyExpenses={monthlyExpenses}
+        currentMonthExpenses={currentMonthExpenses}
         revenueData={revenueData}
         customerStats={customerStats}
         userPosition={userPosition}

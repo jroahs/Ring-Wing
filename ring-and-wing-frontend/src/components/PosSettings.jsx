@@ -4,6 +4,7 @@ import { theme } from '../theme';
 import { FiSave, FiMonitor, FiTablet, FiZap, FiFileText } from 'react-icons/fi';
 import { API_URL } from '../App';
 
+
 const PosSettings = () => {
   const [settings, setSettings] = useState({
     layout: 'auto',

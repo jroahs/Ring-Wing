@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { theme } from '../theme';
 import { FiFilter, FiChevronDown, FiSearch, FiCheck, FiX, FiClock, FiImage, FiFileText } from 'react-icons/fi';
 import { API_URL } from '../App';
@@ -383,7 +384,12 @@ const PaymentVerificationDashboard = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <motion.div 
+      className="p-6 space-y-6"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+    >
       {/* Filters and Search */}
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative">
@@ -741,7 +747,7 @@ const PaymentVerificationDashboard = () => {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

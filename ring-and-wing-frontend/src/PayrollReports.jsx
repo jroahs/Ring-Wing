@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import api from './services/apiService';
 import { toast } from 'react-toastify';
 import { PesoIconSimple } from './components/ui/PesoIconSimple';
@@ -320,8 +321,19 @@ const PayrollReports = ({ onBack, colors }) => {
   };
 
   return (
-    <div className="min-h-screen p-4" style={{ backgroundColor: colors.background }}>
-      <div className="max-w-7xl mx-auto">
+    <motion.div 
+      className="min-h-screen p-4" 
+      style={{ backgroundColor: colors.background }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+    >
+      <motion.div 
+        className="max-w-7xl mx-auto"
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+      >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
@@ -437,12 +449,16 @@ const PayrollReports = ({ onBack, colors }) => {
         {loading ? (
           <BrandedLoadingScreen message="Loading payroll data..." />
         ) : (
-          <div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.2 }}
+          >
             {reportType === 'summary' ? generatePayrollSummaryReport() : generateDetailedReport()}
-          </div>
+          </motion.div>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

@@ -502,7 +502,7 @@ function MonthlyPayrollReport() {
           }}>
             <div style={{
               padding: '24px',
-              background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
+                     backgroundColor: colors.primary,
               borderRadius: '12px',
               boxShadow: '0 4px 12px rgba(46, 3, 4, 0.15)',
               color: 'white'
@@ -518,7 +518,7 @@ function MonthlyPayrollReport() {
             
             <div style={{
               padding: '24px',
-              background: `linear-gradient(135deg, ${colors.accent} 0%, #ff8c42 100%)`,
+              backgroundColor: colors.accent,
               borderRadius: '12px',
               boxShadow: '0 4px 12px rgba(241, 103, 15, 0.15)',
               color: 'white'
@@ -534,7 +534,7 @@ function MonthlyPayrollReport() {
             
             <div style={{
               padding: '24px',
-              background: `linear-gradient(135deg, ${colors.secondary} 0%, ${colors.accent} 100%)`,
+              backgroundColor: colors.secondary,
               borderRadius: '12px',
               boxShadow: '0 4px 12px rgba(133, 54, 25, 0.15)',
               color: 'white'
@@ -550,7 +550,7 @@ function MonthlyPayrollReport() {
             
             <div style={{
               padding: '24px',
-              background: `linear-gradient(135deg, ${colors.muted} 0%, #8b7d7b 100%)`,
+              backgroundColor: colors.muted,
               borderRadius: '12px',
               boxShadow: '0 4px 12px rgba(172, 156, 155, 0.15)',
               color: 'white'
