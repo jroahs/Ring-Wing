@@ -15,6 +15,7 @@ import { API_URL } from '../App';
  * @param {number} options.coldStartTimeout - Timeout before considering server cold (default: 5000ms)
  * @param {number} options.maxRetries - Max retry attempts during cold start (default: 5)
  * @param {number} options.retryDelay - Base delay between retries in ms (default: 3000)
+ * @param {number} options.minOverlayDisplayTime - Minimum time to show cold start overlay (default: 2000ms)
  * @returns {Object} Server health state and control functions
  */
 export const useServerHealth = (options = {}) => {
@@ -22,15 +23,19 @@ export const useServerHealth = (options = {}) => {
     autoCheck = true,
     coldStartTimeout = 5000,
     maxRetries = 5,
-    retryDelay = 3000
+    retryDelay = 3000,
+    minOverlayDisplayTime = 2000 // Minimum time to show overlay to prevent flashing
   } = options;
 
   const [serverStatus, setServerStatus] = useState('unknown');
   const [lastCheckTime, setLastCheckTime] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
   const [estimatedWaitTime, setEstimatedWaitTime] = useState(null);
+  const [stableIsColdStarting, setStableIsColdStarting] = useState(false); // Debounced cold start state
   const abortControllerRef = useRef(null);
   const retryTimeoutRef = useRef(null);
+  const coldStartDisplayTimeoutRef = useRef(null);
+  const coldStartStartTimeRef = useRef(null);
 
   /**
    * Clean up any pending requests or timeouts
@@ -44,7 +49,41 @@ export const useServerHealth = (options = {}) => {
       clearTimeout(retryTimeoutRef.current);
       retryTimeoutRef.current = null;
     }
+    if (coldStartDisplayTimeoutRef.current) {
+      clearTimeout(coldStartDisplayTimeoutRef.current);
+      coldStartDisplayTimeoutRef.current = null;
+    }
   }, []);
+
+  // Debounce cold start state to prevent flashing
+  useEffect(() => {
+    const isColdStartingNow = serverStatus === 'cold-starting';
+    
+    if (isColdStartingNow && !stableIsColdStarting) {
+      // Entering cold start - show immediately
+      setStableIsColdStarting(true);
+      coldStartStartTimeRef.current = Date.now();
+    } else if (!isColdStartingNow && stableIsColdStarting) {
+      // Exiting cold start - ensure minimum display time
+      const elapsed = Date.now() - (coldStartStartTimeRef.current || 0);
+      const remainingTime = Math.max(0, minOverlayDisplayTime - elapsed);
+      
+      if (remainingTime > 0) {
+        // Wait for minimum display time before hiding
+        coldStartDisplayTimeoutRef.current = setTimeout(() => {
+          setStableIsColdStarting(false);
+        }, remainingTime);
+      } else {
+        setStableIsColdStarting(false);
+      }
+    }
+    
+    return () => {
+      if (coldStartDisplayTimeoutRef.current) {
+        clearTimeout(coldStartDisplayTimeoutRef.current);
+      }
+    };
+  }, [serverStatus, stableIsColdStarting, minOverlayDisplayTime]);
 
   /**
    * Perform a health check against the server
@@ -63,13 +102,10 @@ export const useServerHealth = (options = {}) => {
     try {
       const startTime = Date.now();
       
+      // Use simple fetch without custom headers to avoid CORS preflight issues
       const response = await fetch(`${API_URL}/api/health`, {
         method: 'GET',
-        signal: abortControllerRef.current.signal,
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
+        signal: abortControllerRef.current.signal
       });
 
       const latency = Date.now() - startTime;
@@ -176,8 +212,8 @@ export const useServerHealth = (options = {}) => {
     serverStatus,
     /** Whether server is currently healthy */
     isHealthy: serverStatus === 'healthy',
-    /** Whether server is in cold start recovery */
-    isColdStarting: serverStatus === 'cold-starting',
+    /** Whether server is in cold start recovery (stabilized to prevent flashing) */
+    isColdStarting: stableIsColdStarting,
     /** Whether there's an error reaching the server */
     isError: serverStatus === 'error',
     /** Whether a check is in progress */

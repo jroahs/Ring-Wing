@@ -16,8 +16,7 @@ import ProofOfPaymentUpload from './components/ProofOfPaymentUpload';
 import OrderTimeoutTimer from './components/OrderTimeoutTimer';
 import DeliveryAddressSelector from './components/DeliveryAddressSelector';
 import AddressFormModal from './components/customer/AddressFormModal';
-import { NotificationDrawer, NotificationToasts, ColdStartOverlay } from './components/selfcheckout';
-import { useServerHealth } from './hooks/useServerHealth';
+import { NotificationToasts } from './components/selfcheckout';
 import { FaCreditCard, FaStore } from 'react-icons/fa';
 import io from 'socket.io-client';
 
@@ -122,15 +121,6 @@ const SelfCheckoutContent = () => {
 
   // Notification system
   const { addNotification } = useSelfCheckoutNotifications();
-  
-  // Server health for cold start detection
-  const { 
-    isColdStarting, 
-    retryCount, 
-    maxRetries, 
-    estimatedWaitTime,
-    isHealthy 
-  } = useServerHealth({ autoCheck: true });
 
   const [orderNumber, setOrderNumber] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -1129,19 +1119,8 @@ const SelfCheckoutContent = () => {
 
   return (
     <>
-      {/* Cold Start Overlay */}
-      <ColdStartOverlay
-        isVisible={isColdStarting}
-        retryCount={retryCount}
-        maxRetries={maxRetries}
-        estimatedWaitTime={estimatedWaitTime}
-      />
-      
       {/* Notification Toasts */}
       <NotificationToasts />
-      
-      {/* Notification Drawer */}
-      <NotificationDrawer variant="mobile" />
       
       <LayoutSelector
         searchTerm={searchTerm}

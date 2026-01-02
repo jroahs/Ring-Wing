@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '../../contexts/CustomerAuthContext';
 import CustomerAccountMenu from '../customer/CustomerAccountMenu';
-import { NotificationBell } from '../selfcheckout';
+import { NotificationDropdown } from '../selfcheckout';
 import './SelfCheckoutHeader.css';
 
 const SelfCheckoutHeader = () => {
@@ -42,7 +42,7 @@ const SelfCheckoutHeader = () => {
         </div>
       ) : (
         <div className="auth-buttons" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <NotificationBell size="md" />
+          <NotificationDropdown size="md" />
           <CustomerAccountMenu
             onOpenOrders={handleOpenOrders}
             onOpenAddresses={handleOpenAddresses}

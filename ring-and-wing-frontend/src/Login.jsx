@@ -4,6 +4,8 @@ import axios from 'axios';
 import { motion } from 'framer-motion';
 import { FiUser, FiLock, FiAlertCircle, FiArrowRight } from 'react-icons/fi';
 import { Button, Input, PasswordInput } from './components/ui';
+import { ColdStartOverlay } from './components/selfcheckout';
+import { useServerHealth } from './hooks/useServerHealth';
 import logo from './assets/rw.jpg';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -15,6 +17,14 @@ function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const formRef = useRef(null);
   const navigate = useNavigate();
+
+  // Server health for cold start detection on staff login
+  const { 
+    isColdStarting, 
+    retryCount, 
+    maxRetries, 
+    estimatedWaitTime 
+  } = useServerHealth({ autoCheck: true });
 
   // Theme colors
   const colors = {
@@ -179,7 +189,16 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
+    <>
+      {/* Cold Start Overlay for Render free tier wake-up */}
+      <ColdStartOverlay
+        isVisible={isColdStarting}
+        retryCount={retryCount}
+        maxRetries={maxRetries}
+        estimatedWaitTime={estimatedWaitTime}
+      />
+      
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
       <div className="w-full max-w-md px-4">
         <motion.div 
           className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8"
@@ -312,6 +331,7 @@ function Login() {
         </motion.div>
       </div>
     </div>
+    </>
   );
 }
 

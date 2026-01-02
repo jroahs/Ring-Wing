@@ -7,7 +7,7 @@ import { useAlternatives } from '../../hooks/useAlternatives';
 import { AlternativesModal } from '../ui/AlternativesModal';
 import AssistantPanel from '../ui/AssistantPanel';
 import ItemPreviewModal from '../ItemPreviewModal';
-import { NotificationBell } from '../selfcheckout';
+import { NotificationDropdown } from '../selfcheckout';
 import { FaStore, FaShoppingBag, FaTruck } from 'react-icons/fa';
 
 const colors = {
@@ -353,9 +353,9 @@ const MobileLayout = ({
             </svg>
           </div>
           
-          {/* Notification Bell */}
+          {/* Notification Dropdown */}
           {isAuthenticated && (
-            <NotificationBell size="md" />
+            <NotificationDropdown size="md" />
           )}
           
           {/* Single Auth Button */}
