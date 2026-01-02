@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCustomerAuth } from '../../contexts/CustomerAuthContext';
 import CustomerAccountMenu from '../customer/CustomerAccountMenu';
+import { NotificationBell } from '../selfcheckout';
 import './SelfCheckoutHeader.css';
 
 const SelfCheckoutHeader = () => {
@@ -17,13 +18,11 @@ const SelfCheckoutHeader = () => {
   };
 
   const handleOpenOrders = () => {
-    // TODO: Implement in Phase 4
-    alert('Order history will be implemented in Phase 4');
+    navigate('/customer/orders');
   };
 
   const handleOpenAddresses = () => {
-    // TODO: Implement in Phase 3
-    alert('Address management will be implemented in Phase 3');
+    navigate('/customer/addresses');
   };
 
   if (isLoading) {
@@ -42,10 +41,13 @@ const SelfCheckoutHeader = () => {
           </button>
         </div>
       ) : (
-        <CustomerAccountMenu
-          onOpenOrders={handleOpenOrders}
-          onOpenAddresses={handleOpenAddresses}
-        />
+        <div className="auth-buttons" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <NotificationBell size="md" />
+          <CustomerAccountMenu
+            onOpenOrders={handleOpenOrders}
+            onOpenAddresses={handleOpenAddresses}
+          />
+        </div>
       )}
     </div>
   );

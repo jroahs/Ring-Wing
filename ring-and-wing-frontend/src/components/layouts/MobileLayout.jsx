@@ -7,6 +7,7 @@ import { useAlternatives } from '../../hooks/useAlternatives';
 import { AlternativesModal } from '../ui/AlternativesModal';
 import AssistantPanel from '../ui/AssistantPanel';
 import ItemPreviewModal from '../ItemPreviewModal';
+import { NotificationBell } from '../selfcheckout';
 import { FaStore, FaShoppingBag, FaTruck } from 'react-icons/fa';
 
 const colors = {
@@ -330,7 +331,7 @@ const MobileLayout = ({
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white">
       {/* Mobile Search Bar */}
       <div className="sticky top-0 bg-white/80 backdrop-blur-lg p-4 shadow-lg z-10">
-        <div className="flex items-center gap-3 max-w-md mx-auto">
+        <div className="flex items-center gap-2 max-w-md mx-auto">
           <div className="flex-1 relative">
             <input
               type="text"
@@ -351,6 +352,11 @@ const MobileLayout = ({
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
+          
+          {/* Notification Bell */}
+          {isAuthenticated && (
+            <NotificationBell size="md" />
+          )}
           
           {/* Single Auth Button */}
           {!authLoading && (

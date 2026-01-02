@@ -8,6 +8,7 @@ import SelfCheckoutAIAssistant from './components/ui/SelfCheckoutAIAssistant';
 import { CartProvider, useCartContext } from './contexts/CartContext';
 import { MenuProvider, useMenuContext } from './contexts/MenuContext';
 import { useCustomerAuth } from './contexts/CustomerAuthContext';
+import { SelfCheckoutNotificationProvider, useSelfCheckoutNotifications, NOTIFICATION_TYPES } from './contexts/SelfCheckoutNotificationContext';
 import LayoutSelector from './components/layouts/LayoutSelector';
 import OrderTypeSelector from './components/OrderTypeSelector';
 import PaymentMethodSelector from './components/PaymentMethodSelector';
@@ -15,6 +16,8 @@ import ProofOfPaymentUpload from './components/ProofOfPaymentUpload';
 import OrderTimeoutTimer from './components/OrderTimeoutTimer';
 import DeliveryAddressSelector from './components/DeliveryAddressSelector';
 import AddressFormModal from './components/customer/AddressFormModal';
+import { NotificationDrawer, NotificationToasts, ColdStartOverlay } from './components/selfcheckout';
+import { useServerHealth } from './hooks/useServerHealth';
 import { FaCreditCard, FaStore } from 'react-icons/fa';
 import io from 'socket.io-client';
 
@@ -101,7 +104,9 @@ const SelfCheckoutInternal = () => {
   return (
     <MenuProvider>
       <CartProvider>
-        <SelfCheckoutContent />
+        <SelfCheckoutNotificationProvider>
+          <SelfCheckoutContent />
+        </SelfCheckoutNotificationProvider>
       </CartProvider>
     </MenuProvider>
   );
@@ -114,6 +119,18 @@ const SelfCheckoutContent = () => {
     clearCart, 
     getTotals
   } = useCartContext();
+
+  // Notification system
+  const { addNotification } = useSelfCheckoutNotifications();
+  
+  // Server health for cold start detection
+  const { 
+    isColdStarting, 
+    retryCount, 
+    maxRetries, 
+    estimatedWaitTime,
+    isHealthy 
+  } = useServerHealth({ autoCheck: true });
 
   const [orderNumber, setOrderNumber] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -167,14 +184,24 @@ const SelfCheckoutContent = () => {
       newSocket.on('paymentVerified', (data) => {
         if (data.orderId === currentOrder._id) {
           setCurrentOrder(prev => ({ ...prev, status: 'payment_verified' }));
-          alert('Payment verified! Your order is being processed.');
+          addNotification({
+            type: NOTIFICATION_TYPES.PAYMENT_VERIFIED,
+            title: 'Payment Verified',
+            message: 'Your payment has been confirmed! Your order is now being prepared.',
+            orderId: currentOrder._id
+          });
         }
       });
 
       newSocket.on('paymentRejected', (data) => {
         if (data.orderId === currentOrder._id) {
           setCurrentOrder(prev => ({ ...prev, status: 'cancelled' }));
-          alert(`Payment rejected: ${data.reason}`);
+          addNotification({
+            type: NOTIFICATION_TYPES.PAYMENT_REJECTED,
+            title: 'Payment Rejected',
+            message: data.reason || 'Your payment could not be verified. Please contact staff for assistance.',
+            orderId: currentOrder._id
+          });
         }
       });
 
@@ -244,10 +271,11 @@ const SelfCheckoutContent = () => {
       fulfillmentType: effectiveFulfillmentType
     };
 
-    // Add customer ID if authenticated (for all fulfillment types)
+    // Add customer ID and name if authenticated (for all fulfillment types)
     if (customer) {
       orderData.customerId = customer._id;
-      console.log('[SelfCheckout processOrder] Adding customer ID:', customer._id);
+      orderData.customerName = customer.fullName || `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Customer';
+      console.log('[SelfCheckout processOrder] Adding customer ID:', customer._id, 'Name:', orderData.customerName);
     } else {
       console.log('[SelfCheckout processOrder] No customer authenticated - creating guest order');
     }
@@ -330,7 +358,11 @@ const SelfCheckoutContent = () => {
       setOrderSubmitted(true);
     } catch (error) {
       console.error('Order submission error:', error);
-      alert('Failed to submit order. Please try again.');
+      addNotification({
+        type: NOTIFICATION_TYPES.ORDER_ERROR,
+        title: 'Order Failed',
+        message: 'Failed to submit your order. Please try again or contact staff for assistance.'
+      });
     }
   };
 
@@ -350,7 +382,11 @@ const SelfCheckoutContent = () => {
     });
     
     if (cartItems.length === 0) {
-      alert('Please add items to your order');
+      addNotification({
+        type: NOTIFICATION_TYPES.ORDER_ERROR,
+        title: 'Empty Cart',
+        message: 'Please add items to your cart before placing an order.'
+      });
       return;
     }
 
@@ -387,7 +423,11 @@ const SelfCheckoutContent = () => {
 
     // For takeout/delivery, proof must be uploaded first
     if (!uploadedProof) {
-      alert('Please upload proof of payment before submitting');
+      addNotification({
+        type: NOTIFICATION_TYPES.ORDER_ERROR,
+        title: 'Proof Required',
+        message: 'Please upload your proof of payment before submitting the order.'
+      });
       return;
     }
 
@@ -438,7 +478,11 @@ const SelfCheckoutContent = () => {
       
       // Validate address for delivery orders
       if (safeFulfillmentType === 'delivery' && !selectedAddressId) {
-        alert('Please select a delivery address before proceeding to payment');
+        addNotification({
+          type: NOTIFICATION_TYPES.ORDER_ERROR,
+          title: 'Address Required',
+          message: 'Please select a delivery address before proceeding to payment.'
+        });
         setIsProcessingPayment(false);
         return;
       }
@@ -531,7 +575,7 @@ const SelfCheckoutContent = () => {
           cashReceived: 0,
           change: 0
         },
-        customerName: '', // Optional for self-checkout
+        customerName: customer ? (customer.fullName || `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Customer') : '',
         orderType: 'self_checkout',
         fulfillmentType: safeFulfillmentType,
         paymentMethod: 'paymongo',
@@ -545,7 +589,7 @@ const SelfCheckoutContent = () => {
       // Add customer and address data if available
       if (customer) {
         orderData.customerId = customer._id;
-        console.log('[PayMongo Checkout] Adding customer ID to order:', customer._id);
+        console.log('[PayMongo Checkout] Adding customer ID and name to order:', customer._id, orderData.customerName);
       } else {
         console.log('[PayMongo Checkout] No customer authenticated - creating guest order');
       }
@@ -645,7 +689,11 @@ const SelfCheckoutContent = () => {
       
     } catch (error) {
       console.error('PayMongo checkout error:', error);
-      alert(`Payment setup failed: ${error.message}. Please try again or contact support.`);
+      addNotification({
+        type: NOTIFICATION_TYPES.PAYMENT_ERROR,
+        title: 'Payment Setup Failed',
+        message: `${error.message}. Please try again or contact staff for assistance.`
+      });
       setSelectedPaymentMethod(null);
       setIsProcessingPayment(false); // Unlock on error to allow retry
     }
@@ -656,7 +704,11 @@ const SelfCheckoutContent = () => {
   };
 
   const handleTimeout = () => {
-    alert('Your order has expired. Please create a new order.');
+    addNotification({
+      type: NOTIFICATION_TYPES.ORDER_ERROR,
+      title: 'Order Expired',
+      message: 'Your order session has timed out. Please start a new order.'
+    });
     resetFlow();
   };
 
@@ -1077,6 +1129,20 @@ const SelfCheckoutContent = () => {
 
   return (
     <>
+      {/* Cold Start Overlay */}
+      <ColdStartOverlay
+        isVisible={isColdStarting}
+        retryCount={retryCount}
+        maxRetries={maxRetries}
+        estimatedWaitTime={estimatedWaitTime}
+      />
+      
+      {/* Notification Toasts */}
+      <NotificationToasts />
+      
+      {/* Notification Drawer */}
+      <NotificationDrawer variant="mobile" />
+      
       <LayoutSelector
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
