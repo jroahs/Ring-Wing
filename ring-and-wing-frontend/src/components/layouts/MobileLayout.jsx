@@ -991,6 +991,7 @@ const MobileLayout = ({
         menuItems={menuItems}
         currentOrder={cartItems}
         addOns={addOns || []}
+        customer={customer}
         onAddToCart={(item, options) => {
           // If item needs customization and no options provided, open modal
           if (needsCustomization(item) && !options?.skipCustomization) {

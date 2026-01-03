@@ -738,7 +738,8 @@ const AssistantPanel = ({
   onSubmitOrder = null,
   isAuthenticated = false,
   cartTotal = 0,
-  bottomClass = ''
+  bottomClass = '',
+  customer = null
 }) => {
   const { isMobile, isTablet, isDesktop } = useBreakpoint();
   
@@ -754,16 +755,36 @@ const AssistantPanel = ({
   }, [isOpen, onOpenChange]);
   
   const [categories, setCategories] = useState([]);
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      text: "Hi! Ready to order? Here are some popular choices:",
-      sender: 'bot',
-      timestamp: new Date(),
-      type: 'text',
-      suggestions: []
+  
+  // Generate personalized greeting based on customer data (Personalization Boundaries)
+  const getPersonalizedGreeting = React.useCallback(() => {
+    if (customer && customer.firstName) {
+      const hour = new Date().getHours();
+      let timeGreeting = 'Hello';
+      if (hour < 12) timeGreeting = 'Good morning';
+      else if (hour < 17) timeGreeting = 'Good afternoon';
+      else timeGreeting = 'Good evening';
+      
+      return `${timeGreeting}, ${customer.firstName}! 👋 Ready to order?`;
     }
-  ]);
+    return "Hi there! 👋 Ready to order? Here are some popular choices:";
+  }, [customer]);
+
+  const [messages, setMessages] = useState([]);
+  
+  // Initialize messages with personalized greeting
+  useEffect(() => {
+    if (messages.length === 0) {
+      setMessages([{
+        id: 1,
+        text: getPersonalizedGreeting(),
+        sender: 'bot',
+        timestamp: new Date(),
+        type: 'text',
+        suggestions: []
+      }]);
+    }
+  }, [customer, getPersonalizedGreeting, messages.length]);
   const [inputText, setInputText] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const hasAddedInitialSuggestionsRef = useRef(false);
@@ -2500,7 +2521,8 @@ AssistantPanel.propTypes = {
   onSubmitOrder: PropTypes.func,
   isAuthenticated: PropTypes.bool,
   cartTotal: PropTypes.number,
-  bottomClass: PropTypes.string
+  bottomClass: PropTypes.string,
+  customer: PropTypes.object
 };
 
 export default AssistantPanel;

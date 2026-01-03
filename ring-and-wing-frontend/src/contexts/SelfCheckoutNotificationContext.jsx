@@ -15,12 +15,19 @@ export const NOTIFICATION_TYPES = {
   ORDER_READY: { id: 'order_ready', label: 'Order Ready!', severity: 'success' },
   ORDER_COMPLETED: { id: 'order_completed', label: 'Order Completed', severity: 'success' },
   ORDER_CANCELLED: { id: 'order_cancelled', label: 'Order Cancelled', severity: 'error' },
+  ORDER_ERROR: { id: 'order_error', label: 'Order Error', severity: 'error' },
+  
+  // Cart actions (Feedback Timing: AI-driven vs UI-driven)
+  CART_ITEM_ADDED: { id: 'cart_item_added', label: 'Item Added', severity: 'success' },
+  CART_ITEM_REMOVED: { id: 'cart_item_removed', label: 'Item Removed', severity: 'info' },
+  CART_CLEARED: { id: 'cart_cleared', label: 'Cart Cleared', severity: 'info' },
   
   // Payment lifecycle
   PAYMENT_PENDING: { id: 'payment_pending', label: 'Payment Pending', severity: 'warning' },
   PAYMENT_VERIFIED: { id: 'payment_verified', label: 'Payment Verified!', severity: 'success' },
   PAYMENT_FAILED: { id: 'payment_failed', label: 'Payment Failed', severity: 'error' },
   PAYMENT_REJECTED: { id: 'payment_rejected', label: 'Payment Rejected', severity: 'error' },
+  PAYMENT_ERROR: { id: 'payment_error', label: 'Payment Error', severity: 'error' },
   
   // System notices
   CONNECTION_RESTORED: { id: 'connection_restored', label: 'Connection Restored', severity: 'success' },
@@ -149,9 +156,15 @@ export const SelfCheckoutNotificationProvider = ({ children }) => {
   }, []);
 
   /**
-   * Add a new notification
+   * Add a new notification with enhanced deduplication (Feedback Timing & Perception)
    */
   const addNotification = useCallback((notification) => {
+    // Suppress cart notifications if flagged (AI handles these)
+    if (notification.suppressNotification) {
+      console.log('[Notification] Suppressed:', notification.title);
+      return null;
+    }
+
     const newNotification = {
       id: notification.id || generateId(),
       type: notification.type || NOTIFICATION_TYPES.INFO,
@@ -159,6 +172,7 @@ export const SelfCheckoutNotificationProvider = ({ children }) => {
       message: notification.message || '',
       orderId: notification.orderId || null,
       orderNumber: notification.orderNumber || null,
+      itemId: notification.itemId || null, // For cart item deduplication
       navigateTo: notification.navigateTo || null,
       timestamp: notification.timestamp || new Date(),
       read: false,
@@ -177,6 +191,21 @@ export const SelfCheckoutNotificationProvider = ({ children }) => {
           !n.dismissed
         );
         if (exists) {
+          console.log('[Notification] Duplicate order notification blocked');
+          return prev;
+        }
+      }
+      
+      // Prevent duplicate cart item notifications within a short time window (2 seconds)
+      if (newNotification.itemId && newNotification.type?.id === 'cart_item_added') {
+        const twoSecondsAgo = Date.now() - 2000;
+        const recentDuplicate = prev.some(n => 
+          n.itemId === newNotification.itemId && 
+          n.type?.id === 'cart_item_added' &&
+          new Date(n.timestamp).getTime() > twoSecondsAgo
+        );
+        if (recentDuplicate) {
+          console.log('[Notification] Duplicate cart add notification blocked');
           return prev;
         }
       }

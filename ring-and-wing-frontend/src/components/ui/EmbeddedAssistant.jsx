@@ -559,18 +559,39 @@ const EmbeddedAssistant = ({
   onClearCart = () => {},
   onSubmitOrder = null,
   isAuthenticated = false,
-  cartTotal = 0
+  cartTotal = 0,
+  customer = null
 }) => {
   const [categories, setCategories] = useState([]);
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      text: "Hi! I'm here to help you order. Ask me anything about our menu!",
-      sender: 'bot',
-      timestamp: new Date(),
-      type: 'text'
+  
+  // Generate personalized greeting based on customer data (Personalization Boundaries)
+  const getPersonalizedGreeting = React.useCallback(() => {
+    if (customer && customer.firstName) {
+      const hour = new Date().getHours();
+      let timeGreeting = 'Hello';
+      if (hour < 12) timeGreeting = 'Good morning';
+      else if (hour < 17) timeGreeting = 'Good afternoon';
+      else timeGreeting = 'Good evening';
+      
+      return `${timeGreeting}, ${customer.firstName}! I'm here to help you order. Ask me anything about our menu!`;
     }
-  ]);
+    return "Hi! I'm here to help you order. Ask me anything about our menu!";
+  }, [customer]);
+
+  const [messages, setMessages] = useState([]);
+  
+  // Initialize messages with personalized greeting
+  useEffect(() => {
+    if (messages.length === 0) {
+      setMessages([{
+        id: 1,
+        text: getPersonalizedGreeting(),
+        sender: 'bot',
+        timestamp: new Date(),
+        type: 'text'
+      }]);
+    }
+  }, [customer, getPersonalizedGreeting, messages.length]);
   const [inputText, setInputText] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const [pendingSizeSelection, setPendingSizeSelection] = useState(null);
@@ -1479,7 +1500,8 @@ EmbeddedAssistant.propTypes = {
   onClearCart: PropTypes.func,
   onSubmitOrder: PropTypes.func,
   isAuthenticated: PropTypes.bool,
-  cartTotal: PropTypes.number
+  cartTotal: PropTypes.number,
+  customer: PropTypes.object
 };
 
 export default EmbeddedAssistant;

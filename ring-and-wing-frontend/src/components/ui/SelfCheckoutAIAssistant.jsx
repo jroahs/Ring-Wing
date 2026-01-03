@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_URL } from '../../App';
+import { useActionLock, ACTION_STATES } from '../../hooks/useActionLock';
 
 const colors = {
   primary: '#2e0304',
@@ -37,8 +38,67 @@ AIAvatar.propTypes = {
   isThinking: PropTypes.bool
 };
 
-// Message Component
-const ChatMessage = ({ message, onAddToCart, menuItems, categories = [] }) => {
+// Message Component with Action Locking
+const ChatMessage = ({ message, onAddToCart, menuItems, categories = [], actionLock = null }) => {
+  // Get action state for each item
+  const getButtonState = (item) => {
+    if (!actionLock) return ACTION_STATES.IDLE;
+    return actionLock.getState(item._id, 'add', item.defaultSize || 'base');
+  };
+
+  const isButtonLocked = (item) => {
+    if (!actionLock) return false;
+    return actionLock.isLocked(item._id, 'add', item.defaultSize || 'base');
+  };
+
+  // Render button content based on state
+  const renderButtonContent = (item) => {
+    const state = getButtonState(item);
+    
+    switch (state) {
+      case ACTION_STATES.PROCESSING:
+        return (
+          <span className="flex items-center justify-center gap-2">
+            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            Adding...
+          </span>
+        );
+      case ACTION_STATES.SUCCESS:
+        return (
+          <span className="flex items-center justify-center gap-2">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Added!
+          </span>
+        );
+      case ACTION_STATES.ERROR:
+        return 'Try Again';
+      default:
+        return `Add${item.suggestedQuantity > 1 ? ` ${item.suggestedQuantity}` : ''} to Cart`;
+    }
+  };
+
+  // Get button style based on state
+  const getButtonStyle = (item) => {
+    const state = getButtonState(item);
+    const baseStyle = {
+      transition: 'all 0.2s ease'
+    };
+    
+    switch (state) {
+      case ACTION_STATES.SUCCESS:
+        return { ...baseStyle, backgroundColor: '#22c55e' }; // Green
+      case ACTION_STATES.ERROR:
+        return { ...baseStyle, backgroundColor: '#ef4444' }; // Red
+      default:
+        return { ...baseStyle, backgroundColor: colors.accent };
+    }
+  };
+
   if (message.type === 'menu-suggestions') {
     return (
       <div className="space-y-3">
@@ -60,14 +120,22 @@ const ChatMessage = ({ message, onAddToCart, menuItems, categories = [] }) => {
               <motion.div
                 key={`${item._id || item.name}-${index}`}
                 className="bg-white rounded-xl border border-gray-200 overflow-hidden relative"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: isButtonLocked(item) ? 1 : 1.02 }}
+                whileTap={{ scale: isButtonLocked(item) ? 1 : 0.98 }}
               >
                 {/* System Alternative Badge */}
                 {item.isSystemAlternative && (
                   <div className="absolute top-2 right-2 z-10 px-2 py-1 rounded-full text-xs font-bold text-white shadow-sm"
                        style={{ backgroundColor: colors.primary }}>
                     RECOMMENDED
+                  </div>
+                )}
+                
+                {/* Quantity Badge for AI suggestions */}
+                {item.suggestedQuantity > 1 && (
+                  <div className="absolute top-2 left-2 z-10 px-2 py-1 rounded-full text-xs font-bold text-white shadow-sm"
+                       style={{ backgroundColor: colors.accent }}>
+                    ×{item.suggestedQuantity}
                   </div>
                 )}
                 
@@ -102,16 +170,22 @@ const ChatMessage = ({ message, onAddToCart, menuItems, categories = [] }) => {
                           className="font-bold text-sm"
                           style={{ color: colors.primary }}
                         >
-                          ₱{item.price}
+                          ₱{item.suggestedQuantity > 1 ? (item.price * item.suggestedQuantity).toFixed(2) : item.price}
+                          {item.suggestedQuantity > 1 && (
+                            <span className="text-xs font-normal text-gray-500 ml-1">
+                              (₱{item.price} each)
+                            </span>
+                          )}
                         </span>
                       </div>
                     </div>
                     <button
-                      onClick={() => onAddToCart(item)}
-                      className="mt-2 w-full py-2 rounded-lg text-xs font-semibold text-white transition-all duration-200 active:scale-95"
-                      style={{ backgroundColor: colors.accent }}
+                      onClick={() => !isButtonLocked(item) && onAddToCart(item, item.suggestedQuantity || 1)}
+                      disabled={isButtonLocked(item)}
+                      className={`mt-2 w-full py-2 rounded-lg text-xs font-semibold text-white transition-all duration-200 ${isButtonLocked(item) ? 'cursor-not-allowed opacity-90' : 'active:scale-95'}`}
+                      style={getButtonStyle(item)}
                     >
-                      Add to Cart
+                      {renderButtonContent(item)}
                     </button>
                   </div>
                 </div>
@@ -153,7 +227,8 @@ ChatMessage.propTypes = {
   }).isRequired,
   onAddToCart: PropTypes.func.isRequired,
   menuItems: PropTypes.array.isRequired,
-  categories: PropTypes.array
+  categories: PropTypes.array,
+  actionLock: PropTypes.object
 };
 
 const SelfCheckoutAIAssistant = ({ 
@@ -163,20 +238,44 @@ const SelfCheckoutAIAssistant = ({
   onOrderSuggestion = () => {},
   onSubmitOrder = null,
   isAuthenticated = false,
-  cartTotal = 0
+  cartTotal = 0,
+  customer = null,
+  suppressGlobalNotification = false
 }) => {
+  // Action locking for add-to-cart operations
+  const actionLock = useActionLock({ successDuration: 1500, debounceMs: 300 });
   const [isOpen, setIsOpen] = useState(false);
   const [categories, setCategories] = useState([]);
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      text: "Hi! Ready to order? Here are some popular choices:",
-      sender: 'bot',
-      timestamp: new Date(),
-      type: 'text', // Changed from 'menu-suggestions' to 'text'
-      suggestions: []
+  
+  // Generate personalized greeting based on customer data
+  const getPersonalizedGreeting = useCallback(() => {
+    if (customer && customer.firstName) {
+      const hour = new Date().getHours();
+      let timeGreeting = 'Hello';
+      if (hour < 12) timeGreeting = 'Good morning';
+      else if (hour < 17) timeGreeting = 'Good afternoon';
+      else timeGreeting = 'Good evening';
+      
+      return `${timeGreeting}, ${customer.firstName}! 👋 Ready to order?`;
     }
-  ]);
+    return "Hi there! 👋 Ready to order? Here are some popular choices:";
+  }, [customer]);
+
+  const [messages, setMessages] = useState([]);
+  
+  // Initialize messages with personalized greeting
+  useEffect(() => {
+    if (messages.length === 0) {
+      setMessages([{
+        id: 1,
+        text: getPersonalizedGreeting(),
+        sender: 'bot',
+        timestamp: new Date(),
+        type: 'text',
+        suggestions: []
+      }]);
+    }
+  }, [customer, getPersonalizedGreeting, messages.length]);
   const [inputText, setInputText] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const hasAddedInitialSuggestionsRef = useRef(false); // Use ref instead of state
@@ -459,9 +558,49 @@ Example responses:
     }
   };
 
-  // Extract menu suggestions from AI response with better parsing
+  // Parse quantity from user input (Intent Integrity)
+  const parseQuantityFromInput = (userInput, itemName) => {
+    const lowerInput = userInput.toLowerCase();
+    const lowerItemName = itemName.toLowerCase();
+    
+    // Look for quantity patterns near the item name
+    const quantityPatterns = [
+      // "2 burgers", "3 wings", etc.
+      new RegExp(`(\\d+)\\s*(?:x\\s*)?${lowerItemName.split(' ')[0]}`, 'i'),
+      // "two burgers", "three wings"
+      new RegExp(`(one|two|three|four|five|six|seven|eight|nine|ten)\\s+${lowerItemName.split(' ')[0]}`, 'i'),
+      // General number at start
+      /^(\d+)\s+/,
+      // "x2", "x3" format
+      /x(\d+)/i
+    ];
+    
+    const wordToNum = {
+      'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+      'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
+    };
+    
+    for (const pattern of quantityPatterns) {
+      const match = lowerInput.match(pattern);
+      if (match && match[1]) {
+        const numOrWord = match[1].toLowerCase();
+        if (wordToNum[numOrWord]) {
+          return wordToNum[numOrWord];
+        }
+        const parsed = parseInt(numOrWord, 10);
+        if (!isNaN(parsed) && parsed > 0 && parsed <= 20) {
+          return parsed;
+        }
+      }
+    }
+    
+    return 1; // Default to 1 if no quantity found
+  };
+
+  // Extract menu suggestions from AI response with quantity support (Intent Integrity)
   const extractMenuSuggestions = (aiResponse, context = {}) => {
     const suggestions = [];
+    const userInput = context.userInput || '';
     
     // Look for menu items mentioned in the AI response
     menuItems.forEach(item => {
@@ -474,10 +613,14 @@ Example responses:
         const sizes = Object.keys(pricing);
         const basePrice = sizes.length > 0 ? Math.min(...Object.values(pricing)) : 0;
         
+        // Parse quantity from user input for this specific item
+        const suggestedQuantity = parseQuantityFromInput(userInput, item.name);
+        
         suggestions.push({
           ...item,
           price: basePrice,
-          defaultSize: sizes.includes('base') ? 'base' : sizes[0] || 'regular'
+          defaultSize: sizes.includes('base') ? 'base' : sizes[0] || 'regular',
+          suggestedQuantity: suggestedQuantity
         });
       }
     });
@@ -565,6 +708,9 @@ Example responses:
         }
       }
 
+      // Pass userInput for quantity parsing (Intent Integrity)
+      suggestionContext.userInput = currentInput;
+
       const suggestions = extractMenuSuggestions(aiResponse, suggestionContext);
       
       const botMessage = {
@@ -578,16 +724,11 @@ Example responses:
 
       setMessages(prev => [...prev, botMessage]);
 
-      // Enhanced follow-up for different types of interactions
-      if (suggestions.length > 0) {
+      // Feedback Timing: Only add follow-up for alternatives, not for regular suggestions
+      // This reduces "over-confirmation" and noise
+      if (suggestions.length > 0 && isUnavailableQuery) {
         setTimeout(() => {
-          let followUpText = "Tap any item above to add it to your cart!";
-          
-          if (isUnavailableQuery) {
-            followUpText = "These alternatives should satisfy your craving! Tap any item to add it to your cart, or let me know if you'd like other suggestions.";
-          } else if (detectOrderIntent(currentInput)) {
-            followUpText = "Perfect choices! Tap any item to add to your cart, or tell me if you'd like something different!";
-          }
+          const followUpText = "These alternatives should satisfy your craving! Tap any to add, or ask for other options.";
           
           const followUpMessage = {
             id: generateUniqueId(),
@@ -596,8 +737,9 @@ Example responses:
             timestamp: new Date()
           };
           setMessages(prev => [...prev, followUpMessage]);
-        }, 1000);
+        }, 800);
       }
+      // For regular suggestions, no follow-up needed - the buttons are self-explanatory
       
     } catch (error) {
       console.error('Error getting AI response:', error);
@@ -764,24 +906,43 @@ Would any of these work for you?"`
     }
   };
 
-  // Handle adding suggested item to cart
-  const handleAddToCart = (item) => {
+  // Handle adding suggested item to cart with action locking
+  const handleAddToCart = useCallback(async (item, quantity = 1) => {
     // Use the default size or base size for quick add
     const sizes = Object.keys(item.pricing || {});
     const selectedSize = item.defaultSize || (sizes.includes('base') ? 'base' : sizes[0]) || 'regular';
     
-    onAddToCart(item, selectedSize);
-    
-    // Add confirmation message with next steps
-    const confirmMessage = {
-      id: generateUniqueId(),
-      text: `Added ${item.name} to your cart! Want to add a drink or try something else?`,
-      sender: 'bot',
-      timestamp: new Date()
-    };
-    
-    setMessages(prev => [...prev, confirmMessage]);
-  };
+    // Use action locking to prevent duplicate adds
+    const success = await actionLock.executeAction(
+      item._id,
+      async () => {
+        // Call the parent onAddToCart with quantity
+        // The AI owns this interaction, so suppress global notifications
+        for (let i = 0; i < quantity; i++) {
+          onAddToCart(item, selectedSize);
+        }
+        return { item, quantity, selectedSize };
+      },
+      {
+        actionType: 'add',
+        size: selectedSize,
+        suppressNotification: true // AI will handle confirmation
+      }
+    );
+
+    if (success) {
+      // AI provides confirmation - single source of truth for this interaction
+      const quantityText = quantity > 1 ? `${quantity}x ` : '';
+      const confirmMessage = {
+        id: generateUniqueId(),
+        text: `Done! Added ${quantityText}${item.name} (${selectedSize}) to your cart! 🎉 Anything else?`,
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, confirmMessage]);
+    }
+  }, [actionLock, onAddToCart, generateUniqueId]);
 
   // Enhanced message processing with better natural language understanding
   const processUserMessage = async (userInput) => {
@@ -1085,7 +1246,9 @@ SelfCheckoutAIAssistant.propTypes = {
   onOrderSuggestion: PropTypes.func,
   onSubmitOrder: PropTypes.func,
   isAuthenticated: PropTypes.bool,
-  cartTotal: PropTypes.number
+  cartTotal: PropTypes.number,
+  customer: PropTypes.object,
+  suppressGlobalNotification: PropTypes.bool
 };
 
 export default SelfCheckoutAIAssistant;

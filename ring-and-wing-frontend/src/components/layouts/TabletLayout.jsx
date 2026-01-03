@@ -29,7 +29,7 @@ const TabletLayout = ({
   // Get contexts
   const { cartItems, addItem, updateQuantity: updateCartQuantity, updateSize: updateCartSize, removeItem, replaceItem, clearCart, getTotals, itemCount } = useCartContext();
   const { menuItems, categories, addOns, loading, error } = useMenuContext();
-  const { isAuthenticated } = useCustomerAuth();
+  const { isAuthenticated, customer } = useCustomerAuth();
 
   // Tablet-specific state
   const [activeCategory, setActiveCategory] = useState('');
@@ -583,6 +583,7 @@ const TabletLayout = ({
         menuItems={menuItems}
         currentOrder={cartItems}
         addOns={addOns || []}
+        customer={customer}
         onAddToCart={(item, options) => {
           // If item needs customization and no options provided, open modal
           if (needsCustomization(item) && !options?.skipCustomization) {
