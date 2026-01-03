@@ -263,9 +263,20 @@ const SelfCheckoutAIAssistant = ({
 
   const [messages, setMessages] = useState([]);
   
-  // Initialize messages with personalized greeting
+  // Initialize messages with personalized greeting and suggestions
   useEffect(() => {
-    if (messages.length === 0) {
+    if (messages.length === 0 && menuItems.length > 0) {
+      const initialSuggestions = getInitialSuggestions();
+      setMessages([{
+        id: 1,
+        text: getPersonalizedGreeting(),
+        sender: 'bot',
+        timestamp: new Date(),
+        type: initialSuggestions.length > 0 ? 'menu-suggestions' : 'text',
+        suggestions: initialSuggestions
+      }]);
+    } else if (messages.length === 0) {
+      // Show greeting without suggestions if menu not ready, will update when menu loads
       setMessages([{
         id: 1,
         text: getPersonalizedGreeting(),
@@ -275,10 +286,9 @@ const SelfCheckoutAIAssistant = ({
         suggestions: []
       }]);
     }
-  }, [customer, getPersonalizedGreeting, messages.length]);
+  }, [customer, getPersonalizedGreeting, messages.length, menuItems]);
   const [inputText, setInputText] = useState('');
   const [isThinking, setIsThinking] = useState(false);
-  const hasAddedInitialSuggestionsRef = useRef(false); // Use ref instead of state
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
 
@@ -410,27 +420,42 @@ const SelfCheckoutAIAssistant = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Update initial message with suggestions when menuItems are loaded
-  useEffect(() => {
-    if (menuItems && menuItems.length > 0 && !hasAddedInitialSuggestionsRef.current) {
-      const suggestions = getInitialSuggestions();
-      
-      // Add a separate menu suggestions message instead of modifying the initial message
-      if (suggestions.length > 0) {
-        const suggestionsMessage = {
-          id: generateUniqueId(), // Use unique ID instead of fixed ID
-          text: "Here are some great options to get you started:",
-          sender: 'bot',
-          timestamp: new Date(),
-          type: 'menu-suggestions',
-          suggestions: suggestions
-        };
+  // Helper for API calls with model fallback
+  const fetchWithFallback = async (payload, signal) => {
+    const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3-flash'];
+    let lastError = null;
+
+    for (const model of models) {
+      try {
+        const currentPayload = { ...payload, model };
+        const res = await fetch(`${API_URL}/api/chat`, {
+          method: 'POST',
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(currentPayload),
+          signal
+        });
+
+        if (res.ok) {
+          return await res.json();
+        }
         
-        setMessages(prevMessages => [...prevMessages, suggestionsMessage]);
-        hasAddedInitialSuggestionsRef.current = true; // Set flag to prevent duplicates
+        // If rate limited (429) or server error (5xx), try next model
+        if (res.status === 429 || res.status >= 500) {
+          console.warn(`Model ${model} failed with status ${res.status}. Switching to next model...`);
+          continue;
+        }
+        
+        // For other errors (400, 401, etc), throw immediately
+        throw new Error(`API error: ${res.status}`);
+      } catch (error) {
+        if (error.name === 'AbortError') throw error;
+        console.warn(`Model ${model} failed:`, error);
+        lastError = error;
       }
     }
-  }, [menuItems]); // Only depend on menuItems
+    
+    throw lastError || new Error('All models failed');
+  };
 
   // Fetch categories for enhanced AI suggestions
   useEffect(() => {
@@ -514,7 +539,7 @@ Example responses:
     };
 
     const payload = {
-      model: "gemini-2.5-flash",
+      // Model will be set by fetchWithFallback
       messages: [
         systemMessage,
         { role: "user", content: userInput }
@@ -524,25 +549,7 @@ Example responses:
     };
 
     try {
-      const res = await fetch(`${API_URL}/api/chat`, {
-        method: 'POST',
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: signal
-      });
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error('AI Assistant API error:', res.status, errorText);
-        throw new Error(`API error: ${res.status} - ${errorText.substring(0, 100)}`);
-      }
-
-      const text = await res.text();
-      if (!text || text.trim() === '') {
-        throw new Error('Empty response from API');
-      }
-
-      const data = JSON.parse(text);
+      const data = await fetchWithFallback(payload, signal);
       
       if (data.error || !data.choices || !data.choices[0] || !data.choices[0].message) {
         throw new Error('Invalid response format');

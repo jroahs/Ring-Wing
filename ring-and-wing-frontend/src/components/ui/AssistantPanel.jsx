@@ -112,7 +112,9 @@ const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete
   const [selectedSize, setSelectedSize] = useState(preSelectedSize);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [selectedAddOns, setSelectedAddOns] = useState([]);
+  const [quantity, setQuantity] = useState(item.suggestedQuantity || 1);
   const [step, setStep] = useState('size'); // 'size', 'variant', 'addons', 'confirm'
+  const [isProcessing, setIsProcessing] = useState(false);
   
   // Determine initial step based on pre-selected size or single size
   useEffect(() => {
@@ -124,12 +126,15 @@ const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete
         setStep('addons');
       } else {
         // No further customization needed, complete immediately
-        onComplete({ size: preSelectedSize });
+        // But wait, we might want to confirm quantity if > 1? 
+        // For now, proceed as before but pass quantity
+        onComplete({ size: preSelectedSize, quantity });
       }
     }
   }, []);
   
   const toggleAddOn = (addon) => {
+    if (isProcessing) return;
     setSelectedAddOns(prev => {
       const exists = prev.find(a => a.name === addon.name);
       if (exists) {
@@ -140,38 +145,48 @@ const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete
   };
   
   const handleSizeSelect = (size) => {
+    if (isProcessing) return;
     setSelectedSize(size);
     if (variants.length > 0) {
       setStep('variant');
     } else if (uniqueAddOns.length > 0) {
       setStep('addons');
     } else {
-      onComplete({ size });
+      setIsProcessing(true);
+      onComplete({ size, quantity });
     }
   };
   
   const handleVariantSelect = (variant) => {
+    if (isProcessing) return;
     setSelectedVariant(variant);
     if (uniqueAddOns.length > 0) {
       setStep('addons');
     } else {
-      onComplete({ size: selectedSize, variant: variant.name });
+      setIsProcessing(true);
+      onComplete({ size: selectedSize, variant: variant.name, quantity });
     }
   };
   
   const handleAddOnsConfirm = () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
     onComplete({
       size: selectedSize,
       variant: selectedVariant?.name,
-      addOns: selectedAddOns
+      addOns: selectedAddOns,
+      quantity
     });
   };
   
   const handleSkipAddOns = () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
     onComplete({
       size: selectedSize,
       variant: selectedVariant?.name,
-      addOns: []
+      addOns: [],
+      quantity
     });
   };
   
@@ -179,7 +194,7 @@ const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete
   const basePrice = selectedSize ? (item.pricing[selectedSize] || 0) : 0;
   const variantPrice = selectedVariant?.priceAdjustment || 0;
   const addOnsPrice = selectedAddOns.reduce((sum, a) => sum + (a.price || 0), 0);
-  const totalPrice = basePrice + variantPrice + addOnsPrice;
+  const totalPrice = (basePrice + variantPrice + addOnsPrice) * quantity;
   
   return (
     <div className="flex gap-2">
@@ -199,7 +214,7 @@ const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete
             <h4 className="font-semibold text-gray-800 text-sm">{item.name}</h4>
             {selectedSize && (
               <p className="text-xs text-orange-600">
-                {selectedSize}{selectedVariant ? ` • ${selectedVariant.name}` : ''} 
+                {quantity > 1 ? `${quantity}x ` : ''}{selectedSize}{selectedVariant ? ` • ${selectedVariant.name}` : ''} 
                 {selectedAddOns.length > 0 && ` • +${selectedAddOns.length} add-on${selectedAddOns.length > 1 ? 's' : ''}`}
               </p>
             )}
@@ -215,7 +230,8 @@ const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete
                 <button
                   key={size}
                   onClick={() => handleSizeSelect(size)}
-                  className="flex items-center justify-between px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 transition-all text-sm"
+                  disabled={isProcessing}
+                  className="flex items-center justify-between px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="font-medium text-gray-700 capitalize">{size}</span>
                   <span className="font-bold text-orange-600">₱{item.pricing[size]}</span>
@@ -234,7 +250,8 @@ const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete
                 <button
                   key={variant.name}
                   onClick={() => handleVariantSelect(variant)}
-                  className="px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 transition-all text-sm text-center"
+                  disabled={isProcessing}
+                  className="px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 transition-all text-sm text-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="font-medium text-gray-700">{variant.name}</span>
                   {variant.priceAdjustment > 0 && (
@@ -257,7 +274,8 @@ const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete
                   <button
                     key={addon.name}
                     onClick={() => toggleAddOn(addon)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all text-sm ${
+                    disabled={isProcessing}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all text-sm disabled:cursor-not-allowed ${
                       isSelected 
                         ? 'bg-orange-100 border-2 border-orange-400' 
                         : 'bg-white border border-gray-200 hover:border-orange-300'
@@ -287,15 +305,17 @@ const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete
             <div className="flex gap-2 pt-2">
               <button
                 onClick={handleSkipAddOns}
-                className="flex-1 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                disabled={isProcessing}
+                className="flex-1 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Skip
+                {isProcessing ? 'Processing...' : 'Skip'}
               </button>
               <button
                 onClick={handleAddOnsConfirm}
-                className="flex-1 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors"
+                disabled={isProcessing}
+                className="flex-1 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {selectedAddOns.length > 0 ? `Add (₱${totalPrice})` : 'Continue'}
+                {isProcessing ? 'Adding...' : (selectedAddOns.length > 0 ? `Add (₱${totalPrice})` : 'Continue')}
               </button>
             </div>
           </div>
@@ -772,9 +792,20 @@ const AssistantPanel = ({
 
   const [messages, setMessages] = useState([]);
   
-  // Initialize messages with personalized greeting
+  // Initialize messages with personalized greeting and suggestions
   useEffect(() => {
-    if (messages.length === 0) {
+    if (messages.length === 0 && menuItems.length > 0) {
+      const initialSuggestions = getInitialSuggestions();
+      setMessages([{
+        id: 1,
+        text: getPersonalizedGreeting(),
+        sender: 'bot',
+        timestamp: new Date(),
+        type: initialSuggestions.length > 0 ? 'menu-suggestions' : 'text',
+        suggestions: initialSuggestions
+      }]);
+    } else if (messages.length === 0) {
+      // Show greeting without suggestions if menu not ready, will update when menu loads
       setMessages([{
         id: 1,
         text: getPersonalizedGreeting(),
@@ -784,10 +815,10 @@ const AssistantPanel = ({
         suggestions: []
       }]);
     }
-  }, [customer, getPersonalizedGreeting, messages.length]);
+  }, [customer, getPersonalizedGreeting, messages.length, menuItems]);
+
   const [inputText, setInputText] = useState('');
   const [isThinking, setIsThinking] = useState(false);
-  const hasAddedInitialSuggestionsRef = useRef(false);
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
 
@@ -937,26 +968,42 @@ const AssistantPanel = ({
     return suggestions;
   };
 
-  // Add initial suggestions when menu items are loaded
-  useEffect(() => {
-    if (menuItems.length > 0 && !hasAddedInitialSuggestionsRef.current) {
-      const initialSuggestions = getInitialSuggestions();
-      if (initialSuggestions.length > 0) {
-        setMessages(prev => [
-          ...prev,
-          {
-            id: generateUniqueId(),
-            text: "Here are some popular items to get you started!",
-            sender: 'bot',
-            timestamp: new Date(),
-            type: 'menu-suggestions',
-            suggestions: initialSuggestions
-          }
-        ]);
-        hasAddedInitialSuggestionsRef.current = true;
+  // Helper for API calls with model fallback
+  const fetchWithFallback = async (payload, signal) => {
+    const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3-flash'];
+    let lastError = null;
+
+    for (const model of models) {
+      try {
+        const currentPayload = { ...payload, model };
+        const res = await fetch(`${API_URL}/api/chat`, {
+          method: 'POST',
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(currentPayload),
+          signal
+        });
+
+        if (res.ok) {
+          return await res.json();
+        }
+        
+        // If rate limited (429) or server error (5xx), try next model
+        if (res.status === 429 || res.status >= 500) {
+          console.warn(`Model ${model} failed with status ${res.status}. Switching to next model...`);
+          continue;
+        }
+        
+        // For other errors (400, 401, etc), throw immediately
+        throw new Error(`API error: ${res.status}`);
+      } catch (error) {
+        if (error.name === 'AbortError') throw error;
+        console.warn(`Model ${model} failed:`, error);
+        lastError = error;
       }
     }
-  }, [menuItems]);
+    
+    throw lastError || new Error('All models failed');
+  };
 
   // Get AI response using Gemini integration
   const getAIResponse = async (userInput, signal = null) => {
@@ -1029,7 +1076,7 @@ EXAMPLE NATURAL CONVERSATIONS:
     };
 
     const payload = {
-      model: "gemini-2.5-flash",
+      // Model will be set by fetchWithFallback
       messages: [
         systemMessage,
         { role: "user", content: userInput }
@@ -1039,18 +1086,7 @@ EXAMPLE NATURAL CONVERSATIONS:
     };
 
     try {
-      const res = await fetch(`${API_URL}/api/chat`, {
-        method: 'POST',
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: signal
-      });
-
-      if (!res.ok) {
-        throw new Error(`API error: ${res.status}`);
-      }
-
-      const data = await res.json();
+      const data = await fetchWithFallback(payload, signal);
       
       if (data.error || !data.choices || !data.choices[0] || !data.choices[0].message) {
         throw new Error('Invalid response format');
@@ -1066,9 +1102,50 @@ EXAMPLE NATURAL CONVERSATIONS:
     }
   };
 
+  // Parse quantity from user input (Intent Integrity)
+  const parseQuantityFromInput = (userInput, itemName) => {
+    if (!userInput) return 1;
+    const lowerInput = userInput.toLowerCase();
+    const lowerItemName = itemName.toLowerCase();
+    
+    // Look for quantity patterns near the item name
+    const quantityPatterns = [
+      // "2 burgers", "3 wings", etc.
+      new RegExp(`(\\d+)\\s*(?:x\\s*)?${lowerItemName.split(' ')[0]}`, 'i'),
+      // "two burgers", "three wings"
+      new RegExp(`(one|two|three|four|five|six|seven|eight|nine|ten)\\s+${lowerItemName.split(' ')[0]}`, 'i'),
+      // General number at start
+      /^(\d+)\s+/,
+      // "x2", "x3" format
+      /x(\d+)/i
+    ];
+    
+    const wordToNum = {
+      'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+      'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
+    };
+    
+    for (const pattern of quantityPatterns) {
+      const match = lowerInput.match(pattern);
+      if (match && match[1]) {
+        const numOrWord = match[1].toLowerCase();
+        if (wordToNum[numOrWord]) {
+          return wordToNum[numOrWord];
+        }
+        const parsed = parseInt(numOrWord, 10);
+        if (!isNaN(parsed) && parsed > 0 && parsed <= 20) {
+          return parsed;
+        }
+      }
+    }
+    
+    return 1; // Default to 1 if no quantity found
+  };
+
   // Extract menu suggestions from AI response
   const extractMenuSuggestions = (aiResponse, context = {}) => {
     const suggestions = [];
+    const userInput = context.userInput || '';
     
     // Look for menu items mentioned in the AI response
     menuItems.forEach(item => {
@@ -1081,10 +1158,14 @@ EXAMPLE NATURAL CONVERSATIONS:
         const sizes = Object.keys(pricing);
         const basePrice = sizes.length > 0 ? Math.min(...Object.values(pricing)) : 0;
         
+        // Parse quantity from user input for this specific item
+        const suggestedQuantity = parseQuantityFromInput(userInput, item.name);
+
         suggestions.push({
           ...item,
           price: basePrice,
-          defaultSize: sizes.includes('base') ? 'base' : sizes[0] || 'regular'
+          defaultSize: sizes.includes('base') ? 'base' : sizes[0] || 'regular',
+          suggestedQuantity: suggestedQuantity
         });
       }
     });
@@ -1477,6 +1558,7 @@ EXAMPLE NATURAL CONVERSATIONS:
   const handleAddToCartWithSize = (item, specifiedSize = null) => {
     const sizes = Object.keys(item.pricing || {}).filter(k => k !== '_id');
     const hasVariants = (item.variants || []).length > 0;
+    const quantity = item.suggestedQuantity || 1;
     
     // Get unique add-ons for this item (flexible matching)
     const relevantAddOns = (addOns || []).filter(addon => {
@@ -1504,7 +1586,7 @@ EXAMPLE NATURAL CONVERSATIONS:
         s.toLowerCase().startsWith(specifiedSize.toLowerCase())
       );
       if (matchedSize) {
-        onAddToCart(item, { size: matchedSize, skipCustomization: true });
+        onAddToCart(item, { size: matchedSize, skipCustomization: true, quantity });
         const confirmMessage = {
           id: generateUniqueId(),
           text: `Added **${item.name}** (${matchedSize}) to your cart! 🎉 Anything else?`,
@@ -1540,7 +1622,7 @@ EXAMPLE NATURAL CONVERSATIONS:
     } else {
       // Single size, no variants, no add-ons - add directly
       const size = sizes[0] || 'regular';
-      onAddToCart(item, { size, skipCustomization: true });
+      onAddToCart(item, { size, skipCustomization: true, quantity });
       
       const confirmMessage = {
         id: generateUniqueId(),
@@ -1569,11 +1651,13 @@ EXAMPLE NATURAL CONVERSATIONS:
       size: options.size, 
       variant: options.variant,
       addOns: options.addOns,
-      skipCustomization: true 
+      skipCustomization: true,
+      quantity: options.quantity || 1
     });
     
     // Build confirmation message
     let details = options.size;
+    if (options.quantity > 1) details = `${options.quantity}x ${details}`;
     if (options.variant) details += `, ${options.variant}`;
     if (options.addOns && options.addOns.length > 0) {
       const addOnNames = options.addOns.map(a => a.name).join(', ');
@@ -2006,7 +2090,7 @@ EXAMPLE NATURAL CONVERSATIONS:
       const isUnavailableQuery = detectUnavailableItemIntent(currentInput);
       const itemName = isUnavailableQuery ? extractItemNameFromInput(currentInput) : null;
       
-      let suggestionContext = {};
+      let suggestionContext = { userInput: currentInput };
       if (isUnavailableQuery && itemName) {
         // Try to get system alternatives
         const unavailableItem = menuItems.find(item => 

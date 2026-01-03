@@ -587,12 +587,16 @@ app.post('/api/chat', async (req, res) => {
     console.log(JSON.stringify(req.body, null, 2));
     
     // Extract what we need from the incoming request
-    const { messages, temperature = 0.7, max_tokens = 800 } = req.body;
+    const { messages, temperature = 0.7, max_tokens = 800, model = 'gemini-2.5-flash' } = req.body;
     
+    // Validate and sanitize model selection
+    const allowedModels = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3-flash'];
+    const selectedModel = allowedModels.includes(model) ? model : 'gemini-2.5-flash';
+
     // For Gemini 2.5, we need much higher token limits due to adaptive thinking
     const adjustedMaxTokens = Math.max(max_tokens, 1000);
     
-    logger.info(`Requested tokens: ${max_tokens}, Adjusted tokens: ${adjustedMaxTokens}`);
+    logger.info(`Requested tokens: ${max_tokens}, Adjusted tokens: ${adjustedMaxTokens}, Model: ${selectedModel}`);
     
     // Find the system message (contains menu data) and the last user message
     const systemMessage = messages.find(msg => msg.role === 'system');
@@ -629,11 +633,11 @@ app.post('/api/chat', async (req, res) => {
       throw new Error('GEMINI_API_KEY environment variable is required');
     }
     
-    logger.info('Sending request to Gemini API with menu context');
+    logger.info(`Sending request to Gemini API (${selectedModel}) with menu context`);
     
     try {
       const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${GEMINI_API_KEY}`,
         geminiPayload,
         {
           headers: {

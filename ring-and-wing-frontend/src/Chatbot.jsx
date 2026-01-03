@@ -521,7 +521,44 @@ function ChatbotPage() {
   };
   
   // Using the imported detectLanguage function from languagePatterns.js
-    // Generate AI description for a menu item
+  // Helper for API calls with model fallback
+  const fetchWithFallback = async (payload, signal) => {
+    const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3-flash'];
+    let lastError = null;
+
+    for (const model of models) {
+      try {
+        const currentPayload = { ...payload, model };
+        const res = await fetch(`${API_URL}/api/chat`, {
+          method: 'POST',
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(currentPayload),
+          signal
+        });
+
+        if (res.ok) {
+          return await res.json();
+        }
+        
+        // If rate limited (429) or server error (5xx), try next model
+        if (res.status === 429 || res.status >= 500) {
+          console.warn(`Model ${model} failed with status ${res.status}. Switching to next model...`);
+          continue;
+        }
+        
+        // For other errors (400, 401, etc), throw immediately
+        throw new Error(`API error: ${res.status}`);
+      } catch (error) {
+        if (error.name === 'AbortError') throw error;
+        console.warn(`Model ${model} failed:`, error);
+        lastError = error;
+      }
+    }
+    
+    throw lastError || new Error('All models failed');
+  };
+
+  // Generate AI description for a menu item
   const generateMenuItemDescription = async (itemName, basicDescription, language = 'english') => {    // Customize instructions based on language
     let languageInstructions = '';
     let wordCountRange = '';      if (language === 'tagalog') {
@@ -547,7 +584,7 @@ function ChatbotPage() {
     const userPrompt = `Create a short, appealing menu description for "${itemName}" based on this basic description: "${basicDescription}"`;
     
     const payload = {
-      model: "gemini-2.5-flash",
+      // Model will be set by fetchWithFallback
       messages: [
         systemMessage,
         { role: "user", content: userPrompt }
@@ -557,19 +594,7 @@ function ChatbotPage() {
     };
     
     try {
-      const res = await fetch(`${API_URL}/api/chat`, {
-        method: 'POST',
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
-      
-      if (!res.ok) {
-        throw new Error(`API error: ${res.status}`);
-      }
-      
-      const data = await res.json();
+      const data = await fetchWithFallback(payload);
       
       if (data.error || !data.choices || !data.choices[0] || !data.choices[0].message) {
         console.error("Error generating menu description:", data.error || "Invalid response format");
@@ -664,7 +689,7 @@ ${languageInstructions}
 ${popularItemsInfo}`
     };
       const payload = {
-      model: "gemini-2.5-flash", // Using the 2.5 model which has adaptive thinking
+      // Model will be set by fetchWithFallback
       messages: [
         systemMessage,
         ...chatHistory,
@@ -677,29 +702,12 @@ ${popularItemsInfo}`
     try {
       // Using proxy endpoint that now connects to Gemini API
       console.log('Sending chat request with payload:', {
-        model: payload.model,
         messageCount: payload.messages.length,
         temperature: payload.temperature,
         max_tokens: payload.max_tokens
       });
       
-      const res = await fetch(`${API_URL}/api/chat`, {
-        method: 'POST',
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload),
-        signal: signal
-      });
-      
-      if (!res.ok) {
-        console.error(`API error: Status ${res.status}`);
-        const errorText = await res.text();
-        console.error('Error response:', errorText);
-        throw new Error(`API error: ${res.status} - ${errorText}`);
-      }
-      
-      const data = await res.json();
+      const data = await fetchWithFallback(payload, signal);
       console.log('Chat API response:', data);
         // Check if there's an error in the response
       if (data.error) {
