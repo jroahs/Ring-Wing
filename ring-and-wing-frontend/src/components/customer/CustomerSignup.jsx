@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useCustomerAuth } from '../../contexts/CustomerAuthContext';
 import { useNavigate } from 'react-router-dom';
 import './CustomerAuth.css';
+import logo from '../../assets/rw.jpg';
 
 const CustomerSignup = () => {
   const { signup, isAuthenticated } = useCustomerAuth();
@@ -102,8 +103,23 @@ const CustomerSignup = () => {
 
   return (
     <div className="customer-auth-page">
-      <div className="auth-container">
+      <div className="auth-container" style={{ maxWidth: '800px' }}>
         <div className="auth-header">
+          <div className="logo-container" style={{ 
+            width: '80px', 
+            height: '80px', 
+            margin: '0 auto 1rem', 
+            borderRadius: '50%', 
+            overflow: 'hidden', 
+            border: '2px solid #fecaca', 
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+          }}>
+            <img 
+              src={logo} 
+              alt="Ring & Wing Logo" 
+              style={{ width: '100%', height: '100%', objectCover: 'cover' }} 
+            />
+          </div>
           <h1>Create Account</h1>
           <p>Sign up for Ring & Wings rewards and faster checkout</p>
         </div>
@@ -115,7 +131,7 @@ const CustomerSignup = () => {
             </div>
           )}
 
-          <div className="form-row">
+          <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
               <label htmlFor="firstName">First Name *</label>
               <input
@@ -143,84 +159,85 @@ const CustomerSignup = () => {
                 required
               />
             </div>
-          </div>
 
-          <div className="form-group">
-            <label htmlFor="username">Username *</label>
-            <input
-              type="text"
-              id="username"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              placeholder="e.g., juan_dc, chicken123"
-              disabled={isLoading}
-              required
-            />
-            <small style={{ color: '#6b7280', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>
-              3-20 characters, lowercase letters, numbers, and underscores only
-            </small>
-          </div>
+            <div className="form-group">
+              <label htmlFor="username">Username *</label>
+              <input
+                type="text"
+                id="username"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                placeholder="e.g., juan_dc"
+                disabled={isLoading}
+                required
+              />
+              <small style={{ color: '#6b7280', fontSize: '0.7rem' }}>
+                3-20 chars, lowercase, numbers, _
+              </small>
+            </div>
 
-          <div className="form-group">
-            <label htmlFor="phone">Phone Number *</label>
-            <input
-              type="tel"
-              id="phone"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              placeholder="09XXXXXXXXX or +639XXXXXXXXX"
-              disabled={isLoading}
-              required
-            />
-          </div>
+            <div className="form-group">
+              <label htmlFor="phone">Phone Number *</label>
+              <input
+                type="tel"
+                id="phone"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="09XXXXXXXXX"
+                disabled={isLoading}
+                required
+              />
+            </div>
 
-          <div className="form-group">
-            <label htmlFor="email">Email (Optional)</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="juan@example.com"
-              disabled={isLoading}
-            />
-          </div>
+            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+              <label htmlFor="email">Email (Optional)</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="juan@example.com"
+                disabled={isLoading}
+              />
+            </div>
 
-          <div className="form-group">
-            <label htmlFor="password">Password *</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="At least 8 characters"
-              disabled={isLoading}
-              required
-            />
-          </div>
+            <div className="form-group">
+              <label htmlFor="password">Password *</label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Min. 8 chars"
+                disabled={isLoading}
+                required
+              />
+            </div>
 
-          <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm Password *</label>
-            <input
-              type="password"
-              id="confirmPassword"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              placeholder="Re-enter password"
-              disabled={isLoading}
-              required
-            />
+            <div className="form-group">
+              <label htmlFor="confirmPassword">Confirm Password *</label>
+              <input
+                type="password"
+                id="confirmPassword"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                placeholder="Re-enter password"
+                disabled={isLoading}
+                required
+              />
+            </div>
           </div>
 
           <button 
             type="submit" 
             className="auth-submit-btn"
             disabled={isLoading}
+            style={{ marginTop: '1rem' }}
           >
             {isLoading ? 'Creating Account...' : 'Sign Up'}
           </button>

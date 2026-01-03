@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useCustomerAuth } from '../../contexts/CustomerAuthContext';
 import { useNavigate } from 'react-router-dom';
 import './CustomerAuth.css';
+import logo from '../../assets/rw.jpg';
 
 const CustomerLogin = () => {
   const { login, isAuthenticated } = useCustomerAuth();
@@ -48,6 +49,21 @@ const CustomerLogin = () => {
     <div className="customer-auth-page">
       <div className="auth-container">
         <div className="auth-header">
+          <div className="logo-container" style={{ 
+            width: '80px', 
+            height: '80px', 
+            margin: '0 auto 1rem', 
+            borderRadius: '50%', 
+            overflow: 'hidden', 
+            border: '2px solid #fecaca', 
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+          }}>
+            <img 
+              src={logo} 
+              alt="Ring & Wing Logo" 
+              style={{ width: '100%', height: '100%', objectCover: 'cover' }} 
+            />
+          </div>
           <h1>Welcome Back</h1>
           <p>Login to your Ring & Wings account</p>
         </div>

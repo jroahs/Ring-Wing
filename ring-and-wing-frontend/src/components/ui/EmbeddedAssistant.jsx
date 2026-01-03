@@ -51,7 +51,7 @@ FormattedText.propTypes = {
 };
 
 // Dialog Customization Component - Handles size, variants, and add-ons with buttons
-const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete, onCancel }) => {
+const DialogCustomization = ({ item, addOns = [], initialSize = null, initialVariant = null, onComplete, onCancel }) => {
   const sizes = Object.keys(item.pricing || {}).filter(k => k !== '_id');
   const variants = item.variants || [];
   
@@ -79,9 +79,14 @@ const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete
   const preSelectedSize = initialSize 
     ? sizes.find(s => s.toLowerCase() === initialSize.toLowerCase() || s.toLowerCase().startsWith(initialSize.toLowerCase()))
     : (sizes.length === 1 ? sizes[0] : null);
+
+  // Check if we have an initial variant to pre-select
+  const preSelectedVariant = initialVariant
+    ? variants.find(v => v.name.toLowerCase() === initialVariant.toLowerCase() || v.name.toLowerCase().includes(initialVariant.toLowerCase()))
+    : null;
   
   const [selectedSize, setSelectedSize] = useState(preSelectedSize);
-  const [selectedVariant, setSelectedVariant] = useState(null);
+  const [selectedVariant, setSelectedVariant] = useState(preSelectedVariant);
   const [selectedAddOns, setSelectedAddOns] = useState([]);
   const [quantity, setQuantity] = useState(item.suggestedQuantity || 1);
   const [step, setStep] = useState('size'); // 'size', 'variant', 'addons', 'confirm'
@@ -90,14 +95,14 @@ const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete
   // Determine initial step based on pre-selected size or single size
   useEffect(() => {
     if (preSelectedSize) {
-      // Size already selected, skip to next step
-      if (variants.length > 0) {
+      // Size already selected, check variant
+      if (variants.length > 0 && !preSelectedVariant) {
         setStep('variant');
       } else if (uniqueAddOns.length > 0) {
         setStep('addons');
       } else {
         // No further customization needed, complete immediately
-        onComplete({ size: preSelectedSize, quantity });
+        onComplete({ size: preSelectedSize, variant: preSelectedVariant?.name, quantity });
       }
     }
   }, []);
@@ -137,26 +142,28 @@ const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete
     }
   };
   
-  const handleAddOnsConfirm = () => {
+  const handleAddOnsConfirm = async () => {
     if (isProcessing) return;
     setIsProcessing(true);
-    onComplete({
+    await onComplete({
       size: selectedSize,
       variant: selectedVariant?.name,
       addOns: selectedAddOns,
       quantity
     });
+    // Note: Component will likely unmount or update after onComplete
   };
   
-  const handleSkipAddOns = () => {
+  const handleSkipAddOns = async () => {
     if (isProcessing) return;
     setIsProcessing(true);
-    onComplete({
+    await onComplete({
       size: selectedSize,
       variant: selectedVariant?.name,
       addOns: [],
       quantity
     });
+    // Note: Component will likely unmount or update after onComplete
   };
   
   // Calculate total price
@@ -1004,7 +1011,7 @@ EXAMPLE NATURAL CONVERSATIONS:
   };
 
   // Handle adding item via DIALOG - uses button-based customization
-  const handleAddToCartWithSize = (item, specifiedSize = null, quantity = 1) => {
+  const handleAddToCartWithSize = (item, specifiedSize = null, quantity = 1, specifiedVariant = null) => {
     const sizes = Object.keys(item.pricing || {}).filter(k => k !== '_id');
     const hasVariants = (item.variants || []).length > 0;
     
@@ -1027,17 +1034,34 @@ EXAMPLE NATURAL CONVERSATIONS:
     }, []);
     const hasAddOns = uniqueAddOns.length > 0;
     
-    // If a size was specified and no variants AND no add-ons, add directly
-    if (specifiedSize && !hasVariants && !hasAddOns) {
+    // If a size was specified and no variants (or variant specified) AND no add-ons, add directly
+    if (specifiedSize && (!hasVariants || specifiedVariant) && !hasAddOns) {
       const matchedSize = sizes.find(s => 
         s.toLowerCase() === specifiedSize.toLowerCase() ||
         s.toLowerCase().startsWith(specifiedSize.toLowerCase())
       );
-      if (matchedSize) {
-        onAddToCart(item, { size: matchedSize, quantity, skipCustomization: true });
+      
+      // If we have variants, ensure we have a valid variant selected
+      let matchedVariant = null;
+      if (hasVariants && specifiedVariant) {
+        matchedVariant = item.variants.find(v => 
+          v.name.toLowerCase() === specifiedVariant.toLowerCase() ||
+          v.name.toLowerCase().includes(specifiedVariant.toLowerCase())
+        );
+      }
+
+      if (matchedSize && (!hasVariants || matchedVariant)) {
+        onAddToCart(item, { 
+          size: matchedSize, 
+          variant: matchedVariant ? matchedVariant.name : null,
+          quantity, 
+          skipCustomization: true 
+        });
+        
+        const variantText = matchedVariant ? ` (${matchedVariant.name})` : '';
         const confirmMessage = {
           id: generateUniqueId(),
-          text: `Added ${quantity > 1 ? `${quantity}x ` : ''}**${item.name}** (${matchedSize}) to your cart! 🎉 Anything else?`,
+          text: `Added ${quantity > 1 ? `${quantity}x ` : ''}**${item.name}**${variantText} (${matchedSize}) to your cart! 🎉 Anything else?`,
           sender: 'bot',
           timestamp: new Date(),
           type: 'cart-action'
@@ -1064,7 +1088,8 @@ EXAMPLE NATURAL CONVERSATIONS:
         timestamp: new Date(),
         type: 'dialog-customization',
         pendingItem: { ...item, suggestedQuantity: quantity }, // Pass quantity to dialog
-        initialSize: specifiedSize // Pass specified size to dialog
+        initialSize: specifiedSize, // Pass specified size to dialog
+        initialVariant: specifiedVariant // Pass specified variant to dialog
       };
       setMessages(prev => [...prev, customizationMessage]);
     } else {
@@ -1340,7 +1365,19 @@ EXAMPLE NATURAL CONVERSATIONS:
         const sizes = Object.keys(itemToAdd.pricing || {}).filter(k => k !== '_id');
         const matchedSize = matchSizeFromInput(currentInput, sizes);
         const quantity = parseQuantityFromInput(currentInput);
-        handleAddToCartWithSize(itemToAdd, matchedSize, quantity);
+        
+        // Check for variant in input
+        let variantName = null;
+        if (itemToAdd.variants && itemToAdd.variants.length > 0) {
+           const foundVariant = itemToAdd.variants.find(v => 
+             currentInput.toLowerCase().includes(v.name.toLowerCase())
+           );
+           if (foundVariant) {
+             variantName = foundVariant.name;
+           }
+        }
+
+        handleAddToCartWithSize(itemToAdd, matchedSize, quantity, variantName);
         return;
       }
     }

@@ -80,7 +80,7 @@ AIAvatar.propTypes = {
 };
 
 // Dialog Customization Component - Handles size, variants, and add-ons with buttons
-const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete, onCancel }) => {
+const DialogCustomization = ({ item, addOns = [], initialSize = null, initialVariant = null, onComplete, onCancel }) => {
   const sizes = Object.keys(item.pricing || {}).filter(k => k !== '_id');
   const variants = item.variants || [];
   
@@ -108,9 +108,14 @@ const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete
   const preSelectedSize = initialSize 
     ? sizes.find(s => s.toLowerCase() === initialSize.toLowerCase() || s.toLowerCase().startsWith(initialSize.toLowerCase()))
     : (sizes.length === 1 ? sizes[0] : null);
+
+  // Check if we have an initial variant to pre-select
+  const preSelectedVariant = initialVariant
+    ? variants.find(v => v.name.toLowerCase() === initialVariant.toLowerCase() || v.name.toLowerCase().includes(initialVariant.toLowerCase()))
+    : null;
   
   const [selectedSize, setSelectedSize] = useState(preSelectedSize);
-  const [selectedVariant, setSelectedVariant] = useState(null);
+  const [selectedVariant, setSelectedVariant] = useState(preSelectedVariant);
   const [selectedAddOns, setSelectedAddOns] = useState([]);
   const [quantity, setQuantity] = useState(item.suggestedQuantity || 1);
   const [step, setStep] = useState('size'); // 'size', 'variant', 'addons', 'confirm'
@@ -119,8 +124,8 @@ const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete
   // Determine initial step based on pre-selected size or single size
   useEffect(() => {
     if (preSelectedSize) {
-      // Size already selected, skip to next step
-      if (variants.length > 0) {
+      // Size already selected, check variant
+      if (variants.length > 0 && !preSelectedVariant) {
         setStep('variant');
       } else if (uniqueAddOns.length > 0) {
         setStep('addons');
@@ -128,7 +133,7 @@ const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete
         // No further customization needed, complete immediately
         // But wait, we might want to confirm quantity if > 1? 
         // For now, proceed as before but pass quantity
-        onComplete({ size: preSelectedSize, quantity });
+        onComplete({ size: preSelectedSize, variant: preSelectedVariant?.name, quantity });
       }
     }
   }, []);
@@ -168,10 +173,10 @@ const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete
     }
   };
   
-  const handleAddOnsConfirm = () => {
+  const handleAddOnsConfirm = async () => {
     if (isProcessing) return;
     setIsProcessing(true);
-    onComplete({
+    await onComplete({
       size: selectedSize,
       variant: selectedVariant?.name,
       addOns: selectedAddOns,
@@ -179,10 +184,10 @@ const DialogCustomization = ({ item, addOns = [], initialSize = null, onComplete
     });
   };
   
-  const handleSkipAddOns = () => {
+  const handleSkipAddOns = async () => {
     if (isProcessing) return;
     setIsProcessing(true);
-    onComplete({
+    await onComplete({
       size: selectedSize,
       variant: selectedVariant?.name,
       addOns: [],
@@ -1110,14 +1115,15 @@ EXAMPLE NATURAL CONVERSATIONS:
     
     // Look for quantity patterns near the item name
     const quantityPatterns = [
+      // "2x" or "x2" anywhere
+      /(\d+)x/i,
+      /x(\d+)/i,
       // "2 burgers", "3 wings", etc.
       new RegExp(`(\\d+)\\s*(?:x\\s*)?${lowerItemName.split(' ')[0]}`, 'i'),
       // "two burgers", "three wings"
       new RegExp(`(one|two|three|four|five|six|seven|eight|nine|ten)\\s+${lowerItemName.split(' ')[0]}`, 'i'),
       // General number at start
-      /^(\d+)\s+/,
-      // "x2", "x3" format
-      /x(\d+)/i
+      /^(\d+)\s+/
     ];
     
     const wordToNum = {
@@ -1555,10 +1561,9 @@ EXAMPLE NATURAL CONVERSATIONS:
   };
 
   // Enhanced add to cart handler with dialog-based customization
-  const handleAddToCartWithSize = (item, specifiedSize = null) => {
+  const handleAddToCartWithSize = (item, specifiedSize = null, quantity = 1, specifiedVariant = null) => {
     const sizes = Object.keys(item.pricing || {}).filter(k => k !== '_id');
     const hasVariants = (item.variants || []).length > 0;
-    const quantity = item.suggestedQuantity || 1;
     
     // Get unique add-ons for this item (flexible matching)
     const relevantAddOns = (addOns || []).filter(addon => {
@@ -1579,17 +1584,34 @@ EXAMPLE NATURAL CONVERSATIONS:
     }, []);
     const hasAddOns = uniqueAddOns.length > 0;
     
-    // If a size was specified and no variants AND no add-ons, add directly
-    if (specifiedSize && !hasVariants && !hasAddOns) {
+    // If a size was specified and no variants (or variant specified) AND no add-ons, add directly
+    if (specifiedSize && (!hasVariants || specifiedVariant) && !hasAddOns) {
       const matchedSize = sizes.find(s => 
         s.toLowerCase() === specifiedSize.toLowerCase() ||
         s.toLowerCase().startsWith(specifiedSize.toLowerCase())
       );
-      if (matchedSize) {
-        onAddToCart(item, { size: matchedSize, skipCustomization: true, quantity });
+      
+      // If we have variants, ensure we have a valid variant selected
+      let matchedVariant = null;
+      if (hasVariants && specifiedVariant) {
+        matchedVariant = item.variants.find(v => 
+          v.name.toLowerCase() === specifiedVariant.toLowerCase() ||
+          v.name.toLowerCase().includes(specifiedVariant.toLowerCase())
+        );
+      }
+
+      if (matchedSize && (!hasVariants || matchedVariant)) {
+        onAddToCart(item, { 
+          size: matchedSize, 
+          variant: matchedVariant ? matchedVariant.name : null,
+          skipCustomization: true, 
+          quantity 
+        });
+        
+        const variantText = matchedVariant ? ` (${matchedVariant.name})` : '';
         const confirmMessage = {
           id: generateUniqueId(),
-          text: `Added **${item.name}** (${matchedSize}) to your cart! 🎉 Anything else?`,
+          text: `Added ${quantity > 1 ? `${quantity}x ` : ''}**${item.name}**${variantText} (${matchedSize}) to your cart! 🎉 Anything else?`,
           sender: 'bot',
           timestamp: new Date(),
           type: 'cart-action'
@@ -1615,8 +1637,9 @@ EXAMPLE NATURAL CONVERSATIONS:
         sender: 'bot',
         timestamp: new Date(),
         type: 'dialog-customization',
-        pendingItem: item,
-        initialSize: specifiedSize // Pass specified size to dialog
+        pendingItem: { ...item, suggestedQuantity: quantity }, // Pass quantity to dialog
+        initialSize: specifiedSize, // Pass specified size to dialog
+        initialVariant: specifiedVariant // Pass specified variant to dialog
       };
       setMessages(prev => [...prev, customizationMessage]);
     } else {
@@ -1626,7 +1649,7 @@ EXAMPLE NATURAL CONVERSATIONS:
       
       const confirmMessage = {
         id: generateUniqueId(),
-        text: `Added **${item.name}** to your cart! 🎉 Anything else?`,
+        text: `Added ${quantity > 1 ? `${quantity}x ` : ''}**${item.name}** to your cart! 🎉 Anything else?`,
         sender: 'bot',
         timestamp: new Date(),
         type: 'cart-action'
@@ -1777,13 +1800,14 @@ EXAMPLE NATURAL CONVERSATIONS:
           // Find matching size (case insensitive)
           const matchedSize = sizes.find(s => s.toLowerCase() === sizeResponse || s.toLowerCase().startsWith(sizeResponse));
           if (matchedSize) {
-            onAddToCart(item, { size: matchedSize });
+            const quantity = parseQuantityFromInput(userInput, item.name);
+            onAddToCart(item, { size: matchedSize, quantity });
             setConversationContext(null);
             setPendingSizeSelection(null);
             setLastSuggestedItems([]);
             return {
               success: true,
-              message: `Added **${item.name}** (${matchedSize.toUpperCase()}) to your cart! 🎉 Anything else?`,
+              message: `Added ${quantity > 1 ? `${quantity}x ` : ''}**${item.name}** (${matchedSize.toUpperCase()}) to your cart! 🎉 Anything else?`,
               type: 'cart-action'
             };
           }
@@ -1802,11 +1826,12 @@ EXAMPLE NATURAL CONVERSATIONS:
           s.toLowerCase().startsWith(sizeWord)
         );
         if (matchedSize) {
-          onAddToCart(item, { size: matchedSize, skipCustomization: true });
+          const quantity = parseQuantityFromInput(userInput, item.name);
+          onAddToCart(item, { size: matchedSize, skipCustomization: true, quantity });
           // Keep lastSuggestedItems so they can add more
           return {
             success: true,
-            message: `Added another **${item.name}** (${matchedSize}) to your cart! 🎉 Anything else?`,
+            message: `Added ${quantity > 1 ? `${quantity}x ` : 'another'} **${item.name}** (${matchedSize}) to your cart! 🎉 Anything else?`,
             type: 'cart-action'
           };
         }
@@ -1824,13 +1849,14 @@ EXAMPLE NATURAL CONVERSATIONS:
           s.toLowerCase().startsWith(sizeResponse)
         );
         if (matchedSize) {
-          onAddToCart(item, { size: matchedSize, skipCustomization: true });
+          const quantity = parseQuantityFromInput(userInput, item.name);
+          onAddToCart(item, { size: matchedSize, skipCustomization: true, quantity });
           setConversationContext(null);
           setPendingSizeSelection(null);
           setLastSuggestedItems([]);
           return {
             success: true,
-            message: `Added **${item.name}** (${matchedSize}) to your cart! 🎉 Anything else?`,
+            message: `Added ${quantity > 1 ? `${quantity}x ` : ''}**${item.name}** (${matchedSize}) to your cart! 🎉 Anything else?`,
             type: 'cart-action'
           };
         }
@@ -1858,11 +1884,13 @@ EXAMPLE NATURAL CONVERSATIONS:
             
             if (matchedSize || sizes.length === 1) {
               const finalSize = matchedSize || sizes[0];
+              const quantity = parseQuantityFromInput(userInput, item.name);
               
               onAddToCart(item, { 
                 size: finalSize, 
                 variant: matchedVariant.name,
-                skipCustomization: true 
+                skipCustomization: true,
+                quantity
               });
               
               setLastSuggestedItems([]);
@@ -1871,7 +1899,7 @@ EXAMPLE NATURAL CONVERSATIONS:
               
               return {
                 success: true,
-                message: `Added **${item.name}** (${matchedVariant.name}, ${finalSize}) to your cart! 🎉 Anything else?`,
+                message: `Added ${quantity > 1 ? `${quantity}x ` : ''}**${item.name}** (${matchedVariant.name}, ${finalSize}) to your cart! 🎉 Anything else?`,
                 type: 'cart-action'
               };
             } else {
@@ -1910,8 +1938,22 @@ EXAMPLE NATURAL CONVERSATIONS:
       if (detectDirectAddIntent(userInput)) {
         const itemToAdd = findMenuItemFromInput(userInput);
         if (itemToAdd) {
+          // Parse quantity from input
+          const quantity = parseQuantityFromInput(userInput, itemToAdd.name);
+          
+          // Check for variant in input
+          let variantName = null;
+          if (itemToAdd.variants && itemToAdd.variants.length > 0) {
+             const foundVariant = itemToAdd.variants.find(v => 
+               userInput.toLowerCase().includes(v.name.toLowerCase())
+             );
+             if (foundVariant) {
+               variantName = foundVariant.name;
+             }
+          }
+
           // Dialog-based: ask about size in conversation
-          handleAddToCartWithSize(itemToAdd);
+          handleAddToCartWithSize(itemToAdd, null, quantity, variantName);
           return {
             success: true,
             handled: true // Signal that we handled it
@@ -1926,8 +1968,10 @@ EXAMPLE NATURAL CONVERSATIONS:
         const mentionedItem = findMenuItemFromInput(userInput);
         
         if (mentionedItem) {
+          // Parse quantity from input
+          const quantity = parseQuantityFromInput(userInput, mentionedItem.name);
           // Dialog-based: ask about size in conversation
-          handleAddToCartWithSize(mentionedItem);
+          handleAddToCartWithSize(mentionedItem, null, quantity);
           return {
             success: true,
             handled: true
@@ -1938,7 +1982,9 @@ EXAMPLE NATURAL CONVERSATIONS:
         if (lastSuggestedItems.length === 1) {
           // Only one item was suggested - add it!
           const item = lastSuggestedItems[0];
-          handleAddToCartWithSize(item);
+          // Parse quantity from input
+          const quantity = parseQuantityFromInput(userInput, item.name);
+          handleAddToCartWithSize(item, null, quantity);
           return {
             success: true,
             handled: true
@@ -2016,8 +2062,11 @@ EXAMPLE NATURAL CONVERSATIONS:
       const matchedSize = matchSizeFromInput(currentInput, availableSizes);
       
       if (matchedSize) {
+        // Parse quantity if present
+        const quantity = parseQuantityFromInput(currentInput, pendingSizeSelection.name);
+        
         // User typed a valid size - use handleAddToCartWithSize to show dialog for variants/add-ons
-        handleAddToCartWithSize(pendingSizeSelection, matchedSize);
+        handleAddToCartWithSize(pendingSizeSelection, matchedSize, quantity);
         return;
       } else {
         // User typed something else but we have pending selection

@@ -282,22 +282,18 @@ const TabletLayout = ({
             <div className="flex-1 relative">
               <input
                 type="text"
-                className="w-full h-14 pl-14 pr-6 rounded-full border-2 text-lg transition-all duration-300 focus:ring-4 focus:ring-orange-100 focus:border-orange-500"
+                className="w-full h-14 pl-20 pr-6 rounded-full border-2 text-lg transition-all duration-300 focus:ring-4 focus:ring-orange-100 focus:border-orange-500"
                 style={{ borderColor: colors.muted }}
                 placeholder="Search menu or scan item..."
                 value={searchTerm}
                 onChange={(e) => onSearchChange(e.target.value)}
               />
-              <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                className="h-7 w-7 absolute left-5 top-3.5 transition-colors duration-300" 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke={searchTerm ? colors.accent : colors.muted}
+              <span 
+                className="absolute left-5 top-1/2 transform -translate-y-1/2 font-bold text-xl transition-colors duration-300 select-none pointer-events-none"
+                style={{ color: searchTerm ? colors.accent : colors.muted }}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+                RW
+              </span>
             </div>
             <SelfCheckoutHeader />
           </div>

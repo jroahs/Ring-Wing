@@ -384,22 +384,18 @@ const DesktopLayout = ({
               <input
                 ref={searchInputRef}
                 type="text"
-                className="w-full h-12 pl-12 pr-6 rounded-xl border-2 text-base transition-all duration-300 focus:ring-4 focus:ring-orange-100 focus:border-orange-500"
+                className="w-full h-12 pl-16 pr-6 rounded-xl border-2 text-base transition-all duration-300 focus:ring-4 focus:ring-orange-100 focus:border-orange-500"
                 style={{ borderColor: colors.muted }}
                 placeholder="Search menu or press '/' to focus..."
                 value={searchTerm}
                 onChange={(e) => onSearchChange(e.target.value)}
               />
-              <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                className="h-6 w-6 absolute left-4 top-3 transition-colors duration-300" 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke={searchTerm ? colors.accent : colors.muted}
+              <span 
+                className="absolute left-4 top-1/2 transform -translate-y-1/2 font-bold text-lg transition-colors duration-300 select-none pointer-events-none"
+                style={{ color: searchTerm ? colors.accent : colors.muted }}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+                RW
+              </span>
             </div>
 
             {/* Keyboard Shortcuts */}
