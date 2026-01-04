@@ -8,10 +8,33 @@ const os = require('os');
 const { auth } = require('../middleware/authMiddleware');
 
 // Configure CORS specifically for health routes
+// Important: this endpoint is used for "wake" checks from the browser and external pingers.
+// Allow requests with no Origin (curl/Render health checks) and allow known frontends.
+const allowedOrigins = new Set(
+  [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:3000',
+    process.env.RENDER_FRONTEND_URL,
+    process.env.FRONTEND_URL
+  ].filter(Boolean)
+);
+
+const renderSubdomainRegex = /^https?:\/\/[^/]+\.onrender\.com$/i;
+
 const healthCorsOptions = {
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174'],
+  origin: (origin, callback) => {
+    // No origin header: allow (server-to-server, curl, uptime monitors, Render health checks)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.has(origin) || renderSubdomainRegex.test(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('Not allowed by CORS'));
+  },
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key'],
   credentials: true,
   preflightContinue: false,
   optionsSuccessStatus: 204

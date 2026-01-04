@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { API_URL } from '../App';
+
+// NOTE: Do not import API_URL from App here.
+// App imports Login, Login imports this hook, so importing from App creates a circular dependency
+// and can yield an undefined API_URL at runtime (breaking cold-start detection).
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 /**
  * Server health states
@@ -36,6 +40,7 @@ export const useServerHealth = (options = {}) => {
   const retryTimeoutRef = useRef(null);
   const coldStartDisplayTimeoutRef = useRef(null);
   const coldStartStartTimeRef = useRef(null);
+  const retryCountRef = useRef(0);
 
   /**
    * Clean up any pending requests or timeouts
@@ -92,6 +97,7 @@ export const useServerHealth = (options = {}) => {
     cleanup();
 
     if (!isRetry) {
+      retryCountRef.current = 0;
       setRetryCount(0);
       setEstimatedWaitTime(null);
     }
@@ -99,8 +105,22 @@ export const useServerHealth = (options = {}) => {
     setServerStatus('checking');
     abortControllerRef.current = new AbortController();
 
+    let didTimeout = false;
+    let timeoutId;
+
     try {
       const startTime = Date.now();
+
+      // Treat slow responses as a cold start by enforcing a timeout.
+      // Render free tier cold starts can take tens of seconds; we want to show the overlay promptly.
+      timeoutId = setTimeout(() => {
+        didTimeout = true;
+        try {
+          abortControllerRef.current?.abort();
+        } catch {
+          // ignore
+        }
+      }, coldStartTimeout);
       
       // Use simple fetch without custom headers to avoid CORS preflight issues
       const response = await fetch(`${API_URL}/api/health`, {
@@ -119,6 +139,7 @@ export const useServerHealth = (options = {}) => {
           console.log(`[ServerHealth] Server healthy (${latency}ms)`);
         }
         setServerStatus('healthy');
+        retryCountRef.current = 0;
         setRetryCount(0);
         setEstimatedWaitTime(null);
         return true;
@@ -128,23 +149,32 @@ export const useServerHealth = (options = {}) => {
         return false;
       }
     } catch (error) {
-      if (error.name === 'AbortError') {
-        console.log('[ServerHealth] Health check aborted');
+      // If we aborted due to our timeout, treat it like a cold start signal.
+      const isAbort = error?.name === 'AbortError';
+      const isTimeout = isAbort && didTimeout;
+
+      // If cleanup() aborted the request (component unmount / new check), don't enter cold start mode.
+      // Heuristic: if we are not in "checking" anymore (or abort was triggered before timeout), just exit.
+      if (isAbort && abortControllerRef.current == null) {
+        console.log('[ServerHealth] Health check aborted (cleanup)');
         return false;
       }
 
       console.warn('[ServerHealth] Health check failed:', error.message);
 
       // Determine if this is likely a cold start
-      const isTimeoutOrNetwork = 
-        error.message.includes('timeout') ||
-        error.message.includes('Failed to fetch') ||
-        error.message.includes('NetworkError') ||
-        error.message.includes('network');
+      const message = (error?.message || '').toLowerCase();
+      const isTimeoutOrNetwork =
+        isTimeout ||
+        message.includes('timeout') ||
+        message.includes('failed to fetch') ||
+        message.includes('networkerror') ||
+        message.includes('network');
 
       if (isTimeoutOrNetwork && retryCount < maxRetries) {
         setServerStatus('cold-starting');
-        const newRetryCount = retryCount + 1;
+        const newRetryCount = retryCountRef.current + 1;
+        retryCountRef.current = newRetryCount;
         setRetryCount(newRetryCount);
         
         // Estimate remaining wait time (rough calculation)
@@ -167,7 +197,12 @@ export const useServerHealth = (options = {}) => {
         return false;
       }
     }
-  }, [cleanup, coldStartTimeout, maxRetries, retryCount, retryDelay]);
+    finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    }
+  }, [cleanup, coldStartTimeout, maxRetries, retryDelay]);
 
   /**
    * Force a health check
