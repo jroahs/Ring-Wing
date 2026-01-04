@@ -309,13 +309,14 @@ const OrderSystem = () => {
     }
   };
 
-  const toggleFlipped = (orderId, order) => {
-    setFlippedById(prev => ({ ...prev, [orderId]: !prev[orderId] }));
+  const toggleFlipped = (flipKey, orderId, order) => {
+    setFlippedById(prev => ({ ...prev, [flipKey]: !prev[flipKey] }));
 
     // If flipping to details and delivery address snapshot is missing, fetch full details
+    // (requires a real Mongo id).
     const isDelivery = String(order?.fulfillmentType || '').toLowerCase() === 'delivery';
     const hasSnapshotStreet = Boolean(order?.deliveryAddress?.street && String(order.deliveryAddress.street).trim());
-    if (isDelivery && !hasSnapshotStreet) {
+    if (orderId && isDelivery && !hasSnapshotStreet) {
       fetchOrderDetails(orderId);
     }
   };
@@ -573,26 +574,27 @@ const OrderSystem = () => {
             {currentOrders.map(order => (
                 (() => {
                   const orderId = order.id || order._id;
-                  const isFlipped = Boolean(orderId) && Boolean(flippedById[orderId]);
+                  const flipKey = orderId || order.receiptNumber;
+                  const isFlipped = Boolean(flipKey) && Boolean(flippedById[flipKey]);
                   const isActionLoading = Boolean(orderId) && actionLoadingById[orderId];
 
                   return (
                 <div 
-                  key={orderId || order.receiptNumber} 
-                  className="bg-white rounded-xl md:rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer"
-                  onClick={() => orderId && toggleFlipped(orderId, order)}
+                  key={flipKey} 
+                  className="bg-white rounded-xl md:rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer overflow-hidden h-[460px]"
+                  onClick={() => toggleFlipped(flipKey, orderId, order)}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      if (orderId) toggleFlipped(orderId, order);
+                      toggleFlipped(flipKey, orderId, order);
                     }
                   }}
                 >
-                  <div style={{ perspective: 1200 }}>
+                  <div style={{ perspective: 1200 }} className="h-full">
                     <motion.div
-                      className="relative"
+                      className="relative h-full"
                       animate={{ rotateY: isFlipped ? 180 : 0 }}
                       transition={{ duration: 0.35 }}
                       style={{ transformStyle: 'preserve-3d' }}
@@ -600,13 +602,13 @@ const OrderSystem = () => {
                       {/* FRONT */}
                       <div
                         style={{ backfaceVisibility: 'hidden' }}
-                        className="bg-white rounded-xl md:rounded-2xl"
+                        className="bg-white rounded-xl md:rounded-2xl h-full flex flex-col"
                       >
-                        <div className={`p-4 md:p-6 border-b-4 ${
+                        <div className={`p-4 md:p-6 border-b-4 flex flex-col flex-1 min-h-0 ${
                           order.status === 'received' ? 'border-[#f1670f30]' :
                           order.status === 'preparing' ? 'border-[#f1670f50]' :
                           order.status === 'ready' ? 'border-[#f1670f]' :
-                          'border-transparent'
+                          'border-[#ac9c9b30]'
                         }`}>
                           <div className="flex justify-between items-center mb-3 md:mb-4">
                             <div className="flex flex-col">
@@ -627,7 +629,11 @@ const OrderSystem = () => {
                               {order.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
-                          <div className="space-y-2 md:space-y-3">
+                          {/* Divider under header */}
+                          <div className="border-t border-[#ac9c9b30] pt-3 mt-1" />
+
+                          {/* Scrollable items area (only items scroll) */}
+                          <div className="space-y-2 md:space-y-3 flex-1 min-h-0 overflow-y-auto pr-1">
                             {order.items?.map((item, idx) => (
                               <div key={idx} className="flex justify-between items-center text-base md:text-lg">
                                 <div>
@@ -650,6 +656,7 @@ const OrderSystem = () => {
                           </div>
                         </div>
 
+                        {/* Bottom area pinned for spacing/consistency */}
                         <div className="p-4 md:p-6 space-y-4 md:space-y-6">
                           <div className="flex justify-between items-center text-xl md:text-2xl font-bold text-[#2e0304]">
                             <span>Total:</span>
@@ -669,7 +676,7 @@ const OrderSystem = () => {
                               )}
                               
                               {/* Action buttons */}
-                              <div className={`flex gap-2 md:gap-3 flex-wrap transition-opacity duration-200 ${isActionLoading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+                              <div className={`flex gap-2 transition-opacity duration-200 ${isActionLoading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                                 {(() => {
                                   switch(order.status) {
                                     case 'received': return ['preparing', 'completed'];
@@ -681,7 +688,7 @@ const OrderSystem = () => {
                                   <button
                                     key={status}
                                     disabled={isActionLoading || !orderId}
-                                    className="text-sm md:text-base px-4 md:px-6 py-1 md:py-2 rounded-full transition-colors bg-[#85361910] text-[#853619] hover:bg-[#f1670f20] disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed"
+                                    className="flex-1 text-sm md:text-base px-3 md:px-4 py-1 md:py-2 rounded-full transition-colors bg-[#85361910] text-[#853619] hover:bg-[#f1670f20] disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       if (!orderId) return;
@@ -711,15 +718,10 @@ const OrderSystem = () => {
 
                       {/* BACK (DETAILS ONLY) */}
                       <div
-                        className="absolute inset-0 bg-white rounded-xl md:rounded-2xl"
+                        className="absolute inset-0 bg-white rounded-xl md:rounded-2xl h-full flex flex-col"
                         style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden' }}
                       >
-                        <div className={`p-4 md:p-6 border-b-4 ${
-                          order.status === 'received' ? 'border-[#f1670f30]' :
-                          order.status === 'preparing' ? 'border-[#f1670f50]' :
-                          order.status === 'ready' ? 'border-[#f1670f]' :
-                          'border-transparent'
-                        }`}>
+                        <div className="p-4 md:p-6">
                           <div className="flex justify-between items-center">
                             <h2 className="font-bold text-lg md:text-xl text-[#2e0304]">
                               Order #{order.receiptNumber}
@@ -728,7 +730,7 @@ const OrderSystem = () => {
                           </div>
                         </div>
 
-                        <div className="p-4 md:p-6 space-y-3">
+                        <div className="p-4 md:p-6 space-y-3 flex-1 overflow-y-auto">
                           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-[#853619]">
                             <span><span className="font-semibold">Fulfillment:</span> {formatFulfillment(order.fulfillmentType)}</span>
                             <span><span className="font-semibold">Payment:</span> {formatPayment(order)}</span>
