@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
+const Customer = require('../models/Customer');
 const { criticalCheck, standardCheck } = require('../middleware/dbConnectionMiddleware');
 const InventoryBusinessLogicService = require('../services/inventoryBusinessLogicService');
 const paymentVerificationController = require('../controllers/paymentVerificationController');
@@ -67,6 +68,29 @@ router.post('/', validateOrder, criticalCheck, async (req, res, next) => {
       change: 0
     };
 
+    // Ensure customerName is populated when possible.
+    // Self-checkout clients may omit customerName (or send empty string),
+    // but we can safely derive it from customerId / snapshots.
+    if (!orderData.customerName || !String(orderData.customerName).trim()) {
+      const snapshotName =
+        (orderData.customerDetails && orderData.customerDetails.name) ||
+        (orderData.deliveryAddress && orderData.deliveryAddress.recipientName);
+
+      if (snapshotName && String(snapshotName).trim()) {
+        orderData.customerName = String(snapshotName).trim();
+      } else if (orderData.customerId) {
+        try {
+          const customer = await Customer.findById(orderData.customerId).select('firstName lastName username');
+          if (customer) {
+            const derivedName = `${customer.firstName || ''} ${customer.lastName || ''}`.trim();
+            orderData.customerName = derivedName || customer.username || '';
+          }
+        } catch (e) {
+          console.warn('[orderRoutes POST] Failed to derive customerName from customerId:', e.message);
+        }
+      }
+    }
+
     console.log('[orderRoutes POST] Order data after processing:', {
       hasCustomerId: !!orderData.customerId,
       customerId: orderData.customerId
@@ -82,10 +106,10 @@ router.post('/', validateOrder, criticalCheck, async (req, res, next) => {
     });
     
     // Emit socket event for real-time updates (POS "Dine/Take-outs" tab)
-    // Note: Only emit for orders that need verification (not PayMongo - they're auto-verified in create-checkout)
+    // Note: Only emit for orders that need manual payment verification.
     const io = req.app.get('io');
     const isPayMongoOrder = order.paymentMethod === 'paymongo';
-    const shouldEmitSocket = (order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery' || order.fulfillmentType === 'dine_in');
+    const shouldEmitSocket = order.paymentMethod === 'e-wallet';
     
     if (io && shouldEmitSocket && !isPayMongoOrder) {
       SocketService.emitNewOrder(io, order.toObject());

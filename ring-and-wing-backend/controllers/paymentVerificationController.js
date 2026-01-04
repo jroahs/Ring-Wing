@@ -58,6 +58,12 @@ exports.uploadProof = async (req, res) => {
 
     if (accountName) {
       order.proofOfPayment.accountName = accountName;
+
+      // If the order doesn't have a customerName (common for guest self-checkout),
+      // persist the payer's account name as a reliable customer identifier for receipts.
+      if (!order.customerName || !String(order.customerName).trim()) {
+        order.customerName = String(accountName).trim();
+      }
     }
 
     // Validate at least one proof method is provided
