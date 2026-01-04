@@ -98,6 +98,23 @@ const expenseSchema = new mongoose.Schema({
   permanent: {
     type: Boolean,
     default: false
+  },
+
+  // Optional linkage for system-generated expenses (e.g., payroll batches)
+  sourceType: {
+    type: String,
+    enum: ['payroll_batch', null],
+    default: null,
+    index: true
+  },
+  sourceId: {
+    type: mongoose.Schema.Types.ObjectId,
+    default: null,
+    index: true
+  },
+  sourceBatchNumber: {
+    type: String,
+    default: null
   }
 }, {
   timestamps: true
@@ -111,6 +128,16 @@ expenseSchema.index({ requesterId: 1 });
 expenseSchema.index({ disbursed: 1 });
 expenseSchema.index({ disbursementDate: 1 });
 expenseSchema.index({ permanent: 1 });
+expenseSchema.index(
+  { sourceType: 1, sourceId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      sourceType: { $exists: true, $ne: null },
+      sourceId: { $exists: true, $ne: null }
+    }
+  }
+);
 
 const Expense = mongoose.model('Expense', expenseSchema);
 

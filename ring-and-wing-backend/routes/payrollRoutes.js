@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Payroll = require('../models/Payroll');
 const PayrollBatch = require('../models/PayrollBatch');
+const Expense = require('../models/expense');
 const Staff = require('../models/Staff');
 const TimeLog = require('../models/TimeLog');
 const Settings = require('../models/Settings');
@@ -1462,6 +1463,46 @@ router.put('/batch/:batchId/approve', auth, async (req, res) => {
     batch.addAuditLog('approved', { userId, name: userName }, approvalNotes || 'Batch approved');
 
     await batch.save();
+
+    // Auto-create expense entry for approved payroll batch (idempotent)
+    try {
+      const existingPayrollExpense = await Expense.findOne({
+        sourceType: 'payroll_batch',
+        sourceId: batch._id
+      });
+
+      if (existingPayrollExpense) {
+        if (!existingPayrollExpense.sourceBatchNumber && batch.batchNumber) {
+          existingPayrollExpense.sourceBatchNumber = batch.batchNumber;
+          await existingPayrollExpense.save();
+        }
+      } else {
+        const periodStart = batch.payrollPeriod?.startDate;
+        const periodEnd = batch.payrollPeriod?.endDate;
+        const totalNetPay = Number(batch.summary?.totalNetPay || 0);
+
+        await Expense.create({
+          date: periodEnd || new Date(),
+          amount: totalNetPay,
+          category: 'Salaries',
+          description: `Payroll (${batch.batchNumber}) ${periodStart ? new Date(periodStart).toISOString().slice(0, 10) : ''}${periodStart && periodEnd ? ' to ' : ''}${periodEnd ? new Date(periodEnd).toISOString().slice(0, 10) : ''}`.trim(),
+          purpose: 'Auto-created from approved payroll batch',
+          paymentMethod: 'Bank Transfer',
+          status: 'created',
+          disbursed: false,
+          permanent: true,
+          createdBy: userId || null,
+          creatorName: req.user?.username || userName,
+          creatorRole: req.user?.role || null,
+          sourceType: 'payroll_batch',
+          sourceId: batch._id,
+          sourceBatchNumber: batch.batchNumber || null
+        });
+      }
+    } catch (expenseError) {
+      // Do not block payroll approval if expense creation fails
+      console.error('[Payroll Batch Approve] Failed to auto-create expense:', expenseError);
+    }
 
     res.json({
       success: true,

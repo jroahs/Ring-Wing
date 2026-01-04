@@ -81,10 +81,21 @@ const ExpenseCard = ({ expense, colors, onMakePermanent, onMarkPaidAndPermanent 
         </div>
         
         <div className="flex items-center mt-2">
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mr-2" 
-                style={{ backgroundColor: colors.activeBg, color: colors.accent }}>
+          <span
+            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mr-2"
+            style={{ backgroundColor: colors.activeBg, color: colors.accent }}
+          >
             {expense.category}
           </span>
+          {expense.sourceType === 'payroll_batch' && (
+            <span
+              className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-semibold mr-2"
+              style={{ backgroundColor: colors.secondary + '20', color: colors.secondary }}
+              title="Auto-created from payroll batch"
+            >
+              Payroll
+            </span>
+          )}
           <span className="text-xs text-gray-500">{expense.paymentMethod}</span>
         </div>
         

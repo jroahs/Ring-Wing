@@ -65,7 +65,13 @@ const ExpenseTracker = ({ colors }) => {
   const [expenseToReject, setExpenseToReject] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [dateRange, setDateRange] = useState(() => {
+    const todayKey = businessDateKey(new Date());
+    return {
+      start: `${todayKey.slice(0, 7)}-01`,
+      end: todayKey
+    };
+  });
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [paymentStatus, setPaymentStatus] = useState('All');
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
@@ -737,10 +743,23 @@ const ExpenseTracker = ({ colors }) => {
                         </td>
                         <td className="p-4 text-sm" style={{ color: colors.secondary }}>{expense.description}</td>
                         <td className="p-4">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium" 
-                            style={{ backgroundColor: colors.activeBg, color: colors.accent }}>
-                            {expense.category}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium"
+                              style={{ backgroundColor: colors.activeBg, color: colors.accent }}
+                            >
+                              {expense.category}
+                            </span>
+                            {expense.sourceType === 'payroll_batch' && (
+                              <span
+                                className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-semibold"
+                                style={{ backgroundColor: colors.secondary + '20', color: colors.secondary }}
+                                title="Auto-created from payroll batch"
+                              >
+                                Payroll
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="p-4 text-sm" style={{ color: colors.secondary }}>{expense.paymentMethod}</td>
                         <td className="p-4 text-right text-sm font-medium" style={{ color: colors.secondary }}>
@@ -1176,6 +1195,29 @@ const ExpenseTracker = ({ colors }) => {
                   {selectedExpense.description}
                 </div>
               </div>
+
+              {/* Payroll Trace (read-only) */}
+              {selectedExpense.sourceType === 'payroll_batch' && (
+                <div className="p-4 rounded-lg border" style={{ borderColor: colors.muted + '30' }}>
+                  <div className="text-sm font-medium mb-2" style={{ color: colors.secondary }}>
+                    Payroll
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-sm mb-1" style={{ color: colors.muted }}>Batch Number</div>
+                      <div className="font-medium" style={{ color: colors.primary }}>
+                        {selectedExpense.sourceBatchNumber || '—'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm mb-1" style={{ color: colors.muted }}>Batch ID</div>
+                      <div className="font-mono text-xs break-all" style={{ color: colors.primary }}>
+                        {selectedExpense.sourceId || '—'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Requester Info (if from staff) */}
               {selectedExpense.requesterName && (
