@@ -99,9 +99,27 @@ router.get('/yearly-report', async (req, res) => {
     console.log('[Yearly Report] Found', orders.length, 'orders');
     
     // Fetch expenses in date range
-    const expenses = await Expense.find({
-      date: { $gte: start, $lte: end }
-    });
+    // Note: some legacy records may have `date` stored as a string in Mongo.
+    // Using an aggregation with $convert ensures we can match both Date and string values.
+    const expenses = await Expense.aggregate([
+      {
+        $addFields: {
+          __date: {
+            $convert: {
+              input: '$date',
+              to: 'date',
+              onError: null,
+              onNull: null
+            }
+          }
+        }
+      },
+      {
+        $match: {
+          __date: { $gte: start, $lte: end }
+        }
+      }
+    ]);
     
     console.log('[Yearly Report] Found', expenses.length, 'expenses');
     
@@ -135,7 +153,7 @@ router.get('/yearly-report', async (req, res) => {
       });
       
       const monthExpenses = expenses.filter(e => {
-        const expenseDate = new Date(e.date);
+        const expenseDate = e.__date ? new Date(e.__date) : new Date(e.date);
         return expenseDate >= monthStart && expenseDate <= monthEnd;
       });
       
