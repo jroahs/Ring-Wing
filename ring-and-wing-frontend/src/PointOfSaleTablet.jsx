@@ -753,7 +753,7 @@ const PointOfSaleTablet = () => {
       const currentPaymentMethod = paymentDetails?.method || paymentMethod;
       const cashValue = paymentDetails?.cashAmount || parseFloat(cashAmount) || 0;
       const eWalletInfo = paymentDetails?.eWalletDetails || eWalletDetails;
-      const customer = paymentDetails?.customerName || customerName;
+      const customer = (paymentDetails?.customerName || customerName || editingPendingOrder?.customerName || '').toString().trim();
       const discountCardsData = paymentDetails?.discountCards || [];
       
       console.log('[TabletPOS updatePendingOrderWithPayment] Payment details:', {
@@ -790,7 +790,7 @@ const PointOfSaleTablet = () => {
           body: JSON.stringify({
             status: 'received',
             paymentMethod: currentPaymentMethod,
-            customerName: customer || '',
+            ...(customer ? { customerName: customer } : {}),
             discountCards: discountCardsData,
             fulfillmentType: 'dine_in',
             totals: {
@@ -1247,6 +1247,13 @@ const PointOfSaleTablet = () => {
   const loadPendingOrderForEdit = (order) => {
     setEditingPendingOrder(order);
     setIsPendingOrderMode(true);
+    // Prefill customer name from existing order data so receipts don't end up as "No name"
+    setCustomerName(
+      order.customerName ||
+      order.customerDetails?.name ||
+      order.customer?.name ||
+      ''
+    );
     setPendingOrderCart(order.items.map(item => {
       // Handle both populated and non-populated menuItem references
       const menuItemId = typeof item.menuItem === 'object' && item.menuItem?._id 

@@ -307,7 +307,13 @@ router.patch('/:id', async (req, res, next) => {
     if (paymentMethod) updateData.paymentMethod = paymentMethod;
     if (totals) updateData.totals = totals;
     if (items) updateData.items = items;
-    if (customerName !== undefined) updateData.customerName = customerName;
+    // Avoid wiping customerName with an empty string (common when POS field is left blank).
+    // Only update when a meaningful value is provided.
+    if (typeof customerName === 'string') {
+      if (customerName.trim()) updateData.customerName = customerName.trim();
+    } else if (customerName !== undefined && customerName !== null) {
+      updateData.customerName = customerName;
+    }
     if (discountCards) updateData.discountCards = discountCards;
     if (fulfillmentType) updateData.fulfillmentType = fulfillmentType;
     if (paymentDetails) updateData.paymentDetails = paymentDetails;

@@ -1212,6 +1212,12 @@ const PointOfSale = () => {
     // Use payment details directly if provided, otherwise fall back to state
     const cashValue = paymentDetails?.cashAmount ? parseFloat(paymentDetails.cashAmount) : parseFloat(cashAmount);
     const currentPaymentMethod = paymentDetails?.method || paymentMethod;
+    const resolvedCustomerName = (
+      paymentDetails?.customerName ??
+      customerName ??
+      editingPendingOrder?.customerName ??
+      ''
+    ).toString().trim();
 
     console.log('[processPendingOrderPayment] Payment details:', {
       paymentDetails,
@@ -1258,10 +1264,11 @@ const PointOfSale = () => {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token')}`
-        },        body: JSON.stringify({
+        },
+        body: JSON.stringify({
           status: 'received',  // Pending orders that are paid start as received (first step in workflow)
           paymentMethod: currentPaymentMethod,
-          customerName: customerName || '', // Add customer name to pending order
+          ...(resolvedCustomerName ? { customerName: resolvedCustomerName } : {}),
           discountCards: discountCardDetails?.discountCards || [],
           fulfillmentType: 'dine_in', // POS orders are dine-in by default
           totals: {
@@ -2427,7 +2434,13 @@ const PointOfSale = () => {
                                             // Reset payment method or other relevant states if needed
                                             setPaymentMethod('cash'); 
                                             setCashAmount(0);
-                                            setCustomerName(''); // Reset customer name when starting to edit pending order
+                                            // Prefill from the pending order (self-checkout customer account / snapshots)
+                                            setCustomerName(
+                                              order.customerName ||
+                                              order.customerDetails?.name ||
+                                              order.customer?.name ||
+                                              ''
+                                            );
                                           }}
                                         >
                                           <div className="flex justify-between items-center">
