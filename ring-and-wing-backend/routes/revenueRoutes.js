@@ -142,24 +142,22 @@ router.get('/yearly-report', async (req, res) => {
       const monthRevenue = monthOrders.reduce((a, o) => a + (o.totals?.total || 0), 0);
       const monthExpenseTotal = monthExpenses.reduce((a, e) => a + (e.amount || 0), 0);
 
-      currentMonth += 1;
-      if (currentMonth > 12) {
-        currentMonth = 1;
-        currentYear += 1;
-      }
-      
       monthlyBreakdown.push({
-        month: monthStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-        monthIndex: currentDate.getMonth(),
-        year: currentDate.getFullYear(),
+        month: monthStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: tz }),
+        monthIndex: currentMonth - 1,
+        year: currentYear,
         revenue: monthRevenue,
         expenses: monthExpenseTotal,
         netRevenue: monthRevenue - monthExpenseTotal,
         orderCount: monthOrders.length,
         expenseCount: monthExpenses.length
       });
-      
-      currentDate.setMonth(currentDate.getMonth() + 1);
+
+      currentMonth += 1;
+      if (currentMonth > 12) {
+        currentMonth = 1;
+        currentYear += 1;
+      }
     }
     
     // Generate quarterly breakdown
