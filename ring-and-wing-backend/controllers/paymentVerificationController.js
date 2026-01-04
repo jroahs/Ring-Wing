@@ -516,8 +516,34 @@ exports.processPayMongoOrder = async (req, res) => {
       });
     }
 
-    // Verify this is a PayMongo order in the correct status
-    if (order.paymentMethod !== 'paymongo' || order.status !== 'paymongo_verified') {
+    // Must be a PayMongo order
+    if (order.paymentMethod !== 'paymongo') {
+      return res.status(400).json({
+        success: false,
+        message: 'Order is not a PayMongo order'
+      });
+    }
+
+    // If it already moved into the kitchen workflow, treat this as idempotent.
+    // This avoids scary errors when staff clicks "Process" twice or refreshes.
+    const alreadyProcessedStatuses = ['received', 'preparing', 'ready', 'completed'];
+    if (alreadyProcessedStatuses.includes(order.status)) {
+      return res.json({
+        success: true,
+        message: 'PayMongo order already processed',
+        data: {
+          orderId: order._id,
+          receiptNumber: order.receiptNumber,
+          status: order.status
+        }
+      });
+    }
+
+    // Verify payment is actually verified/paid.
+    // Some flows may set paymentGateway.status to 'paid' before status becomes 'paymongo_verified'.
+    const isPaidViaGateway = order.paymentGateway?.provider === 'paymongo' && order.paymentGateway?.status === 'paid';
+    const isVerifiedStatus = order.status === 'paymongo_verified';
+    if (!isPaidViaGateway && !isVerifiedStatus) {
       return res.status(400).json({
         success: false,
         message: 'Order is not a verified PayMongo order'
@@ -526,7 +552,6 @@ exports.processPayMongoOrder = async (req, res) => {
 
     // Move order to kitchen workflow
     order.status = 'received';
-    order.processedAt = new Date();
     order.processedBy = {
       userId: req.user._id || req.user.id,
       username: req.user.username || 'Staff',
@@ -543,7 +568,7 @@ exports.processPayMongoOrder = async (req, res) => {
         receiptNumber: order.receiptNumber,
         status: order.status,
         paymentMethod: order.paymentMethod,
-        processedAt: order.processedAt
+        processedAt: order.processedBy?.timestamp
       };
       
       io.emit('orderProcessed', eventData);
@@ -556,7 +581,7 @@ exports.processPayMongoOrder = async (req, res) => {
         orderId: order._id,
         receiptNumber: order.receiptNumber,
         status: order.status,
-        processedAt: order.processedAt
+        processedAt: order.processedBy?.timestamp
       }
     });
   } catch (error) {
