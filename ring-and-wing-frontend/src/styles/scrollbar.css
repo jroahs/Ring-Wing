@@ -247,7 +247,50 @@ html {
   box-shadow: 0 1px 4px rgba(133, 54, 25, 0.3);
 }
 
-/* Subtle scrollbar for POS menu - minimal and unobtrusive */
+/* Subtle scrollbar for POS and card containers - minimal and unobtrusive */
+.subtle-scrollbar {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(172,156,155,0.35) transparent; /* Firefox */
+  scrollbar-gutter: stable;
+}
+
+/* Minimal scroll indicator for hidden scrollbars - redesigned as a dot with chevron */
+.scroll-indicator {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: rgba(172,156,155,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.scroll-indicator::after {
+  content: '';
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid rgba(44, 29, 27, 0.6); /* subtle brown chevron */
+  transform: translateY(-1px);
+  opacity: 0.95;
+}
+
+.scroll-indicator:hover {
+  transform: translateY(-2px);
+  opacity: 1;
+}
+
+/* Slight pulse to draw attention without being distracting */
+@keyframes scrollPulse {
+  0% { transform: translateY(0); opacity: 0.9; }
+  50% { transform: translateY(-2px); opacity: 1; }
+  100% { transform: translateY(0); opacity: 0.9; }
+}
+
+.scroll-indicator { animation: scrollPulse 2.5s ease-in-out infinite; }
 .subtle-scrollbar::-webkit-scrollbar {
   width: 4px;
   height: 4px;
@@ -255,7 +298,17 @@ html {
 
 .subtle-scrollbar::-webkit-scrollbar-track {
   background: transparent;
-  border-radius: 4px;
+  border-radius: 6px;
+}
+
+.subtle-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(172,156,155,0.22);
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.02);
+}
+
+.subtle-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(172,156,155,0.38);
 }
 
 .subtle-scrollbar::-webkit-scrollbar-thumb {

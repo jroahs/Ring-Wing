@@ -25,6 +25,81 @@ const OrderSystem = () => {
   const [actionLoadingById, setActionLoadingById] = useState({});
   // Track flipped state per order id (supports flipping multiple cards)
   const [flippedById, setFlippedById] = useState({});
+
+  // Refs to measure scrollable areas for indicators
+  const frontScrollRefs = useRef({});
+  const backScrollRefs = useRef({});
+  const [frontHasScrollById, setFrontHasScrollById] = useState({});
+  const [backHasScrollById, setBackHasScrollById] = useState({});
+
+  const checkOverflowForEl = (el) => {
+    if (!el) return false;
+    return el.scrollHeight > (el.clientHeight + 1);
+  };
+
+  const overflowCheckTimerRef = useRef(null);
+
+  const scheduleCheckAllScrolls = (delay = 50) => {
+    if (overflowCheckTimerRef.current) return;
+    overflowCheckTimerRef.current = setTimeout(() => {
+      overflowCheckTimerRef.current = null;
+      checkAllScrolls();
+    }, delay);
+  };
+
+  const checkAllScrolls = () => {
+    // front
+    const newFront = {};
+    Object.entries(frontScrollRefs.current).forEach(([key, el]) => {
+      newFront[key] = checkOverflowForEl(el);
+    });
+    setFrontHasScrollById(prev => {
+      // shallow compare
+      const keys = new Set([...Object.keys(prev || {}), ...Object.keys(newFront)]);
+      let changed = false;
+      const next = { ...prev };
+      keys.forEach(k => {
+        if (prev[k] !== newFront[k]) {
+          next[k] = newFront[k];
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+
+    // back
+    const newBack = {};
+    Object.entries(backScrollRefs.current).forEach(([key, el]) => {
+      newBack[key] = checkOverflowForEl(el);
+    });
+    setBackHasScrollById(prev => {
+      const keys = new Set([...Object.keys(prev || {}), ...Object.keys(newBack)]);
+      let changed = false;
+      const next = { ...prev };
+      keys.forEach(k => {
+        if (prev[k] !== newBack[k]) {
+          next[k] = newBack[k];
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  };
+
+  useEffect(() => {
+    const onResize = () => scheduleCheckAllScrolls();
+    window.addEventListener('resize', onResize);
+    // also observe mutations (like orders loaded) by checking after a short delay
+    const id = setTimeout(() => scheduleCheckAllScrolls(), 120);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      clearTimeout(id);
+      if (overflowCheckTimerRef.current) {
+        clearTimeout(overflowCheckTimerRef.current);
+        overflowCheckTimerRef.current = null;
+      }
+    };
+  }, [orders]);
   
   // Enable multi-tab logout synchronization
   useMultiTabLogout();
@@ -633,7 +708,14 @@ const OrderSystem = () => {
                           <div className="border-t border-[#ac9c9b30] pt-3 mt-1" />
 
                           {/* Scrollable items area (only items scroll) */}
-                          <div className="space-y-2 md:space-y-3 flex-1 min-h-0 overflow-y-auto pr-1">
+                          <div
+                            ref={(el) => {
+                              if (el) frontScrollRefs.current[flipKey] = el; else delete frontScrollRefs.current[flipKey];
+                              // schedule measurement after ref set
+                              scheduleCheckAllScrolls();
+                            }}
+                            className="space-y-2 md:space-y-3 flex-1 min-h-0 overflow-y-auto pr-0 invisible-scrollbar"
+                          >
                             {order.items?.map((item, idx) => (
                               <div key={idx} className="flex justify-between items-center text-base md:text-lg">
                                 <div>
@@ -714,6 +796,13 @@ const OrderSystem = () => {
                             </div>
                           )}
                         </div>
+
+                        {/* scroll indicator (front) */}
+                        {frontHasScrollById[flipKey] && (
+                          <div className="absolute top-28 right-3 z-30 pointer-events-none">
+                            <div className="scroll-indicator" />
+                          </div>
+                        )}
                       </div>
 
                       {/* BACK (DETAILS ONLY) */}
@@ -730,7 +819,14 @@ const OrderSystem = () => {
                           </div>
                         </div>
 
-                        <div className="p-4 md:p-6 space-y-3 flex-1 overflow-y-auto">
+                        <div
+                          ref={(el) => {
+                            if (el) backScrollRefs.current[flipKey] = el; else delete backScrollRefs.current[flipKey];
+                            // schedule measurement after ref set
+                            scheduleCheckAllScrolls();
+                          }}
+                          className="p-4 md:p-6 space-y-3 flex-1 overflow-y-auto invisible-scrollbar"
+                        >
                           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-[#853619]">
                             <span><span className="font-semibold">Fulfillment:</span> {formatFulfillment(order.fulfillmentType)}</span>
                             <span><span className="font-semibold">Payment:</span> {formatPayment(order)}</span>
@@ -774,6 +870,13 @@ const OrderSystem = () => {
                             </div>
                           )}
                         </div>
+
+                        {/* scroll indicator (back) */}
+                        {backHasScrollById[flipKey] && (
+                          <div className="absolute top-28 right-3 z-30 pointer-events-none">
+                            <div className="scroll-indicator" />
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   </div>
