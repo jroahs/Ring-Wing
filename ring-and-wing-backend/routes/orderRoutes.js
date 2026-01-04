@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
 const Customer = require('../models/Customer');
+const CustomerAddress = require('../models/CustomerAddress');
 const { criticalCheck, standardCheck } = require('../middleware/dbConnectionMiddleware');
 const InventoryBusinessLogicService = require('../services/inventoryBusinessLogicService');
 const paymentVerificationController = require('../controllers/paymentVerificationController');
@@ -88,6 +89,33 @@ router.post('/', validateOrder, criticalCheck, async (req, res, next) => {
         } catch (e) {
           console.warn('[orderRoutes POST] Failed to derive customerName from customerId:', e.message);
         }
+      }
+    }
+
+    // Ensure deliveryAddress snapshot exists for delivery orders.
+    // Some clients may only send deliveryAddressId; snapshot is needed for staff views/receipts.
+    const isDelivery = String(orderData.fulfillmentType || '').toLowerCase() === 'delivery';
+    const hasSnapshotStreet = Boolean(orderData.deliveryAddress && String(orderData.deliveryAddress.street || '').trim());
+    if (isDelivery && orderData.deliveryAddressId && !hasSnapshotStreet) {
+      try {
+        const addr = await CustomerAddress.findById(orderData.deliveryAddressId).select(
+          'recipientName recipientPhone street barangay city province postalCode landmark deliveryNotes'
+        );
+        if (addr) {
+          orderData.deliveryAddress = {
+            recipientName: addr.recipientName,
+            recipientPhone: addr.recipientPhone,
+            street: addr.street,
+            barangay: addr.barangay,
+            city: addr.city,
+            province: addr.province,
+            postalCode: addr.postalCode,
+            landmark: addr.landmark,
+            deliveryNotes: addr.deliveryNotes
+          };
+        }
+      } catch (e) {
+        console.warn('[orderRoutes POST] Failed to backfill deliveryAddress from deliveryAddressId:', e.message);
       }
     }
 
@@ -479,7 +507,7 @@ router.put('/:id/reject-payment', auth, criticalCheck, paymentVerificationContro
 router.get('/:id', standardCheck, async (req, res, next) => {
   try {
     const { id } = req.params;
-    const order = await Order.findById(id);
+    const order = await Order.findById(id).populate('deliveryAddressId');
     
     if (!order) {
       return res.status(404).json({
@@ -488,9 +516,29 @@ router.get('/:id', standardCheck, async (req, res, next) => {
       });
     }
     
+    const orderObj = order.toObject();
+
+    // Backfill deliveryAddress snapshot from populated deliveryAddressId when missing.
+    const isDelivery = String(orderObj.fulfillmentType || '').toLowerCase() === 'delivery';
+    const hasSnapshotStreet = Boolean(orderObj.deliveryAddress && String(orderObj.deliveryAddress.street || '').trim());
+    if (isDelivery && orderObj.deliveryAddressId && !hasSnapshotStreet) {
+      const addr = orderObj.deliveryAddressId;
+      orderObj.deliveryAddress = {
+        recipientName: addr.recipientName,
+        recipientPhone: addr.recipientPhone,
+        street: addr.street,
+        barangay: addr.barangay,
+        city: addr.city,
+        province: addr.province,
+        postalCode: addr.postalCode,
+        landmark: addr.landmark,
+        deliveryNotes: addr.deliveryNotes
+      };
+    }
+
     res.json({
       success: true,
-      data: order
+      data: orderObj
     });
   } catch (error) {
     console.error('Error fetching order:', error);

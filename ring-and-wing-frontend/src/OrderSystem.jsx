@@ -21,7 +21,10 @@ const OrderSystem = () => {
   const searchInputRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [actionLoading, setActionLoading] = useState(null); // Track which order action is loading
+  // Track loading per order id so multiple updates can run concurrently
+  const [actionLoadingById, setActionLoadingById] = useState({});
+  // Track flipped state per order id (supports flipping multiple cards)
+  const [flippedById, setFlippedById] = useState({});
   
   // Enable multi-tab logout synchronization
   useMultiTabLogout();
@@ -248,7 +251,7 @@ const OrderSystem = () => {
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
-      setActionLoading(orderId); // Show loading spinner for this order
+      setActionLoadingById(prev => ({ ...prev, [orderId]: true }));
       const response = await fetch(`${API_URL}/api/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -261,11 +264,11 @@ const OrderSystem = () => {
       }
 
       const { data } = await response.json();
-      setOrders(orders.map(order => 
-        order.id === data._id ? { 
-          ...order, 
+      setOrders(prev => prev.map(order =>
+        order.id === data._id ? {
+          ...order,
           status: data.status,
-          updatedAt: new Date(data.updatedAt),
+          updatedAt: data.updatedAt ? new Date(data.updatedAt) : order.updatedAt,
           ...(data.completedAt && { completedAt: new Date(data.completedAt) })
         } : order
       ));
@@ -273,8 +276,68 @@ const OrderSystem = () => {
       console.error('Update error:', error);
       alert(`Status update failed: ${error.message}`);
     } finally {
-      setActionLoading(null); // Hide loading spinner
+      setActionLoadingById(prev => {
+        const next = { ...prev };
+        delete next[orderId];
+        return next;
+      });
     }
+  };
+
+  const fetchOrderDetails = async (orderId) => {
+    try {
+      const response = await fetch(`${API_URL}/api/orders/${orderId}`);
+      if (!response.ok) return;
+      const json = await response.json();
+      if (!json?.success || !json?.data) return;
+      const data = json.data;
+      setOrders(prev => prev.map(order => {
+        const existingId = order.id || order._id;
+        if (existingId !== data._id) return order;
+        return {
+          ...order,
+          ...data,
+          id: data._id,
+          createdAt: data.createdAt ? new Date(data.createdAt) : order.createdAt,
+          updatedAt: data.updatedAt ? new Date(data.updatedAt) : order.updatedAt,
+          completedAt: data.completedAt ? new Date(data.completedAt) : order.completedAt
+        };
+      }));
+    } catch (e) {
+      // Silent by design (no extra UI)
+      console.warn('[OrderSystem] Failed to fetch order details:', e.message);
+    }
+  };
+
+  const toggleFlipped = (orderId, order) => {
+    setFlippedById(prev => ({ ...prev, [orderId]: !prev[orderId] }));
+
+    // If flipping to details and delivery address snapshot is missing, fetch full details
+    const isDelivery = String(order?.fulfillmentType || '').toLowerCase() === 'delivery';
+    const hasSnapshotStreet = Boolean(order?.deliveryAddress?.street && String(order.deliveryAddress.street).trim());
+    if (isDelivery && !hasSnapshotStreet) {
+      fetchOrderDetails(orderId);
+    }
+  };
+
+  const formatFulfillment = (value) => {
+    const map = {
+      dine_in: 'Dine-in',
+      takeout: 'Takeout',
+      delivery: 'Delivery'
+    };
+    return map[value] || value || '—';
+  };
+
+  const formatPayment = (order) => {
+    if (!order?.paymentMethod) return '—';
+    if (order.paymentMethod === 'e-wallet') {
+      const provider = order.paymentDetails?.eWalletProvider;
+      return provider ? `E-wallet (${provider})` : 'E-wallet';
+    }
+    if (order.paymentMethod === 'paymongo') return 'PayMongo';
+    if (order.paymentMethod === 'cash') return 'Cash';
+    return order.paymentMethod;
   };
 
   const formatPHP = (value) => 
@@ -508,112 +571,213 @@ const OrderSystem = () => {
           {/* Orders Grid */}
           <section className="orders-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 mb-6">
             {currentOrders.map(order => (
+                (() => {
+                  const orderId = order.id || order._id;
+                  const isFlipped = Boolean(orderId) && Boolean(flippedById[orderId]);
+                  const isActionLoading = Boolean(orderId) && actionLoadingById[orderId];
+
+                  return (
                 <div 
-                  key={order.id} 
-                  className="bg-white rounded-xl md:rounded-2xl shadow-md hover:shadow-lg transition-all"
+                  key={orderId || order.receiptNumber} 
+                  className="bg-white rounded-xl md:rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer"
+                  onClick={() => orderId && toggleFlipped(orderId, order)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (orderId) toggleFlipped(orderId, order);
+                    }
+                  }}
                 >
-                  <div className={`p-4 md:p-6 border-b-4 ${
-                    order.status === 'received' ? 'border-[#f1670f30]' :
-                    order.status === 'preparing' ? 'border-[#f1670f50]' :
-                    order.status === 'ready' ? 'border-[#f1670f]' :
-                    'border-transparent'
-                  }`}>
-                    <div className="flex justify-between items-center mb-3 md:mb-4">
-                      <div className="flex flex-col">
-                        <h2 className="font-bold text-lg md:text-xl text-[#2e0304]">
-                          Order #{order.receiptNumber}
-                        </h2>
-                        {order.orderType && order.orderType !== 'pos' && order.orderType !== 'chatbot' && (
-                          <span className={`text-xs px-2 py-1 rounded-full inline-flex items-center w-fit ${
-                            order.orderType === 'self_checkout' 
-                              ? 'bg-[#fbbf2420] text-[#b45309]'
-                              : 'bg-[#f1670f20] text-[#f1670f]'
-                          }`}>
-                            {order.orderType === 'self_checkout' ? 'Self Checkout' : order.orderType}
-                          </span>
-                        )}
+                  <div style={{ perspective: 1200 }}>
+                    <motion.div
+                      className="relative"
+                      animate={{ rotateY: isFlipped ? 180 : 0 }}
+                      transition={{ duration: 0.35 }}
+                      style={{ transformStyle: 'preserve-3d' }}
+                    >
+                      {/* FRONT */}
+                      <div
+                        style={{ backfaceVisibility: 'hidden' }}
+                        className="bg-white rounded-xl md:rounded-2xl"
+                      >
+                        <div className={`p-4 md:p-6 border-b-4 ${
+                          order.status === 'received' ? 'border-[#f1670f30]' :
+                          order.status === 'preparing' ? 'border-[#f1670f50]' :
+                          order.status === 'ready' ? 'border-[#f1670f]' :
+                          'border-transparent'
+                        }`}>
+                          <div className="flex justify-between items-center mb-3 md:mb-4">
+                            <div className="flex flex-col">
+                              <h2 className="font-bold text-lg md:text-xl text-[#2e0304]">
+                                Order #{order.receiptNumber}
+                              </h2>
+                              {order.orderType && order.orderType !== 'pos' && order.orderType !== 'chatbot' && (
+                                <span className={`text-xs px-2 py-1 rounded-full inline-flex items-center w-fit ${
+                                  order.orderType === 'self_checkout' 
+                                    ? 'bg-[#fbbf2420] text-[#b45309]'
+                                    : 'bg-[#f1670f20] text-[#f1670f]'
+                                }`}>
+                                  {order.orderType === 'self_checkout' ? 'Self Checkout' : order.orderType}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-sm md:text-base px-3 md:px-4 py-1 md:py-2 rounded-full bg-[#85361910] text-[#853619]">
+                              {order.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <div className="space-y-2 md:space-y-3">
+                            {order.items?.map((item, idx) => (
+                              <div key={idx} className="flex justify-between items-center text-base md:text-lg">
+                                <div>
+                                  <span className="font-medium text-[#2e0304]">{item.quantity}x </span>
+                                  <span className="text-[#853619]">{item.name}</span>
+                                  {item.selectedSize && (
+                                    <span className="block text-xs md:text-sm text-[#ac9c9b]">
+                                      ({item.selectedSize})
+                                    </span>
+                                  )}
+                                  {item.notes && (
+                                    <span className="block text-xs md:text-sm text-amber-600 bg-amber-50 px-2 py-0.5 rounded mt-1">
+                                      📝 {item.notes}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[#2e0304]">{formatPHP(item.price)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+                          <div className="flex justify-between items-center text-xl md:text-2xl font-bold text-[#2e0304]">
+                            <span>Total:</span>
+                            <span>{formatPHP(order.totals.total)}</span>
+                          </div>
+
+                          {order.status !== 'completed' && (
+                            <div className="relative">
+                              {/* Loading overlay */}
+                              {isActionLoading && (
+                                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-lg flex items-center justify-center z-20">
+                                  <div className="flex flex-col items-center gap-2">
+                                    <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-300 border-t-[#f1670f]"></div>
+                                    <p className="text-sm text-[#853619] font-medium">Processing...</p>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Action buttons */}
+                              <div className={`flex gap-2 md:gap-3 flex-wrap transition-opacity duration-200 ${isActionLoading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+                                {(() => {
+                                  switch(order.status) {
+                                    case 'received': return ['preparing', 'completed'];
+                                    case 'preparing': return ['ready', 'completed'];
+                                    case 'ready': return ['completed'];
+                                    default: return [];
+                                  }
+                                })().map(status => (
+                                  <button
+                                    key={status}
+                                    disabled={isActionLoading || !orderId}
+                                    className="text-sm md:text-base px-4 md:px-6 py-1 md:py-2 rounded-full transition-colors bg-[#85361910] text-[#853619] hover:bg-[#f1670f20] disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!orderId) return;
+                                      updateOrderStatus(orderId, status);
+                                    }}
+                                  >
+                                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {order.status === 'completed' && order.completedAt && (
+                            <div className="flex items-center gap-2 text-sm md:text-base text-[#853619]">
+                              <FiClock className="flex-shrink-0" />
+                              <span>
+                                Completed at {order.completedAt.toLocaleTimeString([], { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit' 
+                                })}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <span className="text-sm md:text-base px-3 md:px-4 py-1 md:py-2 rounded-full bg-[#85361910] text-[#853619]">
-                        {order.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                    <div className="space-y-2 md:space-y-3">
-                      {order.items?.map((item, idx) => (
-                        <div key={idx} className="flex justify-between items-center text-base md:text-lg">
-                          <div>
-                            <span className="font-medium text-[#2e0304]">{item.quantity}x </span>
-                            <span className="text-[#853619]">{item.name}</span>
-                            {item.selectedSize && (
-                              <span className="block text-xs md:text-sm text-[#ac9c9b]">
-                                ({item.selectedSize})
-                              </span>
-                            )}
-                            {item.notes && (
-                              <span className="block text-xs md:text-sm text-amber-600 bg-amber-50 px-2 py-0.5 rounded mt-1">
-                                📝 {item.notes}
-                              </span>
+
+                      {/* BACK (DETAILS ONLY) */}
+                      <div
+                        className="absolute inset-0 bg-white rounded-xl md:rounded-2xl"
+                        style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden' }}
+                      >
+                        <div className={`p-4 md:p-6 border-b-4 ${
+                          order.status === 'received' ? 'border-[#f1670f30]' :
+                          order.status === 'preparing' ? 'border-[#f1670f50]' :
+                          order.status === 'ready' ? 'border-[#f1670f]' :
+                          'border-transparent'
+                        }`}>
+                          <div className="flex justify-between items-center">
+                            <h2 className="font-bold text-lg md:text-xl text-[#2e0304]">
+                              Order #{order.receiptNumber}
+                            </h2>
+                            <span className="text-xs text-[#ac9c9b]">Click to flip back</span>
+                          </div>
+                        </div>
+
+                        <div className="p-4 md:p-6 space-y-3">
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-[#853619]">
+                            <span><span className="font-semibold">Fulfillment:</span> {formatFulfillment(order.fulfillmentType)}</span>
+                            <span><span className="font-semibold">Payment:</span> {formatPayment(order)}</span>
+                            {order.processedBy?.username && (
+                              <span><span className="font-semibold">Processed by:</span> {order.processedBy.username}</span>
                             )}
                           </div>
-                          <span className="text-[#2e0304]">{formatPHP(item.price)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
 
-                  <div className="p-4 md:p-6 space-y-4 md:space-y-6">
-                    <div className="flex justify-between items-center text-xl md:text-2xl font-bold text-[#2e0304]">
-                      <span>Total:</span>
-                      <span>{formatPHP(order.totals.total)}</span>
-                    </div>
-
-                    {order.status !== 'completed' && (
-                      <div className="relative">
-                        {/* Loading overlay */}
-                        {actionLoading === order.id && (
-                          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-lg flex items-center justify-center z-20">
-                            <div className="flex flex-col items-center gap-2">
-                              <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-300 border-t-[#f1670f]"></div>
-                              <p className="text-sm text-[#853619] font-medium">Processing...</p>
+                          <div className="text-sm">
+                            <div className="font-semibold text-[#2e0304]">Customer</div>
+                            <div className="text-[#853619]">
+                              {(order.customerName || order.customerDetails?.name) ? (order.customerName || order.customerDetails?.name) : 'No name'}
+                              {order.customerDetails?.phone ? ` • ${order.customerDetails.phone}` : ''}
+                              {order.customerDetails?.email ? ` • ${order.customerDetails.email}` : ''}
                             </div>
                           </div>
-                        )}
-                        
-                        {/* Action buttons */}
-                        <div className={`flex gap-2 md:gap-3 flex-wrap transition-opacity duration-200 ${actionLoading === order.id ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
-                          {(() => {
-                            switch(order.status) {
-                              case 'received': return ['preparing', 'completed'];
-                              case 'preparing': return ['ready', 'completed'];
-                              case 'ready': return ['completed'];
-                              default: return [];
-                            }
-                          })().map(status => (
-                            <button
-                              key={status}
-                              disabled={actionLoading === order.id}
-                              className="text-sm md:text-base px-4 md:px-6 py-1 md:py-2 rounded-full transition-colors bg-[#85361910] text-[#853619] hover:bg-[#f1670f20] disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed"
-                              onClick={() => updateOrderStatus(order.id, status)}
-                            >
-                              {status.charAt(0).toUpperCase() + status.slice(1)}
-                            </button>
-                          ))}
+
+                          {order.fulfillmentType === 'delivery' && (
+                            <div className="text-sm">
+                              <div className="font-semibold text-[#2e0304]">Delivery Address</div>
+                              {order.deliveryAddress?.street ? (
+                                <div className="text-[#853619]">
+                                  {order.deliveryAddress.recipientName ? `${order.deliveryAddress.recipientName} • ` : ''}
+                                  {order.deliveryAddress.recipientPhone ? `${order.deliveryAddress.recipientPhone}` : ''}
+                                  <div>
+                                    {order.deliveryAddress.street}{order.deliveryAddress.barangay ? `, ${order.deliveryAddress.barangay}` : ''}
+                                    {order.deliveryAddress.city ? `, ${order.deliveryAddress.city}` : ''}
+                                    {order.deliveryAddress.province ? `, ${order.deliveryAddress.province}` : ''}
+                                    {order.deliveryAddress.postalCode ? ` ${order.deliveryAddress.postalCode}` : ''}
+                                  </div>
+                                  {order.deliveryAddress.landmark && (
+                                    <div className="text-[#ac9c9b]">Landmark: {order.deliveryAddress.landmark}</div>
+                                  )}
+                                  {order.deliveryAddress.deliveryNotes && (
+                                    <div className="text-[#ac9c9b]">Notes: {order.deliveryAddress.deliveryNotes}</div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="text-[#ac9c9b]">No delivery address on file.</div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
-                    )}
-
-                    {order.status === 'completed' && order.completedAt && (
-                      <div className="flex items-center gap-2 text-sm md:text-base text-[#853619]">
-                        <FiClock className="flex-shrink-0" />
-                        <span>
-                          Completed at {order.completedAt.toLocaleTimeString([], { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
-                        </span>
-                      </div>
-                    )}
+                    </motion.div>
                   </div>
                 </div>
+                  );
+                })()
               ))}
           </section>
 
