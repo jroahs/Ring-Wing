@@ -1143,8 +1143,9 @@ export const generateExpenseReportPDF = ({ expenses = [], filters = {}, periodLa
   let y = margin;
   let pageNum = 1;
 
+  // PDF compatibility: use 'P' instead of '₱'
   const formatCurrency = (value) => {
-    return `PHP ${Number(value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `P${Number(value || 0).toFixed(2)}`;
   };
 
   const formatDate = (dateString) => {
@@ -1284,7 +1285,7 @@ export const generateExpenseReportPDF = ({ expenses = [], filters = {}, periodLa
       date: formatDate(e?.date),
       category: (e?.category || '').toString(),
       paymentMethod: (e?.paymentMethod || '—').toString(),
-      amount: formatCurrency(e?.amount).replace('PHP ', '₱'),
+      amount: formatCurrency(e?.amount),
       status: (e?.status || (e?.disbursed ? 'paid' : 'pending')).toString(),
       description: (e?.description || '').toString()
     };

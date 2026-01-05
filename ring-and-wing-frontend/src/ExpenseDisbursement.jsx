@@ -465,25 +465,37 @@ const ExpenseTracker = ({ colors }) => {
   const getMonthRange = (yyyyMm) => {
     if (!yyyyMm || !/^\d{4}-\d{2}$/.test(yyyyMm)) return { start: '', end: '' };
     const [yearStr, monthStr] = yyyyMm.split('-');
-    const year = Number(yearStr);
-    const monthIndex = Number(monthStr) - 1;
     const start = `${yearStr}-${monthStr}-01`;
-    const endDate = getLastDayOfMonth(year, monthIndex);
-    const end = businessDateKey(endDate);
+    // Avoid timezone-related shifts by computing the last day number only.
+    const lastDay = new Date(Number(yearStr), Number(monthStr), 0).getDate();
+    const end = `${yearStr}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
     return { start, end };
   };
 
   const fetchExpensesForExport = async ({ start, end, category, paymentStatus, search }) => {
     const params = new URLSearchParams();
     if (search) params.append('search', search);
-    if (start) params.append('startDate', start);
-    if (end) params.append('endDate', end);
+
+    const toManilaStartIso = (dateKey) => {
+      if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return dateKey;
+      return `${dateKey}T00:00:00.000+08:00`;
+    };
+    const toManilaEndIso = (dateKey) => {
+      if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return dateKey;
+      return `${dateKey}T23:59:59.999+08:00`;
+    };
+
+    if (start) params.append('startDate', toManilaStartIso(start));
+    if (end) params.append('endDate', toManilaEndIso(end));
     if (category && category !== 'All') params.append('category', category);
 
     if (paymentStatus === 'Paid') params.append('disbursed', 'true');
     if (paymentStatus === 'Pending') params.append('disbursed', 'false');
 
-    const response = await fetch(`${API_URL}/api/expenses?${params.toString()}`, {
+    const queryString = params.toString();
+    console.log('[ExportPDF] /api/expenses query:', queryString);
+
+    const response = await fetch(`${API_URL}/api/expenses?${queryString}`, {
       headers: getAuthHeaders()
     });
 
