@@ -160,7 +160,38 @@ router.get('/', auth, async (req, res) => {
       ];
     }
 
-    const expenses = await Expense.find(filter).sort('-date');
+    // If date filters are present, use an aggregation pipeline that safely coerces `date`
+    // (some legacy docs may store it as a string). This avoids empty exports due to type mismatch.
+    const dateFilter = filter.date;
+    if (dateFilter) delete filter.date;
+
+    let expenses;
+    if (dateFilter) {
+      expenses = await Expense.aggregate([
+        {
+          $addFields: {
+            __date: {
+              $convert: {
+                input: '$date',
+                to: 'date',
+                onError: null,
+                onNull: null
+              }
+            }
+          }
+        },
+        {
+          $match: {
+            ...filter,
+            __date: dateFilter
+          }
+        },
+        { $sort: { __date: -1 } },
+        { $project: { __date: 0 } }
+      ]);
+    } else {
+      expenses = await Expense.find(filter).sort('-date');
+    }
     res.json({
       success: true,
       data: expenses
