@@ -570,28 +570,13 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
             <FiShield size={11} className="text-white opacity-90 mr-1.5" />
             <span className="text-xs text-white opacity-90 capitalize font-medium">{userRole}</span>
           </div>
-        </div>          {/* Navigation Links */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-y-1 py-3 px-2 nav-scrollbar">
-          <style jsx>{`
-            .nav-scrollbar::-webkit-scrollbar {
-              width: 4px;
-            }
-            .nav-scrollbar::-webkit-scrollbar-track {
-              background: transparent;
-            }
-            .nav-scrollbar::-webkit-scrollbar-thumb {
-              background: rgba(255, 255, 255, 0.2);
-              border-radius: 10px;
-            }
-            .nav-scrollbar::-webkit-scrollbar-thumb:hover {
-              background: rgba(255, 255, 255, 0.4);
-            }
-            /* For Firefox */
-            .nav-scrollbar {
-              scrollbar-width: thin;
-              scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-            }
-          `}</style>
+        </div>
+          {/* Navigation Links */}
+        <nav
+          className={`flex-1 overflow-x-hidden flex flex-col gap-y-1 py-3 px-2 ${
+            isTablet ? 'overflow-y-hidden' : 'overflow-y-auto'
+          }`}
+        >
           {allowedNavigationItems.map((item, index) => (
             <motion.div 
               key={item.path} 

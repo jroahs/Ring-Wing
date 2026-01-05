@@ -4,10 +4,11 @@ import { FiCheck, FiClock, FiCreditCard, FiUser, FiX } from 'react-icons/fi';
 import { Modal } from './ui';
 import api from '../services/apiService';
 import { theme } from '../theme';
+import { toast } from 'react-toastify';
 
-const padStartOfTodayIso = () => {
+const isoDaysAgo = (days) => {
   const d = new Date();
-  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - days);
   return d.toISOString();
 };
 
@@ -93,10 +94,9 @@ const QuickTimeClockModal = ({ isOpen, onClose }) => {
   }, [isOpen]);
 
   const fetchLastLogType = useCallback(async (staffId) => {
-    const startDate = padStartOfTodayIso();
-    const endDate = new Date().toISOString();
-    const params = new URLSearchParams({ startDate, endDate }).toString();
-    const res = await api.get(`/api/time-logs/staff/${staffId}?${params}`);
+    // Fetch latest log overall to mirror backend "already clocked in" logic.
+    // This avoids false "clock in" attempts when the last log was yesterday.
+    const res = await api.get(`/api/time-logs/staff/${staffId}`);
     const logs = res.data?.data || [];
     const last = logs[0];
     return last?.type || null; // 'clockIn' | 'clockOut'
@@ -143,6 +143,14 @@ const QuickTimeClockModal = ({ isOpen, onClose }) => {
       }
 
       await doClock({ staffId: s._id, action });
+
+      toast.dismiss(`quick-timeclock-${s._id}`);
+      toast.success(`${s.name} clocked ${action === 'in' ? 'in' : 'out'} successfully`, {
+        toastId: `quick-timeclock-${s._id}`,
+        position: 'top-right',
+        autoClose: 2500
+      });
+
       setLoading(false);
       setTimeout(() => onClose(), 800);
     } catch (err) {
@@ -166,6 +174,14 @@ const QuickTimeClockModal = ({ isOpen, onClose }) => {
     setLoading(true);
     try {
       await doClock({ staffId: staff._id, action: clockAction, photoBase64: capturedImage });
+
+      toast.dismiss(`quick-timeclock-${staff._id}`);
+      toast.success(`${staff.name} clocked ${clockAction === 'in' ? 'in' : 'out'} successfully`, {
+        toastId: `quick-timeclock-${staff._id}`,
+        position: 'top-right',
+        autoClose: 2500
+      });
+
       setLoading(false);
       setTimeout(() => onClose(), 800);
     } catch (err) {

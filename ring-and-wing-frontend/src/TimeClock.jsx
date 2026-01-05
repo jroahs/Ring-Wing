@@ -248,23 +248,10 @@ const TimeClock = ({ embedded = false }) => {
 
   const fetchLastTimeLog = async (staffId) => {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const params = new URLSearchParams({ 
-        startDate: today.toISOString(),
-        endDate: new Date().toISOString()
-      }).toString();
-
-      // Add authorization token to the request
-      const token = localStorage.getItem('authToken');
-      const config = {
-        headers: { 
-          'Authorization': token ? `Bearer ${token}` : ''
-        }
-      };
-
-      const { data } = await api.get(`/api/time-logs/staff/${staffId}?${params}`, config);
+      // IMPORTANT:
+      // Do NOT limit to "today". Backend determines "already clocked in"
+      // based on the most recent log overall, so we must mirror that.
+      const { data } = await api.get(`/api/time-logs/staff/${staffId}`);
       
       if (data?.data?.length > 0) {
         const formattedTimestamp = formatDateTime(data.data[0].timestamp || data.data[0].createdAt);
@@ -293,14 +280,7 @@ const TimeClock = ({ embedded = false }) => {
         endDate: endDate.toISOString()
       }).toString();
 
-      const token = localStorage.getItem('authToken');
-      const config = {
-        headers: { 
-          'Authorization': token ? `Bearer ${token}` : ''
-        }
-      };
-
-      const { data } = await api.get(`/api/time-logs/staff/${staffId}?${params}`, config);
+      const { data } = await api.get(`/api/time-logs/staff/${staffId}?${params}`);
       
       if (data?.data?.length > 0) {
         setRecentActivities(data.data.slice(0, 10)); // Get last 10 activities
@@ -395,7 +375,7 @@ const TimeClock = ({ embedded = false }) => {
       formData.append('photo', photoFile);
       
       // Add authorization headers
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
       const config = {
         headers: { 
           'Content-Type': 'multipart/form-data',
@@ -464,7 +444,7 @@ const TimeClock = ({ embedded = false }) => {
         ? '/api/time-logs/nfc/clock-in' 
         : '/api/time-logs/nfc/clock-out';
       
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
       const config = {
         headers: { 
           'Authorization': token ? `Bearer ${token}` : ''
@@ -1663,11 +1643,16 @@ const TimeClock = ({ embedded = false }) => {
                                           transition={{ delay: 0.2 }}
                                         >
                                           <motion.img 
-                                            src={`${API_URL}/public/${lastLog.photo}`}
+                                            src={
+                                              typeof lastLog.photo === 'string' && /^https?:\/\//i.test(lastLog.photo)
+                                                ? lastLog.photo
+                                                : `${API_URL}/public/${lastLog.photo}`
+                                            }
                                             alt="" 
                                             className="h-16 w-16 object-cover rounded"
                                             onError={(e) => {
-                                              e.target.src = 'https://via.placeholder.com/80x80?text=No+Image';
+                                              e.target.src =
+                                                'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="80"%3E%3Crect fill="%23f0f0f0" width="80" height="80"/%3E%3Ctext fill="%23999" font-family="Arial" font-size="10" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
                                             }}
                                             whileHover={{ scale: 1.1 }}
                                           />
