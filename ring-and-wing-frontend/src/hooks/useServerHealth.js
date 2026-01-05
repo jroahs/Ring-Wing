@@ -26,7 +26,7 @@ export const useServerHealth = (options = {}) => {
   const {
     autoCheck = true,
     coldStartTimeout = 5000,
-    maxRetries = 5,
+    maxRetries = 40,
     retryDelay = 3000,
     minOverlayDisplayTime = 2000 // Minimum time to show overlay to prevent flashing
   } = options;
@@ -41,6 +41,9 @@ export const useServerHealth = (options = {}) => {
   const coldStartDisplayTimeoutRef = useRef(null);
   const coldStartStartTimeRef = useRef(null);
   const retryCountRef = useRef(0);
+  const wakeAbortControllerRef = useRef(null);
+  const wakeTimeoutRef = useRef(null);
+  const wakeInFlightRef = useRef(false);
 
   /**
    * Clean up any pending requests or timeouts
@@ -50,6 +53,10 @@ export const useServerHealth = (options = {}) => {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
+    if (wakeAbortControllerRef.current) {
+      wakeAbortControllerRef.current.abort();
+      wakeAbortControllerRef.current = null;
+    }
     if (retryTimeoutRef.current) {
       clearTimeout(retryTimeoutRef.current);
       retryTimeoutRef.current = null;
@@ -58,6 +65,11 @@ export const useServerHealth = (options = {}) => {
       clearTimeout(coldStartDisplayTimeoutRef.current);
       coldStartDisplayTimeoutRef.current = null;
     }
+    if (wakeTimeoutRef.current) {
+      clearTimeout(wakeTimeoutRef.current);
+      wakeTimeoutRef.current = null;
+    }
+    wakeInFlightRef.current = false;
   }, []);
 
   // Debounce cold start state to prevent flashing
@@ -171,9 +183,54 @@ export const useServerHealth = (options = {}) => {
         message.includes('networkerror') ||
         message.includes('network');
 
-      if (isTimeoutOrNetwork && retryCount < maxRetries) {
+      // IMPORTANT: use retryCountRef to avoid stale state closures causing infinite retry loops.
+      const currentRetryCount = retryCountRef.current;
+
+      // Fire a separate wake request (longer timeout) so Render has time to spin up.
+      // Our normal health check aborts quickly to detect cold starts promptly.
+      const triggerWake = () => {
+        if (wakeInFlightRef.current) return;
+        wakeInFlightRef.current = true;
+
+        const controller = new AbortController();
+        wakeAbortControllerRef.current = controller;
+
+        // Let the wake request run longer than the detection timeout.
+        // Render cold starts can take ~30-90 seconds.
+        wakeTimeoutRef.current = setTimeout(() => {
+          try {
+            controller.abort();
+          } catch {
+            // ignore
+          }
+          wakeAbortControllerRef.current = null;
+          wakeTimeoutRef.current = null;
+          wakeInFlightRef.current = false;
+        }, 90_000);
+
+        // Hit both the service root and health endpoint; either one should wake the instance.
+        Promise.resolve()
+          .then(() => fetch(`${API_URL}/`, { method: 'GET', signal: controller.signal, cache: 'no-store', keepalive: true }))
+          .catch(() => {})
+          .then(() => fetch(`${API_URL}/api/health`, { method: 'GET', signal: controller.signal, cache: 'no-store', keepalive: true }))
+          .catch(() => {})
+          .finally(() => {
+            // If the timeout hasn't fired yet, clear it now.
+            if (wakeTimeoutRef.current) {
+              clearTimeout(wakeTimeoutRef.current);
+              wakeTimeoutRef.current = null;
+            }
+            wakeAbortControllerRef.current = null;
+            wakeInFlightRef.current = false;
+          });
+      };
+
+      if (isTimeoutOrNetwork && currentRetryCount < maxRetries) {
         setServerStatus('cold-starting');
-        const newRetryCount = retryCountRef.current + 1;
+        if (currentRetryCount === 0) {
+          triggerWake();
+        }
+        const newRetryCount = currentRetryCount + 1;
         retryCountRef.current = newRetryCount;
         setRetryCount(newRetryCount);
         

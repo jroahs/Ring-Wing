@@ -119,78 +119,83 @@ const ColdStartOverlay = ({
     <AnimatePresence>
       {isVisible && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-          style={{ backgroundColor: 'rgba(46, 3, 4, 0.97)' }}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 8 }}
+          transition={{ duration: 0.2 }}
+          className="fixed bottom-4 right-4 z-50 w-[360px] max-w-[calc(100vw-2rem)]"
         >
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
+            initial={{ scale: 0.98, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            transition={{ delay: 0.1, duration: 0.3 }}
-            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center"
+            exit={{ scale: 0.98, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="bg-white rounded-xl shadow-xl border border-gray-100 p-4"
           >
             {/* Logo/Brand */}
             <h1 
-              className="text-2xl font-bold mb-6"
+              className="text-base font-bold mb-2"
               style={{ color: colors.primary }}
             >
               Ring & Wings
             </h1>
 
             {/* Loading Animation */}
-            <div className="flex justify-center mb-6">
-              <LoadingRing />
-            </div>
-
-            {/* Status Message */}
-            <div className="mb-4">
-              <h2 
-                className="text-lg font-semibold mb-2 flex items-center justify-center"
-                style={{ color: colors.primary }}
-              >
-                <ServerIcon />
-                Waking Up the Kitchen...
-              </h2>
-              <p 
-                className="text-sm"
-                style={{ color: colors.secondary }}
-              >
-                {estimatedWaitTime 
-                  ? `This may take up to ${estimatedWaitTime} seconds.`
-                  : 'This may take up to 2 minutes.'}
-              </p>
-              <p 
-                className="text-sm mt-1"
-                style={{ color: colors.muted }}
-              >
-                Thank you for your patience!
-              </p>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="mb-6">
-              <div 
-                className="h-2 rounded-full overflow-hidden"
-                style={{ backgroundColor: `${colors.accent}20` }}
-              >
-                <motion.div
-                  className="h-full rounded-full"
-                  style={{ backgroundColor: colors.accent }}
-                  initial={{ width: '0%' }}
-                  animate={{ width: `${Math.max(progress, 10)}%` }}
-                  transition={{ duration: 0.5 }}
-                />
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <div className="scale-75 origin-top-left">
+                  <LoadingRing />
+                </div>
               </div>
-              <p 
-                className="text-xs mt-2"
-                style={{ color: colors.muted }}
-              >
-                Attempt {retryCount} of {maxRetries}
-              </p>
+
+              <div className="flex-1 min-w-0">
+                {/* Status Message */}
+                <div className="mb-3">
+                  <h2 
+                    className="text-sm font-semibold mb-1 flex items-center"
+                    style={{ color: colors.primary }}
+                  >
+                    <ServerIcon />
+                    Waking Up the Kitchen...
+                  </h2>
+                  <p 
+                    className="text-xs"
+                    style={{ color: colors.secondary }}
+                  >
+                    {estimatedWaitTime 
+                      ? `This may take up to ${estimatedWaitTime} seconds.`
+                      : 'This may take up to 2 minutes.'}
+                  </p>
+                  <p 
+                    className="text-xs mt-0.5"
+                    style={{ color: colors.muted }}
+                  >
+                    You can keep using the app while it starts.
+                  </p>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="mb-3">
+                  <div 
+                    className="h-2 rounded-full overflow-hidden"
+                    style={{ backgroundColor: `${colors.accent}20` }}
+                  >
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{ backgroundColor: colors.accent }}
+                      initial={{ width: '0%' }}
+                      animate={{ width: `${Math.max(progress, 10)}%` }}
+                      transition={{ duration: 0.5 }}
+                    />
+                  </div>
+                  <p 
+                    className="text-[11px] mt-1"
+                    style={{ color: colors.muted }}
+                  >
+                    Attempt {Math.min(retryCount, maxRetries)} of {maxRetries}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Tip Box */}
