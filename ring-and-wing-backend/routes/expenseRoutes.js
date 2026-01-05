@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Expense = require('../models/expense');
+const ExpenseAuditLogService = require('../services/expenseAuditLogService');
 const { auth } = require('../middleware/authMiddleware');
 const { getBusinessDayRangeUtc } = require('../utils/businessTime');
 
@@ -24,10 +25,10 @@ router.post('/', auth, async (req, res) => {
     const { date, amount, category, description, purpose, paymentMethod } = req.body;
     
     // Validate required fields
-    if (!date || !amount || !category || !description || !paymentMethod) {
+    if (!date || !amount || !category || !description) {
       return res.status(400).json({ 
         success: false,
-        message: 'Missing required fields: date, amount, category, description, paymentMethod' 
+        message: 'Missing required fields: date, amount, category, description'
       });
     }
     
@@ -37,7 +38,7 @@ router.post('/', auth, async (req, res) => {
       category,
       description,
       purpose: purpose || null,
-      paymentMethod,
+      paymentMethod: paymentMethod || null,
       disbursed: false
     };
     
@@ -58,6 +59,19 @@ router.post('/', auth, async (req, res) => {
     
     const expense = new Expense(expenseData);
     await expense.save();
+
+    ExpenseAuditLogService.log({
+      action: 'create',
+      description: `Expense created: ${expense.category} - ${expense.description}`,
+      expenseId: expense._id,
+      user: req.user?.username || req.user?.name || 'system',
+      userId: req.user?._id || null,
+      details: {
+        amount: expense.amount,
+        category: expense.category,
+        paymentMethod: expense.paymentMethod || null
+      }
+    });
     
     res.status(201).json({
       success: true,
@@ -165,7 +179,7 @@ router.get('/pending-approvals', auth, async (req, res) => {
     if (!isAdminOrManager(req.user)) {
       return res.status(403).json({ 
         success: false,
-        message: 'Access denied. Only managers can view pending approvals.' 
+        message: 'Access denied. Only managers can view pending approvals.'
       });
     }
 
@@ -273,6 +287,15 @@ router.post('/:id/approve', auth, async (req, res) => {
     
     await expense.save();
 
+    ExpenseAuditLogService.log({
+      action: 'approve',
+      description: 'Expense approved',
+      expenseId: expense._id,
+      user: req.user?.username || req.user?.name || 'system',
+      userId: req.user?._id || null,
+      details: { amount: expense.amount, category: expense.category }
+    });
+
     res.json({
       success: true,
       message: 'Expense approved successfully',
@@ -332,6 +355,15 @@ router.post('/:id/reject', auth, async (req, res) => {
     expense.approvedAt = new Date();
     
     await expense.save();
+
+    ExpenseAuditLogService.log({
+      action: 'reject',
+      description: 'Expense rejected',
+      expenseId: expense._id,
+      user: req.user?.username || req.user?.name || 'system',
+      userId: req.user?._id || null,
+      details: { reason, amount: expense.amount, category: expense.category }
+    });
 
     res.json({
       success: true,
@@ -416,6 +448,19 @@ router.post('/:id/mark-paid', auth, async (req, res) => {
     
     await expense.save();
 
+    ExpenseAuditLogService.log({
+      action: 'mark_paid',
+      description: `Expense marked as paid${expense.paymentMethod ? ` via ${expense.paymentMethod}` : ''}`,
+      expenseId: expense._id,
+      user: req.user?.username || req.user?.name || 'system',
+      userId: req.user?._id || null,
+      details: {
+        paymentMethod: expense.paymentMethod || null,
+        amount: expense.amount,
+        category: expense.category
+      }
+    });
+
     res.json({
       success: true,
       message: 'Expense marked as paid',
@@ -469,6 +514,8 @@ router.put('/:id', auth, async (req, res) => {
       allowedUpdates.push('disbursed', 'permanent', 'disbursementDate', 'status');
     }
     
+    const before = expense.toObject();
+
     allowedUpdates.forEach(field => {
       if (req.body[field] !== undefined) {
         expense[field] = req.body[field];
@@ -476,6 +523,15 @@ router.put('/:id', auth, async (req, res) => {
     });
     
     await expense.save();
+
+    ExpenseAuditLogService.log({
+      action: 'update',
+      description: 'Expense updated',
+      expenseId: expense._id,
+      user: req.user?.username || req.user?.name || 'system',
+      userId: req.user?._id || null,
+      details: { previousValue: before, newValue: expense.toObject() }
+    });
     
     res.json({
       success: true,
@@ -522,7 +578,17 @@ router.delete('/:id', auth, async (req, res) => {
       }
     }
     
+    const before = expense.toObject();
     await Expense.findByIdAndDelete(req.params.id);
+
+    ExpenseAuditLogService.log({
+      action: 'delete',
+      description: `Expense deleted: ${expense.category} - ${expense.description}`,
+      expenseId: expense._id,
+      user: req.user?.username || req.user?.name || 'system',
+      userId: req.user?._id || null,
+      details: { previousValue: before }
+    });
     
     res.json({ 
       success: true,

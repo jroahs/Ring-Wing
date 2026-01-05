@@ -499,6 +499,7 @@ app.use('/api/time-log-corrections', require('./routes/timeLogCorrectionRoutes')
 
 app.use('/api/government-config', require('./routes/governmentConfigRoutes'));
 app.use('/api/expenses', require('./routes/expenseRoutes'));
+app.use('/api/expense-audit-logs', require('./routes/expenseAuditLogRoutes'));
 app.use('/api/auth', require('./routes/authRoutes'));
 // Customer authentication routes (separate from staff auth)
 app.use('/api/customer/auth', require('./routes/customerAuthRoutes'));

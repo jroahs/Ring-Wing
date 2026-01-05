@@ -85,6 +85,11 @@ const ExpenseTracker = ({ colors }) => {
   const [expenseToMarkPaid, setExpenseToMarkPaid] = useState(null);
   const [markPaidPaymentMethod, setMarkPaidPaymentMethod] = useState('Cash');
 
+  const [showAuditLog, setShowAuditLog] = useState(false);
+  const [auditLog, setAuditLog] = useState([]);
+  const [auditLogLoading, setAuditLogLoading] = useState(false);
+  const [auditLogError, setAuditLogError] = useState('');
+
   // Responsive margin calculations
   const isLargeScreen = windowWidth >= 1920;
   const isMediumScreen = windowWidth >= 768;
@@ -182,6 +187,32 @@ const ExpenseTracker = ({ colors }) => {
     };
     fetchExpenses();
   }, [searchTerm, dateRange, selectedCategory, paymentStatus]);
+
+  useEffect(() => {
+    const fetchAuditLogs = async () => {
+      if (!showAuditLog) return;
+      setAuditLogLoading(true);
+      setAuditLogError('');
+      try {
+        const response = await fetch(`${API_URL}/api/expense-audit-logs?limit=200`, {
+          headers: getAuthHeaders()
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch audit logs (${response.status})`);
+        }
+        const result = await response.json();
+        const logs = result.logs || result.data || result;
+        setAuditLog(Array.isArray(logs) ? logs : []);
+      } catch (error) {
+        console.error('Error fetching expense audit logs:', error);
+        setAuditLog([]);
+        setAuditLogError(error.message || 'Failed to fetch audit logs');
+      } finally {
+        setAuditLogLoading(false);
+      }
+    };
+    fetchAuditLogs();
+  }, [showAuditLog]);
   const checkAndGetDailyStats = async () => {
     const now = new Date();
 
@@ -775,6 +806,15 @@ const ExpenseTracker = ({ colors }) => {
                                 Payroll
                               </span>
                             )}
+                            {(expense.sourceType === 'inventory_restock' || expense.sourceType === 'inventory_item_create') && (
+                              <span
+                                className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-semibold"
+                                style={{ backgroundColor: colors.primary + '20', color: colors.primary }}
+                                title="Auto-created from inventory"
+                              >
+                                Inventory
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="p-4 text-sm" style={{ color: colors.secondary }}>{expense.paymentMethod || '—'}</td>
@@ -884,6 +924,13 @@ const ExpenseTracker = ({ colors }) => {
                 >
                   <FiTrendingUp className="w-4 h-4" />
                   View Yearly Report
+                </button>
+                <button
+                  className="px-4 py-2 rounded-lg"
+                  style={{ backgroundColor: colors.muted, color: colors.background }}
+                  onClick={() => setShowAuditLog(true)}
+                >
+                  Audit Log
                 </button>
                 <button
                   className="px-4 py-2 rounded-lg"
@@ -1448,6 +1495,97 @@ const ExpenseTracker = ({ colors }) => {
                 style={{ backgroundColor: colors.accent, color: colors.background }}
               >
                 Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAuditLog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+          <div className="bg-white p-6 rounded-lg w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold" style={{ color: colors.primary }}>Audit Log</h2>
+              <button
+                onClick={() => setShowAuditLog(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0" style={{ backgroundColor: colors.primary, color: 'white' }}>
+                  <tr>
+                    <th className="px-3 py-3 text-left">Timestamp</th>
+                    <th className="px-3 py-3 text-left">Action</th>
+                    <th className="px-3 py-3 text-left">Description</th>
+                    <th className="px-3 py-3 text-left">Expense</th>
+                    <th className="px-3 py-3 text-left">User</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditLogLoading ? (
+                    <tr>
+                      <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
+                        Loading audit logs...
+                      </td>
+                    </tr>
+                  ) : auditLogError ? (
+                    <tr>
+                      <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
+                        {auditLogError}
+                      </td>
+                    </tr>
+                  ) : auditLog.length > 0 ? (
+                    auditLog.slice().reverse().map((log, index) => (
+                      <tr
+                        key={log._id || index}
+                        className="border-t"
+                        style={{ backgroundColor: index % 2 === 0 ? 'white' : colors.muted + '10' }}
+                      >
+                        <td className="px-3 py-3 text-xs">{log.timestamp ? new Date(log.timestamp).toLocaleString() : '-'}</td>
+                        <td className="px-3 py-3">
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            log.action === 'create' || log.action === 'system_create' ? 'bg-blue-100 text-blue-800' :
+                            log.action === 'update' ? 'bg-yellow-100 text-yellow-800' :
+                            log.action === 'delete' ? 'bg-red-100 text-red-800' :
+                            log.action === 'approve' ? 'bg-green-100 text-green-800' :
+                            log.action === 'reject' ? 'bg-orange-100 text-orange-800' :
+                            log.action === 'mark_paid' ? 'bg-green-100 text-green-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}> 
+                            {log.action?.replace('_', ' ').toUpperCase() || 'OTHER'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-sm max-w-xs truncate" title={log.description}>
+                          {log.description || log.action}
+                        </td>
+                        <td className="px-3 py-3 font-mono text-xs">
+                          {log.expenseId ? String(log.expenseId).substring(0, 8) + '...' : '-'}
+                        </td>
+                        <td className="px-3 py-3 text-sm">{log.user || 'system'}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
+                        No audit log entries yet. Actions will appear here as you perform expense operations.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-4 pt-4 border-t flex justify-end">
+              <button
+                onClick={() => setShowAuditLog(false)}
+                className="px-4 py-2 rounded-lg"
+                style={{ backgroundColor: colors.secondary, color: colors.background }}
+              >
+                Close
               </button>
             </div>
           </div>
