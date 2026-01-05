@@ -9,6 +9,7 @@ import ExpenseSummary from './components/ui/ExpenseSummary.jsx';
 import ExpenseFilterPanel from './components/ui/ExpenseFilterPanel.jsx';
 import { useMultiTabLogout } from './hooks/useMultiTabLogout';
 import { businessDateKey } from './utils/businessDate';
+import { generateExpenseReportPDF } from './utils/pdfGenerator';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -89,6 +90,21 @@ const ExpenseTracker = ({ colors }) => {
   const [auditLog, setAuditLog] = useState([]);
   const [auditLogLoading, setAuditLogLoading] = useState(false);
   const [auditLogError, setAuditLogError] = useState('');
+
+  const [showExportPdfModal, setShowExportPdfModal] = useState(false);
+  const [exportPdfLoading, setExportPdfLoading] = useState(false);
+  const [exportScope, setExportScope] = useState('current'); // current | month | custom
+  const [exportMonth, setExportMonth] = useState(() => businessDateKey(new Date()).slice(0, 7));
+  const [exportCustomRange, setExportCustomRange] = useState(() => {
+    const todayKey = businessDateKey(new Date());
+    return {
+      start: `${todayKey.slice(0, 7)}-01`,
+      end: todayKey
+    };
+  });
+  const [exportCategory, setExportCategory] = useState('All');
+  const [exportPaymentStatus, setExportPaymentStatus] = useState('All');
+  const [exportSearch, setExportSearch] = useState('');
 
   // Responsive margin calculations
   const isLargeScreen = windowWidth >= 1920;
@@ -444,24 +460,97 @@ const ExpenseTracker = ({ colors }) => {
     }
   };
 
-  const exportToCSV = () => {
-    const csvContent = [
-      ['Date', 'Description', 'Category', 'Amount', 'Status'],
-      ...expenses.map(exp => [
-        businessDateKey(new Date(exp.date)),
-        exp.description,
-        exp.category,
-        exp.amount,
-        exp.disbursed ? 'Paid' : 'Pending'
-      ])
-    ].map(row => row.join(',')).join('\n');
+  const getLastDayOfMonth = (year, monthIndexZeroBased) => new Date(year, monthIndexZeroBased + 1, 0);
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'expenses.csv';
-    a.click();
+  const getMonthRange = (yyyyMm) => {
+    if (!yyyyMm || !/^\d{4}-\d{2}$/.test(yyyyMm)) return { start: '', end: '' };
+    const [yearStr, monthStr] = yyyyMm.split('-');
+    const year = Number(yearStr);
+    const monthIndex = Number(monthStr) - 1;
+    const start = `${yearStr}-${monthStr}-01`;
+    const endDate = getLastDayOfMonth(year, monthIndex);
+    const end = businessDateKey(endDate);
+    return { start, end };
+  };
+
+  const fetchExpensesForExport = async ({ start, end, category, paymentStatus, search }) => {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    if (start) params.append('startDate', start);
+    if (end) params.append('endDate', end);
+    if (category && category !== 'All') params.append('category', category);
+
+    if (paymentStatus === 'Paid') params.append('disbursed', 'true');
+    if (paymentStatus === 'Pending') params.append('disbursed', 'false');
+
+    const response = await fetch(`${API_URL}/api/expenses?${params.toString()}`, {
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch expenses (${response.status})`);
+    }
+
+    const result = await response.json();
+    const data = result.data || result;
+    return Array.isArray(data) ? data : [];
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      setExportPdfLoading(true);
+
+      let range;
+      if (exportScope === 'month') {
+        range = getMonthRange(exportMonth);
+      } else if (exportScope === 'custom') {
+        range = { start: exportCustomRange.start || '', end: exportCustomRange.end || '' };
+      } else {
+        // current
+        range = { start: dateRange.start || '', end: dateRange.end || '' };
+      }
+
+      const categoryToUse = exportScope === 'current' ? selectedCategory : exportCategory;
+      const paymentStatusToUse = exportScope === 'current' ? paymentStatus : exportPaymentStatus;
+      const searchToUse = exportScope === 'current' ? searchTerm : exportSearch;
+
+      const exportExpenses = await fetchExpensesForExport({
+        start: range.start,
+        end: range.end,
+        category: categoryToUse,
+        paymentStatus: paymentStatusToUse,
+        search: searchToUse
+      });
+
+      const periodLabel = (() => {
+        if (exportScope === 'month' && exportMonth) {
+          const [y, m] = exportMonth.split('-');
+          return new Date(Number(y), Number(m) - 1).toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
+        }
+        if (range.start || range.end) {
+          return `Period: ${range.start || 'Start'} to ${range.end || 'End'}`;
+        }
+        return 'All Records';
+      })();
+
+      generateExpenseReportPDF({
+        expenses: exportExpenses,
+        filters: {
+          category: categoryToUse,
+          paymentStatus: paymentStatusToUse,
+          search: searchToUse
+        },
+        periodLabel,
+        generatedBy: currentUser?.username || currentUser?.name || ''
+      });
+
+      setShowExportPdfModal(false);
+    } catch (error) {
+      console.error('Export PDF failed:', error);
+      alert(error.message || 'Failed to export PDF');
+    } finally {
+      setExportPdfLoading(false);
+    }
   };
   // Helper function to count active filters
   const getActiveFiltersCount = () => {
@@ -927,17 +1016,17 @@ const ExpenseTracker = ({ colors }) => {
                 </button>
                 <button
                   className="px-4 py-2 rounded-lg"
-                  style={{ backgroundColor: colors.muted, color: colors.background }}
+                  style={{ backgroundColor: colors.primary, color: colors.background }}
                   onClick={() => setShowAuditLog(true)}
                 >
                   Audit Log
                 </button>
                 <button
                   className="px-4 py-2 rounded-lg"
-                  style={{ backgroundColor: colors.secondary, color: colors.background }}
-                  onClick={exportToCSV}
+                  style={{ backgroundColor: colors.primary, color: colors.background }}
+                  onClick={() => setShowExportPdfModal(true)}
                 >
-                  Export to CSV
+                  Export PDF
                 </button>
                 <button
                   className="px-4 py-2 rounded-lg"
@@ -1586,6 +1675,154 @@ const ExpenseTracker = ({ colors }) => {
                 style={{ backgroundColor: colors.secondary, color: colors.background }}
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showExportPdfModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+          style={{ zIndex: 9999 }}
+          onClick={() => !exportPdfLoading && setShowExportPdfModal(false)}
+        >
+          <div
+            className="bg-white p-6 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h2 className="text-xl font-bold" style={{ color: colors.primary }}>Export PDF</h2>
+                <p className="text-sm" style={{ color: colors.muted }}>Choose the period and filters to include.</p>
+              </div>
+              <button
+                onClick={() => !exportPdfLoading && setShowExportPdfModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Scope</label>
+                <select
+                  value={exportScope}
+                  onChange={(e) => setExportScope(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2"
+                  disabled={exportPdfLoading}
+                >
+                  <option value="current">Use current filters</option>
+                  <option value="month">Specific month</option>
+                  <option value="custom">Custom date range</option>
+                </select>
+              </div>
+
+              {exportScope === 'month' ? (
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Month</label>
+                  <input
+                    type="month"
+                    value={exportMonth}
+                    onChange={(e) => setExportMonth(e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2"
+                    disabled={exportPdfLoading}
+                  />
+                </div>
+              ) : exportScope === 'custom' ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Start date</label>
+                    <input
+                      type="date"
+                      value={exportCustomRange.start}
+                      onChange={(e) => setExportCustomRange(prev => ({ ...prev, start: e.target.value }))}
+                      className="w-full border rounded-lg px-3 py-2"
+                      disabled={exportPdfLoading}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>End date</label>
+                    <input
+                      type="date"
+                      value={exportCustomRange.end}
+                      onChange={(e) => setExportCustomRange(prev => ({ ...prev, end: e.target.value }))}
+                      className="w-full border rounded-lg px-3 py-2"
+                      disabled={exportPdfLoading}
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              {exportScope !== 'current' && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Category</label>
+                      <select
+                        value={exportCategory}
+                        onChange={(e) => setExportCategory(e.target.value)}
+                        className="w-full border rounded-lg px-3 py-2"
+                        disabled={exportPdfLoading}
+                      >
+                        <option value="All">All</option>
+                        {categories.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Payment status</label>
+                      <select
+                        value={exportPaymentStatus}
+                        onChange={(e) => setExportPaymentStatus(e.target.value)}
+                        className="w-full border rounded-lg px-3 py-2"
+                        disabled={exportPdfLoading}
+                      >
+                        <option value="All">All</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Pending">Pending</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1" style={{ color: colors.primary }}>Search</label>
+                    <input
+                      type="text"
+                      value={exportSearch}
+                      onChange={(e) => setExportSearch(e.target.value)}
+                      placeholder="Description, category, requester..."
+                      className="w-full border rounded-lg px-3 py-2"
+                      disabled={exportPdfLoading}
+                    />
+                  </div>
+                </>
+              )}
+
+              {exportScope === 'current' && (
+                <div className="text-sm" style={{ color: colors.muted }}>
+                  Uses your current Date, Category, Payment Status, and Search filters.
+                </div>
+              )}
+            </div>
+
+            <div className="mt-5 pt-4 border-t flex justify-end gap-2">
+              <button
+                onClick={() => !exportPdfLoading && setShowExportPdfModal(false)}
+                className="px-4 py-2 rounded-lg"
+                style={{ backgroundColor: colors.secondary, color: colors.background }}
+                disabled={exportPdfLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExportPdf}
+                className="px-4 py-2 rounded-lg"
+                style={{ backgroundColor: colors.primary, color: colors.background, opacity: exportPdfLoading ? 0.7 : 1 }}
+                disabled={exportPdfLoading}
+              >
+                {exportPdfLoading ? 'Generating...' : 'Generate PDF'}
               </button>
             </div>
           </div>
