@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Item = require('../models/Items');
+const Expense = require('../models/expense');
 
 // Helper functions
 const calculateStatus = (inventory, minimumThreshold = 5, unit = 'pieces') => {
@@ -132,6 +133,42 @@ router.post('/', async (req, res) => {
     });
 
     const newItem = await item.save();
+
+    // Auto-create expense entry for initial stock purchase (idempotent)
+    try {
+      const initialQty = Array.isArray(newItem.inventory)
+        ? newItem.inventory.reduce((sum, b) => sum + (Number(b.quantity) || 0), 0)
+        : 0;
+      const initialCost = Number(newItem.cost || 0);
+
+      if (initialQty > 0 && initialCost > 0) {
+        const existing = await Expense.findOne({
+          sourceType: 'inventory_item_create',
+          sourceId: newItem._id
+        });
+
+        if (!existing) {
+          await Expense.create({
+            date: new Date(),
+            amount: initialCost,
+            category: 'Food Supplies',
+            description: `Initial Stock (${newItem.name}) ${initialQty} ${newItem.unit}${newItem.vendor ? ` - ${newItem.vendor}` : ''}`,
+            purpose: 'Auto-created from inventory item creation',
+            status: 'created',
+            disbursed: false,
+            permanent: true,
+            createdBy: null,
+            creatorName: 'System',
+            creatorRole: null,
+            sourceType: 'inventory_item_create',
+            sourceId: newItem._id
+          });
+        }
+      }
+    } catch (expenseError) {
+      console.error('[Item Create] Failed to auto-create expense:', expenseError);
+    }
+
     res.status(201).json(newItem);
   } catch (err) {
     res.status(400).json({ message: 'Validation Error: ' + err.message });
@@ -274,6 +311,36 @@ router.patch('/:id/restock', async (req, res) => {
       newBatchId: newBatchId,
       newBatchUnitPrice: batchUnitPrice
     });
+
+    // Auto-create expense entry for this restock batch (idempotent)
+    try {
+      if (batchCost > 0 && newBatchId) {
+        const existing = await Expense.findOne({
+          sourceType: 'inventory_restock',
+          sourceId: newBatchId
+        });
+
+        if (!existing) {
+          await Expense.create({
+            date: new Date(),
+            amount: batchCost,
+            category: 'Food Supplies',
+            description: `Restock (${updatedItem.name}) ${batchQuantity} ${updatedItem.unit}${updatedItem.vendor ? ` - ${updatedItem.vendor}` : ''}`,
+            purpose: 'Auto-created from inventory restock',
+            status: 'created',
+            disbursed: false,
+            permanent: true,
+            createdBy: null,
+            creatorName: 'System',
+            creatorRole: null,
+            sourceType: 'inventory_restock',
+            sourceId: newBatchId
+          });
+        }
+      }
+    } catch (expenseError) {
+      console.error('[Item Restock] Failed to auto-create expense:', expenseError);
+    }
   } catch (err) {
     res.status(400).json({ message: 'Restock Error: ' + err.message });
   }

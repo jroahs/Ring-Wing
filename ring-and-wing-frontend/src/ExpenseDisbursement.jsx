@@ -81,6 +81,10 @@ const ExpenseTracker = ({ colors }) => {
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [expandedChart, setExpandedChart] = useState(null); // 'daily' or 'monthly'
 
+  const [showMarkPaidModal, setShowMarkPaidModal] = useState(false);
+  const [expenseToMarkPaid, setExpenseToMarkPaid] = useState(null);
+  const [markPaidPaymentMethod, setMarkPaidPaymentMethod] = useState('Cash');
+
   // Responsive margin calculations
   const isLargeScreen = windowWidth >= 1920;
   const isMediumScreen = windowWidth >= 768;
@@ -328,11 +332,12 @@ const ExpenseTracker = ({ colors }) => {
   };
   
   // New function that handles both paid and permanent status in one call
-  const markAsPaidAndPermanent = async (id) => {
+  const markAsPaidAndPermanent = async (id, paymentMethod = null) => {
     try {
       const response = await fetch(`${API_URL}/api/expenses/${id}/mark-paid`, {
         method: 'POST',
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
+        ...(paymentMethod ? { body: JSON.stringify({ paymentMethod }) } : {})
       });
 
       if (!response.ok) throw new Error('Update failed');
@@ -347,6 +352,17 @@ const ExpenseTracker = ({ colors }) => {
     } catch (error) {
       console.error('Error updating expense:', error);
     }
+  };
+
+  const handleMarkPaidClick = (expense) => {
+    if (!expense) return;
+    if (!expense.paymentMethod) {
+      setExpenseToMarkPaid(expense);
+      setMarkPaidPaymentMethod('Cash');
+      setShowMarkPaidModal(true);
+      return;
+    }
+    markAsPaidAndPermanent(expense._id);
   };
 
   // Approve expense request
@@ -761,7 +777,7 @@ const ExpenseTracker = ({ colors }) => {
                             )}
                           </div>
                         </td>
-                        <td className="p-4 text-sm" style={{ color: colors.secondary }}>{expense.paymentMethod}</td>
+                        <td className="p-4 text-sm" style={{ color: colors.secondary }}>{expense.paymentMethod || '—'}</td>
                         <td className="p-4 text-right text-sm font-medium" style={{ color: colors.secondary }}>
                           ₱{(expense.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
@@ -785,7 +801,7 @@ const ExpenseTracker = ({ colors }) => {
                                 Approved
                               </span>
                               <button
-                                onClick={() => markAsPaidAndPermanent(expense._id)}
+                                onClick={() => handleMarkPaidClick(expense)}
                                 className="px-2 py-1 rounded-lg text-xs"
                                 style={{ backgroundColor: colors.accent, color: colors.background }}
                               >
@@ -806,7 +822,7 @@ const ExpenseTracker = ({ colors }) => {
                                 Created
                               </span>
                               <button
-                                onClick={() => markAsPaidAndPermanent(expense._id)}
+                                onClick={() => handleMarkPaidClick(expense)}
                                 className="px-2 py-1 rounded-lg text-xs"
                                 style={{ backgroundColor: colors.accent, color: colors.background }}
                               >
@@ -1372,6 +1388,69 @@ const ExpenseTracker = ({ colors }) => {
                 </button>
               </div>
             </form>          </div>
+        </div>
+      )}
+
+      {showMarkPaidModal && expenseToMarkPaid && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowMarkPaidModal(false)}>
+          <div
+            className="bg-white p-6 rounded-lg max-w-md w-full relative"
+            style={{ backgroundColor: colors.background, border: `1px solid ${colors.muted}60` }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowMarkPaidModal(false)}
+              className="absolute top-2 right-2 bg-red-500 text-white rounded-full px-2 py-0 text-sm"
+            >
+              ×
+            </button>
+            <h2 className="text-xl font-semibold mb-4" style={{ color: colors.secondary }}>
+              Select Payment Method
+            </h2>
+            <p className="text-sm mb-4" style={{ color: colors.muted }}>
+              This expense has no payment method yet. Choose how it was paid.
+            </p>
+
+            <div className="space-y-2 mb-6">
+              <label className="block text-sm font-medium" style={{ color: colors.primary }}>Payment Method</label>
+              <select
+                className="w-full p-3 rounded-lg border focus:ring-2 focus:outline-none transition-all"
+                style={{ borderColor: colors.muted + '60', backgroundColor: colors.background }}
+                value={markPaidPaymentMethod}
+                onChange={(e) => setMarkPaidPaymentMethod(e.target.value)}
+              >
+                {['Cash', 'Bank Transfer', 'Digital Wallet'].map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowMarkPaidModal(false)}
+                className="flex-1 py-3 rounded-lg font-medium"
+                style={{ backgroundColor: colors.activeBg, color: colors.primary, border: `1px solid ${colors.muted}40` }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await markAsPaidAndPermanent(expenseToMarkPaid._id, markPaidPaymentMethod);
+                  } finally {
+                    setShowMarkPaidModal(false);
+                    setExpenseToMarkPaid(null);
+                  }
+                }}
+                className="flex-1 py-3 rounded-lg font-semibold"
+                style={{ backgroundColor: colors.accent, color: colors.background }}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

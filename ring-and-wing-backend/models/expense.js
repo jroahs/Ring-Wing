@@ -25,8 +25,9 @@ const expenseSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    required: true,
-    enum: ['Cash', 'Bank Transfer', 'Digital Wallet']
+    required: false,
+    enum: ['Cash', 'Bank Transfer', 'Digital Wallet'],
+    default: null
   },
   
   // Workflow Status
@@ -103,7 +104,7 @@ const expenseSchema = new mongoose.Schema({
   // Optional linkage for system-generated expenses (e.g., payroll batches)
   sourceType: {
     type: String,
-    enum: ['payroll_batch', null],
+    enum: ['payroll_batch', 'inventory_restock', 'inventory_item_create', null],
     default: null,
     index: true
   },

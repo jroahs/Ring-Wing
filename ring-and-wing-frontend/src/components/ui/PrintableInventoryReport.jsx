@@ -19,6 +19,8 @@ export const PrintableInventoryReport = forwardRef(({
   reportDate = new Date(),
   className = ''
 }, ref) => {
+  const getBatches = (item) => item?.inventory || item?.batches || [];
+
   const formatDate = (date) => {
     return new Date(date).toLocaleDateString('en-PH', {
       weekday: 'long',
@@ -44,10 +46,8 @@ export const PrintableInventoryReport = forwardRef(({
     outOfStock: items.filter(item => item.status === 'Out of Stock').length,
     healthy: items.filter(item => item.status === 'Healthy').length,
     totalValue: items.reduce((sum, item) => {
-      const batches = item.batches || [];
-      return sum + batches.reduce((batchSum, batch) => 
-        batchSum + (batch.quantity * batch.unitCost || 0), 0
-      );
+      const batches = getBatches(item);
+      return sum + batches.reduce((batchSum, batch) => batchSum + (batch.batchCost || batch.cost || 0), 0);
     }, 0),
     stockAlerts: alerts.filter(a => a.type === 'stock').length,
     expirationAlerts: alerts.filter(a => a.type === 'expiration').length

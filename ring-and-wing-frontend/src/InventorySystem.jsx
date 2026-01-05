@@ -999,8 +999,25 @@ const InventorySystem = () => {
         return phMidnightUTC.toISOString();
       };
 
+      const isCountBased = selectedItem?.isCountBased ?? selectedItem?.unit === 'pieces';
+      const rawQuantity = Number(restockData.quantity);
+      const rawCost = Number(restockData.cost);
+
+      if (!Number.isFinite(rawQuantity) || rawQuantity <= 0) {
+        setError('Please enter a valid quantity');
+        return;
+      }
+      if (isCountBased && !Number.isInteger(rawQuantity)) {
+        setError('Quantity must be a whole number for pieces');
+        return;
+      }
+      if (!Number.isFinite(rawCost) || rawCost <= 0) {
+        setError('Please enter a valid batch cost');
+        return;
+      }
+
       const payload = {
-        quantity: parseFloat(restockData.quantity),
+        quantity: isCountBased ? parseInt(restockData.quantity, 10) : parseFloat(restockData.quantity),
         cost: parseFloat(restockData.cost),
         expirationDate: adjustForPHTime(restockData.expirationDate)
       };
@@ -1495,12 +1512,6 @@ const InventorySystem = () => {
 
         <div className="px-6 mb-4 flex flex-wrap gap-2">
           <Button
-            onClick={handleStartDay}
-            variant="accent"
-          >
-            Start Day (Record Beginning Inventory)
-          </Button>
-          <Button
             onClick={prepareBulkEndDayCount}
             variant="accent"
           >
@@ -1545,18 +1556,6 @@ const InventorySystem = () => {
             variant="secondary"
           >
             Audit Log
-          </Button>
-          <Button
-            onClick={() => exportData('json')}
-            variant="ghost"
-          >
-            Export JSON
-          </Button>
-          <Button
-            onClick={() => exportData('csv')}
-            variant="ghost"
-          >
-            Export CSV
           </Button>
         </div>
 
@@ -2179,7 +2178,7 @@ const InventorySystem = () => {
             <input
               type="number"
               required
-              min="0.01"
+              min={selectedItem?.unit === 'kilograms' || selectedItem?.unit === 'liters' ? '0.1' : '1'}
               step={selectedItem?.unit === 'kilograms' || selectedItem?.unit === 'liters' ? '0.1' : '1'}
               value={restockData.quantity}
               onChange={(e) => setRestockData({...restockData, quantity: e.target.value})}
@@ -2514,17 +2513,32 @@ const InventorySystem = () => {
                       <tr>
                         <th className="px-4 py-3 text-left">Item Name</th>
                         <th className="px-4 py-3 text-left">Category</th>
+                        <th className="px-4 py-3 text-center">Status</th>
                         <th className="px-4 py-3 text-center">Quantity</th>
                         <th className="px-4 py-3 text-center">Unit</th>
-                        <th className="px-4 py-3 text-center">Status</th>
-                        <th className="px-4 py-3 text-right">Total Value</th>
+                        <th className="px-4 py-3 text-right">Cost</th>
+                        <th className="px-4 py-3 text-right">Unit Cost</th>
+                        <th className="px-4 py-3 text-left">Vendor</th>
                       </tr>
                     </thead>
                     <tbody>
                       {items.map((item, index) => {
-                        const totalValue = (item.batches || []).reduce((sum, batch) => 
-                          sum + (batch.quantity * batch.unitCost || 0), 0
+                        const batches = item.inventory || item.batches || [];
+                        const totalPurchasedCost = (batches || []).reduce(
+                          (sum, batch) => sum + (batch.batchCost || batch.cost || 0),
+                          0
                         );
+                        const totalPurchasedQty = (batches || []).reduce(
+                          (sum, batch) => sum + (batch.purchasedQuantity ?? batch.quantity ?? 0),
+                          0
+                        );
+                        const unitCost =
+                          (typeof item.unitPrice === 'number' && Number.isFinite(item.unitPrice))
+                            ? item.unitPrice
+                            : (totalPurchasedQty > 0 ? totalPurchasedCost / totalPurchasedQty : (item.price || 0));
+
+                        const quantity = item.totalQuantity || 0;
+                        const isWholeUnit = item.unit === 'pieces' || item.unit === 'grams' || item.unit === 'milliliters';
                         
                         return (
                           <tr 
@@ -2536,8 +2550,6 @@ const InventorySystem = () => {
                           >
                             <td className="px-4 py-3 font-medium">{item.name}</td>
                             <td className="px-4 py-3">{item.category || 'N/A'}</td>
-                            <td className="px-4 py-3 text-center">{(item.totalQuantity || 0).toFixed(2)}</td>
-                            <td className="px-4 py-3 text-center">{item.unit || 'N/A'}</td>
                             <td className="px-4 py-3 text-center">
                               <span 
                                 className="px-3 py-1 rounded-full text-xs font-medium"
@@ -2555,22 +2567,23 @@ const InventorySystem = () => {
                                 {item.status}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-right font-medium">
-                              ₱{totalValue.toFixed(2)}
-                            </td>
+                            <td className="px-4 py-3 text-center">{isWholeUnit ? Number(quantity).toFixed(0) : Number(quantity).toFixed(2)}</td>
+                            <td className="px-4 py-3 text-center">{item.unit || 'N/A'}</td>
+                            <td className="px-4 py-3 text-right font-medium">₱{Number(totalPurchasedCost || 0).toFixed(2)}</td>
+                            <td className="px-4 py-3 text-right font-medium">₱{Number(unitCost || 0).toFixed(2)}</td>
+                            <td className="px-4 py-3">{item.vendor || 'N/A'}</td>
                           </tr>
                         );
                       })}
                     </tbody>
                     <tfoot style={{ backgroundColor: colors.muted + '20', fontWeight: 'bold' }}>
                       <tr>
-                        <td colSpan="5" className="px-4 py-3 text-right">Total Inventory Value:</td>
+                        <td colSpan="7" className="px-4 py-3 text-right">Total Purchase Cost:</td>
                         <td className="px-4 py-3 text-right" style={{ color: colors.primary }}>
                           ₱{items.reduce((sum, item) => {
-                            const itemValue = (item.batches || []).reduce((batchSum, batch) => 
-                              batchSum + (batch.quantity * batch.unitCost || 0), 0
-                            );
-                            return sum + itemValue;
+                            const batches = item.inventory || item.batches || [];
+                            const itemCost = (batches || []).reduce((batchSum, batch) => batchSum + (batch.batchCost || batch.cost || 0), 0);
+                            return sum + itemCost;
                           }, 0).toFixed(2)}
                         </td>
                       </tr>

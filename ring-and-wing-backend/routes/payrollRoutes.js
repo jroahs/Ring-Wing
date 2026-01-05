@@ -1487,7 +1487,6 @@ router.put('/batch/:batchId/approve', auth, async (req, res) => {
           category: 'Salaries',
           description: `Payroll (${batch.batchNumber}) ${periodStart ? new Date(periodStart).toISOString().slice(0, 10) : ''}${periodStart && periodEnd ? ' to ' : ''}${periodEnd ? new Date(periodEnd).toISOString().slice(0, 10) : ''}`.trim(),
           purpose: 'Auto-created from approved payroll batch',
-          paymentMethod: 'Bank Transfer',
           status: 'created',
           disbursed: false,
           permanent: true,

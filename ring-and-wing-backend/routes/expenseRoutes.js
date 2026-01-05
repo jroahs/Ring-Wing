@@ -360,6 +360,9 @@ router.post('/:id/mark-paid', auth, async (req, res) => {
       });
     }
 
+    const { paymentMethod } = req.body || {};
+    const allowedPaymentMethods = ['Cash', 'Bank Transfer', 'Digital Wallet'];
+
     const expense = await Expense.findById(req.params.id);
     
     if (!expense) {
@@ -375,6 +378,28 @@ router.post('/:id/mark-paid', auth, async (req, res) => {
         success: false,
         message: `Cannot mark expense as paid. Current status: ${expense.status}` 
       });
+    }
+
+    // If expense has no payment method yet, require it now
+    if (!expense.paymentMethod) {
+      if (!paymentMethod || !allowedPaymentMethods.includes(paymentMethod)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Payment method is required to mark this expense as paid',
+          required: allowedPaymentMethods
+        });
+      }
+      expense.paymentMethod = paymentMethod;
+    } else if (paymentMethod) {
+      // Allow updating payment method at mark-paid time if provided
+      if (!allowedPaymentMethods.includes(paymentMethod)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid payment method',
+          allowed: allowedPaymentMethods
+        });
+      }
+      expense.paymentMethod = paymentMethod;
     }
 
     expense.status = 'paid';
