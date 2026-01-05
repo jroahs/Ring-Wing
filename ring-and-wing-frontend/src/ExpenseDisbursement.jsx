@@ -476,13 +476,15 @@ const ExpenseTracker = ({ colors }) => {
     const params = new URLSearchParams();
     if (search) params.append('search', search);
 
+    // Important: avoid '+' in querystring (some parsers treat it as space).
+    // Convert Manila day boundaries to UTC ISO strings (ending with 'Z').
     const toManilaStartIso = (dateKey) => {
       if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return dateKey;
-      return `${dateKey}T00:00:00.000+08:00`;
+      return new Date(`${dateKey}T00:00:00.000+08:00`).toISOString();
     };
     const toManilaEndIso = (dateKey) => {
       if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return dateKey;
-      return `${dateKey}T23:59:59.999+08:00`;
+      return new Date(`${dateKey}T23:59:59.999+08:00`).toISOString();
     };
 
     if (start) params.append('startDate', toManilaStartIso(start));
@@ -500,7 +502,15 @@ const ExpenseTracker = ({ colors }) => {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch expenses (${response.status})`);
+      let message = `Failed to fetch expenses (${response.status})`;
+      try {
+        const err = await response.json();
+        if (err?.message) message = err.message;
+        if (err?.error) message = err.error;
+      } catch (_) {
+        // ignore JSON parse errors
+      }
+      throw new Error(message);
     }
 
     const result = await response.json();

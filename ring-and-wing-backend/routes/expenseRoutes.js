@@ -3,7 +3,7 @@ const router = express.Router();
 const Expense = require('../models/expense');
 const ExpenseAuditLogService = require('../services/expenseAuditLogService');
 const { auth } = require('../middleware/authMiddleware');
-const { getBusinessDayRangeUtc } = require('../utils/businessTime');
+const { getBusinessDayRangeUtc, businessDateTimeUtc, isDateOnlyString } = require('../utils/businessTime');
 
 // Helper: Check if user is admin/manager (can approve expenses)
 const isAdminOrManager = (user) => {
@@ -106,8 +106,39 @@ router.get('/', auth, async (req, res) => {
     // Admin/Manager can see all expenses (no requesterId filter)
 
     // Apply other filters
-    if (startDate && endDate) {
-      filter.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
+    if (startDate || endDate) {
+      const parseBoundary = (value, mode) => {
+        if (!value) return null;
+
+        // If YYYY-MM-DD, interpret as Manila business day boundary.
+        if (isDateOnlyString(value)) {
+          return businessDateTimeUtc(
+            value,
+            mode === 'start' ? 0 : 23,
+            mode === 'start' ? 0 : 59,
+            mode === 'start' ? 0 : 59,
+            mode === 'start' ? 0 : 999
+          );
+        }
+
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return null;
+        return d;
+      };
+
+      const start = parseBoundary(startDate, 'start');
+      const end = parseBoundary(endDate, 'end');
+
+      if ((startDate && !start) || (endDate && !end)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid date filter. Use YYYY-MM-DD or ISO timestamp.'
+        });
+      }
+
+      filter.date = {};
+      if (start) filter.date.$gte = start;
+      if (end) filter.date.$lte = end;
     }
     if (category && category !== 'All') {
       filter.category = category;
