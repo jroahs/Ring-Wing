@@ -5,8 +5,7 @@ import { useReactToPrint } from 'react-to-print';
 import { MenuItemCard, OrderItem, PaymentPanel, PaymentProcessingModal, SearchBar, Modal } from './components/ui';
 import { theme } from './theme';
 import { Receipt } from './components/Receipt';
-import TimeClockInterface from './components/TimeClockInterface';
-import TimeClockModal from './components/TimeClockModal';
+import QuickTimeClockModal from './components/QuickTimeClockModal';
 import CashFloatModal from './components/CashFloatModal';
 import OrderProcessingModal from './components/OrderProcessingModal';
 import PendingOrder from './components/PendingOrder';
@@ -82,7 +81,6 @@ const PointOfSale = () => {
   const [eWalletDetails, setEWalletDetails] = useState({ provider: 'gcash', referenceNumber: '', name: '' });
   const [customerName, setCustomerName] = useState('');
   const [discountCardDetails, setDiscountCardDetails] = useState({ cardType: 'PWD', cardIdNumber: '' });
-  const [showTimeClock, setShowTimeClock] = useState(false);
   const [showTimeClockModal, setShowTimeClockModal] = useState(false);
   const [showOrderProcessingModal, setShowOrderProcessingModal] = useState(false);
   const [showPaymentProcessingModal, setShowPaymentProcessingModal] = useState(false);
@@ -1859,10 +1857,7 @@ const PointOfSale = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
       >
-        {showTimeClock ? (
-          <TimeClockInterface onClose={() => setShowTimeClock(false)} />
-        ) : (
-          <div className="h-screen flex flex-col md:flex-row overflow-hidden">
+        <div className="h-screen flex flex-col md:flex-row overflow-hidden">
             {/* Menu Section - Left Panel */}
             <div className="flex-1 m-0 md:m-4 order-2 md:order-1 flex flex-col" style={{ maxHeight: 'calc(100vh - 32px)' }}>
               {/* Menu Content Container - matches right panel structure */}
@@ -2799,7 +2794,10 @@ const PointOfSale = () => {
 
             {/* Time Clock Modal */}
             {showTimeClockModal && (
-              <TimeClockModal onClose={() => setShowTimeClockModal(false)} />
+              <QuickTimeClockModal
+                isOpen={showTimeClockModal}
+                onClose={() => setShowTimeClockModal(false)}
+              />
             )}            {/* Cash Float Settings Modal - Manager Only */}
             <CashFloatModal 
               isOpen={showCashFloatModal} 
@@ -2834,7 +2832,9 @@ const PointOfSale = () => {
               />
             )}
           </div>
-        )}        {/* Order Processing Modal */}        {showOrderProcessingModal && (
+
+        {/* Order Processing Modal */}
+        {showOrderProcessingModal && (
           <div>
             <OrderProcessingModal
               isOpen={showOrderProcessingModal} 

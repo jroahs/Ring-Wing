@@ -4,7 +4,7 @@ import { useReactToPrint } from 'react-to-print';
 import { MenuItemCard, OrderItem, PaymentPanel, PaymentProcessingModal, SearchBar, Modal } from './components/ui';
 import { theme } from './theme';
 import { Receipt } from './components/Receipt';
-import TimeClockInterface from './components/TimeClockInterface';
+import QuickTimeClockModal from './components/QuickTimeClockModal';
 import OrderProcessingModalTablet from './components/OrderProcessingModalTablet';
 import CashFloatModal from './components/CashFloatModal';
 import EndOfShiftModal from './components/EndOfShiftModal';
@@ -76,7 +76,6 @@ const PointOfSaleTablet = () => {
   });
 
   // === MODALS & UI ===
-  const [showTimeClock, setShowTimeClock] = useState(false);
   const [showTimeClockModal, setShowTimeClockModal] = useState(false);
   const [showOrderProcessingModal, setShowOrderProcessingModal] = useState(false);
   const [showPaymentProcessingModal, setShowPaymentProcessingModal] = useState(false);
@@ -1438,15 +1437,12 @@ const PointOfSaleTablet = () => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
     >
-      {showTimeClock ? (
-        <TimeClockInterface onClose={() => setShowTimeClock(false)} />
-      ) : (
-        <motion.div 
-          className="flex flex-col h-screen"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-        >
+      <motion.div 
+        className="flex flex-col h-screen"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+      >
           {/* Header with Order Tabs */}
           <div className="bg-white shadow-md">
             <div className="p-4 flex items-center justify-between border-b">
@@ -1491,7 +1487,7 @@ const PointOfSaleTablet = () => {
                   </>
                 )}
                 <button
-                  onClick={() => setShowTimeClock(true)}
+                  onClick={() => setShowTimeClockModal(true)}
                   className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
                   style={{ color: theme.colors.primary, border: `1px solid ${theme.colors.muted}` }}
                   title="Time Clock"
@@ -1513,6 +1509,11 @@ const PointOfSaleTablet = () => {
                   )}
                 </button>
               </div>
+
+              <QuickTimeClockModal
+                isOpen={showTimeClockModal}
+                onClose={() => setShowTimeClockModal(false)}
+              />
             </div>
             
             {/* Search Bar and Order View Tabs */}
@@ -2017,7 +2018,6 @@ const PointOfSaleTablet = () => {
             </div>
           </div>
         </motion.div>
-      )}
 
       {/* === MODALS === */}
       

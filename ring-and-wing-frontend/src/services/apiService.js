@@ -20,7 +20,7 @@ const api = axios.create({
 // Add auth token to requests if available
 api.interceptors.request.use(
   config => {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -38,6 +38,7 @@ api.interceptors.response.use(
       if (error.response.status === 401) {
         if (error.response.data?.message?.includes('expired')) {
           localStorage.removeItem('authToken');
+          localStorage.removeItem('token');
           localStorage.removeItem('userData');
           window.location.href = '/login';
           return Promise.reject(new Error('Your session has expired. Please log in again.'));

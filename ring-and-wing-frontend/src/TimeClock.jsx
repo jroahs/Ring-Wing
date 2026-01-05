@@ -10,7 +10,7 @@ import StaffAvatar from './components/StaffAvatar';
 import { useMultiTabLogout } from './hooks/useMultiTabLogout';
 import BrandedLoadingScreen from './components/ui/BrandedLoadingScreen';
 
-const TimeClock = () => {  
+const TimeClock = ({ embedded = false }) => {  
   // Enable multi-tab logout synchronization
   useMultiTabLogout();
   
@@ -196,6 +196,7 @@ const TimeClock = () => {
   }, []);
 
   const getMainContentMargin = () => {
+    if (embedded) return '0';
     if (windowWidth < 768) return '0';
     return windowWidth >= 1920 ? '8rem' : '5rem';
   };
@@ -759,17 +760,17 @@ const TimeClock = () => {
     tap: { scale: 0.95 }
   };
   return (
-    <div className="flex min-h-screen" style={{ backgroundColor: colors.background }}>
+    <div className={embedded ? 'w-full' : 'flex min-h-screen'} style={{ backgroundColor: colors.background }}>
       <motion.div 
         className="flex-1 transition-all duration-300"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         style={{
           marginLeft: getMainContentMargin(),
-          paddingTop: windowWidth < 768 ? '4rem' : '0'
+          paddingTop: embedded ? '0' : (windowWidth < 768 ? '4rem' : '0')
         }}
       >
-        <div className="p-6 md:p-8 pt-24 md:pt-8">
+        <div className={embedded ? 'p-6' : 'p-6 md:p-8 pt-24 md:pt-8'}>
           {/* Header with title and toggle button */}
           <div className="flex items-center justify-between mb-6">
             <motion.h1 
