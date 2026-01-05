@@ -271,18 +271,24 @@ const MainLayout = () => {
     // in favor of useBreakpoint detection
   };
 
-  // Small global margin to account for sidebar
+  // Dynamic margin to account for sidebar at different breakpoints
   const getContentMargin = () => {
     if (isMobile) {
-      return '0'; // No margin on mobile
+      return '0'; // No margin on mobile - sidebar is overlay
     }
     
-    // Small, consistent margin for desktop/tablet
-    if (above('tablet')) { // Above tablet = desktop
-      return '6rem'; // Larger margin for desktop
-    } else {
-      return '4rem'; // Smaller margin for tablet
+    // Check for large screens (1920px+) - sidebar is 9rem
+    if (window.innerWidth >= 1920) {
+      return '9rem';
     }
+    
+    // Tablet breakpoint: 768px - 1279px - sidebar is 14rem for better usability
+    if (window.innerWidth >= 768 && window.innerWidth < 1280) {
+      return '14rem'; // Match tablet sidebar width
+    }
+    
+    // Desktop (1280px - 1919px) - sidebar is 6rem
+    return '6rem';
   };
 
   return (

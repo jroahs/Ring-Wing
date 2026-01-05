@@ -2303,7 +2303,7 @@ const MenuPage = () => {
   return (
     <motion.div 
       style={{ backgroundColor: colors.background }} 
-      className="min-h-screen p-8 ml-0 md:ml-20"
+      className="min-h-screen p-8"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}

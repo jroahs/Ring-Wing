@@ -74,6 +74,9 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
     handleResize();
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Tablet detection: 768px - 1279px (covers iPad Mini, iPad, iPad Pro)
+  const isTablet = windowWidth >= 768 && windowWidth < 1280;
   // Notify parent component when sidebar state changes
   useEffect(() => {
     if (onSidebarToggle) {
@@ -141,7 +144,8 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
   };
 
   const handleTooltipShow = (itemLabel, event) => {
-    if (!isMobile) {
+    // Only show tooltips on desktop (not mobile or tablet) since those have visible labels
+    if (!isMobile && !isTablet) {
       const rect = event.currentTarget.getBoundingClientRect();
       setTooltipPosition({
         top: rect.top + (rect.height / 2),
@@ -179,13 +183,21 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
     subItems.some(subItem => isActive(subItem.path));
     
   const isLargeScreen = windowWidth >= 1920;
-  const sidebarWidth = isLargeScreen ? '9rem' : '6rem';
-  const iconSize = isLargeScreen ? 28 : 22;
-  const chevronSize = isLargeScreen ? 18 : 14;
-  const logoSize = isLargeScreen ? '2rem' : '1.625rem';
-  const tooltipTextSize = isLargeScreen ? '0.9375rem' : '0.8125rem';
-  const dropdownWidth = isLargeScreen ? '15rem' : '13rem';
-  const isMobile = windowWidth < 768;const userRole = userData?.role || 'staff';
+  const isMobile = windowWidth < 768;
+  
+  // Tablet-specific dimensions for better touch targets and readability
+  // Tablets get a wider sidebar with visible labels
+  const sidebarWidth = isLargeScreen ? '9rem' : isTablet ? '14rem' : '6rem';
+  const iconSize = isLargeScreen ? 28 : isTablet ? 24 : 22;
+  const chevronSize = isLargeScreen ? 18 : isTablet ? 14 : 14;
+  const logoSize = isLargeScreen ? '2rem' : isTablet ? '1.75rem' : '1.625rem';
+  const tooltipTextSize = isLargeScreen ? '0.9375rem' : isTablet ? '0.875rem' : '0.8125rem';
+  const dropdownWidth = isLargeScreen ? '15rem' : isTablet ? '14rem' : '13rem';
+  
+  // Show labels on tablet (similar to mobile behavior but in fixed sidebar)
+  const showLabels = isMobile || isTablet;
+  
+  const userRole = userData?.role || 'staff';
   const userPosition = userData?.position || 'cashier';
   
   // Define navigation items with position-based access
@@ -558,37 +570,26 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
             <FiShield size={11} className="text-white opacity-90 mr-1.5" />
             <span className="text-xs text-white opacity-90 capitalize font-medium">{userRole}</span>
           </div>
-        </div>          {/* Navigation Links - Now with overflow-y-auto for scrolling but no horizontal overflow */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-y-1.5 py-4 px-2.5 nav-scrollbar">
+        </div>          {/* Navigation Links */}
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col gap-y-1 py-3 px-2 nav-scrollbar">
           <style jsx>{`
-            .nav-scrollbar {
-              scrollbar-gutter: stable;
-            }
             .nav-scrollbar::-webkit-scrollbar {
-              width: 6px;
+              width: 4px;
             }
             .nav-scrollbar::-webkit-scrollbar-track {
               background: transparent;
-              margin: 8px 0;
             }
             .nav-scrollbar::-webkit-scrollbar-thumb {
               background: rgba(255, 255, 255, 0.2);
               border-radius: 10px;
-              transition: background 0.3s ease;
-            }
-            .nav-scrollbar:hover::-webkit-scrollbar-thumb {
-              background: rgba(255, 255, 255, 0.35);
             }
             .nav-scrollbar::-webkit-scrollbar-thumb:hover {
-              background: rgba(255, 255, 255, 0.5);
+              background: rgba(255, 255, 255, 0.4);
             }
             /* For Firefox */
             .nav-scrollbar {
               scrollbar-width: thin;
               scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-            }
-            .nav-scrollbar:hover {
-              scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
             }
           `}</style>
           {allowedNavigationItems.map((item, index) => (
@@ -600,7 +601,7 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
               transition={{ delay: index * 0.02, type: "spring", stiffness: 300, damping: 25 }}
             >              {item.subItems ? (
                 <motion.div
-                  className={`group flex ${isMobile ? 'flex-row items-center px-4' : 'flex-col items-center'} p-3 rounded-2xl cursor-pointer transition-all duration-200 relative`}
+                  className={`group flex ${showLabels ? 'flex-row items-center px-3' : 'flex-col items-center'} p-2.5 rounded-xl cursor-pointer transition-all duration-200 relative`}
                   style={{ 
                     backgroundColor: isParentActive(item.subItems) ? colors.activeBg : 'transparent',
                   }}
@@ -619,15 +620,15 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
                       transition={{ type: "spring", stiffness: 400, damping: 30 }}
                     />
                   )}
-                  <div className="flex items-center">
-                    {item.icon}
-                    {isMobile && (
-                      <span className="ml-3 text-white font-medium text-sm">{item.label}</span>
+                  <div className="flex items-center min-w-0 flex-1">
+                    <span className="flex-shrink-0">{item.icon}</span>
+                    {showLabels && (
+                      <span className="ml-2 text-white font-medium text-xs truncate">{item.label}</span>
                     )}
                   </div>
                     <FiChevronDown 
                     size={chevronSize} 
-                    className={`${isMobile ? 'ml-auto' : 'mt-1.5'} transition-all duration-300 text-white opacity-80 ${
+                    className={`flex-shrink-0 ${showLabels ? 'ml-1' : 'mt-1.5'} transition-all duration-300 text-white opacity-80 ${
                       openDropdown === item.path ? 'rotate-180' : ''
                     }`}
                   />
@@ -639,26 +640,26 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
                   onClick={() => isMobile && setIsOpen(false)}
                 >
                   <motion.div
-                    className={`group flex items-center ${isMobile ? 'px-4' : 'justify-center'} p-3 rounded-2xl relative transition-all duration-200`}
+                    className={`group flex items-center ${showLabels ? 'px-3' : 'justify-center'} p-2.5 rounded-xl relative transition-all duration-200`}
                     style={{ 
                       backgroundColor: isActive(item.path) ? colors.activeBg : 'transparent',
                     }}
                     onMouseEnter={(e) => handleTooltipShow(item.label, e)}
                     onMouseLeave={handleTooltipHide}
-                    whileHover={{ scale: 1.03, backgroundColor: isActive(item.path) ? colors.activeBg : 'rgba(255, 255, 255, 0.05)' }}
+                    whileHover={{ scale: 1.02, backgroundColor: isActive(item.path) ? colors.activeBg : 'rgba(255, 255, 255, 0.05)' }}
                     whileTap={{ scale: 0.97 }}
                   >
                     {isActive(item.path) && (
                       <motion.div
-                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full"
+                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full"
                         style={{ backgroundColor: colors.accent }}
                         layoutId="activeIndicator"
                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
                       />
                     )}
-                    {item.icon}
-                    {isMobile && (
-                      <span className="ml-3 text-white font-medium text-sm">{item.label}</span>
+                    <span className="flex-shrink-0">{item.icon}</span>
+                    {showLabels && (
+                      <span className="ml-2 text-white font-medium text-xs truncate">{item.label}</span>
                     )}
                   </motion.div>
                 </Link>
@@ -667,18 +668,21 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
           ))}
         </nav>
 
-        {/* Bottom Section - Always visible with sticky positioning */}
-        <div className="sticky bottom-0 bg-inherit flex flex-col items-center gap-y-2 py-5 px-2.5 border-t mt-auto" style={{ borderColor: colors.muted }}>
+        {/* Bottom Section - Logout button */}
+        <div className={`sticky bottom-0 bg-inherit flex ${showLabels ? 'flex-row px-3' : 'flex-col'} items-center gap-2 py-4 px-2 border-t mt-auto`} style={{ borderColor: colors.muted }}>
           <motion.button
             onClick={handleLogout}
-            className="rounded-full flex items-center justify-center p-3 transition-all duration-200"
+            className={`rounded-xl flex items-center justify-center ${showLabels ? 'p-2.5 flex-1' : 'p-2.5'} transition-all duration-200`}
             style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
             onMouseEnter={(e) => handleTooltipShow('Log Out', e)}
             onMouseLeave={handleTooltipHide}
-            whileHover={{ scale: 1.08, backgroundColor: 'rgba(241, 103, 15, 0.2)' }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.02, backgroundColor: 'rgba(241, 103, 15, 0.2)' }}
+            whileTap={{ scale: 0.97 }}
           >
-            <FiLogOut size={iconSize} className="text-white" />
+            <FiLogOut size={iconSize} className="text-white flex-shrink-0" />
+            {showLabels && (
+              <span className="ml-2 text-white font-medium text-xs">Logout</span>
+            )}
           </motion.button>
         </div>
       </motion.div>      {/* Mobile Overlay */}
@@ -692,8 +696,8 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
         />
       )}
 
-      {/* Tooltip Portal - Renders outside sidebar to avoid clipping */}
-      {hoveredItem && !isMobile && createPortal(
+      {/* Tooltip Portal - Renders outside sidebar to avoid clipping (only on desktop, not tablet) */}
+      {hoveredItem && !isMobile && !isTablet && createPortal(
         <motion.div 
           className="fixed bg-white rounded-lg shadow-2xl border border-gray-100 px-4 py-2.5 font-semibold text-gray-900 z-[10000] pointer-events-none whitespace-nowrap"
           style={{ 

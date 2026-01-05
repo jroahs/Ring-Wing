@@ -33,7 +33,7 @@ const RevenueReportsPage = () => {
 
   return (
     <motion.div 
-      className="min-h-screen p-4 sm:p-6 lg:p-8 ml-0 md:ml-20 pt-16 md:pt-4 transition-all duration-300"
+      className="min-h-screen p-4 sm:p-6 lg:p-8 pt-16 md:pt-4 transition-all duration-300"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
