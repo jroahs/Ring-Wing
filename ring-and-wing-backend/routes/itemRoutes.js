@@ -22,7 +22,9 @@ const calculateStatus = (inventory, minimumThreshold = 5, unit = 'pieces') => {
 
 const getExpirationAlerts = (inventory) => {
   const now = new Date();
-  return inventory.map(batch => {
+  return inventory
+  .filter(batch => batch && batch.expirationDate)
+  .map(batch => {
     const expirationDate = new Date(batch.expirationDate);
     
     // PH time calculation
@@ -81,6 +83,7 @@ router.get('/', async (req, res) => {
     const items = await Item.find().lean();
     const formattedItems = items.map(item => ({
       ...item,
+      trackExpiration: item.trackExpiration !== false,
       totalQuantity: item.inventory.reduce((sum, b) => sum + b.quantity, 0),
       status: calculateStatus(item.inventory, item.minimumThreshold, item.unit),
       expirationAlerts: getExpirationAlerts(item.inventory)
@@ -102,6 +105,7 @@ router.get('/:id', async (req, res) => {
     
     res.json({
       ...item,
+      trackExpiration: item.trackExpiration !== false,
       totalQuantity: item.inventory.reduce((sum, b) => sum + b.quantity, 0),
       status: calculateStatus(item.inventory, item.minimumThreshold, item.unit)
     });
@@ -119,12 +123,30 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ message: 'Inventory must be an array' });
     }
 
-    const validatedInventory = inventory.map(batch => ({
-      quantity: Number(batch.quantity),
-      expirationDate: new Date(batch.expirationDate),
-      dailyStartQuantity: Number(batch.quantity),
-      lastTallied: new Date()
-    }));
+    const trackExpiration = itemData.trackExpiration !== false;
+
+    const validatedInventory = inventory.map(batch => {
+      const qty = Number(batch.quantity);
+      const hasExp = !!batch.expirationDate;
+      const exp = hasExp ? new Date(batch.expirationDate) : null;
+
+      if (trackExpiration) {
+        if (!hasExp || isNaN(exp)) {
+          throw new Error('Expiration date is required for all batches');
+        }
+      } else {
+        if (hasExp && isNaN(exp)) {
+          throw new Error('Invalid expiration date format');
+        }
+      }
+
+      return {
+        quantity: qty,
+        expirationDate: trackExpiration ? exp : (hasExp ? exp : null),
+        dailyStartQuantity: qty,
+        lastTallied: new Date()
+      };
+    });
 
     const item = new Item({
       ...itemData,
@@ -241,23 +263,36 @@ router.delete('/:id', async (req, res) => {
 router.patch('/:id/restock', async (req, res) => {
   try {
     const { quantity, expirationDate, cost } = req.body;
-    
-    if (!quantity || !expirationDate) {
-      return res.status(400).json({ message: 'Quantity and expiration date are required' });
+
+    if (!quantity) {
+      return res.status(400).json({ message: 'Quantity is required' });
     }
     
     if (cost === undefined || cost === null || cost < 0) {
       return res.status(400).json({ message: 'Cost is required for restock' });
     }
 
-    const expDate = new Date(expirationDate);
-    if (isNaN(expDate)) {
-      return res.status(400).json({ message: 'Invalid expiration date format' });
-    }
-
     const item = await Item.findById(req.params.id);
     if (!item) {
       return res.status(404).json({ message: 'Item not found' });
+    }
+
+    const trackExpiration = item.trackExpiration !== false;
+
+    let expDate = null;
+    if (trackExpiration) {
+      if (!expirationDate) {
+        return res.status(400).json({ message: 'Expiration date is required' });
+      }
+      expDate = new Date(expirationDate);
+      if (isNaN(expDate)) {
+        return res.status(400).json({ message: 'Invalid expiration date format' });
+      }
+    } else if (expirationDate) {
+      expDate = new Date(expirationDate);
+      if (isNaN(expDate)) {
+        return res.status(400).json({ message: 'Invalid expiration date format' });
+      }
     }
 
     // Store previous quantity for socket emission
@@ -554,8 +589,12 @@ router.patch('/:id/sell', async (req, res) => {
       return res.status(404).json({ message: 'Item not found' });
     }
 
-    // Sort by expiration date (FIFO)
-    item.inventory.sort((a, b) => a.expirationDate - b.expirationDate);
+    // Sort by expiration date (FIFO). Non-expiring batches go last.
+    item.inventory.sort((a, b) => {
+      const aTime = a?.expirationDate ? new Date(a.expirationDate).getTime() : Number.POSITIVE_INFINITY;
+      const bTime = b?.expirationDate ? new Date(b.expirationDate).getTime() : Number.POSITIVE_INFINITY;
+      return aTime - bTime;
+    });
 
     let remaining = quantityToSell;
     for (const batch of item.inventory) {

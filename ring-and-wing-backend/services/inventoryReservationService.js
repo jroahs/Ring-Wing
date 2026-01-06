@@ -704,10 +704,12 @@ class InventoryReservationService {
       exp: b.expirationDate 
     })));
     
-    // Sort batches by expiration date (FIFO - oldest first)
-    const sortedBatches = [...ingredient.inventory].sort((a, b) => 
-      new Date(a.expirationDate) - new Date(b.expirationDate)
-    );
+    // Sort batches by expiration date (FIFO - oldest first). Non-expiring batches go last.
+    const sortedBatches = [...ingredient.inventory].sort((a, b) => {
+      const aTime = a?.expirationDate ? new Date(a.expirationDate).getTime() : Number.POSITIVE_INFINITY;
+      const bTime = b?.expirationDate ? new Date(b.expirationDate).getTime() : Number.POSITIVE_INFINITY;
+      return aTime - bTime;
+    });
     
     for (const batch of sortedBatches) {
       if (remainingToConsume <= 0) break;

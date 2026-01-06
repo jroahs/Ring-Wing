@@ -105,7 +105,8 @@ const AlertDashboard = ({ alerts, onRestock, onDispose }) => {
     return getPriority(a) - getPriority(b);
   });
 
-  return (    <div className="relative" style={{ width: '450px', zIndex: 10 }}>
+  return (
+    <div className="relative w-full max-w-[450px]" style={{ zIndex: 20 }}>
       <div className="border rounded-lg shadow-sm relative" style={{ borderColor: colors.muted }}>
         <div 
           className="flex items-center justify-between p-3 bg-gray-50 border-b cursor-pointer"
@@ -116,30 +117,30 @@ const AlertDashboard = ({ alerts, onRestock, onDispose }) => {
             <h3 className="font-medium" style={{ color: colors.primary }}>
               Inventory Alerts ({alerts.length})
             </h3>
-            <div className="flex items-center ml-2">
+            <div className="flex items-center ml-2 gap-2 whitespace-nowrap">
               <span 
                 className="flex h-5 w-5 items-center justify-center rounded-full text-xs"
                 style={{ backgroundColor: colors.accent, color: 'white' }}
               >
                 {alertCounts.stock}
               </span>
-              <span className="ml-1 text-sm">Stock</span>
+              <span className="text-sm hidden sm:inline">Stock</span>
               <span 
-                className="flex h-5 w-5 items-center justify-center rounded-full text-xs ml-2"
+                className="flex h-5 w-5 items-center justify-center rounded-full text-xs"
                 style={{ backgroundColor: colors.secondary, color: 'white' }}
               >
                 {alertCounts.expiration}
               </span>
-              <span className="ml-1 text-sm">Expiration</span>
+              <span className="text-sm hidden sm:inline">Expiration</span>
             </div>
           </div>
           <span className="text-gray-500">{isCollapsed ? '▼' : '▲'}</span>
         </div>
 
         {!isCollapsed && (
-          <div className="absolute top-full left-0 right-0 bg-white border rounded-b-lg shadow-lg z-50" style={{ borderColor: colors.muted }}>
+          <div className="absolute top-full left-0 right-0 bg-white border rounded-b-lg shadow-lg z-30" style={{ borderColor: colors.muted }}>
             <div className="p-3 border-b" style={{ borderColor: colors.muted }}>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setFilterType('all')}
                   className={`px-3 py-1 rounded-full text-sm ${
@@ -165,7 +166,8 @@ const AlertDashboard = ({ alerts, onRestock, onDispose }) => {
                   Expiration ({alertCounts.expiration})
                 </button>
               </div>
-            </div>            <div className="max-h-[400px] overflow-y-auto p-2">
+            </div>
+            <div className="max-h-[400px] overflow-y-auto p-2">
               {organizedAlerts.length > 0 ? (
                 <div className="grid grid-cols-1 gap-2">
                   {organizedAlerts.map(alert => (
@@ -218,6 +220,7 @@ const InventorySystem = () => {
     price: 0,
     vendor: '',
     inventory: [],
+    trackExpiration: true,
     isCountBased: true,
     minimumThreshold: 5
   });
@@ -797,6 +800,40 @@ const InventorySystem = () => {
     
     // Only show toasts on first load or when alerts actually change
     if (isFirstLoad || (alertsHash !== lastAlertsHash && !isFirstLoad)) {
+      const MAX_TOAST_ITEMS = 3;
+      const LARGE_LIST_THRESHOLD = 8;
+
+      const renderAlertToast = (title, list) => {
+        if (list.length > LARGE_LIST_THRESHOLD) {
+          return (
+            <div className="text-sm">
+              <div className="font-semibold">{title}</div>
+              <div className="mt-1 text-sm">{list.length} items</div>
+              <div className="mt-2 text-xs text-gray-600">Open Inventory Alerts for details</div>
+            </div>
+          );
+        }
+
+        const shown = list.slice(0, MAX_TOAST_ITEMS);
+        const remaining = list.length - shown.length;
+
+        return (
+          <div className="text-sm">
+            <div className="font-semibold">{title}</div>
+            <div className="mt-2 max-h-32 overflow-y-auto pr-2 space-y-1 break-words">
+              {shown.map(a => (
+                <div key={a.id} className="text-sm">
+                  • {a.message}
+                </div>
+              ))}
+            </div>
+            {remaining > 0 && (
+              <div className="mt-2 text-xs text-gray-600">+{remaining} more (see Inventory Alerts)</div>
+            )}
+          </div>
+        );
+      };
+
       // Group alerts by type for cleaner notification display
       const stockAlerts = allAlerts.filter(a => a.type === 'stock');
       const expirationAlerts = allAlerts.filter(a => a.type === 'expiration');
@@ -807,35 +844,23 @@ const InventorySystem = () => {
         
         if (outOfStock.length) {
           const itemNames = outOfStock.map(a => a.message.split(' is ')[0]).join(', ');
-          toast.error(            <div>
-              <strong>Out of Stock Items:</strong>
-              <br />
-              {outOfStock.map(a => (
-                <div key={a.id} className="mt-1 text-sm">
-                  • {a.message}
-                </div>
-              ))}
-            </div>,
+          toast.error(
+            renderAlertToast('Out of Stock Items', outOfStock),
             {
               toastId: 'out-of-stock',
               autoClose: 3000,
+              style: { maxWidth: 360 }
             }
           );
         }
         
         if (lowStock.length) {
-          toast.warning(            <div>
-              <strong>Low Stock Items:</strong>
-              <br />
-              {lowStock.map(a => (
-                <div key={a.id} className="mt-1 text-sm">
-                  • {a.message}
-                </div>
-              ))}
-            </div>,
+          toast.warning(
+            renderAlertToast('Low Stock Items', lowStock),
             {
               toastId: 'low-stock',
               autoClose: 3000,
+              style: { maxWidth: 360 }
             }
           );
         }
@@ -848,35 +873,22 @@ const InventorySystem = () => {
         
         if (expired.length) {
           toast.error(
-            <div>
-              <strong>Expired Items:</strong>
-              <br />
-              {expired.map(a => (
-                <div key={a.id} className="mt-1 text-sm">
-                  • {a.message}
-                </div>
-              ))}
-            </div>,
+            renderAlertToast('Expired Items', expired),
             {
               toastId: 'expired',
               autoClose: 7000, // Give more time to read
+              style: { maxWidth: 360 }
             }
           );
         }
         
         if (expiringSoon.length) {
-          toast.warning(            <div>
-              <strong>Items Expiring Soon:</strong>
-              <br />
-              {expiringSoon.map(a => (
-                <div key={a.id} className="mt-1 text-sm">
-                  • {a.message}
-                </div>
-              ))}
-            </div>,
+          toast.warning(
+            renderAlertToast('Items Expiring Soon', expiringSoon),
             {
               toastId: 'expiring-soon',
-              autoClose: 3000
+              autoClose: 3000,
+              style: { maxWidth: 360 }
             }
           );
         }
@@ -1016,10 +1028,16 @@ const InventorySystem = () => {
         return;
       }
 
+      const trackExpiration = selectedItem?.trackExpiration !== false;
+      if (trackExpiration && !restockData.expirationDate) {
+        setError('Please select an expiration date');
+        return;
+      }
+
       const payload = {
         quantity: isCountBased ? parseInt(restockData.quantity, 10) : parseFloat(restockData.quantity),
         cost: parseFloat(restockData.cost),
-        expirationDate: adjustForPHTime(restockData.expirationDate)
+        expirationDate: trackExpiration ? adjustForPHTime(restockData.expirationDate) : null
       };
 
       const { data } = await axios.patch(
@@ -1234,6 +1252,7 @@ const InventorySystem = () => {
       price: 0,
       vendor: '',
       inventory: [],
+      trackExpiration: true,
       isCountBased: true,
       minimumThreshold: 5
     });
@@ -1261,11 +1280,22 @@ const InventorySystem = () => {
       if (newItem.inventory.length === 0) {
         throw new Error('At least one inventory batch is required');
       }
+
+      if (newItem.trackExpiration) {
+        const hasMissingExpiry = newItem.inventory.some(b => !b.expirationDate);
+        if (hasMissingExpiry) {
+          throw new Error('Expiration date is required for all batches (or disable Track Expiration Dates)');
+        }
+      }
       
       // Set isCountBased based on unit
       const isCountBased = newItem.unit === 'pieces';
       const itemToSubmit = {
         ...newItem,
+        inventory: newItem.inventory.map(b => ({
+          ...b,
+          expirationDate: newItem.trackExpiration ? b.expirationDate : null
+        })),
         isCountBased,
         // Use the user-entered minimumThreshold from the form, with fallback to defaults
         minimumThreshold: newItem.minimumThreshold || 
@@ -1301,6 +1331,7 @@ const InventorySystem = () => {
       cost: item.cost,
       price: item.price,
       vendor: item.vendor,
+      trackExpiration: item.trackExpiration !== false,
       // Convert Date objects to YYYY-MM-DD format for HTML date inputs
       inventory: item.inventory.map(batch => ({
         ...batch,
@@ -1322,11 +1353,22 @@ const InventorySystem = () => {
       if (newItem.inventory.length === 0) {
         throw new Error('At least one inventory batch is required');
       }
+
+      if (newItem.trackExpiration) {
+        const hasMissingExpiry = newItem.inventory.some(b => !b.expirationDate);
+        if (hasMissingExpiry) {
+          throw new Error('Expiration date is required for all batches (or disable Track Expiration Dates)');
+        }
+      }
       
       // Set isCountBased based on unit
       const isCountBased = newItem.unit === 'pieces';
       const itemToSubmit = {
         ...newItem,
+        inventory: newItem.inventory.map(b => ({
+          ...b,
+          expirationDate: newItem.trackExpiration ? b.expirationDate : null
+        })),
         isCountBased,
         // Use the user-entered minimumThreshold from the form, with fallback to defaults
         minimumThreshold: newItem.minimumThreshold || 
@@ -1463,7 +1505,7 @@ const InventorySystem = () => {
             Ring & Wing Café Inventory System
           </h1>
           
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <AlertDashboard 
               alerts={alerts} 
               onRestock={(alertId) => {
@@ -1478,8 +1520,8 @@ const InventorySystem = () => {
               }}
               onDispose={(itemId, batchId) => handleDispose(itemId, batchId)}
             />
-            <div className="flex items-center gap-3">
-              <div className="w-[280px]">
+            <div className="flex flex-wrap items-center gap-3 justify-end">
+              <div className="w-full sm:w-[280px]">
                 <input
                   type="text"
                   placeholder="Search items..."
@@ -1492,7 +1534,7 @@ const InventorySystem = () => {
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="p-2 border rounded w-[200px]"
+                className="p-2 border rounded w-full sm:w-[200px]"
                 style={{ borderColor: colors.muted }}
               >
                 <option value="All">All Categories</option>
@@ -1534,35 +1576,47 @@ const InventorySystem = () => {
                 toast.error('Failed to refresh: ' + err.message);
               }
             }}
-            variant="secondary"
+            variant="primary"
             title="Manually refresh inventory to check for newly expired items"
           >
             Check Expiration
           </Button>
           <Button
             onClick={() => setShowConversionModal(true)}
-            variant="secondary"
+            variant="primary"
           >
             Convert Units
           </Button>
           <Button
             onClick={() => setShowReports(true)}
-            variant="secondary"
+            variant="primary"
           >
             Analytics
           </Button>
           <Button
             onClick={() => setShowAuditLog(true)}
-            variant="secondary"
+            variant="primary"
           >
             Audit Log
           </Button>
         </div>
 
         <div className="rounded-lg overflow-hidden border mx-6" style={{ borderColor: colors.muted }}>
-          <div className="overflow-x-auto">
+          <div className="overflow-auto relative z-0" style={{ maxHeight: 'calc(100vh - 320px)' }}>
             <table className="w-full">
-              <thead style={{ backgroundColor: colors.activeBg }}>
+              <thead
+                className="sticky top-0 z-[1]"
+                style={{
+                  // Opaque base prevents row text from showing through,
+                  // tinted overlay keeps the project's "translucent" header look.
+                  backgroundColor: colors.background,
+                  backgroundImage: `linear-gradient(${colors.activeBg}, ${colors.activeBg})`,
+                  borderBottom: `1px solid ${colors.muted}`,
+                  backdropFilter: 'blur(6px)',
+                  WebkitBackdropFilter: 'blur(6px)',
+                  isolation: 'isolate'
+                }}
+              >
                 <tr>
                   {['Item Name', 'Category', 'Status', 'Quantity', 'Unit', 'Cost', 'Price', 'Vendor', 'Actions'].map((header) => (
                     <th key={header} className="px-4 py-3 text-left text-sm font-semibold" style={{ color: colors.primary }}>
@@ -1578,7 +1632,7 @@ const InventorySystem = () => {
                     <td className="px-4 py-3" style={{ color: colors.primary }}>{item.name}</td>
                     <td className="px-4 py-3" style={{ color: colors.secondary }}>{item.category}</td>
                     <td className="px-4 py-3">
-                      <span className="px-2 py-1 rounded-full text-sm"
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-sm whitespace-nowrap"
                         style={{ backgroundColor: getStatusColor(item.status).bg, color: getStatusColor(item.status).text }}>
                         {item.status}
                       </span>
@@ -1587,11 +1641,14 @@ const InventorySystem = () => {
                     <td className="px-4 py-3" style={{ color: colors.secondary }}>{item.unit}</td>
                     <td className="px-4 py-3" style={{ color: colors.primary }}>{formatPeso(item.cost)}</td>
                     <td className="px-4 py-3" style={{ color: colors.primary }}>{formatPeso(item.price)}</td>
-                    <td className="px-4 py-3" style={{ color: colors.secondary }}>{item.vendor}</td>                    <td className="px-4 py-3 flex gap-2">
+                    <td className="px-4 py-3" style={{ color: colors.secondary }}>{item.vendor}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="inline-flex items-center gap-1 flex-nowrap">
                       <Button
                         onClick={() => prepareEndDayCount(item)}
                         variant="accent"
                         size="sm"
+                        className="px-2"
                       >
                         End-Day Count
                       </Button>
@@ -1600,8 +1657,9 @@ const InventorySystem = () => {
                           setSelectedItem(item);
                           setShowRestockModal(true);
                         }}
-                        variant="secondary"
+                        variant="primary"
                         size="sm"
+                        className="px-2"
                       >
                         Restock
                       </Button>
@@ -1609,6 +1667,7 @@ const InventorySystem = () => {
                         onClick={() => handleEditItem(item)}
                         variant="primary"
                         size="sm"
+                        className="px-2"
                       >
                         Edit
                       </Button>
@@ -1616,9 +1675,11 @@ const InventorySystem = () => {
                         onClick={() => handleDelete(item._id)}
                         variant="ghost"
                         size="sm"
+                        className="px-2"
                       >
                         Delete
                       </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1734,7 +1795,26 @@ const InventorySystem = () => {
 
                   {/* Inventory Batches */}
                   <div className="md:col-span-2">
-                    <label className="block text-sm mb-1">Inventory Batches</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-sm">Inventory Batches</label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={newItem.trackExpiration}
+                          onChange={(e) => {
+                            const next = e.target.checked;
+                            setNewItem({
+                              ...newItem,
+                              trackExpiration: next,
+                              inventory: next
+                                ? newItem.inventory
+                                : newItem.inventory.map(b => ({ ...b, expirationDate: '' }))
+                            });
+                          }}
+                        />
+                        Track Expiration Dates
+                      </label>
+                    </div>
                     <div className="space-y-2">
                       {newItem.inventory.map((batch, index) => (
                         <div key={index} className="flex gap-2">
@@ -1749,14 +1829,25 @@ const InventorySystem = () => {
                             style={{ borderColor: colors.muted }}
                             placeholder="Quantity"
                           />
-                          <input
-                            type="date"
-                            required
-                            value={batch.expirationDate}
-                            onChange={(e) => handleBatchChange(index, 'expirationDate', e.target.value)}
-                            className="p-2 border rounded flex-1"
-                            style={{ borderColor: colors.muted }}
-                          />                          <Button
+                          {newItem.trackExpiration ? (
+                            <input
+                              type="date"
+                              required
+                              value={batch.expirationDate}
+                              onChange={(e) => handleBatchChange(index, 'expirationDate', e.target.value)}
+                              className="p-2 border rounded flex-1"
+                              style={{ borderColor: colors.muted }}
+                            />
+                          ) : (
+                            <div
+                              className="p-2 border rounded flex-1 text-sm text-gray-500 bg-gray-50"
+                              style={{ borderColor: colors.muted }}
+                            >
+                              No expiration
+                            </div>
+                          )}
+
+                          <Button
                             onClick={() => removeBatch(index)}
                             variant="ghost"
                             size="sm"
@@ -1993,7 +2084,26 @@ const InventorySystem = () => {
                     />
                   </div>                  {/* Initial Batches */}
                   <div className="md:col-span-2">
-                    <label className="block text-sm mb-1">Batches</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-sm">Batches</label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={newItem.trackExpiration}
+                          onChange={(e) => {
+                            const next = e.target.checked;
+                            setNewItem({
+                              ...newItem,
+                              trackExpiration: next,
+                              inventory: next
+                                ? newItem.inventory
+                                : newItem.inventory.map(b => ({ ...b, expirationDate: '' }))
+                            });
+                          }}
+                        />
+                        Track Expiration Dates
+                      </label>
+                    </div>
                     <div className="space-y-2 max-h-40 overflow-y-auto p-2 border rounded" style={{ borderColor: colors.muted }}>
                       {newItem.inventory.map((batch, index) => (
                         <div key={index} className="flex gap-2 items-center p-2 bg-gray-50 rounded">
@@ -2010,14 +2120,23 @@ const InventorySystem = () => {
                             />
                           </div>
                           <div className="flex-1">
-                            <input
-                              type="date"
-                              required
-                              value={batch.expirationDate}
-                              onChange={(e) => handleBatchChange(index, 'expirationDate', e.target.value)}
-                              className="w-full p-1 border rounded text-sm"
-                              style={{ borderColor: colors.muted }}
-                            />
+                            {newItem.trackExpiration ? (
+                              <input
+                                type="date"
+                                required
+                                value={batch.expirationDate}
+                                onChange={(e) => handleBatchChange(index, 'expirationDate', e.target.value)}
+                                className="w-full p-1 border rounded text-sm"
+                                style={{ borderColor: colors.muted }}
+                              />
+                            ) : (
+                              <div
+                                className="w-full p-1 border rounded text-sm text-gray-500 bg-gray-50"
+                                style={{ borderColor: colors.muted }}
+                              >
+                                No expiration
+                              </div>
+                            )}
                           </div>
                           <Button
                             onClick={() => removeBatch(index)}
@@ -2210,17 +2329,23 @@ const InventorySystem = () => {
               </div>
             </div>
           )}
-          <div>
-            <label className="block text-sm mb-1">Expiration Date</label>
-            <input
-              type="date"
-              required
-              value={restockData.expirationDate}
-              onChange={(e) => setRestockData({...restockData, expirationDate: e.target.value})}
-              className="w-full p-2 border rounded"
-              style={{ borderColor: colors.muted }}
-            />
-          </div>
+          {selectedItem?.trackExpiration !== false ? (
+            <div>
+              <label className="block text-sm mb-1">Expiration Date</label>
+              <input
+                type="date"
+                required
+                value={restockData.expirationDate}
+                onChange={(e) => setRestockData({...restockData, expirationDate: e.target.value})}
+                className="w-full p-2 border rounded"
+                style={{ borderColor: colors.muted }}
+              />
+            </div>
+          ) : (
+            <div className="text-sm text-gray-600">
+              Expiration tracking is disabled for this item.
+            </div>
+          )}
         </div>        <div className="flex justify-end gap-2 mt-6">
           <Button
             onClick={() => {

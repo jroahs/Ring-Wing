@@ -19,9 +19,9 @@ const inventoryBatchSchema = new mongoose.Schema({
     required: false,
     min: [0, 'Batch cost cannot be negative']
   },
-  expirationDate: { 
-    type: Date, 
-    required: [true, 'Expiration date is required'] 
+  expirationDate: {
+    type: Date,
+    required: false
   },
   addedAt: { 
     type: Date, 
@@ -92,6 +92,11 @@ const itemSchema = new mongoose.Schema({
     type: String, 
     required: [true, 'Vendor is required'],
     trim: true
+  },
+  // Some inventory items (e.g., utensils) do not need expiry tracking
+  trackExpiration: {
+    type: Boolean,
+    default: true
   },
   // Minimum thresholds for different unit types
   minimumThreshold: {
@@ -164,7 +169,9 @@ itemSchema.virtual('expirationAlerts').get(function() {
   const now = new Date();
   const nowKey = formatBusinessDateKey(now);
   const nowNoonUtc = businessDateTimeUtc(nowKey, 12, 0, 0, 0);
-  return this.inventory.map(batch => {
+  return this.inventory
+  .filter(batch => batch && batch.expirationDate)
+  .map(batch => {
     const expirationDate = new Date(batch.expirationDate);
 
     const expKey = formatBusinessDateKey(expirationDate);
