@@ -1,3 +1,9 @@
 {
-    "postman.settings.dotenv-detection-notification-visibility": false
+    "postman.settings.dotenv-detection-notification-visibility": false,
+    "typescript.tsserver.exclude": [
+        "ring-and-wing-backend/node_modules/**"
+    ],
+    "javascript.tsserver.exclude": [
+        "ring-and-wing-backend/node_modules/**"
+    ]
 }
