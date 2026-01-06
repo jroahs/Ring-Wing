@@ -1205,9 +1205,10 @@ const InventorySystem = () => {
 
   // Inventory batch management
   const addBatch = () => {
-    const newInventory = [...newItem.inventory, { quantity: 0, expirationDate: '' }];
+    const newInventory = [...newItem.inventory, { quantity: '', expirationDate: '' }];
+    const cost = Number.isFinite(parseFloat(newItem.cost)) ? parseFloat(newItem.cost) : 0;
     const totalQty = newInventory.reduce((sum, b) => sum + (parseFloat(b.quantity) || 0), 0);
-    const unitPrice = totalQty > 0 ? (newItem.cost / totalQty).toFixed(4) : 0;
+    const unitPrice = totalQty > 0 ? (cost / totalQty).toFixed(4) : 0;
     setNewItem({
       ...newItem,
       inventory: newInventory,
@@ -1217,8 +1218,9 @@ const InventorySystem = () => {
 
   const removeBatch = (index) => {
     const newInventory = newItem.inventory.filter((_, i) => i !== index);
+    const cost = Number.isFinite(parseFloat(newItem.cost)) ? parseFloat(newItem.cost) : 0;
     const totalQty = newInventory.reduce((sum, b) => sum + (parseFloat(b.quantity) || 0), 0);
-    const unitPrice = totalQty > 0 ? (newItem.cost / totalQty).toFixed(4) : 0;
+    const unitPrice = totalQty > 0 ? (cost / totalQty).toFixed(4) : 0;
     setNewItem({ ...newItem, inventory: newInventory, price: parseFloat(unitPrice) });
   };
 
@@ -1228,8 +1230,9 @@ const InventorySystem = () => {
     
     // If quantity changed, recalculate unit price
     if (field === 'quantity') {
+      const cost = Number.isFinite(parseFloat(newItem.cost)) ? parseFloat(newItem.cost) : 0;
       const totalQty = newInventory.reduce((sum, b) => sum + (parseFloat(b.quantity) || 0), 0);
-      const unitPrice = totalQty > 0 ? (newItem.cost / totalQty).toFixed(4) : 0;
+      const unitPrice = totalQty > 0 ? (cost / totalQty).toFixed(4) : 0;
       setNewItem({ ...newItem, inventory: newInventory, price: parseFloat(unitPrice) });
     } else {
       setNewItem({ ...newItem, inventory: newInventory });
@@ -1248,7 +1251,7 @@ const InventorySystem = () => {
       name: '',
       category: '',
       unit: 'pieces',
-      cost: 0,
+      cost: '',
       price: 0,
       vendor: '',
       inventory: [],
@@ -1290,20 +1293,33 @@ const InventorySystem = () => {
       
       // Set isCountBased based on unit
       const isCountBased = newItem.unit === 'pieces';
+
+      const cost = Number.isFinite(parseFloat(newItem.cost)) ? parseFloat(newItem.cost) : 0;
+      const totalQty = newItem.inventory.reduce((sum, b) => sum + (parseFloat(b.quantity) || 0), 0);
+      const price = totalQty > 0 ? parseFloat((cost / totalQty).toFixed(4)) : 0;
+
+      const defaultMinimumThreshold =
+        isCountBased ? 5 :
+        (newItem.unit === 'grams' ? 500 :
+         newItem.unit === 'kilograms' ? 0.5 :
+         newItem.unit === 'milliliters' ? 500 :
+         newItem.unit === 'liters' ? 0.5 : 5);
+
+      const minimumThreshold =
+        newItem.minimumThreshold === '' || newItem.minimumThreshold === null || newItem.minimumThreshold === undefined
+          ? defaultMinimumThreshold
+          : Number(newItem.minimumThreshold);
+
       const itemToSubmit = {
         ...newItem,
+        cost,
+        price,
         inventory: newItem.inventory.map(b => ({
           ...b,
           expirationDate: newItem.trackExpiration ? b.expirationDate : null
         })),
         isCountBased,
-        // Use the user-entered minimumThreshold from the form, with fallback to defaults
-        minimumThreshold: newItem.minimumThreshold || 
-                         (isCountBased ? 5 : 
-                          (newItem.unit === 'grams' ? 500 :
-                           newItem.unit === 'kilograms' ? 0.5 :
-                           newItem.unit === 'milliliters' ? 500 :
-                           newItem.unit === 'liters' ? 0.5 : 5))
+        minimumThreshold
       };
         const { data } = await axios.post(`${API_URL}/api/items`, itemToSubmit);
       setItems([...items, data]);
@@ -1328,7 +1344,7 @@ const InventorySystem = () => {
       name: item.name,
       category: item.category,
       unit: item.unit,
-      cost: item.cost,
+      cost: item.cost === null || item.cost === undefined ? '' : String(item.cost),
       price: item.price,
       vendor: item.vendor,
       trackExpiration: item.trackExpiration !== false,
@@ -1363,20 +1379,33 @@ const InventorySystem = () => {
       
       // Set isCountBased based on unit
       const isCountBased = newItem.unit === 'pieces';
+
+      const cost = Number.isFinite(parseFloat(newItem.cost)) ? parseFloat(newItem.cost) : 0;
+      const totalQty = newItem.inventory.reduce((sum, b) => sum + (parseFloat(b.quantity) || 0), 0);
+      const price = totalQty > 0 ? parseFloat((cost / totalQty).toFixed(4)) : 0;
+
+      const defaultMinimumThreshold =
+        isCountBased ? 5 :
+        (newItem.unit === 'grams' ? 500 :
+         newItem.unit === 'kilograms' ? 0.5 :
+         newItem.unit === 'milliliters' ? 500 :
+         newItem.unit === 'liters' ? 0.5 : 5);
+
+      const minimumThreshold =
+        newItem.minimumThreshold === '' || newItem.minimumThreshold === null || newItem.minimumThreshold === undefined
+          ? defaultMinimumThreshold
+          : Number(newItem.minimumThreshold);
+
       const itemToSubmit = {
         ...newItem,
+        cost,
+        price,
         inventory: newItem.inventory.map(b => ({
           ...b,
           expirationDate: newItem.trackExpiration ? b.expirationDate : null
         })),
         isCountBased,
-        // Use the user-entered minimumThreshold from the form, with fallback to defaults
-        minimumThreshold: newItem.minimumThreshold || 
-                         (isCountBased ? 5 : 
-                          (newItem.unit === 'grams' ? 500 :
-                           newItem.unit === 'kilograms' ? 0.5 :
-                           newItem.unit === 'milliliters' ? 500 :
-                           newItem.unit === 'liters' ? 0.5 : 5))
+        minimumThreshold
       };
       
       const { data } = await axios.put(`${API_URL}/api/items/${editingItem._id}`, itemToSubmit);
@@ -1784,7 +1813,13 @@ const InventorySystem = () => {
                       min="0"
                       step={newItem.unit === 'kilograms' || newItem.unit === 'liters' ? '0.1' : '1'}
                       value={newItem.minimumThreshold}
-                      onChange={(e) => setNewItem({...newItem, minimumThreshold: parseFloat(e.target.value)})}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setNewItem({
+                          ...newItem,
+                          minimumThreshold: raw === '' ? '' : parseFloat(raw)
+                        });
+                      }}
                       className="w-full p-2 border rounded"
                       style={{ borderColor: colors.muted }}
                     />
@@ -1848,6 +1883,7 @@ const InventorySystem = () => {
                           )}
 
                           <Button
+                            type="button"
                             onClick={() => removeBatch(index)}
                             variant="ghost"
                             size="sm"
@@ -1858,6 +1894,7 @@ const InventorySystem = () => {
                       ))}
                     </div>
                     <Button
+                      type="button"
                       onClick={addBatch}
                       variant="accent"
                       size="sm"
@@ -1877,10 +1914,11 @@ const InventorySystem = () => {
                       min="0"
                       value={newItem.cost}
                       onChange={(e) => {
-                        const cost = parseFloat(e.target.value) || 0;
+                        const raw = e.target.value;
+                        const cost = Number.isFinite(parseFloat(raw)) ? parseFloat(raw) : 0;
                         const totalQty = newItem.inventory.reduce((sum, b) => sum + (parseFloat(b.quantity) || 0), 0);
                         const unitPrice = totalQty > 0 ? (cost / totalQty).toFixed(4) : 0;
-                        setNewItem({...newItem, cost, price: parseFloat(unitPrice)});
+                        setNewItem({ ...newItem, cost: raw, price: parseFloat(unitPrice) });
                       }}
                       className="w-full p-2 border rounded"
                       style={{ borderColor: colors.muted }}
@@ -1955,6 +1993,7 @@ const InventorySystem = () => {
                       
                       <div className="flex justify-end gap-2 mt-4">
                         <Button
+                          type="button"
                           onClick={() => setShowVendorAccordion(false)}
                           variant="ghost"
                           size="sm"
@@ -1962,6 +2001,7 @@ const InventorySystem = () => {
                           Cancel
                         </Button>
                         <Button
+                          type="button"
                           onClick={handleVendorSubmit}
                           variant="accent"
                           size="sm"
@@ -1974,6 +2014,7 @@ const InventorySystem = () => {
                 )}                <div className="mt-6 flex justify-between">
                   <div className="flex gap-2">
                     <Button
+                      type="button"
                       onClick={() => {
                         setShowAddModal(false);
                         resetForm();
@@ -2078,7 +2119,13 @@ const InventorySystem = () => {
                       min="0"
                       step={newItem.unit === 'kilograms' || newItem.unit === 'liters' ? '0.1' : '1'}
                       value={newItem.minimumThreshold}
-                      onChange={(e) => setNewItem({...newItem, minimumThreshold: parseFloat(e.target.value)})}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setNewItem({
+                          ...newItem,
+                          minimumThreshold: raw === '' ? '' : parseFloat(raw)
+                        });
+                      }}
                       className="w-full p-2 border rounded"
                       style={{ borderColor: colors.muted }}
                     />
@@ -2139,6 +2186,7 @@ const InventorySystem = () => {
                             )}
                           </div>
                           <Button
+                            type="button"
                             onClick={() => removeBatch(index)}
                             variant="ghost"
                             size="sm"
@@ -2149,6 +2197,7 @@ const InventorySystem = () => {
                       ))}
                     </div>
                     <Button
+                      type="button"
                       onClick={addBatch}
                       variant="accent"
                       size="sm"
@@ -2168,10 +2217,11 @@ const InventorySystem = () => {
                       min="0"
                       value={newItem.cost}
                       onChange={(e) => {
-                        const cost = parseFloat(e.target.value) || 0;
+                        const raw = e.target.value;
+                        const cost = Number.isFinite(parseFloat(raw)) ? parseFloat(raw) : 0;
                         const totalQty = newItem.inventory.reduce((sum, b) => sum + (parseFloat(b.quantity) || 0), 0);
                         const unitPrice = totalQty > 0 ? (cost / totalQty).toFixed(4) : 0;
-                        setNewItem({...newItem, cost, price: parseFloat(unitPrice)});
+                        setNewItem({ ...newItem, cost: raw, price: parseFloat(unitPrice) });
                       }}
                       className="w-full p-2 border rounded"
                       style={{ borderColor: colors.muted }}
@@ -2244,6 +2294,7 @@ const InventorySystem = () => {
                       
                       <div className="flex justify-end gap-2 mt-4">
                         <Button
+                          type="button"
                           onClick={() => setShowVendorAccordion(false)}
                           variant="ghost"
                           size="sm"
@@ -2251,6 +2302,7 @@ const InventorySystem = () => {
                           Cancel
                         </Button>
                         <Button
+                          type="button"
                           onClick={handleVendorSubmit}
                           variant="accent"
                           size="sm"
@@ -2263,6 +2315,7 @@ const InventorySystem = () => {
                 )}                <div className="mt-6 flex justify-between">
                   <div className="flex gap-2">
                     <Button
+                      type="button"
                       onClick={() => {
                         setShowEditModal(false);
                         resetForm();
@@ -2348,6 +2401,7 @@ const InventorySystem = () => {
           )}
         </div>        <div className="flex justify-end gap-2 mt-6">
           <Button
+            type="button"
             onClick={() => {
               setShowRestockModal(false);
               setRestockData({ quantity: '', expirationDate: '', cost: '' });
@@ -2412,6 +2466,7 @@ const InventorySystem = () => {
           ))}
         </div>        <div className="flex justify-end gap-2 mt-6">
           <Button
+            type="button"
             onClick={() => setShowDailyInventoryModal(false)}
             variant="secondary"
           >
@@ -2497,6 +2552,7 @@ const InventorySystem = () => {
         </div>
           <div className="flex justify-end gap-2 mt-6">
           <Button
+            type="button"
             onClick={() => setShowConversionModal(false)}
             variant="secondary"
           >
@@ -2565,6 +2621,7 @@ const InventorySystem = () => {
           ))}
         </div>          <div className="flex justify-end gap-2 mt-6">
           <Button
+            type="button"
             onClick={() => setShowBulkEndDayModal(false)}
             variant="secondary"
             disabled={bulkOperationLoading}
