@@ -278,6 +278,11 @@ const uploadsDir = path.join(publicDir, 'uploads');
 // CORS configuration
 app.use(cors({
   origin: function(origin, callback) {
+    const additionalOrigins = (process.env.FRONTEND_URLS || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:5173',
@@ -285,6 +290,7 @@ app.use(cors({
       process.env.RENDER_FRONTEND_URL,
       process.env.RENDER_BACKEND_URL,
       process.env.FRONTEND_URL,
+      ...additionalOrigins,
       undefined // Allow requests with no origin (like mobile apps or curl requests)
     ].filter(Boolean); // Remove undefined values
     // Log all CORS requests
@@ -919,13 +925,19 @@ const jwt = require('jsonwebtoken');
 const io = socketIo(server, {
   cors: {
     origin: function(origin, callback) {
+      const additionalOrigins = (process.env.FRONTEND_URLS || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+
       const allowedOrigins = [
         'http://localhost:5173',
         'http://localhost:5174',
         'http://localhost:3000',
         process.env.FRONTEND_URL,
         process.env.RENDER_FRONTEND_URL,
-        process.env.RENDER_BACKEND_URL
+        process.env.RENDER_BACKEND_URL,
+        ...additionalOrigins
       ].filter(Boolean);
       
       if (!origin || allowedOrigins.includes(origin)) {
