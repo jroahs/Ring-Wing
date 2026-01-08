@@ -255,6 +255,18 @@ const PointOfSale = () => {
       }
     });
 
+    // Listen for menu delivery availability changes (Delivery flag)
+    socketConnection.on('menuDeliveryAvailabilityChanged', (data) => {
+      console.log('[POS] Menu delivery availability changed:', data);
+      if (data.menuItemId && typeof data.isDeliveryAvailable === 'boolean') {
+        setMenuItems(prev => prev.map(item =>
+          item._id === data.menuItemId
+            ? { ...item, isDeliveryAvailable: data.isDeliveryAvailable }
+            : item
+        ));
+      }
+    });
+
     setSocket(socketConnection);
 
     return () => {
@@ -309,7 +321,7 @@ const PointOfSale = () => {
       console.log('[POS] Using preloaded categories from DataCoordinator:', coordinatorCategories.length);
       
       // Sort categories for consistency
-      const sortedCategories = coordinatorCategories.sort((a, b) => {
+      const sortedCategories = [...coordinatorCategories].sort((a, b) => {
         const aSortOrder = typeof a.sortOrder === 'number' ? a.sortOrder : 999;
         const bSortOrder = typeof b.sortOrder === 'number' ? b.sortOrder : 999;
         

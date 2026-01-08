@@ -272,6 +272,19 @@ const PointOfSaleTablet = () => {
       );
     });
 
+    globalSocket.on('menuDeliveryAvailabilityChanged', (data) => {
+      console.log('[Socket] Menu delivery availability changed:', data);
+      if (data.menuItemId && typeof data.isDeliveryAvailable === 'boolean') {
+        setMenuItems(prevItems =>
+          prevItems.map(item =>
+            item._id === data.menuItemId
+              ? { ...item, isDeliveryAvailable: data.isDeliveryAvailable }
+              : item
+          )
+        );
+      }
+    });
+
     globalSocket.on('orderCreated', (data) => {
       console.log('[Socket] Order created:', data);
       fetchActiveOrders();

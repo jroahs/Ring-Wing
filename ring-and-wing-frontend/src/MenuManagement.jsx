@@ -609,6 +609,11 @@ const MenuPage = () => {
       // SPRINT 22 FIX: Batch availability check on initial load
       // CHECK ALL ITEMS AT ONCE using the batch API (no more 3-per-tick polling)
       const menuItemIds = validMenuItems.map(item => item._id).filter(Boolean);
+      const manualDisabledById = new Map(
+        validMenuItems
+          .filter(item => item && item._id)
+          .map(item => [item._id, item.isAvailable === false])
+      );
       
       if (menuItemIds.length > 0) {
         console.log(`[MenuManagement] Batch checking availability for ${menuItemIds.length} items...`);
@@ -633,8 +638,12 @@ const MenuPage = () => {
             // Build availability map - start with defaults for all items
             const availabilityMap = {};
             menuItemIds.forEach(id => {
+              const manuallyDisabled = manualDisabledById.get(id) === true;
               availabilityMap[id] = {
-                isAvailable: true,
+                // Persisted manual toggle is the source of truth for "Disabled"
+                manuallyDisabled,
+                ingredientAvailable: true,
+                isAvailable: !manuallyDisabled,
                 hasIngredientTracking: false,
                 insufficientIngredients: [],
                 timestamp: Date.now()
@@ -644,8 +653,13 @@ const MenuPage = () => {
             // Override with actual API results
             if (itemAvailabilities.length > 0) {
               itemAvailabilities.forEach(item => {
+                const manuallyDisabled = manualDisabledById.get(item.menuItemId) === true;
+                const ingredientAvailable = item.isAvailable;
                 availabilityMap[item.menuItemId] = {
-                  isAvailable: item.isAvailable,
+                  manuallyDisabled,
+                  ingredientAvailable,
+                  // Effective availability respects manual disabled state
+                  isAvailable: !manuallyDisabled && ingredientAvailable,
                   hasIngredientTracking: item.hasIngredientTracking || false,
                   insufficientIngredients: item.insufficientIngredients || [],
                   timestamp: Date.now()
@@ -676,8 +690,11 @@ const MenuPage = () => {
             console.warn('[MenuManagement] Availability API error:', response.status);
             const availabilityMap = {};
             menuItemIds.forEach(id => {
+              const manuallyDisabled = manualDisabledById.get(id) === true;
               availabilityMap[id] = {
-                isAvailable: true,
+                manuallyDisabled,
+                ingredientAvailable: true,
+                isAvailable: !manuallyDisabled,
                 hasIngredientTracking: false,
                 insufficientIngredients: [],
                 timestamp: Date.now()
@@ -690,8 +707,11 @@ const MenuPage = () => {
           // On error - set all as available with no tracking
           const availabilityMap = {};
           menuItemIds.forEach(id => {
+            const manuallyDisabled = manualDisabledById.get(id) === true;
             availabilityMap[id] = {
-              isAvailable: true,
+              manuallyDisabled,
+              ingredientAvailable: true,
+              isAvailable: !manuallyDisabled,
               hasIngredientTracking: false,
               insufficientIngredients: [],
               timestamp: Date.now()
@@ -923,6 +943,11 @@ const MenuPage = () => {
         // Batch availability check for menu items
         if (coordinatorMenuItems && coordinatorMenuItems.length > 0) {
           const menuItemIds = coordinatorMenuItems.map(item => item._id).filter(Boolean);
+          const manualDisabledById = new Map(
+            coordinatorMenuItems
+              .filter(item => item && item._id)
+              .map(item => [item._id, item.isAvailable === false])
+          );
           
           if (menuItemIds.length > 0) {
             console.log(`[MenuManagement] Batch checking availability for ${menuItemIds.length} items...`);
@@ -946,10 +971,12 @@ const MenuPage = () => {
                 
                 // First, set all items as "available with no tracking" as default
                 menuItemIds.forEach(id => {
+                  const manuallyDisabled = manualDisabledById.get(id) === true;
                   availabilityMap[id] = {
-                    isAvailable: true,
+                    manuallyDisabled,
+                    ingredientAvailable: true,
+                    isAvailable: !manuallyDisabled,
                     hasIngredientTracking: false,
-                    manuallyDisabled: false,
                     insufficientIngredients: [],
                     timestamp: Date.now()
                   };
@@ -958,10 +985,13 @@ const MenuPage = () => {
                 // Then override with actual API results
                 if (itemAvailabilities.length > 0) {
                   itemAvailabilities.forEach(item => {
+                    const manuallyDisabled = manualDisabledById.get(item.menuItemId) === true;
+                    const ingredientAvailable = item.isAvailable;
                     availabilityMap[item.menuItemId] = {
-                      isAvailable: item.isAvailable,
+                      manuallyDisabled,
+                      ingredientAvailable,
+                      isAvailable: !manuallyDisabled && ingredientAvailable,
                       hasIngredientTracking: item.hasIngredientTracking || false,
-                      manuallyDisabled: item.manuallyDisabled || false, // Preserve manuallyDisabled flag
                       insufficientIngredients: item.insufficientIngredients || [],
                       timestamp: Date.now()
                     };
@@ -991,8 +1021,11 @@ const MenuPage = () => {
                 console.warn('[MenuManagement] Availability check returned non-OK:', response.status);
                 const availabilityMap = {};
                 menuItemIds.forEach(id => {
+                  const manuallyDisabled = manualDisabledById.get(id) === true;
                   availabilityMap[id] = {
-                    isAvailable: true,
+                    manuallyDisabled,
+                    ingredientAvailable: true,
+                    isAvailable: !manuallyDisabled,
                     hasIngredientTracking: false,
                     insufficientIngredients: [],
                     timestamp: Date.now()
@@ -1005,8 +1038,11 @@ const MenuPage = () => {
               // On error, set all as available (no tracking) as fallback
               const availabilityMap = {};
               menuItemIds.forEach(id => {
+                const manuallyDisabled = manualDisabledById.get(id) === true;
                 availabilityMap[id] = {
-                  isAvailable: true,
+                  manuallyDisabled,
+                  ingredientAvailable: true,
+                  isAvailable: !manuallyDisabled,
                   hasIngredientTracking: false,
                   insufficientIngredients: [],
                   timestamp: Date.now()
@@ -1386,10 +1422,15 @@ const MenuPage = () => {
         const itemResult = itemAvailabilities.find(item => item.menuItemId === menuItemId) || itemAvailabilities[0];
         
         if (itemResult) {
+          const menuItem = menuItems.find(m => m._id === menuItemId);
+          const manuallyDisabled = menuItem?.isAvailable === false;
+          const ingredientAvailable = itemResult.isAvailable;
           setItemAvailability(prev => ({
             ...prev,
             [menuItemId]: {
-              isAvailable: itemResult.isAvailable,
+              manuallyDisabled,
+              ingredientAvailable,
+              isAvailable: !manuallyDisabled && ingredientAvailable,
               hasIngredientTracking: itemResult.hasIngredientTracking || false,
               insufficientIngredients: itemResult.insufficientIngredients || [],
               ingredientChecks: itemResult.ingredientChecks || [],
@@ -1398,10 +1439,14 @@ const MenuPage = () => {
           }));
         } else {
           // No availability data returned - mark as available (no tracking)
+          const menuItem = menuItems.find(m => m._id === menuItemId);
+          const manuallyDisabled = menuItem?.isAvailable === false;
           setItemAvailability(prev => ({
             ...prev,
             [menuItemId]: { 
-              isAvailable: true, 
+              manuallyDisabled,
+              ingredientAvailable: true,
+              isAvailable: !manuallyDisabled,
               hasIngredientTracking: false,
               timestamp: Date.now()
             }
@@ -1410,10 +1455,14 @@ const MenuPage = () => {
       } else {
         console.warn(`Availability check failed for item ${menuItemId}`);
         // Set default availability when service is unavailable
+        const menuItem = menuItems.find(m => m._id === menuItemId);
+        const manuallyDisabled = menuItem?.isAvailable === false;
         setItemAvailability(prev => ({
           ...prev,
           [menuItemId]: { 
-            isAvailable: true, 
+            manuallyDisabled,
+            ingredientAvailable: true,
+            isAvailable: !manuallyDisabled,
             hasIngredientTracking: false,
             timestamp: Date.now()
           }
@@ -1422,10 +1471,14 @@ const MenuPage = () => {
     } catch (error) {
       console.warn('Availability check service unavailable:', error.message);
       // Set default availability when service is unavailable
+      const menuItem = menuItems.find(m => m._id === menuItemId);
+      const manuallyDisabled = menuItem?.isAvailable === false;
       setItemAvailability(prev => ({
         ...prev,
         [menuItemId]: { 
-          isAvailable: true, 
+          manuallyDisabled,
+          ingredientAvailable: true,
+          isAvailable: !manuallyDisabled,
           hasIngredientTracking: false,
           timestamp: Date.now()
         }
@@ -1452,6 +1505,11 @@ const MenuPage = () => {
     if (isRefreshingAvailability) return;
     
     const itemIds = menuItems.map(item => item._id).filter(Boolean);
+    const manualDisabledById = new Map(
+      menuItems
+        .filter(item => item && item._id)
+        .map(item => [item._id, item.isAvailable === false])
+    );
     if (itemIds.length === 0) {
       console.warn('[MenuManagement] No menu items to refresh');
       return;
@@ -1479,8 +1537,11 @@ const MenuPage = () => {
         
         // Set defaults first
         itemIds.forEach(id => {
+          const manuallyDisabled = manualDisabledById.get(id) === true;
           availabilityMap[id] = {
-            isAvailable: true,
+            manuallyDisabled,
+            ingredientAvailable: true,
+            isAvailable: !manuallyDisabled,
             hasIngredientTracking: false,
             insufficientIngredients: [],
             timestamp: Date.now()
@@ -1489,8 +1550,12 @@ const MenuPage = () => {
         
         // Override with API results
         itemAvailabilities.forEach(item => {
+          const manuallyDisabled = manualDisabledById.get(item.menuItemId) === true;
+          const ingredientAvailable = item.isAvailable;
           availabilityMap[item.menuItemId] = {
-            isAvailable: item.isAvailable,
+            manuallyDisabled,
+            ingredientAvailable,
+            isAvailable: !manuallyDisabled && ingredientAvailable,
             hasIngredientTracking: item.hasIngredientTracking || false,
             insufficientIngredients: item.insufficientIngredients || [],
             ingredientChecks: item.ingredientChecks || [],
