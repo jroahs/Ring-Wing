@@ -257,17 +257,24 @@ router.patch('/:id/availability', rateLimitMiddleware, lightCheck, async (req, r
     // If admin override is NOT being used and trying to enable, check availability
     if (!adminOverride && isAvailable) {
       const InventoryAvailabilityService = require('../services/inventoryAvailabilityService');
-      const menuItem = await MenuItem.findById(id).populate('ingredients.ingredientId');
-      
-      if (menuItem) {
-        const availabilityStatus = await InventoryAvailabilityService.checkMenuItemAvailability(menuItem);
-        
-        if (!availabilityStatus.isAvailable) {
-          return res.status(400).json({ 
-            message: 'Cannot enable menu item with insufficient ingredients',
-            insufficientIngredients: availabilityStatus.insufficientIngredients
-          });
-        }
+
+      // When enabling, we want an ingredient sufficiency check and must not
+      // treat the current manual disable (isAvailable=false) as a blocker.
+      const availabilityStatus = await InventoryAvailabilityService.checkMenuItemAvailability(
+        id,
+        1,
+        { ignoreManualDisabled: true }
+      );
+
+      if (availabilityStatus?.error === 'Menu item not found') {
+        return res.status(404).json({ message: 'Menu item not found' });
+      }
+
+      if (availabilityStatus && !availabilityStatus.isAvailable) {
+        return res.status(400).json({ 
+          message: 'Cannot enable menu item with insufficient ingredients',
+          insufficientIngredients: availabilityStatus.insufficientIngredients
+        });
       }
     }
 

@@ -181,11 +181,15 @@ class InventoryAvailabilityService {
    * Check if enough ingredients are available for a menu item
    * @param {string} menuItemId - The menu item ID to check
    * @param {number} quantity - Number of menu items needed
+   * @param {object} options - Options
+   * @param {boolean} options.ignoreManualDisabled - If true, ignores menuItem.isAvailable=false when checking ingredients
    * @returns {Promise<object>} - Availability result with details
    */
-  static async checkMenuItemAvailability(menuItemId, quantity = 1) {
+  static async checkMenuItemAvailability(menuItemId, quantity = 1, options = {}) {
     try {
       console.log(`\n🔍 AVAILABILITY CHECK: menuItemId=${menuItemId}, quantity=${quantity}`);
+
+      const { ignoreManualDisabled = false } = options || {};
       
       // Ensure menuItemId is a proper ObjectId
       const { ObjectId } = require('mongoose').Types;
@@ -212,7 +216,8 @@ class InventoryAvailabilityService {
       }
       
       // If the menu item is manually disabled, return unavailable regardless of ingredients
-      if (menuItem.isAvailable === false) {
+      // (unless we're explicitly checking ingredient availability for an enable operation)
+      if (!ignoreManualDisabled && menuItem.isAvailable === false) {
         console.log('❌ Menu item is manually disabled (isAvailable=false)');
         
         // Check if the item has ingredient mappings to set hasIngredientTracking correctly

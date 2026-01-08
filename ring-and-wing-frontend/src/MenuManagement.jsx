@@ -1878,7 +1878,21 @@ const MenuPage = () => {
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
+          const errorData = await response.json().catch(() => ({}));
+
+          // If backend reports insufficient ingredients, allow admin override flow
+          if (
+            response.status === 400 &&
+            newAvailability &&
+            Array.isArray(errorData.insufficientIngredients) &&
+            errorData.insufficientIngredients.length > 0
+          ) {
+            setPendingAvailabilityChange({ itemId, newAvailability });
+            setShowAdminOverrideModal(true);
+            setValue('isAvailable', false);
+            return;
+          }
+
           throw new Error(errorData.message || 'Failed to update availability');
         }
 
