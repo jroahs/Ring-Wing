@@ -27,6 +27,8 @@ const menuItemSchema = new mongoose.Schema({
   }],
   preparationTime: { type: Number, default: 15 },
   isAvailable: { type: Boolean, default: true },
+  // Whether this menu item can be ordered with fulfillmentType=delivery
+  isDeliveryAvailable: { type: Boolean, default: true },
   ingredients: [{ type: String }],
   // Alternative suggestions for unavailable items
   alternatives: [{

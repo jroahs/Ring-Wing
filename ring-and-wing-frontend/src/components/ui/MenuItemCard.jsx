@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 
 export const MenuItemCard = ({ item, onClick, isUnavailable = false, isLocked = false }) => {
   const basePrice = item.pricing.base || Object.values(item.pricing)[0];
+  const isDeliveryRestricted = item?.isDeliveryAvailable === false;
   
   // Get a more readable display for pricing variants if available
   const hasSizeVariants = Object.keys(item.pricing).length > 1;
@@ -90,6 +91,20 @@ export const MenuItemCard = ({ item, onClick, isUnavailable = false, isLocked = 
       >
         {item.code}
       </div>
+
+        {/* Delivery restriction badge */}
+        {isDeliveryRestricted && (
+          <div
+            className="absolute top-2 right-2 rounded-full px-3 py-1.5 text-xs font-bold z-20 flex items-center justify-center"
+            style={{
+              backgroundColor: theme.colors.primary,
+              color: theme.colors.background,
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            NO DELIVERY
+          </div>
+        )}
       
       {/* Item image */}
       <div className="relative w-full h-full">

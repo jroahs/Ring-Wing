@@ -184,6 +184,24 @@ class SocketService {
       throttleMs: 1000
     });
   }
+
+  /**
+   * Emit menu delivery availability changed event
+   *
+   * @param {object} io - Socket.io instance
+   * @param {string} menuItemId - Menu item ID
+   * @param {boolean} isDeliveryAvailable - Whether item is available for delivery
+   */
+  static emitMenuDeliveryAvailabilityChanged(io, menuItemId, isDeliveryAvailable) {
+    return this.emit(io, 'menuDeliveryAvailabilityChanged', {
+      menuItemId,
+      isDeliveryAvailable,
+      timestamp: Date.now()
+    }, {
+      throttle: true,
+      throttleMs: 1000
+    });
+  }
   
   /**
    * Emit stock level changed event

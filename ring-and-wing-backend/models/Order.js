@@ -7,6 +7,7 @@ const orderSchema = new mongoose.Schema({
     unique: true 
   },
   items: [{
+    menuItemId: { type: String, default: '' },
     name: { type: String, required: true },
     price: { type: Number, required: true },
     quantity: { type: Number, required: true },

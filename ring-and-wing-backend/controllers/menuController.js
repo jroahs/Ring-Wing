@@ -5,6 +5,17 @@ const mongoose = require('mongoose');
 const { deleteMenuImage, saveMenuImage } = require('../utils/imageUtils');
 const { uploadFile, getPublicUrl, deleteFileByUrl, generateUniqueFilename } = require('../utils/supabaseStorage');
 
+const normalizeBoolean = (value, defaultValue) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const lowered = value.trim().toLowerCase();
+    if (lowered === 'true') return true;
+    if (lowered === 'false') return false;
+  }
+  if (typeof value === 'undefined') return defaultValue;
+  return Boolean(value);
+};
+
 // Helper to handle file uploads - now using Supabase Storage
 const handleImageUpload = async (file, base64Image, itemCode) => {
   console.log('🔍 [handleImageUpload] Called with:', {
@@ -96,13 +107,20 @@ exports.createMenuItem = async (req, res) => {
     // Handle image upload - now async with Supabase
     const itemCode = body.code || 'ITEM';
     const image = await handleImageUpload(file, body.image, itemCode);
+
+    const isAvailable = normalizeBoolean(body.isAvailable, true);
+    const ignoreSizes = normalizeBoolean(body.ignoreSizes, false);
+    const isDeliveryAvailable = normalizeBoolean(body.isDeliveryAvailable, true);
     
     const newItem = new MenuItem({
       ...body,
       pricing,
       modifiers,
       variants,
-      image
+      image,
+      isAvailable,
+      ignoreSizes,
+      isDeliveryAvailable
     });
 
     const savedItem = await newItem.save();
@@ -129,12 +147,22 @@ exports.updateMenuItem = async (req, res) => {
     if (!oldItem) {
       return res.status(404).json({ message: 'Menu item not found' });
     }
+
+    const isAvailable = normalizeBoolean(body.isAvailable, oldItem.isAvailable);
+    const ignoreSizes = normalizeBoolean(body.ignoreSizes, oldItem.ignoreSizes);
+    const isDeliveryAvailable = normalizeBoolean(
+      body.isDeliveryAvailable,
+      (typeof oldItem.isDeliveryAvailable === 'boolean' ? oldItem.isDeliveryAvailable : true)
+    );
     
     const updates = {
       ...body,
       pricing,
       modifiers,
-      variants
+      variants,
+      isAvailable,
+      ignoreSizes,
+      isDeliveryAvailable
     };
 
     // Handle image deletion (revert to placeholder)
@@ -192,6 +220,19 @@ exports.updateMenuItem = async (req, res) => {
     }
 
     const updatedItem = await MenuItem.findByIdAndUpdate(id, updates, { new: true });
+
+    // Emit real-time socket update if delivery eligibility changed
+    try {
+      const io = req.app.get('io');
+      const oldDeliveryAvailability = (typeof oldItem.isDeliveryAvailable === 'boolean') ? oldItem.isDeliveryAvailable : true;
+      if (io && oldDeliveryAvailability !== updatedItem.isDeliveryAvailable) {
+        const SocketService = require('../services/socketService');
+        SocketService.emitMenuDeliveryAvailabilityChanged(io, id, updatedItem.isDeliveryAvailable);
+      }
+    } catch (socketErr) {
+      console.warn('[Menu Controller] Failed to emit menuDeliveryAvailabilityChanged:', socketErr.message);
+    }
+
     res.json(updatedItem);
   } catch (err) {
     res.status(400).json({ message: err.message });

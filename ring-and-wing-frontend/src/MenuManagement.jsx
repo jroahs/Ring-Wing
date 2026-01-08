@@ -106,6 +106,7 @@ const initialItem = {
   variants: [], // Optional variants/flavors (e.g., Buffalo, Garlic Parmesan)
   preparationTime: 15,
   isAvailable: true,
+  isDeliveryAvailable: true,
   ingredients: []
 };
 
@@ -394,7 +395,8 @@ const MenuPage = () => {
       const formData = {
         ...selectedItem,
         pricing: normalizedPricing,
-        ignoreSizes: shouldIgnoreSizes
+        ignoreSizes: shouldIgnoreSizes,
+        isDeliveryAvailable: (typeof selectedItem.isDeliveryAvailable === 'boolean') ? selectedItem.isDeliveryAvailable : true
       };
       
       console.log('Resetting form with data:', formData);
@@ -1161,6 +1163,21 @@ const MenuPage = () => {
         }
       }
     };
+
+    // Listen for menu delivery eligibility changes
+    const handleMenuDeliveryAvailabilityChanged = (data) => {
+      console.log('[MenuManagement] Menu delivery availability changed:', data);
+      if (data.menuItemId && typeof data.isDeliveryAvailable === 'boolean') {
+        setMenuItems(prev => prev.map(item =>
+          item._id === data.menuItemId ? { ...item, isDeliveryAvailable: data.isDeliveryAvailable } : item
+        ));
+
+        if (selectedItem?._id === data.menuItemId) {
+          setValue('isDeliveryAvailable', data.isDeliveryAvailable, { shouldDirty: true, shouldTouch: true });
+          setSelectedItem(prev => ({ ...prev, isDeliveryAvailable: data.isDeliveryAvailable }));
+        }
+      }
+    };
     
     // Handle user logout events (multi-tab logout synchronization)
     const handleUserLogout = (data) => {
@@ -1175,6 +1192,7 @@ const MenuPage = () => {
     // Register socket event listeners
     socket.on('ingredientMappingChanged', handleIngredientMappingChanged);
     socket.on('menuAvailabilityChanged', handleMenuAvailabilityChanged);
+    socket.on('menuDeliveryAvailabilityChanged', handleMenuDeliveryAvailabilityChanged);
     socket.on('userLoggedOut', handleUserLogout);
     
     console.log('[MenuManagement] Socket event listeners registered');
@@ -1183,6 +1201,7 @@ const MenuPage = () => {
     return () => {
       socket.off('ingredientMappingChanged', handleIngredientMappingChanged);
       socket.off('menuAvailabilityChanged', handleMenuAvailabilityChanged);
+      socket.off('menuDeliveryAvailabilityChanged', handleMenuDeliveryAvailabilityChanged);
       socket.off('userLoggedOut', handleUserLogout);
       console.log('[MenuManagement] Socket event listeners removed');
     };
@@ -1705,6 +1724,7 @@ const MenuPage = () => {
       formData.append('modifiers', JSON.stringify(data.modifiers || []));
       formData.append('preparationTime', data.preparationTime.toString());
       formData.append('isAvailable', data.isAvailable.toString());
+      formData.append('isDeliveryAvailable', (typeof data.isDeliveryAvailable === 'boolean' ? data.isDeliveryAvailable : true).toString());
       formData.append('ignoreSizes', data.ignoreSizes ? 'true' : 'false');
       formData.append('ingredients', JSON.stringify(selectedIngredients));
       formData.append('variants', JSON.stringify(data.variants || []));
@@ -3495,6 +3515,32 @@ const MenuPage = () => {
                     toggleAvailabilityDebounced(selectedItem._id, e.target.checked);
                   }
                 }}
+              />
+              <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+            </label>
+          </div>
+        </div>
+
+        {/* Delivery Eligibility Toggle Section */}
+        <div className="mb-8">
+          <h3 className="text-lg font-medium mb-4" style={{ color: colors.primary }}>
+            Delivery
+          </h3>
+          <div className="flex items-center justify-between p-4 rounded-lg border" 
+               style={{ borderColor: colors.muted, backgroundColor: colors.background }}>
+            <div>
+              <label className="text-sm font-medium" style={{ color: colors.primary }}>
+                Available for Delivery
+              </label>
+              <p className="text-xs text-gray-500 mt-1">
+                When disabled, customers cannot place this item on Delivery orders (self-checkout)
+              </p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                {...register('isDeliveryAvailable')}
+                className="sr-only peer"
               />
               <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
             </label>

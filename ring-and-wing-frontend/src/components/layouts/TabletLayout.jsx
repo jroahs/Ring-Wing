@@ -172,6 +172,7 @@ const TabletLayout = ({
         <div className="grid grid-cols-3 gap-4">
           {categoryItems.map(item => {
             const isUnavailable = item.isAvailable === false;
+            const isDeliveryRestricted = item.isDeliveryAvailable === false;
             return (
               <button
                 key={item._id}
@@ -183,6 +184,23 @@ const TabletLayout = ({
                 }`}
                 style={{ minHeight: '180px' }} // Larger touch targets for tablet
               >
+                {/* Delivery restriction corner badge */}
+                {isDeliveryRestricted && !isUnavailable && (
+                  <div
+                    className="absolute top-0 left-0 z-[2]"
+                    style={{
+                      backgroundColor: colors.primary,
+                      borderBottomRightRadius: '12px',
+                      borderTopLeftRadius: '10px',
+                      padding: '6px 12px'
+                    }}
+                  >
+                    <span className="text-white font-semibold text-xs tracking-wide">
+                      NO DELIVERY
+                    </span>
+                  </div>
+                )}
+
                 {/* Unavailable overlay and banner */}
                 {isUnavailable && (
                   <>

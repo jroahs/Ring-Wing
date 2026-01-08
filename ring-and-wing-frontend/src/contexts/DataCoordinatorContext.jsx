@@ -49,6 +49,12 @@ export const DataCoordinatorProvider = ({ children }) => {
     ));
   }, []);
 
+  const updateMenuItemDeliveryAvailability = useCallback((menuItemId, isDeliveryAvailable) => {
+    setMenuItems(prev => prev.map(item =>
+      item._id === menuItemId ? { ...item, isDeliveryAvailable } : item
+    ));
+  }, []);
+
   /**
    * Delay utility for rate limiting
    */
@@ -395,6 +401,13 @@ export const DataCoordinatorProvider = ({ children }) => {
         updateMenuItemAvailability(data.menuItemId, data.isAvailable);
       }
     });
+
+    socket.on('menuDeliveryAvailabilityChanged', (data) => {
+      console.log('[DataCoordinator] Menu delivery availability changed:', data);
+      if (data.menuItemId && typeof data.isDeliveryAvailable === 'boolean') {
+        updateMenuItemDeliveryAvailability(data.menuItemId, data.isDeliveryAvailable);
+      }
+    });
     
     return () => {
       console.log('[DataCoordinator] Cleaning up socket connection');
@@ -404,7 +417,7 @@ export const DataCoordinatorProvider = ({ children }) => {
       }
       socketInitializedRef.current = false;
     };
-  }, [isHealthy, updateMenuItemAvailability]);
+  }, [isHealthy, updateMenuItemAvailability, updateMenuItemDeliveryAvailability]);
 
   const value = {
     // State
@@ -426,6 +439,7 @@ export const DataCoordinatorProvider = ({ children }) => {
     refreshAll,
     isCacheValid,
     updateMenuItemAvailability,
+    updateMenuItemDeliveryAvailability,
     
     // Metadata
     lastFetchTime,

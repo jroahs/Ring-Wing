@@ -24,7 +24,9 @@ const LayoutSelector = ({
   onSearchChange, 
   orderNumber,
   orderSubmitted,
-  onProcessOrder 
+  onProcessOrder,
+  isDeliveryDisabled,
+  deliveryDisabledReason
 }) => {
   const { current: breakpoint, isMobile, isTablet, isDesktop } = useBreakpoint();
 
@@ -40,7 +42,9 @@ const LayoutSelector = ({
     onSearchChange,
     orderNumber,
     orderSubmitted,
-    onProcessOrder
+    onProcessOrder,
+    isDeliveryDisabled,
+    deliveryDisabledReason
   };
 
   // Render appropriate layout based on breakpoint

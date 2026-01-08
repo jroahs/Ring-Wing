@@ -256,6 +256,7 @@ const DesktopLayout = ({
     const isSelected = keyboardMode && selectedItemIndex === index;
     const isHovered = hoveredItem === item._id;
     const isUnavailable = item.isAvailable === false;
+    const isDeliveryRestricted = item.isDeliveryAvailable === false;
     
     return (
       <div
@@ -296,6 +297,23 @@ const DesktopLayout = ({
               </span>
             </div>
           </>
+        )}
+
+        {/* Delivery restriction corner badge */}
+        {isDeliveryRestricted && !isUnavailable && (
+          <div
+            className="absolute top-0 left-0 z-[2]"
+            style={{
+              backgroundColor: colors.primary,
+              borderBottomRightRadius: '12px',
+              borderTopLeftRadius: '10px',
+              padding: '6px 12px'
+            }}
+          >
+            <span className="text-white font-semibold text-xs tracking-wide">
+              NO DELIVERY
+            </span>
+          </div>
         )}
         
         <div className="w-full h-32 rounded-lg overflow-hidden mb-3">

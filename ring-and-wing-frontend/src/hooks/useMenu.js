@@ -26,7 +26,8 @@ const processMenuItems = (rawData) => {
     image: item.image ? (item.image.startsWith('http') ? item.image : `${API_URL}${item.image}`) : null,
     pricing: item.pricing || { base: 0 },
     modifiers: item.modifiers || [],
-    isAvailable: item.isAvailable // Include availability status
+    isAvailable: item.isAvailable, // Include availability status
+    isDeliveryAvailable: (typeof item.isDeliveryAvailable === 'boolean') ? item.isDeliveryAvailable : true
   }));
 };
 
@@ -60,6 +61,12 @@ export const useMenu = () => {
   const updateItemAvailability = useCallback((menuItemId, isAvailable) => {
     setMenuItems(prev => prev.map(item =>
       item._id === menuItemId ? { ...item, isAvailable } : item
+    ));
+  }, []);
+
+  const updateItemDeliveryAvailability = useCallback((menuItemId, isDeliveryAvailable) => {
+    setMenuItems(prev => prev.map(item =>
+      item._id === menuItemId ? { ...item, isDeliveryAvailable } : item
     ));
   }, []);
 
@@ -274,6 +281,14 @@ export const useMenu = () => {
         updateItemAvailability(data.menuItemId, data.isAvailable);
       }
     });
+
+    // Listen for menu delivery eligibility changes
+    socket.on('menuDeliveryAvailabilityChanged', (data) => {
+      console.log('[useMenu] Menu delivery availability changed:', data);
+      if (data.menuItemId && typeof data.isDeliveryAvailable === 'boolean') {
+        updateItemDeliveryAvailability(data.menuItemId, data.isDeliveryAvailable);
+      }
+    });
     
     // Listen for stock level changes that might affect availability
     socket.on('stockLevelChanged', (data) => {
@@ -289,7 +304,7 @@ export const useMenu = () => {
       }
       socketInitializedRef.current = false;
     };
-  }, [updateItemAvailability]);
+  }, [updateItemAvailability, updateItemDeliveryAvailability]);
 
   return {
     menuItems,
@@ -299,7 +314,8 @@ export const useMenu = () => {
     error,
     refreshMenu,
     refreshAll,
-    updateItemAvailability
+    updateItemAvailability,
+    updateItemDeliveryAvailability
   };
 };
 

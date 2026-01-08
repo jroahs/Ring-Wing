@@ -118,6 +118,9 @@ const SelfCheckoutContent = () => {
     getTotals
   } = useCartContext();
 
+  // Menu data (for delivery eligibility checks)
+  const { menuItems } = useMenuContext();
+
   // Notification system
   const { addNotification } = useSelfCheckoutNotifications();
 
@@ -152,6 +155,25 @@ const SelfCheckoutContent = () => {
   const [socket, setSocket] = useState(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false); // Prevent double-click on PayMongo
   const { customer } = useCustomerAuth();
+
+  const deliveryRestrictedCartItems = useMemo(() => {
+    if (!Array.isArray(cartItems) || cartItems.length === 0) return [];
+
+    return cartItems.filter((cartItem) => {
+      // Prefer menu lookup (source of truth), fallback to cart snapshot
+      const menuItem = Array.isArray(menuItems)
+        ? menuItems.find(m => String(m._id) === String(cartItem._id))
+        : null;
+
+      const isDeliveryAvailable = (menuItem && typeof menuItem.isDeliveryAvailable === 'boolean')
+        ? menuItem.isDeliveryAvailable
+        : (typeof cartItem.isDeliveryAvailable === 'boolean' ? cartItem.isDeliveryAvailable : true);
+
+      return isDeliveryAvailable === false;
+    });
+  }, [cartItems, menuItems]);
+
+  const isDeliveryBlocked = deliveryRestrictedCartItems.length > 0;
 
   // Initialize Socket.io connection
   useEffect(() => {
@@ -214,10 +236,20 @@ const SelfCheckoutContent = () => {
       console.warn('[saveOrderToDB] Invalid fulfillmentType:', effectiveFulfillmentType);
       effectiveFulfillmentType = 'dine_in'; // Default fallback
     }
+
+    if (effectiveFulfillmentType === 'delivery' && isDeliveryBlocked) {
+      addNotification({
+        type: NOTIFICATION_TYPES.ORDER_ERROR,
+        title: 'Delivery Not Available',
+        message: 'One or more items in your cart are not available for delivery. Please remove them or choose Take-Out.'
+      });
+      return;
+    }
     
     // Sanitize cart items to avoid circular references
     const sanitizedItems = cartItems.map(item => {
       const sanitized = {
+        menuItemId: String(item._id || ''),
         name: String(item.name || ''),
         price: Number(item.price) || 0,
         quantity: Number(item.quantity) || 1,
@@ -381,6 +413,14 @@ const SelfCheckoutContent = () => {
 
     // If order type is passed from mobile layout, use it
     if (effectiveOrderType) {
+      if (effectiveOrderType === 'delivery' && isDeliveryBlocked) {
+        addNotification({
+          type: NOTIFICATION_TYPES.ORDER_ERROR,
+          title: 'Delivery Not Available',
+          message: 'One or more items in your cart are not available for delivery. Please remove them or choose Take-Out.'
+        });
+        return;
+      }
       setFulfillmentType(effectiveOrderType);
       
       // For dine-in, submit immediately with the type passed directly
@@ -427,6 +467,14 @@ const SelfCheckoutContent = () => {
   const handleFulfillmentTypeSelect = (type) => {
     // Ensure we're setting a string, not an event object
     if (typeof type === 'string' && ['dine_in', 'takeout', 'delivery'].includes(type)) {
+      if (type === 'delivery' && isDeliveryBlocked) {
+        addNotification({
+          type: NOTIFICATION_TYPES.ORDER_ERROR,
+          title: 'Delivery Not Available',
+          message: 'One or more items in your cart are not available for delivery. Please remove them or choose Take-Out.'
+        });
+        return;
+      }
       setFulfillmentType(type);
     } else {
       console.warn('[SelfCheckout] Invalid type passed to handleFulfillmentTypeSelect:', type);
@@ -475,6 +523,16 @@ const SelfCheckoutContent = () => {
         setIsProcessingPayment(false);
         return;
       }
+
+      if (safeFulfillmentType === 'delivery' && isDeliveryBlocked) {
+        addNotification({
+          type: NOTIFICATION_TYPES.ORDER_ERROR,
+          title: 'Delivery Not Available',
+          message: 'One or more items in your cart are not available for delivery. Please remove them or choose Take-Out.'
+        });
+        setIsProcessingPayment(false);
+        return;
+      }
       
       // First create the order - sanitize cart items to avoid circular references
       const totals = calculateTotal();
@@ -494,6 +552,7 @@ const SelfCheckoutContent = () => {
         
         // Extract only primitive/serializable data
         const sanitized = {
+          menuItemId: String(item._id || ''),
           name: String(item.name || ''),
           price: Number(item.price) || 0,
           quantity: Number(item.quantity) || 1,
@@ -807,7 +866,11 @@ const SelfCheckoutContent = () => {
         <div style={styles.overlay}>
           <div style={styles.flowContainer}>
             <h2 style={styles.flowTitle}>Select Order Type</h2>
-            <OrderTypeSelector onSelect={handleFulfillmentTypeSelect} />
+            <OrderTypeSelector
+              onSelect={handleFulfillmentTypeSelect}
+              disabledTypes={{ delivery: isDeliveryBlocked }}
+              disabledReason={isDeliveryBlocked ? 'Delivery is not available because your cart contains item(s) marked NO DELIVERY.' : ''}
+            />
           </div>
         </div>
       );
@@ -1107,7 +1170,11 @@ const SelfCheckoutContent = () => {
         <div style={styles.overlay}>
           <div style={styles.flowContainer}>
             <h2 style={styles.flowTitle}>Select Order Type</h2>
-            <OrderTypeSelector onSelect={handleFulfillmentTypeSelect} />
+            <OrderTypeSelector
+              onSelect={handleFulfillmentTypeSelect}
+              disabledTypes={{ delivery: isDeliveryBlocked }}
+              disabledReason={isDeliveryBlocked ? 'Delivery is not available because your cart contains item(s) marked NO DELIVERY.' : ''}
+            />
           </div>
         </div>
       );
@@ -1118,12 +1185,14 @@ const SelfCheckoutContent = () => {
 
   return (
     <>
-      <LayoutSelector
+        <LayoutSelector
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         orderNumber={orderNumber}
         orderSubmitted={orderSubmitted}
         onProcessOrder={processOrder}
+          isDeliveryDisabled={isDeliveryBlocked}
+          deliveryDisabledReason={isDeliveryBlocked ? 'Delivery is not available because your cart contains item(s) marked NO DELIVERY.' : ''}
       />
       {renderPaymentFlow()}
       

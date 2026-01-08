@@ -26,7 +26,9 @@ const MobileLayout = ({
   onSearchChange, 
   orderNumber,
   orderSubmitted,
-  onProcessOrder 
+  onProcessOrder,
+  isDeliveryDisabled,
+  deliveryDisabledReason
 }) => {
   const navigate = useNavigate();
   
@@ -187,6 +189,9 @@ const MobileLayout = ({
 
   // Handle order type selection and proceed
   const handleOrderTypeSelect = (type) => {
+    if (type === 'delivery' && isDeliveryDisabled) {
+      return;
+    }
     setSelectedOrderType(type);
   };
 
@@ -227,6 +232,7 @@ const MobileLayout = ({
         <div className="grid grid-cols-2 gap-3">
           {categoryItems.map(item => {
             const isUnavailable = item.isAvailable === false;
+            const isDeliveryRestricted = item.isDeliveryAvailable === false;
             return (
               <button
                 key={item._id}
@@ -237,6 +243,23 @@ const MobileLayout = ({
                     : 'bg-white shadow-md hover:shadow-lg border border-gray-100'
                 }`}
               >
+                {/* Delivery restriction corner badge */}
+                {isDeliveryRestricted && !isUnavailable && (
+                  <div 
+                    className="absolute top-0 left-0 z-[2]"
+                    style={{ 
+                      backgroundColor: colors.primary,
+                      borderBottomRightRadius: '12px',
+                      borderTopLeftRadius: '10px',
+                      padding: '4px 10px'
+                    }}
+                  >
+                    <span className="text-white font-semibold text-xs tracking-wide">
+                      NO DELIVERY
+                    </span>
+                  </div>
+                )}
+
                 {/* Unavailable overlay and badge - Elegant corner badge */}
                 {isUnavailable && (
                   <>
@@ -882,6 +905,8 @@ const MobileLayout = ({
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
+                  disabled={!!isDeliveryDisabled}
+                  style={isDeliveryDisabled ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
                 >
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                     selectedOrderType === 'delivery' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
@@ -902,6 +927,10 @@ const MobileLayout = ({
                     </div>
                   )}
                 </button>
+
+                {isDeliveryDisabled && deliveryDisabledReason && (
+                  <p className="text-xs text-gray-600">{deliveryDisabledReason}</p>
+                )}
               </div>
 
               {/* Payment Info */}

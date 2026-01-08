@@ -11,7 +11,7 @@ import theme from '../theme';
  * 
  * This is the first step in self-checkout that branches the workflow
  */
-const OrderTypeSelector = ({ selectedType, onSelect }) => {
+const OrderTypeSelector = ({ selectedType, onSelect, disabledTypes = {}, disabledReason = '' }) => {
   const orderTypes = [
     {
       id: 'dine_in',
@@ -47,17 +47,23 @@ const OrderTypeSelector = ({ selectedType, onSelect }) => {
       <div style={styles.optionsGrid}>
         {orderTypes.map((type) => {
           const isSelected = selectedType === type.id;
+          const isDisabled = Boolean(disabledTypes && disabledTypes[type.id]);
           const Icon = type.icon;
 
           return (
             <button
               key={type.id}
-              onClick={() => onSelect(type.id)}
+              onClick={() => {
+                if (!isDisabled) onSelect(type.id);
+              }}
+              disabled={isDisabled}
               style={{
                 ...styles.optionCard,
                 ...(isSelected ? styles.optionCardSelected : {}),
                 borderColor: isSelected ? type.color : '#e0e0e0',
-                backgroundColor: isSelected ? `${type.color}10` : '#fff'
+                backgroundColor: isSelected ? `${type.color}10` : '#fff',
+                opacity: isDisabled ? 0.5 : 1,
+                cursor: isDisabled ? 'not-allowed' : 'pointer'
               }}
             >
               <div
@@ -112,6 +118,15 @@ const OrderTypeSelector = ({ selectedType, onSelect }) => {
               </p>
             </div>
           )}
+        </div>
+      )}
+
+      {!selectedType && disabledReason && (
+        <div style={styles.infoBox}>
+          <div style={styles.infoContent}>
+            <span style={styles.infoIcon}>ℹ️</span>
+            <p style={styles.infoText}>{disabledReason}</p>
+          </div>
         </div>
       )}
     </div>

@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
+const MenuItem = require('../models/MenuItem');
 const Customer = require('../models/Customer');
 const CustomerAddress = require('../models/CustomerAddress');
 const { criticalCheck, standardCheck } = require('../middleware/dbConnectionMiddleware');
@@ -49,6 +50,39 @@ router.post('/', validateOrder, criticalCheck, async (req, res, next) => {
       receiptNumber: receiptNumber,
     };
 
+    // Delivery eligibility enforcement (self-checkout)
+    const isDelivery = String(orderData.fulfillmentType || '').toLowerCase() === 'delivery';
+    if (isDelivery && String(orderData.orderType || '') === 'self_checkout') {
+      const items = Array.isArray(orderData.items) ? orderData.items : [];
+      const missingMenuItemId = items.some(it => !it || !String(it.menuItemId || '').trim());
+      if (missingMenuItemId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Delivery orders require menuItemId for all items. Please refresh and try again.'
+        });
+      }
+
+      const menuItemIds = items.map(it => String(it.menuItemId)).filter(Boolean);
+      const menuItems = await MenuItem.find({ _id: { $in: menuItemIds } }).select('_id name isDeliveryAvailable');
+      const byId = new Map(menuItems.map(mi => [String(mi._id), mi]));
+
+      const restricted = [];
+      for (const id of menuItemIds) {
+        const mi = byId.get(String(id));
+        if (mi && mi.isDeliveryAvailable === false) {
+          restricted.push({ menuItemId: String(mi._id), name: mi.name });
+        }
+      }
+
+      if (restricted.length > 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'One or more items in this order are not available for delivery.',
+          restrictedItems: restricted
+        });
+      }
+    }
+
     // If processedBy provided from POS, use it. Otherwise leave null until staff processes the order
     if (!orderData.processedBy && req.user && orderData.orderType === 'pos') {
       orderData.processedBy = {
@@ -94,7 +128,7 @@ router.post('/', validateOrder, criticalCheck, async (req, res, next) => {
 
     // Ensure deliveryAddress snapshot exists for delivery orders.
     // Some clients may only send deliveryAddressId; snapshot is needed for staff views/receipts.
-    const isDelivery = String(orderData.fulfillmentType || '').toLowerCase() === 'delivery';
+    // (isDelivery already computed above)
     const hasSnapshotStreet = Boolean(orderData.deliveryAddress && String(orderData.deliveryAddress.street || '').trim());
     if (isDelivery && orderData.deliveryAddressId && !hasSnapshotStreet) {
       try {
