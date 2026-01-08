@@ -57,7 +57,7 @@ export const checkApiHealth = async () => {
   try {
     console.log('Checking API health with URL:', `${API_URL}/api/health`);
     const response = await axios.get(`${API_URL}/api/health`, { 
-      timeout: 5000,
+      timeout: 15000,
       // Don't include auth headers for health check
       headers: { 'Content-Type': 'application/json' }
     });

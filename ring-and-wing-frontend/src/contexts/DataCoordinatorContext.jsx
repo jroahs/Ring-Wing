@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import io from 'socket.io-client';
+import { useServerHealth } from '../hooks/useServerHealth';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -15,6 +16,16 @@ export const DataCoordinatorProvider = ({ children }) => {
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Global server health (Render free-tier cold start support)
+  const {
+    isHealthy,
+    isColdStarting,
+    isError: isServerHealthError,
+    retryCount: serverHealthRetryCount,
+    maxRetries: serverHealthMaxRetries,
+    estimatedWaitTime: serverHealthEstimatedWaitTime
+  } = useServerHealth({ autoCheck: true });
   
   // Critical data states
   const [userData, setUserData] = useState(null);
@@ -333,8 +344,15 @@ export const DataCoordinatorProvider = ({ children }) => {
    * Initialize on mount
    */
   useEffect(() => {
-    initializeCriticalData();
-  }, [initializeCriticalData]);
+    // Avoid hammering the backend while it's cold-starting.
+    // Proceed once healthy; if health-check gives up (error), run init anyway so the UI isn't stuck.
+    if (ready) return;
+    if (isHealthy || isServerHealthError) {
+      initializeCriticalData();
+    } else {
+      setLoading(true);
+    }
+  }, [initializeCriticalData, isHealthy, isServerHealthError, ready]);
 
   /**
    * Socket.io connection for real-time updates
@@ -342,6 +360,11 @@ export const DataCoordinatorProvider = ({ children }) => {
   useEffect(() => {
     // Prevent duplicate initialization in Strict Mode
     if (socketInitializedRef.current) {
+      return;
+    }
+
+    // Don't attempt sockets during cold start; let the health check wake the instance first.
+    if (!isHealthy) {
       return;
     }
     
@@ -381,7 +404,7 @@ export const DataCoordinatorProvider = ({ children }) => {
       }
       socketInitializedRef.current = false;
     };
-  }, [updateMenuItemAvailability]);
+  }, [isHealthy, updateMenuItemAvailability]);
 
   const value = {
     // State
@@ -405,7 +428,17 @@ export const DataCoordinatorProvider = ({ children }) => {
     updateMenuItemAvailability,
     
     // Metadata
-    lastFetchTime
+    lastFetchTime,
+
+    // Server health metadata (useful for global overlays/IT monitoring)
+    serverHealth: {
+      isHealthy,
+      isColdStarting,
+      isError: isServerHealthError,
+      retryCount: serverHealthRetryCount,
+      maxRetries: serverHealthMaxRetries,
+      estimatedWaitTime: serverHealthEstimatedWaitTime
+    }
   };
 
   return (

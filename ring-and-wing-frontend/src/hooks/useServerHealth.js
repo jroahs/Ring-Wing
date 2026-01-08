@@ -48,22 +48,21 @@ export const useServerHealth = (options = {}) => {
   /**
    * Clean up any pending requests or timeouts
    */
-  const cleanup = useCallback(() => {
+  const cleanupCheck = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
-    }
-    if (wakeAbortControllerRef.current) {
-      wakeAbortControllerRef.current.abort();
-      wakeAbortControllerRef.current = null;
     }
     if (retryTimeoutRef.current) {
       clearTimeout(retryTimeoutRef.current);
       retryTimeoutRef.current = null;
     }
-    if (coldStartDisplayTimeoutRef.current) {
-      clearTimeout(coldStartDisplayTimeoutRef.current);
-      coldStartDisplayTimeoutRef.current = null;
+  }, []);
+
+  const cleanupWake = useCallback(() => {
+    if (wakeAbortControllerRef.current) {
+      wakeAbortControllerRef.current.abort();
+      wakeAbortControllerRef.current = null;
     }
     if (wakeTimeoutRef.current) {
       clearTimeout(wakeTimeoutRef.current);
@@ -71,6 +70,15 @@ export const useServerHealth = (options = {}) => {
     }
     wakeInFlightRef.current = false;
   }, []);
+
+  const cleanupAll = useCallback(() => {
+    cleanupCheck();
+    cleanupWake();
+    if (coldStartDisplayTimeoutRef.current) {
+      clearTimeout(coldStartDisplayTimeoutRef.current);
+      coldStartDisplayTimeoutRef.current = null;
+    }
+  }, [cleanupCheck, cleanupWake]);
 
   // Debounce cold start state to prevent flashing
   useEffect(() => {
@@ -106,7 +114,10 @@ export const useServerHealth = (options = {}) => {
    * Perform a health check against the server
    */
   const checkHealth = useCallback(async (isRetry = false) => {
-    cleanup();
+    // IMPORTANT:
+    // Do NOT abort the long-running wake request during retries.
+    // Only cancel the short health-check request and retry timer.
+    cleanupCheck();
 
     if (!isRetry) {
       retryCountRef.current = 0;
@@ -259,7 +270,7 @@ export const useServerHealth = (options = {}) => {
         clearTimeout(timeoutId);
       }
     }
-  }, [cleanup, coldStartTimeout, maxRetries, retryDelay]);
+  }, [cleanupCheck, coldStartTimeout, maxRetries, retryDelay]);
 
   /**
    * Force a health check
@@ -272,11 +283,11 @@ export const useServerHealth = (options = {}) => {
    * Reset state and stop any pending checks
    */
   const reset = useCallback(() => {
-    cleanup();
+    cleanupAll();
     setServerStatus('unknown');
     setRetryCount(0);
     setEstimatedWaitTime(null);
-  }, [cleanup]);
+  }, [cleanupAll]);
 
   // Auto-check on mount if enabled
   useEffect(() => {
@@ -288,16 +299,16 @@ export const useServerHealth = (options = {}) => {
 
       return () => {
         clearTimeout(initTimeout);
-        cleanup();
+        cleanupAll();
       };
     }
-    return cleanup;
-  }, [autoCheck, checkHealth, cleanup]);
+    return cleanupAll;
+  }, [autoCheck, checkHealth, cleanupAll]);
 
   // Cleanup on unmount
   useEffect(() => {
-    return cleanup;
-  }, [cleanup]);
+    return cleanupAll;
+  }, [cleanupAll]);
 
   return {
     /** Current server status */

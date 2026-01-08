@@ -7,6 +7,8 @@ const RETRY_DELAY = 1000; // 1 second
 const REQUEST_TIMEOUT = 30000; // 30 seconds
 const HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
 const DB_CHECK_INTERVAL = 60000; // 1 minute - check database connection health periodically
+const HEALTH_ENDPOINT_TIMEOUT = 15000; // Render cold starts can exceed 5s
+const DB_STATUS_TIMEOUT = 15000; // DB status endpoint may be slow during wake
 
 // Connection state
 let isOnline = true;
@@ -212,7 +214,7 @@ const checkHealth = async () => {
     await axios({
       url: `${API_URL}/api/health`,
       method: 'GET',
-      timeout: 5000,
+      timeout: HEALTH_ENDPOINT_TIMEOUT,
       bypassOfflineCheck: true // Prevent interceptor from queuing this
     });
     
@@ -220,7 +222,7 @@ const checkHealth = async () => {
     setOnlineStatus(true);
   } catch (error) {
     // Still offline, continue to retry
-    console.log('Health check failed, still offline.');
+    console.log('Health check failed, still offline:', error?.message);
   }
 };
 
@@ -233,7 +235,7 @@ async function checkDatabaseConnection() {
     const response = await axios({
       url: `${API_URL}/api/database-status`,
       method: 'GET',
-      timeout: 5000,
+      timeout: DB_STATUS_TIMEOUT,
       bypassOfflineCheck: true
     });
     
@@ -337,7 +339,7 @@ const apiService = {
   // Check server health
   async checkHealth() {
     try {
-      const response = await axios.get(`${API_URL}/api/health`, { timeout: 5000 });
+      const response = await axios.get(`${API_URL}/api/health`, { timeout: HEALTH_ENDPOINT_TIMEOUT });
       return response.data?.status === 'ok';
     } catch (error) {
       console.error('Health check failed:', error.message);
@@ -348,7 +350,7 @@ const apiService = {
   // Check database connection status
   async checkDatabaseStatus() {
     try {
-      const response = await axios.get(`${API_URL}/api/database-status`, { timeout: 5000 });
+      const response = await axios.get(`${API_URL}/api/database-status`, { timeout: DB_STATUS_TIMEOUT });
       return {
         isConnected: response.data.success === true,
         status: response.data.status,
