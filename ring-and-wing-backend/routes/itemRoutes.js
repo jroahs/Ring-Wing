@@ -80,7 +80,23 @@ const convertUnit = (value, fromUnit, toUnit) => {
 // Get all items
 router.get('/', async (req, res) => {
   try {
-    const items = await Item.find().lean();
+    const allowedCategories = ['Food', 'Beverages', 'Ingredients', 'Packaging'];
+    const { category } = req.query;
+
+    const query = {};
+    if (typeof category === 'string' && category.trim()) {
+      const categories = category
+        .split(',')
+        .map(c => c.trim())
+        .filter(Boolean)
+        .filter(c => allowedCategories.includes(c));
+
+      if (categories.length > 0) {
+        query.category = { $in: categories };
+      }
+    }
+
+    const items = await Item.find(query).lean();
     const formattedItems = items.map(item => ({
       ...item,
       trackExpiration: item.trackExpiration !== false,

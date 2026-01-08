@@ -581,7 +581,7 @@ const MenuPage = () => {
       });
       
       await new Promise(resolve => setTimeout(resolve, 200));
-      const inventoryRes = await fetch(`${API_URL}/api/items`, {  // Use the existing items endpoint
+      const inventoryRes = await fetch(`${API_URL}/api/items?category=Ingredients`, {  // Limit to ingredients for mapping
         signal: signal
       });
 
@@ -905,7 +905,7 @@ const MenuPage = () => {
         });
         
         await new Promise(resolve => setTimeout(resolve, 200));
-        const inventoryRes = await fetch(`${API_URL}/api/items`, {
+        const inventoryRes = await fetch(`${API_URL}/api/items?category=Ingredients`, {
           signal: controller.signal
         });
 
