@@ -524,7 +524,7 @@ const RevenueReports = () => {
             <button
               onClick={handleDownloadPDF}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity"
-              style={{ backgroundColor: colors.accent }}
+              style={{ backgroundColor: colors.primary }}
               title="Download PDF Report (Text-based)"
             >
               <FiDownload className="w-4 h-4" />
@@ -542,7 +542,7 @@ const RevenueReports = () => {
             <button
               onClick={handlePrint}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity"
-              style={{ backgroundColor: colors.secondary }}
+              style={{ backgroundColor: colors.primary }}
               title="Print Report"
             >
               <FiPrinter className="w-4 h-4" />
@@ -565,11 +565,22 @@ const RevenueReports = () => {
                 style={{ borderColor: colors.muted + '30' }}
               >
                 <div className="px-4 py-3 border-b" style={{ borderColor: colors.muted + '20' }}>
-                  <div className="text-sm font-semibold" style={{ color: colors.primary }}>
-                    {selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1)} History
-                  </div>
-                  <div className="text-xs" style={{ color: colors.muted }}>
-                    Select a date to load its report
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold" style={{ color: colors.primary }}>
+                        {selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1)} History
+                      </div>
+                      <div className="text-xs" style={{ color: colors.muted }}>
+                        Pick a date to load that report
+                      </div>
+                    </div>
+                    <div
+                      className="text-[11px] px-2 py-1 rounded-full border"
+                      style={{ borderColor: colors.muted + '30', color: colors.muted }}
+                      title="Currently loaded report"
+                    >
+                      {reportDateKey}
+                    </div>
                   </div>
                 </div>
 
@@ -594,20 +605,55 @@ const RevenueReports = () => {
 
                   {!historyLoading && !historyError && historyItems.length > 0 && (
                     <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b" style={{ borderColor: colors.muted + '20' }}>
+                          <th
+                            className="px-4 py-2 text-left text-xs font-semibold"
+                            style={{ color: colors.muted }}
+                          >
+                            Date
+                          </th>
+                          <th
+                            className="px-4 py-2 text-right text-xs font-semibold"
+                            style={{ color: colors.muted }}
+                          >
+                            Key
+                          </th>
+                        </tr>
+                      </thead>
                       <tbody>
-                        {historyItems.map((item) => {
+                        {historyItems.map((item, idx) => {
                           const isSelected = selectedHistoryKey === item.key;
                           return (
                             <tr
                               key={item.key}
-                              className={`cursor-pointer ${isSelected ? 'bg-gray-50' : 'hover:bg-gray-50'}`}
+                              className={`cursor-pointer border-b ${isSelected ? 'bg-gray-50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-gray-50`}
+                              style={{ borderColor: colors.muted + '12' }}
                               onClick={() => {
                                 setSelectedHistoryKey(item.key);
                                 setHistoryOpen(false);
                               }}
                             >
-                              <td className="px-4 py-3" style={{ color: colors.primary }}>
-                                {item.label || item.key}
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className="inline-block w-2 h-2 rounded-full"
+                                    style={{ backgroundColor: isSelected ? colors.accent : colors.muted + '60' }}
+                                  />
+                                  <div>
+                                    <div className="font-medium" style={{ color: colors.primary }}>
+                                      {item.label || item.key}
+                                    </div>
+                                    {item.label && item.label !== item.key && (
+                                      <div className="text-xs" style={{ color: colors.muted }}>
+                                        {item.key}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-right text-xs" style={{ color: colors.muted }}>
+                                {item.key}
                               </td>
                             </tr>
                           );
@@ -619,7 +665,7 @@ const RevenueReports = () => {
 
                 <div className="px-4 py-3 border-t flex items-center justify-between" style={{ borderColor: colors.muted + '20' }}>
                   <div className="text-xs" style={{ color: colors.muted }}>
-                    Current: {reportDateKey}
+                    Showing: {selectedHistoryKey ? 'History' : 'Current'}
                   </div>
                   <button
                     className="text-xs font-medium hover:opacity-80"
