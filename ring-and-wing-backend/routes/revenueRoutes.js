@@ -41,6 +41,62 @@ const getDateRange = (period, { weekStart = 0 } = {}) => {
   }
 };
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Helper: compute full-period date range for a given business date key.
+// `dateKey` is expected to be a YYYY-MM-DD string (any day within the target period).
+const getDateRangeForDateKey = (period, dateKey, { weekStart = 0 } = {}) => {
+  const tz = getBusinessTimeZone();
+  const normalizedKey = isDateOnlyString(dateKey)
+    ? dateKey
+    : formatBusinessDateKey(new Date(dateKey), tz);
+
+  switch (period) {
+    case 'daily': {
+      return {
+        start: businessDateTimeUtc(normalizedKey, 0, 0, 0, 0, tz),
+        end: businessDateTimeUtc(normalizedKey, 23, 59, 59, 999, tz)
+      };
+    }
+    case 'weekly': {
+      // Compute week start in business calendar.
+      const phNoon = businessDateTimeUtc(normalizedKey, 12, 0, 0, 0, tz);
+      const weekday = phNoon.getUTCDay();
+      const diff = (7 + weekday - weekStart) % 7;
+      const weekStartKey = formatBusinessDateKey(new Date(phNoon.getTime() - diff * DAY_MS), tz);
+      const start = businessDateTimeUtc(weekStartKey, 0, 0, 0, 0, tz);
+      const end = new Date(start.getTime() + 7 * DAY_MS - 1);
+      return { start, end };
+    }
+    case 'monthly': {
+      const year = normalizedKey.slice(0, 4);
+      const month = normalizedKey.slice(5, 7);
+      const monthStartKey = `${year}-${month}-01`;
+      const lastDay = new Date(Date.UTC(parseInt(year, 10), parseInt(month, 10), 0)).getUTCDate();
+      const monthEndKey = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+      return {
+        start: businessDateTimeUtc(monthStartKey, 0, 0, 0, 0, tz),
+        end: businessDateTimeUtc(monthEndKey, 23, 59, 59, 999, tz)
+      };
+    }
+    case 'yearly': {
+      const year = normalizedKey.slice(0, 4);
+      const yearStartKey = `${year}-01-01`;
+      const yearEndKey = `${year}-12-31`;
+      return {
+        start: businessDateTimeUtc(yearStartKey, 0, 0, 0, 0, tz),
+        end: businessDateTimeUtc(yearEndKey, 23, 59, 59, 999, tz)
+      };
+    }
+    default: {
+      return {
+        start: businessDateTimeUtc(normalizedKey, 0, 0, 0, 0, tz),
+        end: businessDateTimeUtc(normalizedKey, 23, 59, 59, 999, tz)
+      };
+    }
+  }
+};
+
 // ============================================
 // SPECIFIC ROUTES MUST COME BEFORE /:period
 // ============================================
@@ -302,6 +358,99 @@ router.get('/historical/monthly', async (req, res) => {
   }
 });
 
+// List available report periods for history picker
+// Returns date keys derived from existing orders (non-pending) in business timezone.
+router.get('/history/:period', async (req, res) => {
+  try {
+    const { period } = req.params;
+    const weekStartParam = typeof req.query.weekStart !== 'undefined' ? parseInt(req.query.weekStart, 10) : 0;
+    const weekStart = Number.isInteger(weekStartParam) ? weekStartParam : 0;
+    const tz = getBusinessTimeZone();
+
+    if (!['daily', 'weekly', 'monthly', 'yearly'].includes(period)) {
+      return res.status(400).json({ success: false, error: 'Invalid period' });
+    }
+
+    const defaultLimits = { daily: 60, weekly: 26, monthly: 24, yearly: 10 };
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit, 10) || defaultLimits[period], 500));
+
+    // Pull more distinct days than needed because weekly/monthly/yearly are derived from days.
+    const dayScanLimit = Math.max(limit * 10, 200);
+
+    const dayKeysAgg = await Order.aggregate([
+      {
+        $match: {
+          paymentMethod: { $ne: 'pending' },
+          createdAt: { $type: 'date' }
+        }
+      },
+      {
+        $project: {
+          dateKey: {
+            $dateToString: {
+              format: '%Y-%m-%d',
+              date: '$createdAt',
+              timezone: tz
+            }
+          }
+        }
+      },
+      { $group: { _id: '$dateKey' } },
+      { $sort: { _id: -1 } },
+      { $limit: dayScanLimit }
+    ]);
+
+    const dayKeys = dayKeysAgg.map(d => d._id).filter(Boolean);
+
+    let items = [];
+
+    if (period === 'daily') {
+      items = dayKeys.slice(0, limit).map(key => ({ key, label: key }));
+    } else if (period === 'weekly') {
+      const weekStartKeys = new Set();
+      for (const key of dayKeys) {
+        const phNoon = businessDateTimeUtc(key, 12, 0, 0, 0, tz);
+        const weekday = phNoon.getUTCDay();
+        const diff = (7 + weekday - weekStart) % 7;
+        const wkKey = formatBusinessDateKey(new Date(phNoon.getTime() - diff * DAY_MS), tz);
+        weekStartKeys.add(wkKey);
+      }
+
+      items = Array.from(weekStartKeys)
+        .sort((a, b) => b.localeCompare(a))
+        .slice(0, limit)
+        .map(key => ({ key, label: `Week of ${key}` }));
+    } else if (period === 'monthly') {
+      const monthStartKeys = new Set();
+      for (const key of dayKeys) {
+        monthStartKeys.add(`${key.slice(0, 7)}-01`);
+      }
+
+      items = Array.from(monthStartKeys)
+        .sort((a, b) => b.localeCompare(a))
+        .slice(0, limit)
+        .map(key => {
+          const d = new Date(`${key}T00:00:00+08:00`);
+          return { key, label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) };
+        });
+    } else if (period === 'yearly') {
+      const yearStartKeys = new Set();
+      for (const key of dayKeys) {
+        yearStartKeys.add(`${key.slice(0, 4)}-01-01`);
+      }
+
+      items = Array.from(yearStartKeys)
+        .sort((a, b) => b.localeCompare(a))
+        .slice(0, limit)
+        .map(key => ({ key, label: key.slice(0, 4) }));
+    }
+
+    res.json({ success: true, data: { period, items } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Get historical yearly revenue data (last N years, default 5)
 router.get('/historical/yearly', async (req, res) => {
   try {
@@ -393,10 +542,19 @@ router.get('/:period', async (req, res) => {
     const weekStartParam = typeof req.query.weekStart !== 'undefined' ? parseInt(req.query.weekStart, 10) : undefined; // 0=Sunday .. 6=Saturday
     const tz = req.query.tz || process.env.BUSINESS_TIMEZONE || 'Asia/Manila';
 
-    // get initial start/end
-    let { start, end } = getDateRange(period, {
-      weekStart: Number.isInteger(weekStartParam) ? weekStartParam : 0
-    });
+    const dateParam = req.query.date;
+
+    const weekStart = Number.isInteger(weekStartParam) ? weekStartParam : 0;
+
+    // If a business date key is provided, fetch the full historical period for that key.
+    // Otherwise, default to "up to now" current-period behavior.
+    let start;
+    let end;
+    if (dateParam) {
+      ({ start, end } = getDateRangeForDateKey(period, dateParam, { weekStart }));
+    } else {
+      ({ start, end } = getDateRange(period, { weekStart }));
+    }
 
     // weekly logic uses the original simple start/end range
     

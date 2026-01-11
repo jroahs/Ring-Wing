@@ -27,6 +27,11 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const RevenueReports = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('daily');
+  const [selectedHistoryKey, setSelectedHistoryKey] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState(null);
+  const [historyItems, setHistoryItems] = useState([]);
   const [revenueData, setRevenueData] = useState(null);
   const [monthlyHistoricalData, setMonthlyHistoricalData] = useState([]);
   const [yearlyHistoricalData, setYearlyHistoricalData] = useState([]);
@@ -35,16 +40,19 @@ const RevenueReports = () => {
   const [error, setError] = useState(null);
     // Ref for printable report
   const printableReportRef = useRef(null);
+  const historyPopoverRef = useRef(null);
+
+  const reportDateKey = selectedHistoryKey || businessDateKey(new Date());
   
   // Print handler for browser print
   const handlePrint = useReactToPrint({
     content: () => printableReportRef.current,
-    documentTitle: `Revenue Report - ${selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1)} - ${new Date().toLocaleDateString()}`,
+    documentTitle: `Revenue Report - ${selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1)} - ${reportDateKey}`,
   });
   // Download PDF handler (using text-based PDF generation)
   const handleDownloadPDF = () => {
     try {
-      generateRevenuePDF(revenueData, selectedPeriod);
+      generateRevenuePDF(revenueData, selectedPeriod, reportDateKey);
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Please try again.');
@@ -296,7 +304,8 @@ const RevenueReports = () => {
     const fetchRevenueData = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${API_URL}/api/revenue/${selectedPeriod}`);
+        const qs = selectedHistoryKey ? `?date=${encodeURIComponent(selectedHistoryKey)}` : '';
+        const response = await fetch(`${API_URL}/api/revenue/${selectedPeriod}${qs}`);
         const data = await response.json();
         if (data.success) {
           setRevenueData(data.data);
@@ -311,7 +320,57 @@ const RevenueReports = () => {
     };
 
     fetchRevenueData();
+  }, [selectedPeriod, selectedHistoryKey]);
+
+  useEffect(() => {
+    // Reset history selection when switching periods.
+    setSelectedHistoryKey(null);
   }, [selectedPeriod]);
+
+  useEffect(() => {
+    // Fetch available history items for the currently selected period.
+    const fetchHistory = async () => {
+      try {
+        setHistoryLoading(true);
+        setHistoryError(null);
+        const response = await fetch(`${API_URL}/api/revenue/history/${selectedPeriod}`);
+        const data = await response.json();
+        if (data.success) {
+          setHistoryItems(data.data.items || []);
+        } else {
+          throw new Error(data.error || 'Failed to fetch history');
+        }
+      } catch (err) {
+        setHistoryError(err.message);
+        setHistoryItems([]);
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, [selectedPeriod]);
+
+  useEffect(() => {
+    if (!historyOpen) return;
+
+    const onMouseDown = (event) => {
+      if (!historyPopoverRef.current) return;
+      if (historyPopoverRef.current.contains(event.target)) return;
+      setHistoryOpen(false);
+    };
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setHistoryOpen(false);
+    };
+
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [historyOpen]);
   // Fetch historical monthly data separately (only once when component mounts)
   useEffect(() => {
     const fetchMonthlyHistoricalData = async () => {
@@ -457,9 +516,11 @@ const RevenueReports = () => {
               {period.charAt(0).toUpperCase() + period.slice(1)}
             </button>
           ))}
-        </div>        {/* Export Buttons */}
+        </div>
+
+        {/* Export Buttons */}
         {revenueData && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 relative" ref={historyPopoverRef}>
             <button
               onClick={handleDownloadPDF}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity"
@@ -487,6 +548,92 @@ const RevenueReports = () => {
               <FiPrinter className="w-4 h-4" />
               Print
             </button>
+
+            <button
+              onClick={() => setHistoryOpen(v => !v)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: colors.primary }}
+              title="Select previous report date"
+            >
+              <FiClock className="w-4 h-4" />
+              History
+            </button>
+
+            {historyOpen && (
+              <div
+                className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg border shadow-lg overflow-hidden"
+                style={{ borderColor: colors.muted + '30' }}
+              >
+                <div className="px-4 py-3 border-b" style={{ borderColor: colors.muted + '20' }}>
+                  <div className="text-sm font-semibold" style={{ color: colors.primary }}>
+                    {selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1)} History
+                  </div>
+                  <div className="text-xs" style={{ color: colors.muted }}>
+                    Select a date to load its report
+                  </div>
+                </div>
+
+                <div className="max-h-72 overflow-auto">
+                  {historyLoading && (
+                    <div className="px-4 py-6 text-sm" style={{ color: colors.muted }}>
+                      Loading history...
+                    </div>
+                  )}
+
+                  {!historyLoading && historyError && (
+                    <div className="px-4 py-4 text-sm text-red-600">
+                      Failed to load history: {historyError}
+                    </div>
+                  )}
+
+                  {!historyLoading && !historyError && historyItems.length === 0 && (
+                    <div className="px-4 py-6 text-sm" style={{ color: colors.muted }}>
+                      No history available yet.
+                    </div>
+                  )}
+
+                  {!historyLoading && !historyError && historyItems.length > 0 && (
+                    <table className="w-full text-sm">
+                      <tbody>
+                        {historyItems.map((item) => {
+                          const isSelected = selectedHistoryKey === item.key;
+                          return (
+                            <tr
+                              key={item.key}
+                              className={`cursor-pointer ${isSelected ? 'bg-gray-50' : 'hover:bg-gray-50'}`}
+                              onClick={() => {
+                                setSelectedHistoryKey(item.key);
+                                setHistoryOpen(false);
+                              }}
+                            >
+                              <td className="px-4 py-3" style={{ color: colors.primary }}>
+                                {item.label || item.key}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                <div className="px-4 py-3 border-t flex items-center justify-between" style={{ borderColor: colors.muted + '20' }}>
+                  <div className="text-xs" style={{ color: colors.muted }}>
+                    Current: {reportDateKey}
+                  </div>
+                  <button
+                    className="text-xs font-medium hover:opacity-80"
+                    style={{ color: colors.accent }}
+                    onClick={() => {
+                      setSelectedHistoryKey(null);
+                      setHistoryOpen(false);
+                    }}
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -787,7 +934,7 @@ const RevenueReports = () => {
             ref={printableReportRef}
             revenueData={revenueData}
             selectedPeriod={selectedPeriod}
-            reportDate={new Date()}
+            reportDate={reportDateKey}
           />
         )}
       </div>
