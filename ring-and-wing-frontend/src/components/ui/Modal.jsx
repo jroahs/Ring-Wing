@@ -64,19 +64,23 @@ export const Modal = ({
 
   return createPortal(
     <Fragment>
-      {/* Backdrop */}
+      {/* Overlay/Backdrop */}
       <div 
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+        className="fixed inset-0 bg-black/50 z-[60] backdrop-blur-sm transition-opacity" // Modern backdrop
         onClick={handleBackdropClick}
-      >
-        {/* Modal */}
+      />
+      
+      {/* Modal Container */}
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 pointer-events-none">
+        
+        {/* Modal Content */}
         <div
           ref={modalRef}
           className={`
-            w-full relative rounded-xl shadow-xl 
-            animate-modal-enter overflow-hidden
+            relative rounded-xl shadow-2xl w-full
+            pointer-events-auto animate-in fade-in zoom-in-95 duration-200
             ${sizes[size]}
-            ${heightStyles[size] || 'max-h-[90vh]'}
+            ${heightStyles[size] || 'max-h-[85vh]'}
             ${className}
           `}
           style={{ backgroundColor: theme.colors.background }}

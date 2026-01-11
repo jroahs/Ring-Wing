@@ -8,12 +8,26 @@ import jsPDF from 'jspdf';
 import { API_URL } from './App';  // Import API_URL from App.jsx
 import { Button } from './components/ui/Button'; // Import Button component
 import { LoadingSpinner } from './components/ui';
+import { Modal } from './components/ui/Modal'; // Extended UI Modal
 import BrandedLoadingScreen from './components/ui/BrandedLoadingScreen';
 import { PrintableInventoryReport } from './components/ui/PrintableInventoryReport';
 import { toast } from 'react-toastify';
 import { getCurrentUser, hasInventoryAccess, hasPermission } from './utils/permissions';
 import { io } from 'socket.io-client'; // 🔥 NEW: Real-time socket events (Sprint 22)
 import { businessDateKey } from './utils/businessDate';
+import { 
+  Bell, 
+  X, 
+  Search, 
+  ChevronLeft, 
+  ChevronRight, 
+  AlertTriangle, 
+  PackageOpen, 
+  CalendarClock, 
+  CheckCircle, 
+  Trash2, 
+  RefreshCw 
+} from 'lucide-react';
 
 const colors = {
   primary: '#2e0304',
@@ -26,169 +40,264 @@ const colors = {
   hoverBg: '#f1670f10'
 };
 
-// AlertCard component to display individual alerts in a better format
+// AlertCard component - modernized
 const AlertCard = ({ alert, onRestock, onDispose }) => {
   const isStockAlert = alert.type === 'stock';
-  const isExpiredAlert = alert.type === 'expiration' && alert.message.includes('expired');
+  const isExpired = alert.type === 'expiration' && alert.message.includes('expired');
   
-  // Determine severity color
-  const getSeverityStyle = () => {
-    if (isStockAlert && alert.message.includes('out of stock')) {
-      return { bg: '#fee2e2', border: '#ef4444' };
-    } else if (isStockAlert) {
-      return { bg: '#fef3c7', border: '#f59e0b' };
-    } else if (isExpiredAlert) {
-      return { bg: '#fee2e2', border: '#ef4444' };
-    } else {
-      return { bg: '#dbeafe', border: '#3b82f6' };
-    }
-  };
+  // Define styles based on alert type
+  let icon, bgColor, borderColor, textColor;
   
-  const style = getSeverityStyle();
-  
+  if (isStockAlert && alert.message.includes('out of stock')) {
+    icon = <AlertTriangle className="w-5 h-5 text-red-500" />;
+    bgColor = 'bg-red-50';
+    borderColor = 'border-red-200';
+    textColor = 'text-red-700';
+  } else if (isStockAlert) {
+    icon = <PackageOpen className="w-5 h-5 text-amber-500" />;
+    bgColor = 'bg-amber-50';
+    borderColor = 'border-amber-200';
+    textColor = 'text-amber-800';
+  } else if (isExpired) {
+    icon = <Trash2 className="w-5 h-5 text-red-500" />;
+    bgColor = 'bg-red-50';
+    borderColor = 'border-red-200';
+    textColor = 'text-red-700';
+  } else {
+    icon = <CalendarClock className="w-5 h-5 text-blue-500" />;
+    bgColor = 'bg-blue-50';
+    borderColor = 'border-blue-200';
+    textColor = 'text-blue-700';
+  }
+
   return (
-    <div className="border rounded p-3 flex flex-col" 
-         style={{ backgroundColor: style.bg, borderColor: style.border }}>
-      <div className="font-medium truncate" title={alert.message}>
-        {alert.message}
-      </div>      <div className="mt-2 flex justify-between items-center text-xs text-gray-600">
-        <span>{new Date(alert.date).toLocaleDateString()}</span>
-        <div className="flex gap-2">
-          {isStockAlert && (
-            <Button
-              onClick={() => onRestock(alert.id)}
-              variant="accent"
-              size="sm"
-            >
-              Restock Now
-            </Button>
-          )}
-          {isExpiredAlert && (
-            <Button
-              onClick={() => onDispose(alert.id.split('-')[0], alert.id.split('-')[1])}
-              variant="secondary"
-              size="sm"
-            >
-              Dispose
-            </Button>
-          )}
+    <div className={`border rounded-lg p-4 flex items-start gap-4 transition-all hover:shadow-md ${bgColor} ${borderColor}`}>
+      <div className="flex-shrink-0 mt-1">{icon}</div>
+      
+      <div className="flex-grow min-w-0">
+        <h4 className={`font-semibold text-sm ${textColor} mb-1`}>
+          {alert.message}
+        </h4>
+        <div className="text-xs text-gray-500 flex items-center gap-2">
+           <span>{new Date(alert.date).toLocaleDateString()}</span>
+           {alert.details && <span>• {alert.details}</span>}
         </div>
+      </div>
+
+      <div className="flex-shrink-0 flex flex-col gap-2">
+        {isStockAlert && (
+          <Button onClick={() => onRestock(alert.id)} variant="accent" size="sm" className="w-full whitespace-nowrap">
+            Restock
+          </Button>
+        )}
+        {isExpired && (
+          <Button 
+            onClick={() => onDispose(alert.id.split('-')[0], alert.id.split('-')[1])} 
+            variant="secondary" 
+            size="sm"
+            className="w-full whitespace-nowrap bg-white border border-red-200 text-red-600 hover:bg-red-50"
+          >
+            Dispose
+          </Button>
+        )}
       </div>
     </div>
   );
 };
 
-// AlertDashboard component to manage and display alerts
+// AlertDashboard component - remodelled with Modal and Pagination
 const AlertDashboard = ({ alerts, onRestock, onDispose }) => {
+  const [isOpen, setIsOpen] = useState(false); // Modal state
   const [filterType, setFilterType] = useState('all');
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6; // Show 6 items per page
 
-  // Filter and organize alerts
-  const filteredAlerts = filterType === 'all' 
-    ? alerts 
-    : alerts.filter(alert => alert.type === filterType);
-  
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterType, search]);
+
   const alertCounts = {
     all: alerts.length,
     stock: alerts.filter(a => a.type === 'stock').length,
     expiration: alerts.filter(a => a.type === 'expiration').length
   };
 
-  // Sort alerts by priority: out of stock > expired > low stock > expiring soon
-  const organizedAlerts = [...filteredAlerts].sort((a, b) => {
-    const getPriority = (alert) => {
-      if (alert.type === 'stock' && alert.message.includes('out of stock')) return 1;
-      if (alert.type === 'expiration' && alert.message.includes('expired')) return 2;
-      if (alert.type === 'stock') return 3;
-      return 4; // expiring soon
-    };
-    return getPriority(a) - getPriority(b);
-  });
+  // Filter Logic
+  const filteredAlerts = alerts
+    .filter(alert => {
+      // Type Filter
+      if (filterType !== 'all' && alert.type !== filterType) return false;
+      // Search Filter
+      if (search && !alert.message.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      // Priority sorting
+       const getPriority = (alert) => {
+        if (alert.type === 'stock' && alert.message.includes('out of stock')) return 1;
+        if (alert.type === 'expiration' && alert.message.includes('expired')) return 2;
+        if (alert.type === 'stock') return 3;
+        return 4; 
+      };
+      return getPriority(a) - getPriority(b);
+    });
 
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredAlerts.length / itemsPerPage);
+  const paginatedAlerts = filteredAlerts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Trigger Button (The summary bar in the dashboard)
+  if (!isOpen) {
+    return (
+      <div 
+        className="flex items-center justify-between px-3 py-2 border rounded shadow-sm bg-white cursor-pointer hover:shadow-md transition-all gap-4 select-none min-w-[300px]"
+        style={{ borderColor: colors.muted }}
+        onClick={() => setIsOpen(true)}
+      >
+          <div className="flex items-center gap-3">
+             <div className="relative flex items-center">
+               <Bell className="w-5 h-5" style={{ color: colors.primary }} />
+               {alerts.length > 0 && <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span></span>}
+             </div>
+             <span className="font-medium text-sm" style={{ color: colors.primary }}>Inventory Alerts</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {alertCounts.stock > 0 && (
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                  <PackageOpen className="w-3 h-3" /> <span>{alertCounts.stock}</span>
+                </div>
+            )}
+            {alertCounts.expiration > 0 && (
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                  <CalendarClock className="w-3 h-3" /> <span>{alertCounts.expiration}</span>
+                </div>
+            )}
+             {alerts.length === 0 && (
+                <span className="text-xs text-gray-500">No alerts</span>
+             )}
+          </div>
+      </div>
+    );
+  }
+
+  // Modal View
   return (
-    <div className="relative w-full max-w-[450px]" style={{ zIndex: 20 }}>
-      <div className="border rounded-lg shadow-sm relative" style={{ borderColor: colors.muted }}>
-        <div 
-          className="flex items-center justify-between p-3 bg-gray-50 border-b cursor-pointer"
-          style={{ borderColor: colors.muted }}
-          onClick={() => setIsCollapsed(!isCollapsed)}
-        >
-          <div className="flex items-center">
-            <h3 className="font-medium" style={{ color: colors.primary }}>
-              Inventory Alerts ({alerts.length})
-            </h3>
-            <div className="flex items-center ml-2 gap-2 whitespace-nowrap">
-              <span 
-                className="flex h-5 w-5 items-center justify-center rounded-full text-xs"
-                style={{ backgroundColor: colors.accent, color: 'white' }}
-              >
-                {alertCounts.stock}
-              </span>
-              <span className="text-sm hidden sm:inline">Stock</span>
-              <span 
-                className="flex h-5 w-5 items-center justify-center rounded-full text-xs"
-                style={{ backgroundColor: colors.secondary, color: 'white' }}
-              >
-                {alertCounts.expiration}
-              </span>
-              <span className="text-sm hidden sm:inline">Expiration</span>
+    <>
+      {/* Overlay */}
+      <div className="fixed inset-0 bg-black/50 z-[60] backdrop-blur-sm transition-opacity" onClick={() => setIsOpen(false)} />
+      
+      {/* Modal Content */}
+      <div className="fixed inset-0 flex items-center justify-center z-[70] pointer-events-none p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col pointer-events-auto animate-in fade-in zoom-in-95 duration-200">
+          
+          {/* Header */}
+          <div className="p-5 border-b flex items-center justify-between bg-gray-50 rounded-t-xl">
+            <div>
+              <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800">
+                <Bell className="w-5 h-5 text-red-500" /> Inventory Action Center
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">Manage stock alerts and expirations</p>
+            </div>
+            <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
+
+          {/* Controls */}
+          <div className="p-4 border-b space-y-4">
+            {/* Tabs */}
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {[
+                { id: 'all', label: 'All Alerts', count: alertCounts.all, icon: AlertTriangle },
+                { id: 'stock', label: 'Stock Levels', count: alertCounts.stock, icon: PackageOpen },
+                { id: 'expiration', label: 'Expirations', count: alertCounts.expiration, icon: CalendarClock },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setFilterType(tab.id)}
+                  className={`
+                    flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap
+                    ${filterType === tab.id 
+                      ? 'bg-gray-900 text-white shadow-md' 
+                      : 'bg-white border text-gray-600 hover:bg-gray-50'}
+                  `}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                  <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs ${filterType === tab.id ? 'bg-white/20' : 'bg-gray-200'}`}>
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input 
+                type="text"
+                placeholder="Search alerts..." 
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+              />
             </div>
           </div>
-          <span className="text-gray-500">{isCollapsed ? '▼' : '▲'}</span>
-        </div>
 
-        {!isCollapsed && (
-          <div className="absolute top-full left-0 right-0 bg-white border rounded-b-lg shadow-lg z-30" style={{ borderColor: colors.muted }}>
-            <div className="p-3 border-b" style={{ borderColor: colors.muted }}>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setFilterType('all')}
-                  className={`px-3 py-1 rounded-full text-sm ${
-                    filterType === 'all' ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'
-                  }`}
+          {/* Scrollable List */}
+          <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50 min-h-[300px]">
+            {filteredAlerts.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-gray-400 p-8">
+                <CheckCircle className="w-12 h-12 mb-3 text-green-500 opacity-50" />
+                <p>All caught up! No alerts found.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {paginatedAlerts.map(alert => (
+                  <AlertCard 
+                    key={alert.id} 
+                    alert={alert} 
+                    onRestock={onRestock} 
+                    onDispose={onDispose} 
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Pagination Footer */}
+          {totalPages > 1 && (
+            <div className="p-4 border-t bg-gray-50 rounded-b-xl flex items-center justify-between">
+              <span className="text-sm text-gray-500">
+                Page {currentPage} of {totalPages} ({filteredAlerts.length} items)
+              </span>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 border rounded-lg hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  All ({alertCounts.all})
+                  <ChevronLeft className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={() => setFilterType('stock')}
-                  className={`px-3 py-1 rounded-full text-sm ${
-                    filterType === 'stock' ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'
-                  }`}
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 border rounded-lg hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  Stock ({alertCounts.stock})
-                </button>
-                <button
-                  onClick={() => setFilterType('expiration')}
-                  className={`px-3 py-1 rounded-full text-sm ${
-                    filterType === 'expiration' ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'
-                  }`}
-                >
-                  Expiration ({alertCounts.expiration})
+                  <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
-            <div className="max-h-[400px] overflow-y-auto p-2">
-              {organizedAlerts.length > 0 ? (
-                <div className="grid grid-cols-1 gap-2">
-                  {organizedAlerts.map(alert => (
-                    <AlertCard 
-                      key={alert.id} 
-                      alert={alert} 
-                      onRestock={onRestock}
-                      onDispose={onDispose}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center text-gray-500 py-4">
-                  No alerts for the selected type.
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
@@ -1534,7 +1643,7 @@ const InventorySystem = () => {
             Ring & Wing Café Inventory System
           </h1>
           
-          <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <AlertDashboard 
               alerts={alerts} 
               onRestock={(alertId) => {
@@ -1717,11 +1826,16 @@ const InventorySystem = () => {
           </div>
         </div>
 
-        {showAddModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white p-6 rounded-lg w-full max-w-2xl max-h-[90vh] flex flex-col">
-              <h2 className="text-xl font-bold mb-4">Add New Inventory Item</h2>
-              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+        <Modal
+          isOpen={showAddModal}
+          onClose={() => {
+            setShowAddModal(false);
+            resetForm();
+          }}
+          title="Add New Inventory Item"
+          size="2xl"
+        >
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   {/* Item Name */}
                   <div className="md:col-span-2">
@@ -2032,18 +2146,21 @@ const InventorySystem = () => {
                   </div>
                 </div>
               </form>
-            </div>
-          </div>
-        )}
+        </Modal>
 
 
 
         {/* Edit Item Modal */}
-        {showEditModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white p-6 rounded-lg w-full max-w-2xl max-h-[90vh] flex flex-col">
-              <h2 className="text-xl font-bold mb-4">Edit Item</h2>
-              <form onSubmit={handleEditSubmit} className="flex-1 overflow-y-auto">
+        <Modal
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            resetForm();
+          }}
+          title="Edit Item"
+          size="2xl"
+        >
+              <form onSubmit={handleEditSubmit} className="flex flex-col gap-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   {/* Item Name */}
                   <div className="md:col-span-2">
@@ -2333,16 +2450,17 @@ const InventorySystem = () => {
                   </div>
                 </div>
               </form>
-            </div>
-          </div>
-        )}
+        </Modal>
 
-{showRestockModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div className="bg-white p-6 rounded-lg w-full max-w-md">
-      <h2 className="text-xl font-bold mb-4">
-        Restock {selectedItem?.name}
-      </h2>
+<Modal
+  isOpen={showRestockModal}
+  onClose={() => {
+    setShowRestockModal(false);
+    setRestockData({ quantity: '', expirationDate: '', cost: '' });
+  }}
+  title={`Restock ${selectedItem?.name}`}
+  size="md"
+>
       <form onSubmit={handleRestock}>
         <div className="space-y-4">
           <div>
@@ -2418,17 +2536,19 @@ const InventorySystem = () => {
           </Button>
         </div>
       </form>
-    </div>
-  </div>
-)}
+</Modal>
 
 {/* Daily Inventory Modal */}
-{showDailyInventoryModal && selectedItemForEndDay && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div className="bg-white p-6 rounded-lg w-full max-w-xl max-h-[90vh] overflow-y-auto">
-      <h2 className="text-xl font-bold mb-4">
-        End-of-Day Count: {selectedItemForEndDay.name}
-      </h2>
+{/* Daily Inventory Modal */}
+<Modal
+  isOpen={showDailyInventoryModal && selectedItemForEndDay}
+  onClose={() => {
+     setShowDailyInventoryModal(false);
+     setSelectedItemForEndDay(null);
+  }}
+  title={`End-of-Day Count: ${selectedItemForEndDay?.name}`}
+  size="xl"
+>
       <p className="mb-4 text-sm text-gray-600">
         Record the actual remaining quantities for each batch based on your physical count.
       </p>
@@ -2480,15 +2600,15 @@ const InventorySystem = () => {
           </Button>
         </div>
       </form>
-    </div>
-  </div>
-)}
+</Modal>
 
 {/* Unit Conversion Modal */}
-{showConversionModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div className="bg-white p-6 rounded-lg w-full max-w-md">
-      <h2 className="text-xl font-bold mb-4">Unit Conversion</h2>
+<Modal
+  isOpen={showConversionModal}
+  onClose={() => setShowConversionModal(false)}
+  title="Unit Conversion"
+  size="md"
+>
       <form onSubmit={handleConversion}>
         <div className="space-y-4">
           <div>
@@ -2566,17 +2686,15 @@ const InventorySystem = () => {
           </Button>
         </div>
       </form>
-    </div>
-  </div>
-)}
+</Modal>
 
 {/* Bulk End-of-Day Inventory Modal */}
-{showBulkEndDayModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div className="bg-white p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-      <h2 className="text-xl font-bold mb-4">
-        Bulk End-of-Day Inventory Count
-      </h2>
+<Modal
+  isOpen={showBulkEndDayModal}
+  onClose={() => setShowBulkEndDayModal(false)}
+  title="Bulk End-of-Day Inventory Count"
+  size="4xl"
+>
       <p className="mb-4 text-sm text-gray-600">
         Record the actual remaining quantities for all items in one go based on your physical count.
       </p>
@@ -2638,9 +2756,7 @@ const InventorySystem = () => {
           </Button>
         </div>
       </form>
-    </div>
-  </div>
-)}
+</Modal>
 
         {showReports && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
@@ -2885,18 +3001,25 @@ const InventorySystem = () => {
         )}
 
         {/* Inventory Reservations Modal */}
-        {showReservationsModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white p-6 rounded-lg w-full max-w-6xl max-h-[90vh] flex flex-col">
-              <div className="flex justify-between items-center mb-4">
-                <div>
-                  <h2 className="text-xl font-bold">Inventory Reservations</h2>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Track ingredients reserved for pending orders
-                  </p>
-                </div>
-                <Button onClick={() => setShowReservationsModal(false)} variant="ghost">×</Button>
+        <Modal
+          isOpen={showReservationsModal}
+          onClose={() => setShowReservationsModal(false)}
+          title="Inventory Reservations"
+          size="5xl"
+          footer={
+             <div className="flex justify-end gap-2">
+                <Button onClick={() => setShowReservationsModal(false)} variant="primary">
+                  Close
+                </Button>
               </div>
+          }
+        >
+              <div className="flex flex-col gap-4">
+                  <div>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Track ingredients reserved for pending orders
+                    </p>
+                  </div>
               
               {/* Summary Stats */}
               {inventoryReservations.length > 0 && (
@@ -3039,13 +3162,9 @@ const InventorySystem = () => {
                 >
                   {isRefreshThrottled ? "Refreshing..." : "Refresh"}
                 </Button>
-                <Button onClick={() => setShowReservationsModal(false)} variant="primary">
-                  Close
-                </Button>
               </div>
             </div>
-          </div>
-        )}
+</Modal>
 
 
       </div>
