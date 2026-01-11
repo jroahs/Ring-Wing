@@ -289,7 +289,7 @@ const StaffExpenseRequests = () => {
 
       {/* New Request Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
+        <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
           <div 
             className="bg-white p-6 rounded-lg max-w-lg w-full relative" 
             style={{ backgroundColor: colors.background, border: `1px solid ${colors.muted}60` }}

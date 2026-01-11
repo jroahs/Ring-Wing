@@ -201,7 +201,7 @@ const NotificationDrawer = ({ variant = 'mobile' }) => {
             animate="visible"
             exit="exit"
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/40 z-[100]"
+            className="fixed inset-0 modal-overlay z-[100]"
             onClick={closeDrawer}
           />
 

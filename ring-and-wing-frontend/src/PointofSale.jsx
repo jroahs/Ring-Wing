@@ -3000,7 +3000,7 @@ const PointOfSale = () => {
               {/* Expanded Image Overlay (inside modal) */}
               {expandedImage && selectedVerificationOrder.proofOfPayment?.imageUrl && (
                 <div 
-                  className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[200] p-4"
+                  className="fixed inset-0 modal-overlay flex items-center justify-center z-[200] p-4"
                   onClick={() => setExpandedImage(false)}
                 >
                   <div className="relative max-w-4xl max-h-[90vh]">

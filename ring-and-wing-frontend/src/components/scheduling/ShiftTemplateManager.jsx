@@ -144,7 +144,7 @@ const TimePickerModal = ({ isOpen, onClose, value, onChange, label, colors }) =>
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/50"
+        className="absolute inset-0 modal-overlay"
         onClick={onClose}
       />
       
@@ -414,7 +414,7 @@ const TemplateFormModal = ({ isOpen, onClose, template, onSave, colors }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/50"
+        className="absolute inset-0 modal-overlay"
         onClick={onClose}
       />
       

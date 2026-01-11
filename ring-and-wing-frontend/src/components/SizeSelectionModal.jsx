@@ -49,7 +49,7 @@ const SizeSelectionModal = ({ item, onClose, onSelectSize }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center modal-overlay p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden animate-fadeIn">
         {/* Modal Content */}
         <div className="flex flex-col md:flex-row h-full">

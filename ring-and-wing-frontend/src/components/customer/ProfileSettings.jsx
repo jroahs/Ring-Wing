@@ -326,7 +326,10 @@ const ProfileSettings = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+        <div
+          className="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4"
+          onClick={() => setShowDeleteModal(false)}
+        >
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h2>Delete Account</h2>
             <p className="warning-text">

@@ -93,7 +93,7 @@ export const ImageCropper = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75"
+        className="fixed inset-0 z-50 flex items-center justify-center modal-overlay"
         onClick={onCancel}
       >
         <motion.div

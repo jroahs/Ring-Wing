@@ -242,7 +242,7 @@ const ItemCustomizationModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center modal-overlay p-4">
       <div 
         className="rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-fadeIn"
         style={{ backgroundColor: colors.background }}

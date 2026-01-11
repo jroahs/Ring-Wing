@@ -190,7 +190,7 @@ const AlertDashboard = ({ alerts, onRestock, onDispose }) => {
   return (
     <>
       {/* Overlay */}
-      <div className="fixed inset-0 bg-black/50 z-[60] backdrop-blur-sm transition-opacity" onClick={() => setIsOpen(false)} />
+      <div className="fixed inset-0 modal-overlay z-[60]" onClick={() => setIsOpen(false)} />
       
       {/* Modal Content */}
       <div className="fixed inset-0 flex items-center justify-center z-[70] pointer-events-none p-4">
@@ -2759,7 +2759,7 @@ const InventorySystem = () => {
 </Modal>
 
         {showReports && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+          <div className="fixed inset-0 modal-overlay flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
             <div className="bg-white p-6 rounded-lg w-full max-w-6xl max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold" style={{ color: colors.primary }}>Inventory Analytics</h2>
@@ -2920,7 +2920,7 @@ const InventorySystem = () => {
         </div>
 
         {showAuditLog && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+          <div className="fixed inset-0 modal-overlay flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
             <div className="bg-white p-6 rounded-lg w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold" style={{ color: colors.primary }}>Audit Log</h2>

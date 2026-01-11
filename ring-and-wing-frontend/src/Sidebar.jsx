@@ -676,7 +676,7 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
           initial={{ opacity: 0 }}
           animate={{ opacity: 0.5 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black z-[9990]"
+          className="fixed inset-0 modal-overlay z-[9990]"
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -756,7 +756,7 @@ const Sidebar = ({ colors = defaultColors, onTimeClockClick, onSidebarToggle }) 
       {/* Logout Confirmation Modal */}
       {showLogoutConfirm && createPortal(
         <motion.div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000] backdrop-blur-sm"
+          className="fixed inset-0 modal-overlay flex items-center justify-center z-[10000]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

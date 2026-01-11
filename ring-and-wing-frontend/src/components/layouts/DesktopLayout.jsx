@@ -824,7 +824,7 @@ const DesktopLayout = ({
 
       {/* Login Prompt Modal */}
       {showLoginPrompt && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+        <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50">
           <div className="bg-white p-8 rounded-2xl text-center max-w-md mx-4">
             <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

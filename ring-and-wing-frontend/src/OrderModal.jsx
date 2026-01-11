@@ -151,7 +151,7 @@ const OrderModal = ({ isOpen, onClose, item, onAddToOrder }) => {
         >
           {/* Backdrop */}
           <div 
-            className="absolute inset-0 bg-black bg-opacity-50"
+            className="absolute inset-0 modal-overlay"
           />
           
           {/* Modal Content */}

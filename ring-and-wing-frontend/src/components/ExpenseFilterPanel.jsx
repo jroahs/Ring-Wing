@@ -41,7 +41,7 @@ const ExpenseFilterPanel = ({ filters, onFilterChange, onClearFilters, totalExpe
       {/* Backdrop */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-25 z-40 transition-opacity"
+          className="fixed inset-0 modal-overlay z-40 transition-opacity"
           onClick={onToggle}
         />
       )}

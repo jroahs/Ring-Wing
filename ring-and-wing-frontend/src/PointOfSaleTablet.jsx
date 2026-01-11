@@ -2215,7 +2215,7 @@ const PointOfSaleTablet = () => {
             {/* Expanded Image Overlay */}
             {expandedImage && selectedVerificationOrder.proofOfPayment?.imageUrl && (
               <div 
-                className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[200] cursor-pointer"
+                className="fixed inset-0 modal-overlay flex items-center justify-center z-[200] cursor-pointer"
                 onClick={() => setExpandedImage(false)}
               >
                 <div className="relative max-w-4xl max-h-[90vh] p-4">
@@ -2435,7 +2435,7 @@ const PointOfSaleTablet = () => {
 
       {/* Phase 8: Item Removal Confirmation */}
       {showRemoveConfirm && itemToRemove && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+        <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
             <h3 className="text-lg font-bold mb-4" style={{ color: theme.colors.primary }}>
               Remove Item?
@@ -2468,7 +2468,7 @@ const PointOfSaleTablet = () => {
 
       {/* Phase 8: Clear Cart Confirmation */}
       {showClearCartConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+        <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
             <h3 className="text-lg font-bold mb-4" style={{ color: theme.colors.primary }}>
               Clear Entire Order?

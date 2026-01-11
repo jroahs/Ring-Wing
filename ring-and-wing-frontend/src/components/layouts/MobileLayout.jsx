@@ -667,7 +667,7 @@ const MobileLayout = ({
 
       {/* Auth Modal (Login/Signup Landing) */}
       {showAuthModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden">
             <div className="p-6 text-center">
               <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -711,7 +711,7 @@ const MobileLayout = ({
 
       {/* Account Modal (for logged-in users) */}
       {showAccountModal && customer && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden">
             {/* Header */}
             <div className="p-6 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-center">
@@ -790,7 +790,7 @@ const MobileLayout = ({
 
       {/* Login Prompt Modal */}
       {showLoginPrompt && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm p-6 text-center">
             <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -832,7 +832,7 @@ const MobileLayout = ({
 
       {/* Order Type Selection Modal */}
       {showOrderTypeModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden">
             <div className="p-6">
               <h2 className="text-xl font-bold text-gray-800 mb-2 text-center">Select Order Type</h2>

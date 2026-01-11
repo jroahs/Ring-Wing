@@ -1242,7 +1242,7 @@ const ExpenseTracker = ({ colors }) => {
 
       {/* Rejection Modal */}
       {showRejectModal && expenseToReject && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowRejectModal(false)}>
+        <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50" onClick={() => setShowRejectModal(false)}>
           <div className="bg-white p-6 rounded-lg max-w-md w-full relative" 
                style={{ backgroundColor: colors.background, border: `1px solid ${colors.muted}60` }}
                onClick={(e) => e.stopPropagation()}>
@@ -1289,7 +1289,7 @@ const ExpenseTracker = ({ colors }) => {
 
       {/* Expense Detail Modal */}
       {showDetailModal && selectedExpense && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowDetailModal(false)}>
+        <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4" onClick={() => setShowDetailModal(false)}>
           <div 
             className="bg-white rounded-xl max-w-lg w-full relative shadow-2xl"
             style={{ backgroundColor: colors.background }}
@@ -1482,7 +1482,7 @@ const ExpenseTracker = ({ colors }) => {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
+        <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
           <div className="bg-white p-6 rounded-lg max-w-xl w-full relative" 
                style={{ backgroundColor: colors.background, border: `1px solid ${colors.muted}60` }}
                onClick={(e) => e.stopPropagation()}>
@@ -1550,7 +1550,7 @@ const ExpenseTracker = ({ colors }) => {
       )}
 
       {showMarkPaidModal && expenseToMarkPaid && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowMarkPaidModal(false)}>
+        <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50" onClick={() => setShowMarkPaidModal(false)}>
           <div
             className="bg-white p-6 rounded-lg max-w-md w-full relative"
             style={{ backgroundColor: colors.background, border: `1px solid ${colors.muted}60` }}
@@ -1613,7 +1613,7 @@ const ExpenseTracker = ({ colors }) => {
       )}
 
       {showAuditLog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+        <div className="fixed inset-0 modal-overlay flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
           <div className="bg-white p-6 rounded-lg w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold" style={{ color: colors.primary }}>Audit Log</h2>
@@ -1705,7 +1705,7 @@ const ExpenseTracker = ({ colors }) => {
 
       {showExportPdfModal && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+          className="fixed inset-0 modal-overlay flex items-center justify-center p-4"
           style={{ zIndex: 9999 }}
           onClick={() => !exportPdfLoading && setShowExportPdfModal(false)}
         >
@@ -1853,7 +1853,7 @@ const ExpenseTracker = ({ colors }) => {
 
       {/* Expanded Chart Modal */}
       {expandedChart && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setExpandedChart(null)}>
+        <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4" onClick={() => setExpandedChart(null)}>
           <div 
             className="bg-white rounded-xl max-w-6xl w-full max-h-[90vh] overflow-auto relative shadow-2xl"
             style={{ backgroundColor: colors.background }}

@@ -2865,7 +2865,7 @@ const MenuPage = () => {
           </table>
         </div>        {/* Add/Edit Form Modal */}
         {selectedItem && (
-  <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center md:pl-20 z-50"><div 
+  <div className="fixed inset-0 modal-overlay flex items-center justify-center md:pl-20 z-50"><div 
       style={{ backgroundColor: colors.background }}
       className="p-6 rounded-lg w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl"
     >
@@ -3681,7 +3681,7 @@ const MenuPage = () => {
   </div>
 )}        {/* Add-On Creation Modal */}
         {showAddOnModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50"><div
+          <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50"><div
               style={{ backgroundColor: colors.background }}
               className="p-6 rounded-lg w-96 shadow-2xl"
             >
@@ -3764,7 +3764,7 @@ const MenuPage = () => {
           </div>
         )}        {/* Delete Add-On Confirmation Modal */}
         {addOnToDelete && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50"><div style={{ backgroundColor: colors.background }} className="p-6 rounded-lg shadow-2xl w-96">
+          <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50"><div style={{ backgroundColor: colors.background }} className="p-6 rounded-lg shadow-2xl w-96">
               <div className="flex justify-between items-center mb-4 pb-3 border-b" style={{ borderColor: colors.muted + '40' }}>
                 <h3 className="text-lg font-bold" style={{ color: colors.primary }}>Confirm Delete Add-On</h3>
                 <button 
@@ -3814,7 +3814,7 @@ const MenuPage = () => {
           </div>
         )}        {/* Delete Menu Item Confirmation Modal */}
         {showDeleteModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50"><div style={{ backgroundColor: colors.background }} className="p-6 rounded-lg shadow-2xl w-96">
+          <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50"><div style={{ backgroundColor: colors.background }} className="p-6 rounded-lg shadow-2xl w-96">
               <div className="flex justify-between items-center mb-4 pb-3 border-b" style={{ borderColor: colors.muted + '40' }}>
                 <h3 className="text-lg font-bold" style={{ color: colors.primary }}>Confirm Delete</h3>
                 <button 
@@ -3876,7 +3876,7 @@ const MenuPage = () => {
 
         {/* Ingredient Selection Modal */}
         {showIngredientModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50">
             <div className="bg-white p-6 rounded-lg w-full max-w-3xl max-h-[90vh] flex flex-col">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">Select Ingredients for Menu Item</h2>
@@ -4113,7 +4113,7 @@ const MenuPage = () => {
 
         {/* Size Management Modal */}
         {showSizeModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
@@ -4266,20 +4266,8 @@ const MenuPage = () => {
       
       {/* Admin Override Modal */}
       {showAdminOverrideModal && (
-        <div 
-          className="modal-overlay" 
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999
-          }}
+        <div
+          className="fixed inset-0 modal-overlay flex items-center justify-center z-[9999] p-4"
           onClick={() => {
             setShowAdminOverrideModal(false);
             setAdminPassword('');

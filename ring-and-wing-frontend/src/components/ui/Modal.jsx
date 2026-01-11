@@ -66,7 +66,7 @@ export const Modal = ({
     <Fragment>
       {/* Overlay/Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/50 z-[60] backdrop-blur-sm transition-opacity" // Modern backdrop
+        className="fixed inset-0 modal-overlay z-[60]" // Global modal dimming
         onClick={handleBackdropClick}
       />
       

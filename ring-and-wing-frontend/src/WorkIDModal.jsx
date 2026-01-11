@@ -71,7 +71,7 @@ function WorkIDModal({ staff, onClose, colors }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 modal-overlay flex items-center justify-center p-4">
       <div className="relative w-full max-w-3xl">
         <div 
           className="relative rounded-xl overflow-hidden transform transition-transform duration-300 hover:rotate-1 hover:scale-105"

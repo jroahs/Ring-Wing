@@ -848,7 +848,7 @@ const TimeClock = ({ embedded = false }) => {
           <AnimatePresence>
             {showNfcTestModal && nfcTestStaffStatus && (
               <motion.div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                className="fixed inset-0 modal-overlay flex items-center justify-center z-50"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -949,7 +949,7 @@ const TimeClock = ({ embedded = false }) => {
           <AnimatePresence>
             {showNfcTapAgainModal && selectedStaff && (
               <motion.div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                className="fixed inset-0 modal-overlay flex items-center justify-center z-50"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
