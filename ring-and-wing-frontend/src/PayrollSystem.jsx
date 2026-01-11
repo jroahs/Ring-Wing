@@ -500,7 +500,13 @@ const PayrollSystem = () => {
       }
     } catch (error) {
       console.error('Payroll submission error:', error);
-      toast.error(error.response?.data?.message || 'Failed to generate payroll');
+      const status = error?.response?.status;
+      const code = error?.response?.data?.code;
+      if (status === 409 && code === 'PAYROLL_ALREADY_EXISTS') {
+        toast.error(error.response?.data?.message || 'Payroll for this month already exists.');
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to generate payroll');
+      }
     }
   };
 

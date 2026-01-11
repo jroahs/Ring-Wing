@@ -18,6 +18,10 @@ const {
 const { calculateAllGovernmentDeductions } = require('../utils/governmentDeductions');
 const { businessDateTimeUtc, formatBusinessDateKey, isDateOnlyString } = require('../utils/businessTime');
 
+function isMongoDuplicateKeyError(error) {
+  return Boolean(error && (error.code === 11000 || error.code === 11001));
+}
+
 function parseDateKeyInput(value) {
   return isDateOnlyString(value) ? value : formatBusinessDateKey(new Date(value));
 }
@@ -127,9 +131,17 @@ router.post('/', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Payroll creation error:', error);
-    res.status(400).json({ 
+    if (isMongoDuplicateKeyError(error)) {
+      return res.status(409).json({
+        success: false,
+        code: 'PAYROLL_ALREADY_EXISTS',
+        message: 'Payroll for this employee and period already exists.'
+      });
+    }
+
+    res.status(400).json({
       success: false,
-      message: error.message 
+      message: 'Failed to create payroll.'
     });
   }
 });
@@ -649,9 +661,17 @@ router.post('/create-with-bonuses', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating payroll with bonuses:', error);
+    if (isMongoDuplicateKeyError(error)) {
+      return res.status(409).json({
+        success: false,
+        code: 'PAYROLL_ALREADY_EXISTS',
+        message: 'Payroll for this employee and month already exists. Please open the existing record instead of creating a new one.'
+      });
+    }
+
     res.status(500).json({
       success: false,
-      message: error.message
+      message: 'Failed to create payroll.'
     });
   }
 });
