@@ -20,6 +20,17 @@ import { API_URL } from './App';
 import { useDataCoordinator } from './contexts/DataCoordinatorContext';
 import { toast } from 'react-toastify';
 
+const generateClientRequestId = () => {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+  } catch {
+    // ignore and fall back
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
 const PointOfSale = () => {
   // Get preloaded data from coordinator
   const { menuItems: coordinatorMenuItems, categories: coordinatorCategories, ready: dataReady } = useDataCoordinator();
@@ -84,6 +95,7 @@ const PointOfSale = () => {
   const [showTimeClockModal, setShowTimeClockModal] = useState(false);
   const [showOrderProcessingModal, setShowOrderProcessingModal] = useState(false);
   const [showPaymentProcessingModal, setShowPaymentProcessingModal] = useState(false);
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [orderViewType, setOrderViewType] = useState('ready');
   const [editingPendingOrder, setEditingPendingOrder] = useState(null);
   const [isPendingOrderMode, setIsPendingOrderMode] = useState(false);
@@ -98,6 +110,7 @@ const PointOfSale = () => {
   const [showSizeModal, setShowSizeModal] = useState(false); // Size selection modal
   const [selectedItemForSize, setSelectedItemForSize] = useState(null); // Item to show in size modal
   const receiptRef = useRef();
+  const orderClientRequestIdRef = useRef(null);
   // Check if user is manager based on position hierarchy
   useEffect(() => {
     const checkUserRole = async () => {
@@ -1114,7 +1127,9 @@ const PointOfSale = () => {
     }
   };
 
-  const handlePrint = useReactToPrint({ content: () => receiptRef.current });  const processPayment = async (paymentDetails = null) => {
+  const handlePrint = useReactToPrint({ content: () => receiptRef.current });
+
+  const processPayment = async (paymentDetails = null) => {
     const currentCart = orderViewType === 'ready' ? readyOrderCart : pendingOrderCart;
     const setCart = orderViewType === 'ready' ? setReadyOrderCart : setPendingOrderCart;
     
@@ -1133,7 +1148,16 @@ const PointOfSale = () => {
       }
     }
 
+    if (isSubmittingOrder) {
+      return;
+    }
+
+    if (!orderClientRequestIdRef.current) {
+      orderClientRequestIdRef.current = generateClientRequestId();
+    }
+
     try {
+      setIsSubmittingOrder(true);
       // Save order FIRST to get the real receipt number from backend
       const orderResponse = await saveOrderToDB();
       
@@ -1200,13 +1224,18 @@ const PointOfSale = () => {
       // Reset payment details
       setEWalletDetails({ provider: 'gcash', referenceNumber: '', name: '' });
       setCustomerName(''); // Reset customer name
+      orderClientRequestIdRef.current = null;
 
       toast.success('Order completed successfully!');
     } catch (error) {
       console.error('Payment processing error:', error);
       toast.error('Error processing payment. Please try again.');
+    } finally {
+      setIsSubmittingOrder(false);
     }
-  };  const processPendingOrderPayment = async (paymentDetails = null) => {
+  };
+
+  const processPendingOrderPayment = async (paymentDetails = null) => {
     // Calculate totals for pending order items
     const pendingTotal = pendingOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
@@ -1418,6 +1447,7 @@ const PointOfSale = () => {
         };
       }const currentCart = orderViewType === 'ready' ? readyOrderCart : pendingOrderCart;
       const orderData = {
+        ...(orderClientRequestIdRef.current ? { clientRequestId: orderClientRequestIdRef.current } : {}),
         items: currentCart.map(item => ({
           name: item.name,
           price: item.price,
@@ -1527,6 +1557,7 @@ const PointOfSale = () => {
     // Reset payment details
     setEWalletDetails({ provider: 'gcash', referenceNumber: '', name: '' });
     setCustomerName(''); // Reset customer name when canceling order
+    orderClientRequestIdRef.current = null;
   };  // Filtered items is kept for compatibility with any existing code that might reference it
   // But filtering is now done directly in the render for each category section
   const filteredItems = useMemo(() => {

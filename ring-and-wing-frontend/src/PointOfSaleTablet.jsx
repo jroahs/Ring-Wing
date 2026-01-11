@@ -19,6 +19,17 @@ import { API_URL } from './App';
 let globalSocket = null;
 let socketInitialized = false;
 
+const generateClientRequestId = () => {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+  } catch {
+    // ignore and fall back
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
 const PointOfSaleTablet = () => {
   // === MENU & CATEGORIES ===
   const [menuItems, setMenuItems] = useState([]);
@@ -99,9 +110,11 @@ const PointOfSaleTablet = () => {
   const [isUserAdmin, setIsUserAdmin] = useState(false);
   const [isManager, setIsManager] = useState(false);
   const [socket, setSocket] = useState(null);
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
 
   // === REFS & HOOKS ===
   const receiptRef = useRef();
+  const orderClientRequestIdRef = useRef(null);
   const socketRef = useRef(null);
   const isConnectingRef = useRef(false);
   
@@ -884,6 +897,10 @@ const PointOfSaleTablet = () => {
   };
   
   const handleCheckout = async (paymentDetails) => {
+    if (isSubmittingOrder) {
+      return;
+    }
+
     try {
       const currentCart = getActiveCart();
       
@@ -897,6 +914,12 @@ const PointOfSaleTablet = () => {
         await updatePendingOrderWithPayment(paymentDetails);
         return;
       }
+
+      if (!orderClientRequestIdRef.current) {
+        orderClientRequestIdRef.current = generateClientRequestId();
+      }
+
+      setIsSubmittingOrder(true);
 
       const token = localStorage.getItem('token') || localStorage.getItem('authToken');
       const userData = JSON.parse(localStorage.getItem('userData') || '{}');
@@ -936,6 +959,7 @@ const PointOfSaleTablet = () => {
       }
       
       const orderData = {
+        ...(orderClientRequestIdRef.current ? { clientRequestId: orderClientRequestIdRef.current } : {}),
         items: currentCart.map(item => ({
           name: item.name,
           price: item.price,
@@ -1072,12 +1096,15 @@ const PointOfSaleTablet = () => {
         setShowPaymentProcessingModal(false);
         
         alert('Order placed successfully!');
+        orderClientRequestIdRef.current = null;
       } else {
         throw new Error(result.message || 'Failed to create order');
       }
     } catch (error) {
       console.error('Error placing order:', error);
       alert(`Failed to place order: ${error.message}`);
+    } finally {
+      setIsSubmittingOrder(false);
     }
   };
 

@@ -39,15 +39,29 @@ router.post('/', validateOrder, criticalCheck, async (req, res, next) => {
       hasCustomerId: !!req.body.customerId,
       customerId: req.body.customerId,
       fulfillmentType: req.body.fulfillmentType,
-      hasProcessedBy: !!req.body.processedBy
+      hasProcessedBy: !!req.body.processedBy,
+      hasClientRequestId: !!req.body.clientRequestId
     });
+
+    // Idempotency: if the client supplies a clientRequestId, return the existing order
+    // rather than creating a new one.
+    const rawClientRequestId = req.body.clientRequestId;
+    const clientRequestId = typeof rawClientRequestId === 'string' ? rawClientRequestId.trim() : '';
+    if (clientRequestId) {
+      const existing = await Order.findOne({ clientRequestId });
+      if (existing) {
+        return res.status(200).json({
+          success: true,
+          data: existing,
+          message: 'Order already created'
+        });
+      }
+    }
     
-    // Generate unified receipt number (YYYYMMDD-###)
-    const receiptNumber = await generateReceiptNumber();
-    
+    // Build order data (receipt number is generated later with retry on collisions)
     const orderData = {
       ...req.body,
-      receiptNumber: receiptNumber,
+      ...(clientRequestId ? { clientRequestId } : {})
     };
 
     // Delivery eligibility enforcement (self-checkout)
@@ -158,8 +172,38 @@ router.post('/', validateOrder, criticalCheck, async (req, res, next) => {
       customerId: orderData.customerId
     });
 
-    const order = new Order(orderData);
-    await order.save();
+    // Generate unified receipt number (YYYYMMDD-###) and retry once on collision
+    let order;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        orderData.receiptNumber = await generateReceiptNumber();
+        order = new Order(orderData);
+        await order.save();
+        break;
+      } catch (saveErr) {
+        const isDupKey = saveErr && saveErr.code === 11000;
+
+        // If the idempotency key collided, return the existing order
+        if (isDupKey && saveErr.keyPattern && saveErr.keyPattern.clientRequestId && clientRequestId) {
+          const existing = await Order.findOne({ clientRequestId });
+          if (existing) {
+            return res.status(200).json({
+              success: true,
+              data: existing,
+              message: 'Order already created'
+            });
+          }
+        }
+
+        // If receiptNumber collided due to concurrent creates, retry once
+        if (isDupKey && saveErr.keyPattern && saveErr.keyPattern.receiptNumber && attempt === 0) {
+          console.warn('[orderRoutes POST] receiptNumber collision; retrying once');
+          continue;
+        }
+
+        throw saveErr;
+      }
+    }
     
     console.log('[orderRoutes POST] Order saved:', {
       orderId: order._id,

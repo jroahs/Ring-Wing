@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
 const orderSchema = new mongoose.Schema({
+  // Optional idempotency key to prevent duplicate order creation on retries/double-clicks
+  // Uniqueness is enforced only when provided (sparse index).
+  clientRequestId: {
+    type: String,
+    default: null,
+    trim: true
+  },
   receiptNumber: { 
     type: String, 
     required: true, 
@@ -182,6 +189,7 @@ const orderSchema = new mongoose.Schema({
 });
 
 // Database indexes for performance optimization
+orderSchema.index({ clientRequestId: 1 }, { unique: true, sparse: true });
 orderSchema.index({ status: 1, createdAt: -1 }); // Query orders by status and date
 orderSchema.index({ 'proofOfPayment.verificationStatus': 1 }); // Query pending verifications
 orderSchema.index({ 'proofOfPayment.expiresAt': 1 }); // Timeout cleanup queries
