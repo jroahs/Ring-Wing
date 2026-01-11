@@ -323,7 +323,10 @@ const EndOfShiftModal = ({ isOpen, onClose, theme, cashFloat }) => {
                   {cashReconciliation ? (
                     <div className="space-y-3 font-mono text-sm">
                       <div className="flex justify-between items-center py-2">
-                        <span className="text-gray-600">Starting Float</span>
+                        <div>
+                          <div className="text-gray-600">Starting Float</div>
+                          <div className="text-xs text-gray-500">Opening cash that must be returned in full at end of shift.</div>
+                        </div>
                         <span className="font-bold">{formatCurrency(cashReconciliation.startingFloat)}</span>
                       </div>
                       <div className="flex justify-between items-center py-2">
@@ -338,6 +341,13 @@ const EndOfShiftModal = ({ isOpen, onClose, theme, cashFloat }) => {
                           </span>
                         </div>
                       </div>
+
+                      <div className="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-600 font-sans">
+                        <div className="font-semibold text-gray-700 mb-1">Example</div>
+                        <div>Opening float: ₱4,000</div>
+                        <div>Cash sales today: ₱60</div>
+                        <div>Cash to count at end of shift: ₱4,060</div>
+                      </div>
                     </div>
                   ) : (
                     <div className="text-center text-gray-500 py-4">
@@ -348,7 +358,11 @@ const EndOfShiftModal = ({ isOpen, onClose, theme, cashFloat }) => {
                 
                 {/* Actual Cash Count */}
                 <div className="bg-white p-5 rounded-lg border shadow-sm" style={{ borderColor: theme.colors.muted }}>
-                  <h4 className="font-semibold mb-4 text-gray-700">Actual Cash Count</h4>
+                  <h4 className="font-semibold text-gray-700">Actual Cash Count (Total cash in drawer)</h4>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Count all cash currently in the drawer, including the starting float and today’s cash sales. Enter the total amount below.
+                  </p>
+                  <p className="mt-1 mb-4 text-xs text-gray-500">Include bills and coins.</p>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">PHP</span>
                     <input
