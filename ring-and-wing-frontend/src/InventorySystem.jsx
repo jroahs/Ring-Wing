@@ -840,8 +840,17 @@ const InventorySystem = () => {
       toast.error('Failed to cancel reservation: ' + (error.response?.data?.message || error.message));
     }
   };
-  const [lastAlertsHash, setLastAlertsHash] = useState('');
-  const [isFirstLoad, setIsFirstLoad] = useState(true);
+  const INVENTORY_ALERTS_TOAST_SESSION_KEY = 'inventoryAlertsToastShown';
+  const hasShownInventoryAlertsToastRef = useRef(false);
+
+  useEffect(() => {
+    try {
+      hasShownInventoryAlertsToastRef.current = sessionStorage.getItem(INVENTORY_ALERTS_TOAST_SESSION_KEY) === '1';
+    } catch {
+      // If sessionStorage is unavailable, fall back to per-mount behavior.
+      hasShownInventoryAlertsToastRef.current = false;
+    }
+  }, []);
   
   useEffect(() => {
     // Skip if no items loaded yet
@@ -904,11 +913,18 @@ const InventorySystem = () => {
       return alerts;
     });
     
-    // Calculate hash of current alerts to detect actual changes
-    const alertsHash = JSON.stringify(allAlerts.map(a => a.id + a.message));
-    
-    // Only show toasts on first load or when alerts actually change
-    if (isFirstLoad || (alertsHash !== lastAlertsHash && !isFirstLoad)) {
+    const shouldShowInitialAlertToasts = !hasShownInventoryAlertsToastRef.current;
+
+    // Only show the inventory summary toasts once per session (otherwise they get noisy
+    // and re-appear alongside action-level success/error toasts).
+    if (shouldShowInitialAlertToasts && allAlerts.length) {
+      hasShownInventoryAlertsToastRef.current = true;
+      try {
+        sessionStorage.setItem(INVENTORY_ALERTS_TOAST_SESSION_KEY, '1');
+      } catch {
+        // Ignore storage write failures.
+      }
+
       const MAX_TOAST_ITEMS = 3;
       const LARGE_LIST_THRESHOLD = 8;
 
@@ -1003,10 +1019,7 @@ const InventorySystem = () => {
         }
       }
     }
-    
-    // Update state
-    setLastAlertsHash(alertsHash);
-    setIsFirstLoad(false);
+
     setAlerts(allAlerts);
   }, [items]);
 
