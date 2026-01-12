@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 /**
- * Custom hook for fetching and managing yearly revenue report data
+ * Custom hook for fetching and managing yearly financial report data
  * Handles filtering, calculations, and data transformations
  */
 export const useYearlyReport = (initialYear = new Date().getFullYear()) => {

@@ -27,7 +27,7 @@ const RevenueReportsPage = () => {
   const getPageTitle = () => {
     if (activeTab === 'revenue') return 'Revenue Reports';
     if (activeTab === 'receipts') return 'Receipt History';
-    if (activeTab === 'yearly') return 'Yearly Revenue Report';
+    if (activeTab === 'yearly') return 'Yearly Financial Report';
     return 'Revenue Reports';
   };
 

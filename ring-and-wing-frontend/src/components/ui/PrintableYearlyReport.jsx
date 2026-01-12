@@ -57,6 +57,9 @@ export const PrintableYearlyReport = forwardRef(({
   const expenseByCategory = reportData?.expenseByCategory || {};
   const topItems = reportData?.topItems || [];
 
+  const expenseCategoryEntries = Object.entries(expenseByCategory)
+    .filter(([, amount]) => Number(amount || 0) > 0);
+
   if (!reportData || !reportData.summary) {
     return (
       <div 
@@ -107,10 +110,11 @@ export const PrintableYearlyReport = forwardRef(({
       {/* Header */}
       <div className="text-center mb-8 border-b pb-6">
         <h1 className="text-3xl font-bold mb-2" style={{ color: colors.primary }}>Ring & Wing</h1>
-        <h2 className="text-xl font-semibold mb-2" style={{ color: colors.secondary }}>Yearly Revenue Report</h2>
+        <h2 className="text-xl font-semibold mb-2" style={{ color: colors.secondary }}>Yearly Financial Report</h2>
         <div className="text-lg font-medium mb-2" style={{ color: colors.accent }}>{periodLabel}</div>
         <div className="text-sm" style={{ color: colors.muted }}>
           <div>Report Generated: {formatDate(reportDate)} at {formatTime(reportDate)}</div>
+          <div>Figures are based on accrual accounting (incurred revenue and expenses).</div>
         </div>
       </div>
 
@@ -224,31 +228,6 @@ export const PrintableYearlyReport = forwardRef(({
         </div>
       )}
 
-      {/* Expense by Category */}
-      {Object.keys(expenseByCategory).length > 0 && (
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold mb-4" style={{ color: colors.primary }}>Expense Breakdown by Category</h3>
-          <table className="w-full border rounded-lg" style={{ borderColor: colors.muted + '40' }}>
-            <thead style={{ backgroundColor: colors.activeBg }}>
-              <tr>
-                <th className="p-3 text-left text-sm font-semibold">Category</th>
-                <th className="p-3 text-right text-sm font-semibold">Amount</th>
-                <th className="p-3 text-right text-sm font-semibold">% of Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(expenseByCategory).sort((a, b) => b[1] - a[1]).map(([category, amount]) => (
-                <tr key={category} className="border-t" style={{ borderColor: colors.muted + '20' }}>
-                  <td className="p-3 text-sm font-medium">{category}</td>
-                  <td className="p-3 text-right text-sm">{formatCurrency(amount)}</td>
-                  <td className="p-3 text-right text-sm">{summary.totalExpenses > 0 ? ((amount / summary.totalExpenses) * 100).toFixed(1) : 0}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
       {/* Top Selling Items */}
       {topItems.length > 0 && (
         <div className="mb-8">
@@ -269,6 +248,31 @@ export const PrintableYearlyReport = forwardRef(({
                   <td className="p-3 text-sm">{item?.name || 'Unknown'}</td>
                   <td className="p-3 text-right text-sm">{item?.quantity || 0}</td>
                   <td className="p-3 text-right text-sm font-semibold" style={{ color: colors.accent }}>{formatCurrency(item?.revenue)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Expense by Category */}
+      {expenseCategoryEntries.length > 0 && (
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold mb-4" style={{ color: colors.primary }}>Expense Breakdown by Category</h3>
+          <table className="w-full border rounded-lg" style={{ borderColor: colors.muted + '40' }}>
+            <thead style={{ backgroundColor: colors.activeBg }}>
+              <tr>
+                <th className="p-3 text-left text-sm font-semibold">Category</th>
+                <th className="p-3 text-right text-sm font-semibold">Amount</th>
+                <th className="p-3 text-right text-sm font-semibold">% of Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {expenseCategoryEntries.sort((a, b) => b[1] - a[1]).map(([category, amount]) => (
+                <tr key={category} className="border-t" style={{ borderColor: colors.muted + '20' }}>
+                  <td className="p-3 text-sm font-medium">{category}</td>
+                  <td className="p-3 text-right text-sm">{formatCurrency(amount)}</td>
+                  <td className="p-3 text-right text-sm">{summary.totalExpenses > 0 ? ((amount / summary.totalExpenses) * 100).toFixed(1) : 0}%</td>
                 </tr>
               ))}
             </tbody>

@@ -5,12 +5,13 @@ import {
 } from 'recharts';
 import { 
   FiCalendar, FiDownload, FiPrinter, FiTrendingUp, FiTrendingDown, 
-  FiDollarSign, FiFileText, FiRefreshCw, FiChevronDown
+  FiDollarSign, FiFileText, FiRefreshCw, FiChevronDown, FiInfo
 } from 'react-icons/fi';
 import { useReactToPrint } from 'react-to-print';
 import { generateYearlyRevenuePDF } from '../utils/pdfGenerator';
 import { PrintableYearlyReport } from './ui/PrintableYearlyReport';
 import BrandedLoadingScreen from './ui/BrandedLoadingScreen';
+import { theme } from '../theme';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -134,10 +135,12 @@ const YearlyRevenueReportTab = () => {
   }), [monthlyBreakdown, quarterlyBreakdown]);
 
   const expenseCategoryData = useMemo(() => {
-    return Object.entries(expenseByCategory).map(([category, amount]) => ({
-      name: category,
-      value: amount
-    }));
+    return Object.entries(expenseByCategory)
+      .filter(([, amount]) => Number(amount || 0) > 0)
+      .map(([category, amount]) => ({
+        name: category,
+        value: amount
+      }));
   }, [expenseByCategory]);
 
   // Period label
@@ -196,6 +199,14 @@ const YearlyRevenueReportTab = () => {
     })}`;
   };
 
+  const profitMarginNumber = Number(summary.profitMargin || 0);
+  const profitMarginTooltip = profitMarginNumber < 0
+    ? 'Negative margin indicates expenses exceeded revenue'
+    : undefined;
+  const profitMarginDisplay = profitMarginNumber < -100
+    ? '< -100%'
+    : `${profitMarginNumber}%`;
+
   // Metric Card Component
   const MetricCard = ({ title, value, icon: Icon, color = colors.accent }) => (
     <div className="bg-white rounded-lg border p-4 shadow-sm" style={{ borderColor: colors.muted + '20' }}>
@@ -240,6 +251,9 @@ const YearlyRevenueReportTab = () => {
           <h3 className="text-lg font-semibold" style={{ color: colors.primary }}>
             {periodLabel}
           </h3>
+          <div className="text-xs" style={{ color: colors.muted }}>
+            Figures are based on accrual accounting (incurred revenue and expenses).
+          </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-all"
@@ -256,7 +270,7 @@ const YearlyRevenueReportTab = () => {
             onClick={handleDownloadPDF}
             disabled={!reportData}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-opacity disabled:opacity-50"
-            style={{ backgroundColor: colors.accent }}
+            style={{ backgroundColor: theme.colors.primary }}
           >
             <FiDownload className="w-4 h-4" />
             PDF
@@ -265,7 +279,7 @@ const YearlyRevenueReportTab = () => {
             onClick={handlePrint}
             disabled={!reportData}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-opacity disabled:opacity-50"
-            style={{ backgroundColor: colors.secondary }}
+            style={{ backgroundColor: theme.colors.primary }}
           >
             <FiPrinter className="w-4 h-4" />
             Print
@@ -370,7 +384,7 @@ const YearlyRevenueReportTab = () => {
         <MetricCard title="Total Revenue" value={formatCurrency(summary.totalRevenue)} icon={FiTrendingUp} color={colors.success} />
         <MetricCard title="Total Expenses" value={formatCurrency(summary.totalExpenses)} icon={FiTrendingDown} color={colors.error} />
         <MetricCard title="Net Revenue" value={formatCurrency(summary.netRevenue)} icon={FiDollarSign} color={summary.netRevenue >= 0 ? colors.success : colors.error} />
-        <MetricCard title="Profit Margin" value={`${summary.profitMargin}%`} icon={FiFileText} color={colors.accent} />
+        <MetricCard title="Profit Margin" value={profitMarginDisplay} tooltip={profitMarginTooltip} icon={FiFileText} color={colors.accent} />
       </div>
 
       {/* View Mode Toggle */}
@@ -438,8 +452,99 @@ const YearlyRevenueReportTab = () => {
         </div>
       </div>
 
-      {/* Expense Breakdown & Top Items */}
+      {/* Data Table */}
+      <div className="bg-white rounded-lg border overflow-hidden" style={{ borderColor: colors.muted + '20' }}>
+        <div className="p-4 border-b" style={{ borderColor: colors.muted + '20', backgroundColor: colors.activeBg }}>
+          <h3 className="text-lg font-semibold" style={{ color: colors.primary }}>
+            {viewMode === 'monthly' ? 'Monthly' : 'Quarterly'} Breakdown
+          </h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead style={{ backgroundColor: colors.muted + '10' }}>
+              <tr>
+                <th className="p-3 text-left text-sm font-semibold" style={{ color: colors.primary }}>{viewMode === 'monthly' ? 'Month' : 'Quarter'}</th>
+                <th className="p-3 text-right text-sm font-semibold" style={{ color: colors.primary }}>Revenue</th>
+                <th className="p-3 text-right text-sm font-semibold" style={{ color: colors.primary }}>Expenses</th>
+                <th className="p-3 text-right text-sm font-semibold" style={{ color: colors.primary }}>Net Revenue</th>
+                <th className="p-3 text-right text-sm font-semibold" style={{ color: colors.primary }}>Orders</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(viewMode === 'monthly' ? monthlyBreakdown : quarterlyBreakdown).map((row, idx) => {
+                const isNoActivity =
+                  Number(row?.revenue || 0) === 0 &&
+                  Number(row?.expenses || 0) === 0 &&
+                  Number(row?.netRevenue || 0) === 0 &&
+                  Number(row?.orderCount || 0) === 0;
+
+                const mutedCellStyle = isNoActivity ? { color: colors.muted } : undefined;
+
+                return (
+                  <tr
+                    key={viewMode === 'monthly' ? row?.month : row?.quarter}
+                    className={`border-t hover:bg-gray-50 ${isNoActivity ? 'bg-gray-50' : ''}`}
+                    style={{ borderColor: colors.muted + '20' }}
+                  >
+                    <td className="p-3 text-sm font-medium" style={isNoActivity ? { color: colors.muted } : { color: colors.primary }}>
+                      {viewMode === 'monthly' ? row?.month : row?.quarter}
+                      {isNoActivity && (
+                        <span
+                          className="ml-2 text-xs px-2 py-0.5 rounded-full"
+                          style={{ backgroundColor: colors.muted + '15', color: colors.muted }}
+                        >
+                          No activity
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3 text-right text-sm" style={isNoActivity ? mutedCellStyle : { color: colors.success }}>{formatCurrency(row?.revenue)}</td>
+                    <td className="p-3 text-right text-sm" style={isNoActivity ? mutedCellStyle : { color: colors.error }}>{formatCurrency(row?.expenses)}</td>
+                    <td className="p-3 text-right text-sm font-semibold" style={isNoActivity ? mutedCellStyle : { color: (row?.netRevenue || 0) >= 0 ? colors.success : colors.error }}>{formatCurrency(row?.netRevenue)}</td>
+                    <td className="p-3 text-right text-sm" style={isNoActivity ? mutedCellStyle : { color: colors.muted }}>{row?.orderCount || 0}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot style={{ backgroundColor: colors.activeBg }}>
+              <tr className="border-t-2" style={{ borderColor: colors.accent }}>
+                <td className="p-3 text-sm font-bold" style={{ color: colors.primary }}>TOTAL</td>
+                <td className="p-3 text-right text-sm font-bold" style={{ color: colors.success }}>{formatCurrency(summary.totalRevenue)}</td>
+                <td className="p-3 text-right text-sm font-bold" style={{ color: colors.error }}>{formatCurrency(summary.totalExpenses)}</td>
+                <td className="p-3 text-right text-sm font-bold" style={{ color: summary.netRevenue >= 0 ? colors.success : colors.error }}>{formatCurrency(summary.netRevenue)}</td>
+                <td className="p-3 text-right text-sm font-bold" style={{ color: colors.primary }}>{summary.totalOrders}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      {/* Top Items & Expense Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Selling Items */}
+        <div className="bg-white rounded-lg border p-6" style={{ borderColor: colors.muted + '20' }}>
+          <h3 className="text-lg font-semibold mb-4" style={{ color: colors.primary }}>Top Selling Items</h3>
+          <div className="space-y-3 max-h-72 overflow-y-auto">
+            {topItems.length > 0 ? topItems.slice(0, 8).map((item, index) => (
+              <div key={item?.name || index} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{ backgroundColor: index < 3 ? colors.accent : colors.muted }}>
+                    {index + 1}
+                  </div>
+                  <div>
+                    <div className="font-medium text-sm" style={{ color: colors.primary }}>{item?.name || 'Unknown'}</div>
+                    <div className="text-xs" style={{ color: colors.muted }}>{item?.quantity || 0} sold</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-bold text-sm" style={{ color: colors.primary }}>{formatCurrency(item?.revenue)}</div>
+                </div>
+              </div>
+            )) : (
+              <p className="text-center py-4" style={{ color: colors.muted }}>No items data available</p>
+            )}
+          </div>
+        </div>
+
         {/* Expense by Category */}
         {expenseCategoryData.length > 0 && (
           <div className="bg-white rounded-lg border p-6" style={{ borderColor: colors.muted + '20' }}>
@@ -467,73 +572,6 @@ const YearlyRevenueReportTab = () => {
             </div>
           </div>
         )}
-
-        {/* Top Selling Items */}
-        <div className="bg-white rounded-lg border p-6" style={{ borderColor: colors.muted + '20' }}>
-          <h3 className="text-lg font-semibold mb-4" style={{ color: colors.primary }}>Top Selling Items</h3>
-          <div className="space-y-3 max-h-72 overflow-y-auto">
-            {topItems.length > 0 ? topItems.slice(0, 8).map((item, index) => (
-              <div key={item?.name || index} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{ backgroundColor: index < 3 ? colors.accent : colors.muted }}>
-                    {index + 1}
-                  </div>
-                  <div>
-                    <div className="font-medium text-sm" style={{ color: colors.primary }}>{item?.name || 'Unknown'}</div>
-                    <div className="text-xs" style={{ color: colors.muted }}>{item?.quantity || 0} sold</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-bold text-sm" style={{ color: colors.primary }}>{formatCurrency(item?.revenue)}</div>
-                </div>
-              </div>
-            )) : (
-              <p className="text-center py-4" style={{ color: colors.muted }}>No items data available</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Data Table */}
-      <div className="bg-white rounded-lg border overflow-hidden" style={{ borderColor: colors.muted + '20' }}>
-        <div className="p-4 border-b" style={{ borderColor: colors.muted + '20', backgroundColor: colors.activeBg }}>
-          <h3 className="text-lg font-semibold" style={{ color: colors.primary }}>
-            {viewMode === 'monthly' ? 'Monthly' : 'Quarterly'} Breakdown
-          </h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead style={{ backgroundColor: colors.muted + '10' }}>
-              <tr>
-                <th className="p-3 text-left text-sm font-semibold" style={{ color: colors.primary }}>{viewMode === 'monthly' ? 'Month' : 'Quarter'}</th>
-                <th className="p-3 text-right text-sm font-semibold" style={{ color: colors.primary }}>Revenue</th>
-                <th className="p-3 text-right text-sm font-semibold" style={{ color: colors.primary }}>Expenses</th>
-                <th className="p-3 text-right text-sm font-semibold" style={{ color: colors.primary }}>Net Revenue</th>
-                <th className="p-3 text-right text-sm font-semibold" style={{ color: colors.primary }}>Orders</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(viewMode === 'monthly' ? monthlyBreakdown : quarterlyBreakdown).map((row, idx) => (
-                <tr key={viewMode === 'monthly' ? row?.month : row?.quarter} className="border-t hover:bg-gray-50" style={{ borderColor: colors.muted + '20' }}>
-                  <td className="p-3 text-sm font-medium" style={{ color: colors.primary }}>{viewMode === 'monthly' ? row?.month : row?.quarter}</td>
-                  <td className="p-3 text-right text-sm" style={{ color: colors.success }}>{formatCurrency(row?.revenue)}</td>
-                  <td className="p-3 text-right text-sm" style={{ color: colors.error }}>{formatCurrency(row?.expenses)}</td>
-                  <td className="p-3 text-right text-sm font-semibold" style={{ color: (row?.netRevenue || 0) >= 0 ? colors.success : colors.error }}>{formatCurrency(row?.netRevenue)}</td>
-                  <td className="p-3 text-right text-sm" style={{ color: colors.muted }}>{row?.orderCount || 0}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot style={{ backgroundColor: colors.activeBg }}>
-              <tr className="border-t-2" style={{ borderColor: colors.accent }}>
-                <td className="p-3 text-sm font-bold" style={{ color: colors.primary }}>TOTAL</td>
-                <td className="p-3 text-right text-sm font-bold" style={{ color: colors.success }}>{formatCurrency(summary.totalRevenue)}</td>
-                <td className="p-3 text-right text-sm font-bold" style={{ color: colors.error }}>{formatCurrency(summary.totalExpenses)}</td>
-                <td className="p-3 text-right text-sm font-bold" style={{ color: summary.netRevenue >= 0 ? colors.success : colors.error }}>{formatCurrency(summary.netRevenue)}</td>
-                <td className="p-3 text-right text-sm font-bold" style={{ color: colors.primary }}>{summary.totalOrders}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
       </div>
 
       {/* Hidden Printable Report */}
