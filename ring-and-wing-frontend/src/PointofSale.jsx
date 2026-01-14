@@ -19,6 +19,7 @@ import io from 'socket.io-client';
 import { API_URL } from './App';
 import { useDataCoordinator } from './contexts/DataCoordinatorContext';
 import { toast } from 'react-toastify';
+import { useNotificationSound } from './hooks/useNotificationSound';
 
 const generateClientRequestId = () => {
   try {
@@ -111,6 +112,14 @@ const PointOfSale = () => {
   const [selectedItemForSize, setSelectedItemForSize] = useState(null); // Item to show in size modal
   const receiptRef = useRef();
   const orderClientRequestIdRef = useRef(null);
+
+  // Notification sound (new orders)
+  const { play: playNotificationSound, unlock: unlockNotificationSound, isUnlocked: isSoundUnlocked } = useNotificationSound(
+    '/sounds/notification.mp3',
+    { cooldownMs: 8000 }
+  );
+  const notifiedOrderIdsRef = useRef(new Set());
+  const notificationInitializedRef = useRef(false);
   // Check if user is manager based on position hierarchy
   useEffect(() => {
     const checkUserRole = async () => {
@@ -165,6 +174,37 @@ const PointOfSale = () => {
     const interval = setInterval(fetchActiveOrders, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // Play notification sound only when NEW orders appear in any category.
+  useEffect(() => {
+    const readyQueueIds = (activeOrders || [])
+      .filter(o => ['received', 'preparing', 'ready'].includes(o.status))
+      .map(o => o._id)
+      .filter(Boolean);
+
+    const pendingOrderIds = (activeOrders || [])
+      .filter(o => o.status === 'pending' && o.paymentMethod === 'pending')
+      .map(o => o._id)
+      .filter(Boolean);
+
+    const dineTakeoutIds = (takeoutOrders || []).map(o => o._id).filter(Boolean);
+
+    const relevantIds = [...readyQueueIds, ...pendingOrderIds, ...dineTakeoutIds];
+    const notified = notifiedOrderIdsRef.current;
+
+    // Baseline on first load: don't alert for existing orders.
+    if (!notificationInitializedRef.current) {
+      relevantIds.forEach(id => notified.add(id));
+      notificationInitializedRef.current = true;
+      return;
+    }
+
+    const newIds = relevantIds.filter(id => !notified.has(id));
+    if (newIds.length === 0) return;
+
+    void playNotificationSound();
+    newIds.forEach(id => notified.add(id));
+  }, [activeOrders, takeoutOrders, playNotificationSound]);
 
   // NEW: Socket.io setup for takeout order real-time updates
   useEffect(() => {
@@ -2346,6 +2386,19 @@ const PointOfSale = () => {
                     )}
                   </button>
                 </div>
+
+                {!isSoundUnlocked && (
+                  <div className="text-center text-xs text-gray-500 mb-2">
+                    <button
+                      type="button"
+                      onClick={unlockNotificationSound}
+                      className="underline"
+                    >
+                      Enable notification sound
+                    </button>
+                    <span> (required on some tablets)</span>
+                  </div>
+                )}
 
                 {/* Cart (Current Order) - hidden for Dine/Take-outs tab since orders are locked */}
                 {orderViewType !== 'dineTakeout' &&

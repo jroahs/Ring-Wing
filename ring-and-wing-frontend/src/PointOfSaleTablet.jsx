@@ -14,6 +14,7 @@ import { FiClock, FiCoffee, FiPieChart, FiSearch } from 'react-icons/fi';
 import { PesoIconSimple } from './components/ui/PesoIconSimple';
 import io from 'socket.io-client';
 import { API_URL } from './App';
+import { useNotificationSound } from './hooks/useNotificationSound';
 
 // Global socket instance
 let globalSocket = null;
@@ -111,6 +112,14 @@ const PointOfSaleTablet = () => {
   const [isManager, setIsManager] = useState(false);
   const [socket, setSocket] = useState(null);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+
+  // Notification sound (new orders)
+  const { play: playNotificationSound, unlock: unlockNotificationSound, isUnlocked: isSoundUnlocked } = useNotificationSound(
+    '/sounds/notification.mp3',
+    { cooldownMs: 8000 }
+  );
+  const notifiedOrderIdsRef = useRef(new Set());
+  const notificationInitializedRef = useRef(false);
 
   // === REFS & HOOKS ===
   const receiptRef = useRef();
@@ -348,6 +357,7 @@ const PointOfSaleTablet = () => {
         category: item.category,
         subCategory: item.subCategory || '',
         pricing: item.pricing,
+        variants: item.variants || [],
         description: item.description,
         image: item.image 
           ? (item.image.startsWith('http') ? item.image : `${API_URL}${item.image}`)
@@ -510,6 +520,37 @@ const PointOfSaleTablet = () => {
       fetchTakeoutOrders();
     }
   }, [orderViewType]);
+
+  // Play notification sound only when NEW orders appear in any category.
+  useEffect(() => {
+    const readyQueueIds = activeOrders
+      .filter(o => ['received', 'preparing', 'ready'].includes(o.status))
+      .map(o => o._id)
+      .filter(Boolean);
+
+    const pendingOrderIds = activeOrders
+      .filter(o => o.status === 'pending' && o.paymentMethod === 'pending')
+      .map(o => o._id)
+      .filter(Boolean);
+
+    const dineTakeoutIds = (takeoutOrders || []).map(o => o._id).filter(Boolean);
+
+    const relevantIds = [...readyQueueIds, ...pendingOrderIds, ...dineTakeoutIds];
+    const notified = notifiedOrderIdsRef.current;
+
+    // Baseline on first load: don't alert for existing orders.
+    if (!notificationInitializedRef.current) {
+      relevantIds.forEach(id => notified.add(id));
+      notificationInitializedRef.current = true;
+      return;
+    }
+
+    const newIds = relevantIds.filter(id => !notified.has(id));
+    if (newIds.length === 0) return;
+
+    void playNotificationSound();
+    newIds.forEach(id => notified.add(id));
+  }, [activeOrders, takeoutOrders, playNotificationSound]);
 
   // === CART MANAGEMENT ===
 
@@ -1660,6 +1701,19 @@ const PointOfSaleTablet = () => {
               </button>
               </div>
             </div>
+
+            {!isSoundUnlocked && (
+              <div className="px-4 pb-2 bg-gray-50">
+                <button
+                  onClick={unlockNotificationSound}
+                  className="text-xs text-gray-600 underline"
+                  type="button"
+                >
+                  Enable notification sound
+                </button>
+                <span className="text-xs text-gray-500"> (required on some tablets)</span>
+              </div>
+            )}
           </div>
 
           {/* Main Content - Horizontal Split */}
