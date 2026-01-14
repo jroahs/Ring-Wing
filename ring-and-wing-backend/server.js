@@ -329,8 +329,20 @@ app.use((req, res, next) => {
 });
 
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// IMPORTANT: PayMongo webhooks require access to the raw request body for signature verification.
+// If we run express.json() first, the request stream is consumed and signature verification becomes unreliable.
+const jsonParser = express.json({ limit: '10mb' });
+const urlencodedParser = express.urlencoded({ extended: true, limit: '10mb' });
+
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/paymongo/webhook') return next();
+  return jsonParser(req, res, next);
+});
+
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/paymongo/webhook') return next();
+  return urlencodedParser(req, res, next);
+});
 app.use(cookieParser());
 
 // Debug middleware to catch all ingredient mapping requests

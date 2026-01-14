@@ -128,19 +128,66 @@ const SelfCheckoutContent = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [orderSubmitted, setOrderSubmitted] = useState(false);
   
-  // Clear cart when returning from PayMongo redirect
+  // Handle PayMongo redirect (success/cancel). On success, finalize server-side using the session ID.
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const paymongoSuccess = urlParams.get('paymongo_success');
-    const paymongoStatus = urlParams.get('payment_status');
-    
-    if (paymongoSuccess === 'true' || paymongoStatus === 'paid') {
-      console.log('[PayMongo] Returning from payment redirect - clearing cart');
-      clearCart();
-      // Clean URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, [clearCart]);
+    const run = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paymongoSuccess = urlParams.get('paymongo_success');
+      const paymongoCancel = urlParams.get('paymongo_cancel');
+      const sessionId = urlParams.get('session_id');
+      const paymongoStatus = urlParams.get('payment_status');
+
+      if (paymongoCancel === 'true') {
+        addNotification({
+          type: NOTIFICATION_TYPES.PAYMENT_ERROR,
+          title: 'Payment Cancelled',
+          message: 'You cancelled the payment. Your order was not submitted as paid.'
+        });
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+
+      const looksPaid = paymongoSuccess === 'true' || paymongoStatus === 'paid';
+      if (!looksPaid) return;
+
+      if (!sessionId) {
+        addNotification({
+          type: NOTIFICATION_TYPES.PAYMENT_ERROR,
+          title: 'Payment Confirmation Missing',
+          message: 'Missing PayMongo session ID. Please contact staff if you were charged.'
+        });
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+
+      try {
+        const finalizeResponse = await fetch(`${API_URL}/api/paymongo/finalize-session`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId })
+        });
+
+        const finalizeResult = await finalizeResponse.json().catch(() => null);
+        if (!finalizeResponse.ok || !finalizeResult?.success) {
+          throw new Error(finalizeResult?.message || 'Failed to finalize payment');
+        }
+
+        console.log('[PayMongo] Payment finalized - clearing cart');
+        clearCart();
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch (err) {
+        console.error('[PayMongo] Finalize error:', err);
+        addNotification({
+          type: NOTIFICATION_TYPES.PAYMENT_ERROR,
+          title: 'Payment Verification Failed',
+          message: `${err.message}. If you were charged, please contact staff with your payment reference.`
+        });
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    };
+
+    run();
+  }, [clearCart, addNotification]);
   
   // Payment verification states
   const [showPaymentFlow, setShowPaymentFlow] = useState(false); // Controls when to show overlay
@@ -422,17 +469,9 @@ const SelfCheckoutContent = () => {
         return;
       }
       setFulfillmentType(effectiveOrderType);
-      
-      // For dine-in, submit immediately with the type passed directly
-      if (effectiveOrderType === 'dine_in') {
-        setShowPaymentFlow(true);
-        // Pass fulfillment type directly to avoid race condition with setState
-        await saveOrderToDB(effectiveOrderType);
-        clearCart();
-        return;
-      }
-      
-      // For takeout/delivery, show payment flow
+
+      // For all types (including dine-in), show the payment flow first.
+      // Dine-in requires an explicit Pay Now / Pay Later choice before submission.
       setShowPaymentFlow(true);
       return;
     }
@@ -443,8 +482,16 @@ const SelfCheckoutContent = () => {
       return;
     }
 
-    // For dine-in, submit immediately
+    // For dine-in, require an explicit Pay Now / Pay Later selection before submission.
     if (fulfillmentType === 'dine_in') {
+      if (!dineInPaymentChoice) {
+        addNotification({
+          type: NOTIFICATION_TYPES.ORDER_ERROR,
+          title: 'Payment Choice Required',
+          message: 'Please choose Pay Now or Pay Later before submitting your dine-in order.'
+        });
+        return;
+      }
       await saveOrderToDB();
       clearCart();
       return;
@@ -626,8 +673,13 @@ const SelfCheckoutContent = () => {
         customerName: customer ? (customer.fullName || `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Customer') : '',
         orderType: 'self_checkout',
         fulfillmentType: safeFulfillmentType,
-        paymentMethod: 'paymongo',
+        // IMPORTANT: do not mark as PayMongo/verified before payment is actually confirmed.
+        // Payment method is set to 'paymongo' only after webhook/finalization confirms paid.
+        paymentMethod: 'pending',
         status: 'pending_payment',
+        paymentDetails: {
+          eWalletProvider: 'paymongo'
+        },
         paymentGateway: {
           provider: 'paymongo',
           status: 'pending'

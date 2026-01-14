@@ -95,9 +95,7 @@ router.post('/create-checkout', async (req, res) => {
       fulfillmentType: order.fulfillmentType
     });
 
-    console.log('Using PayMongo TEST mode (test keys for development)');
-
-    // Create checkout session with live keys
+    // Create checkout session
     const session = await paymongoService.createCheckoutSession(orderData);
 
     // Update order with PayMongo session information
@@ -105,32 +103,10 @@ router.post('/create-checkout', async (req, res) => {
       provider: 'paymongo',
       sessionId: session.id,
       checkoutUrl: session.checkout_url,
-      createdAt: new Date()
+      createdAt: new Date(),
+      status: 'pending'
     };
-    
-    // FOR TESTING: In test mode, immediately set order as verified since webhooks won't work locally
-    if (process.env.PAYMONGO_SECRET_KEY && process.env.PAYMONGO_SECRET_KEY.includes('test')) {
-      console.log('[TEST MODE] Automatically verifying PayMongo order for testing');
-      order.status = 'paymongo_verified';
-      order.paymentMethod = 'paymongo';
-      order.paymentGateway.paymentStatus = 'paid';
-      order.paymentGateway.verificationStatus = 'auto_verified';
-      order.paymentGateway.paidAt = new Date();
-    }
-    
     await order.save();
-    
-    // Emit socket event for TEST MODE auto-verified orders so they appear in POS immediately
-    if (process.env.PAYMONGO_SECRET_KEY && process.env.PAYMONGO_SECRET_KEY.includes('test')) {
-      const io = req.app.get('io');
-      if (io) {
-        io.to('staff').emit('newPaymentOrder', {
-          order: order.toObject(),
-          timestamp: Date.now()
-        });
-        console.log(`[TEST MODE] Emitted newPaymentOrder for auto-verified order ${order._id}`);
-      }
-    }
 
     logger.info('PayMongo checkout session created successfully:', {
       orderId: order._id,
@@ -177,8 +153,18 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       headers: req.headers
     });
 
-    // Verify webhook signature
-    if (signature && !paymongoService.verifyWebhookSignature(payload.toString(), signature)) {
+    // Verify webhook signature (required)
+    if (!process.env.PAYMONGO_WEBHOOK_SECRET) {
+      logger.error('PAYMONGO_WEBHOOK_SECRET not configured - refusing webhook');
+      return res.status(500).json({ error: 'Webhook not configured' });
+    }
+
+    if (!signature) {
+      logger.error('Missing PayMongo webhook signature');
+      return res.status(400).json({ error: 'Missing signature' });
+    }
+
+    if (!paymongoService.verifyWebhookSignature(payload.toString(), signature)) {
       logger.error('Invalid PayMongo webhook signature');
       return res.status(400).json({ error: 'Invalid signature' });
     }
@@ -215,8 +201,8 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       }
 
       // Update order status and payment information
-      // Set status to 'paymongo_verified' so it appears in POS for receipt generation
-      order.status = 'paymongo_verified'; // Custom status for PayMongo orders awaiting receipt
+      // Only mark as PayMongo verified after confirmed paid webhook
+      order.status = 'paymongo_verified';
       order.paymentMethod = 'paymongo';
       
       if (!order.paymentGateway) {
@@ -225,9 +211,11 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       
       order.paymentGateway.transactionId = sessionData.id;
       order.paymentGateway.paidAt = new Date();
+      order.paymentGateway.status = 'paid';
       order.paymentGateway.paymentStatus = 'paid';
       order.paymentGateway.paymentMethodUsed = paymongoService.getPaymentMethodType(sessionData.attributes);
-      order.paymentGateway.verificationStatus = 'auto_verified'; // Mark as auto-verified
+      order.paymentGateway.verificationStatus = 'verified_by_paymongo';
+      order.paymentGateway.webhookReceived = true;
       
       await order.save();
 
@@ -277,8 +265,10 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       if (orderId) {
         const order = await Order.findById(orderId);
         if (order && order.paymentGateway) {
+          order.paymentGateway.status = 'failed';
           order.paymentGateway.paymentStatus = 'failed';
           order.paymentGateway.failedAt = new Date();
+          order.paymentGateway.webhookReceived = true;
           await order.save();
           
           logger.warn('PayMongo payment failed for order:', {
@@ -297,6 +287,113 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     });
     
     res.status(500).json({ error: 'Webhook processing failed' });
+  }
+});
+
+/**
+ * Finalize a checkout session by retrieving it from PayMongo and updating the matching order.
+ * This is a safe fallback when webhooks are delayed/misconfigured.
+ * POST /api/paymongo/finalize-session
+ * Body: { sessionId }
+ */
+router.post('/finalize-session', async (req, res) => {
+  try {
+    const { sessionId } = req.body || {};
+
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Session ID is required'
+      });
+    }
+
+    const session = await paymongoService.retrieveCheckoutSession(sessionId);
+    const paymentStatus = session.payment_status;
+    const orderId = session.metadata?.order_id;
+
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        message: 'No order_id found in session metadata'
+      });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    // Ensure the session belongs to this order (prevents mismatched updates)
+    if (order.paymentGateway?.sessionId && String(order.paymentGateway.sessionId) !== String(sessionId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Session does not match order'
+      });
+    }
+
+    if (paymentStatus !== 'paid') {
+      return res.status(400).json({
+        success: false,
+        message: `Session not paid (status: ${paymentStatus || 'unknown'})`
+      });
+    }
+
+    order.status = 'paymongo_verified';
+    order.paymentMethod = 'paymongo';
+    order.paymentGateway = {
+      ...(order.paymentGateway || {}),
+      provider: 'paymongo',
+      sessionId: sessionId,
+      status: 'paid',
+      paymentStatus: 'paid',
+      paidAt: new Date(),
+      verificationStatus: 'verified_by_paymongo'
+    };
+
+    await order.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      const eventData = {
+        orderId: order._id,
+        receiptNumber: order.receiptNumber,
+        paymentMethod: 'paymongo',
+        status: order.status,
+        transactionId: order.paymentGateway?.transactionId,
+        verifiedAt: new Date()
+      };
+
+      io.to('staff').emit('paymentVerified', eventData);
+      io.to(`order-${order._id}`).emit('paymentVerified', eventData);
+
+      SocketService.emitOrderUpdated(io, order.toObject(), {
+        changedFields: ['status', 'paymentMethod', 'paymentGateway'],
+        reason: 'paymongoFinalizeSession'
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Session finalized and order verified',
+      data: {
+        orderId: order._id,
+        receiptNumber: order.receiptNumber,
+        status: order.status
+      }
+    });
+  } catch (error) {
+    logger.error('Finalize session error:', {
+      error: error.message,
+      stack: error.stack
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to finalize session'
+    });
   }
 });
 

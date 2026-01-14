@@ -16,7 +16,8 @@ class PayMongoService {
       throw new Error('PAYMONGO_PUBLIC_KEY is required');
     }
     
-    console.log('PayMongo Service initialized with TEST API keys for testing');
+    const isTestKey = String(this.secretKey || '').startsWith('sk_test_');
+    console.log(`PayMongo Service initialized (${isTestKey ? 'TEST' : 'LIVE'} keys)`);
   }
 
   /**
@@ -26,7 +27,7 @@ class PayMongoService {
    */
   async createCheckoutSession(orderData) {
     try {
-      console.log('Creating PayMongo checkout session (TEST MODE) for order:', orderData.orderReference);
+      console.log('Creating PayMongo checkout session for order:', orderData.orderReference);
       
       const response = await axios.post(`${this.baseURL}/checkout_sessions`, {
         data: {
@@ -52,8 +53,9 @@ class PayMongoService {
               };
             }),
             payment_method_types: ['gcash', 'paymaya'], // Support both GCash and PayMaya
-            success_url: `${process.env.FRONTEND_URL}/self-checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${process.env.FRONTEND_URL}/self-checkout/cancel`,
+            // Route must exist in the SPA; we use /self-checkout with query params.
+            success_url: `${process.env.FRONTEND_URL}/self-checkout?paymongo_success=true&session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${process.env.FRONTEND_URL}/self-checkout?paymongo_cancel=true`,
             description: `Ring & Wing Order - ${orderData.orderType}`,
             reference_number: orderData.orderReference,
             metadata: {
@@ -61,7 +63,7 @@ class PayMongoService {
               order_type: orderData.orderType,
               total_amount: orderData.total.toString(),
               fulfillment_type: orderData.fulfillmentType || 'takeout',
-              mode: 'live' // Always live mode
+              mode: String(this.secretKey || '').startsWith('sk_test_') ? 'test' : 'live'
             }
           }
         }
@@ -99,10 +101,7 @@ class PayMongoService {
    */
   verifyWebhookSignature(payload, signature) {
     try {
-      if (!this.webhookSecret) {
-        console.warn('PAYMONGO_WEBHOOK_SECRET not set, skipping signature verification');
-        return true; // Allow for testing without webhook secret
-      }
+      if (!this.webhookSecret) return false;
 
       const expectedSignature = crypto
         .createHmac('sha256', this.webhookSecret)
