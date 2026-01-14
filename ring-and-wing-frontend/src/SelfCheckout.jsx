@@ -169,7 +169,9 @@ const SelfCheckoutContent = () => {
 
         const finalizeResult = await finalizeResponse.json().catch(() => null);
         if (!finalizeResponse.ok || !finalizeResult?.success) {
-          throw new Error(finalizeResult?.message || 'Failed to finalize payment');
+          const msg = finalizeResult?.message || 'Failed to finalize payment';
+          const detail = finalizeResult?.error;
+          throw new Error(detail ? `${msg} (${detail})` : msg);
         }
 
         console.log('[PayMongo] Payment finalized - clearing cart');

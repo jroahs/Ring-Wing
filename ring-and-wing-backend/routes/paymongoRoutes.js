@@ -312,10 +312,17 @@ router.post('/finalize-session', async (req, res) => {
     try {
       session = await paymongoService.retrieveCheckoutSession(sessionId);
     } catch (retrieveError) {
+      logger.error('Failed to retrieve PayMongo session:', {
+        sessionId,
+        error: retrieveError?.message,
+        stack: retrieveError?.stack
+      });
+
+      const details = retrieveError?.message || 'Unknown error';
       return res.status(502).json({
         success: false,
-        message: 'Failed to retrieve session from PayMongo',
-        error: retrieveError?.message || 'Unknown error'
+        message: `Failed to retrieve session from PayMongo: ${details}`,
+        error: details
       });
     }
     const paymentStatus = session.payment_status;
@@ -472,9 +479,9 @@ router.get('/verify-session/:sessionId', async (req, res) => {
       error: error.message
     });
     
-    res.status(500).json({
+    res.status(502).json({
       success: false,
-      message: 'Failed to verify session'
+      message: `Failed to verify session: ${error.message}`
     });
   }
 });
