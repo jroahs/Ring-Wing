@@ -135,8 +135,14 @@ const orderSchema = new mongoose.Schema({
       enum: ['pending', 'paid', 'failed', 'cancelled'], 
       default: 'pending' 
     },
+    // Stores the gateway's raw status (e.g. 'paid', 'authorized') for audit/debug.
+    // In test mode we may treat 'authorized' as 'paid' for usability.
+    rawPaymentStatus: { type: String },
     webhookReceived: { type: Boolean, default: false },
     paidAt: { type: Date },
+    authorizedAt: { type: Date },
+    failedAt: { type: Date },
+    cancelledAt: { type: Date },
     expiresAt: { type: Date }
   },
 

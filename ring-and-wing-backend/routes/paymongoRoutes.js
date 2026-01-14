@@ -144,6 +144,7 @@ router.post('/create-checkout', async (req, res) => {
  */
 router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
+    const isTestMode = String(process.env.PAYMONGO_SECRET_KEY || '').startsWith('sk_test_');
     const signature = req.headers['paymongo-signature'];
     const payload = req.body;
 
@@ -184,7 +185,12 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
     });
 
     // Handle checkout session payment success
-    if (parsedEvent.type === 'checkout_session.payment.paid') {
+    // PayMongo docs list `checkout_session.payment.paid` as the Checkout webhook.
+    // If you need test-mode overrides, use finalize-session (test-only authorized handling)
+    // or the explicit test override endpoint below.
+    const isPaidEvent = parsedEvent.type === 'checkout_session.payment.paid';
+
+    if (isPaidEvent) {
       const sessionData = parsedEvent.data;
       const orderId = sessionData.attributes.metadata?.order_id;
 
@@ -201,7 +207,6 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       }
 
       // Update order status and payment information
-      // Only mark as PayMongo verified after confirmed paid webhook
       order.status = 'paymongo_verified';
       order.paymentMethod = 'paymongo';
       
@@ -210,11 +215,9 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       }
       
       order.paymentGateway.transactionId = sessionData.id;
-      order.paymentGateway.paidAt = new Date();
+      order.paymentGateway.rawPaymentStatus = 'paid';
       order.paymentGateway.status = 'paid';
-      order.paymentGateway.paymentStatus = 'paid';
-      order.paymentGateway.paymentMethodUsed = paymongoService.getPaymentMethodType(sessionData.attributes);
-      order.paymentGateway.verificationStatus = 'verified_by_paymongo';
+      order.paymentGateway.paidAt = new Date();
       order.paymentGateway.webhookReceived = true;
       
       await order.save();
@@ -266,7 +269,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         const order = await Order.findById(orderId);
         if (order && order.paymentGateway) {
           order.paymentGateway.status = 'failed';
-          order.paymentGateway.paymentStatus = 'failed';
+          order.paymentGateway.rawPaymentStatus = 'failed';
           order.paymentGateway.failedAt = new Date();
           order.paymentGateway.webhookReceived = true;
           await order.save();
@@ -298,6 +301,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
  */
 router.post('/finalize-session', async (req, res) => {
   try {
+    const isTestMode = String(process.env.PAYMONGO_SECRET_KEY || '').startsWith('sk_test_');
     const { sessionId } = req.body || {};
 
     if (!sessionId) {
@@ -334,7 +338,11 @@ router.post('/finalize-session', async (req, res) => {
       });
     }
 
-    if (paymentStatus !== 'paid') {
+    const isPaid = paymentStatus === 'paid';
+    const isAuthorized = paymentStatus === 'authorized';
+    const treatAuthorizedAsPaid = isTestMode && isAuthorized;
+
+    if (!isPaid && !treatAuthorizedAsPaid) {
       return res.status(400).json({
         success: false,
         message: `Session not paid (status: ${paymentStatus || 'unknown'})`
@@ -348,9 +356,9 @@ router.post('/finalize-session', async (req, res) => {
       provider: 'paymongo',
       sessionId: sessionId,
       status: 'paid',
-      paymentStatus: 'paid',
+      rawPaymentStatus: paymentStatus || null,
       paidAt: new Date(),
-      verificationStatus: 'verified_by_paymongo'
+      authorizedAt: treatAuthorizedAsPaid ? new Date() : (order.paymentGateway?.authorizedAt || undefined)
     };
 
     await order.save();
@@ -461,6 +469,110 @@ router.get('/status', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to get PayMongo status'
+    });
+  }
+});
+
+/**
+ * TEST-ONLY: Force-mark a PayMongo order as verified/paid.
+ *
+ * Useful when you're using PayMongo test keys and you manually set a payment as "authorized"
+ * in the PayMongo dashboard, but no `checkout_session.payment.paid` webhook is emitted.
+ *
+ * POST /api/paymongo/test/override-paid
+ * Header: x-paymongo-test-override: true
+ * Body: { orderId }
+ */
+router.post('/test/override-paid', auth, async (req, res) => {
+  try {
+    const isTestMode = String(process.env.PAYMONGO_SECRET_KEY || '').startsWith('sk_test_');
+    if (!isTestMode) {
+      return res.status(403).json({
+        success: false,
+        message: 'Test override is only available in test mode'
+      });
+    }
+
+    const overrideHeader = String(req.headers['x-paymongo-test-override'] || '').toLowerCase();
+    if (overrideHeader !== 'true') {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing x-paymongo-test-override: true header'
+      });
+    }
+
+    const { orderId } = req.body || {};
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order ID is required'
+      });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    const hasPayMongoSession = !!order.paymentGateway?.sessionId;
+    const isPayMongoIntent = order.paymentMethod === 'paymongo' || hasPayMongoSession;
+    if (!isPayMongoIntent) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order is not a PayMongo order'
+      });
+    }
+
+    order.status = 'paymongo_verified';
+    order.paymentMethod = 'paymongo';
+    order.paymentGateway = {
+      ...(order.paymentGateway || {}),
+      provider: 'paymongo',
+      status: 'paid',
+      rawPaymentStatus: 'authorized_override',
+      paidAt: new Date(),
+      authorizedAt: new Date(),
+      webhookReceived: false
+    };
+
+    await order.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      const eventData = {
+        orderId: order._id,
+        receiptNumber: order.receiptNumber,
+        paymentMethod: 'paymongo',
+        status: order.status,
+        transactionId: order.paymentGateway?.transactionId,
+        verifiedAt: new Date()
+      };
+
+      io.to('staff').emit('paymentVerified', eventData);
+      io.to(`order-${order._id}`).emit('paymentVerified', eventData);
+
+      SocketService.emitOrderUpdated(io, order.toObject(), {
+        changedFields: ['status', 'paymentMethod', 'paymentGateway'],
+        reason: 'paymongoTestOverridePaid'
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Order marked as paid (test override)'
+    });
+  } catch (error) {
+    logger.error('PayMongo test override error:', {
+      error: error.message,
+      stack: error.stack
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to apply test override'
     });
   }
 });
