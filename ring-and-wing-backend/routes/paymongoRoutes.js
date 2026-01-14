@@ -325,14 +325,23 @@ router.post('/finalize-session', async (req, res) => {
         error: details
       });
     }
-    const paymentStatus = session.payment_status;
-    const derivedPaymentStatus =
-      session?.payment_status ||
-      session?.status ||
-      session?.payment_intent?.status ||
+    const rawSessionPaymentStatus = session?.payment_status;
+    const rawSessionStatus = session?.status;
+    const rawPaymentIntentStatus =
       session?.payment_intent?.attributes?.status ||
-      session?.payments?.[0]?.status ||
-      session?.payments?.[0]?.attributes?.status;
+      session?.payment_intent?.status;
+    const rawPaymentStatus =
+      session?.payments?.[0]?.attributes?.status ||
+      session?.payments?.[0]?.status;
+
+    // PayMongo Checkout Sessions commonly remain `status: active` even after payment.
+    // Determine success via embedded payment / payment_intent objects.
+    const isPaid =
+      rawSessionPaymentStatus === 'paid' ||
+      rawPaymentStatus === 'paid' ||
+      rawPaymentIntentStatus === 'succeeded';
+
+    const derivedPaymentStatus = rawSessionPaymentStatus || rawPaymentStatus || rawPaymentIntentStatus || rawSessionStatus;
 
     const derivedMetadata =
       session?.metadata ||
@@ -365,10 +374,16 @@ router.post('/finalize-session', async (req, res) => {
       });
     }
 
-    if (derivedPaymentStatus !== 'paid') {
+    if (!isPaid) {
       return res.status(400).json({
         success: false,
-        message: `Session not paid (status: ${derivedPaymentStatus || 'unknown'})`
+        message: `Session not paid (status: ${derivedPaymentStatus || 'unknown'})`,
+        error: JSON.stringify({
+          session_status: rawSessionStatus || null,
+          session_payment_status: rawSessionPaymentStatus || null,
+          payment_status: rawPaymentStatus || null,
+          payment_intent_status: rawPaymentIntentStatus || null
+        })
       });
     }
 
@@ -448,13 +463,21 @@ router.get('/verify-session/:sessionId', async (req, res) => {
 
     const session = await paymongoService.retrieveCheckoutSession(sessionId);
 
-    const derivedPaymentStatus =
-      session?.payment_status ||
-      session?.status ||
-      session?.payment_intent?.status ||
+    const rawSessionPaymentStatus = session?.payment_status;
+    const rawSessionStatus = session?.status;
+    const rawPaymentIntentStatus =
       session?.payment_intent?.attributes?.status ||
-      session?.payments?.[0]?.status ||
-      session?.payments?.[0]?.attributes?.status;
+      session?.payment_intent?.status;
+    const rawPaymentStatus =
+      session?.payments?.[0]?.attributes?.status ||
+      session?.payments?.[0]?.status;
+
+    const isPaid =
+      rawSessionPaymentStatus === 'paid' ||
+      rawPaymentStatus === 'paid' ||
+      rawPaymentIntentStatus === 'succeeded';
+
+    const derivedPaymentStatus = rawSessionPaymentStatus || rawPaymentStatus || rawPaymentIntentStatus || rawSessionStatus;
 
     const derivedMetadata =
       session?.metadata ||
@@ -467,6 +490,10 @@ router.get('/verify-session/:sessionId', async (req, res) => {
       success: true,
       data: {
         status: derivedPaymentStatus || session.payment_status,
+        isPaid,
+        sessionStatus: rawSessionStatus || null,
+        paymentStatus: rawPaymentStatus || null,
+        paymentIntentStatus: rawPaymentIntentStatus || null,
         orderId: derivedMetadata?.order_id || derivedMetadata?.orderId,
         paymentMethod: session.payment_method_used?.type || session.payment_method_used?.attributes?.type,
         amount: session.amount || session.amount_total || session.total_amount,
