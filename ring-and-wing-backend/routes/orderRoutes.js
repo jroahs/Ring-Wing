@@ -64,6 +64,26 @@ router.post('/', validateOrder, criticalCheck, async (req, res, next) => {
       ...(clientRequestId ? { clientRequestId } : {})
     };
 
+    // Safety normalization for PayMongo gateway orders.
+    // Some older clients send paymentMethod='paymongo' or paymentDetails.eWalletProvider='paymongo'
+    // during order creation. We must NOT treat that as paid/verified.
+    const wantsPayMongoGateway =
+      (orderData.paymentGateway && orderData.paymentGateway.provider === 'paymongo') ||
+      orderData.paymentMethod === 'paymongo' ||
+      (orderData.paymentDetails && orderData.paymentDetails.eWalletProvider === 'paymongo');
+
+    if (wantsPayMongoGateway) {
+      // Force a safe pre-payment state.
+      orderData.paymentMethod = 'pending';
+      orderData.status = 'pending_payment';
+
+      orderData.paymentGateway = {
+        ...(orderData.paymentGateway || {}),
+        provider: 'paymongo',
+        status: 'pending'
+      };
+    }
+
     // Delivery eligibility enforcement (self-checkout)
     const isDelivery = String(orderData.fulfillmentType || '').toLowerCase() === 'delivery';
     if (isDelivery && String(orderData.orderType || '') === 'self_checkout') {

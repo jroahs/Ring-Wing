@@ -108,7 +108,9 @@ const orderSchema = new mongoose.Schema({
     change: { type: Number, default: 0 },
     
     // E-wallet payment details
-    eWalletProvider: { type: String, enum: ['gcash', 'paymaya'] },
+    // NOTE: 'paymongo' is accepted for backward compatibility with older frontend builds.
+    // PayMongo is primarily tracked via paymentGateway, but rejecting old payloads breaks checkout.
+    eWalletProvider: { type: String, enum: ['gcash', 'paymaya', 'paymongo'] },
     eWalletReferenceNumber: { type: String },
     eWalletName: { type: String }
   },

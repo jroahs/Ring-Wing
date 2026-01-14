@@ -292,6 +292,17 @@ const SelfCheckoutContent = () => {
       });
       return;
     }
+
+    // Defensive guard: a dine-in order must have an explicit Pay Now / Pay Later choice.
+    // This prevents mobile-layout flows from accidentally submitting dine-in orders immediately.
+    if (effectiveFulfillmentType === 'dine_in' && dineInPaymentChoice !== 'pay_now' && dineInPaymentChoice !== 'pay_later') {
+      addNotification({
+        type: NOTIFICATION_TYPES.ORDER_ERROR,
+        title: 'Payment Choice Required',
+        message: 'Please choose Pay Now or Pay Later before submitting your dine-in order.'
+      });
+      return;
+    }
     
     // Sanitize cart items to avoid circular references
     const sanitizedItems = cartItems.map(item => {
@@ -677,9 +688,6 @@ const SelfCheckoutContent = () => {
         // Payment method is set to 'paymongo' only after webhook/finalization confirms paid.
         paymentMethod: 'pending',
         status: 'pending_payment',
-        paymentDetails: {
-          eWalletProvider: 'paymongo'
-        },
         paymentGateway: {
           provider: 'paymongo',
           status: 'pending'
