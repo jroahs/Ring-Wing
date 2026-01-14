@@ -144,7 +144,6 @@ router.post('/create-checkout', async (req, res) => {
  */
 router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
-    const isTestMode = String(process.env.PAYMONGO_SECRET_KEY || '').startsWith('sk_test_');
     const signature = req.headers['paymongo-signature'];
     const payload = req.body;
 
@@ -186,8 +185,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
     // Handle checkout session payment success
     // PayMongo docs list `checkout_session.payment.paid` as the Checkout webhook.
-    // If you need test-mode overrides, use finalize-session (test-only authorized handling)
-    // or the explicit test override endpoint below.
+    // If webhooks are delayed/misconfigured, clients can call finalize-session after redirect.
     const isPaidEvent = parsedEvent.type === 'checkout_session.payment.paid';
 
     if (isPaidEvent) {
@@ -301,7 +299,6 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
  */
 router.post('/finalize-session', async (req, res) => {
   try {
-    const isTestMode = String(process.env.PAYMONGO_SECRET_KEY || '').startsWith('sk_test_');
     const { sessionId } = req.body || {};
 
     if (!sessionId) {
@@ -311,22 +308,45 @@ router.post('/finalize-session', async (req, res) => {
       });
     }
 
-    const session = await paymongoService.retrieveCheckoutSession(sessionId);
-    const paymentStatus = session.payment_status;
-    const orderId = session.metadata?.order_id;
-
-    if (!orderId) {
-      return res.status(400).json({
+    let session;
+    try {
+      session = await paymongoService.retrieveCheckoutSession(sessionId);
+    } catch (retrieveError) {
+      return res.status(502).json({
         success: false,
-        message: 'No order_id found in session metadata'
+        message: 'Failed to retrieve session from PayMongo',
+        error: retrieveError?.message || 'Unknown error'
       });
     }
+    const paymentStatus = session.payment_status;
+    const derivedPaymentStatus =
+      session?.payment_status ||
+      session?.status ||
+      session?.payment_intent?.status ||
+      session?.payment_intent?.attributes?.status ||
+      session?.payments?.[0]?.status ||
+      session?.payments?.[0]?.attributes?.status;
 
-    const order = await Order.findById(orderId);
+    const derivedMetadata =
+      session?.metadata ||
+      session?.payment_intent?.metadata ||
+      session?.payment_intent?.attributes?.metadata ||
+      session?.payments?.[0]?.metadata ||
+      session?.payments?.[0]?.attributes?.metadata;
+
+    const orderId = derivedMetadata?.order_id || derivedMetadata?.orderId;
+
+    // Prefer metadata mapping, but fall back to sessionId lookup for resilience.
+    const order = orderId
+      ? await Order.findById(orderId)
+      : await Order.findOne({ 'paymentGateway.sessionId': String(sessionId) });
+
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: 'Order not found'
+        message: orderId
+          ? 'Order not found'
+          : 'Order not found for this sessionId'
       });
     }
 
@@ -338,14 +358,10 @@ router.post('/finalize-session', async (req, res) => {
       });
     }
 
-    const isPaid = paymentStatus === 'paid';
-    const isAuthorized = paymentStatus === 'authorized';
-    const treatAuthorizedAsPaid = isTestMode && isAuthorized;
-
-    if (!isPaid && !treatAuthorizedAsPaid) {
+    if (derivedPaymentStatus !== 'paid') {
       return res.status(400).json({
         success: false,
-        message: `Session not paid (status: ${paymentStatus || 'unknown'})`
+        message: `Session not paid (status: ${derivedPaymentStatus || 'unknown'})`
       });
     }
 
@@ -356,9 +372,9 @@ router.post('/finalize-session', async (req, res) => {
       provider: 'paymongo',
       sessionId: sessionId,
       status: 'paid',
-      rawPaymentStatus: paymentStatus || null,
+      rawPaymentStatus: derivedPaymentStatus || null,
       paidAt: new Date(),
-      authorizedAt: treatAuthorizedAsPaid ? new Date() : (order.paymentGateway?.authorizedAt || undefined)
+      authorizedAt: order.paymentGateway?.authorizedAt || undefined
     };
 
     await order.save();
@@ -400,7 +416,8 @@ router.post('/finalize-session', async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: 'Failed to finalize session'
+      message: 'Failed to finalize session',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -423,15 +440,30 @@ router.get('/verify-session/:sessionId', async (req, res) => {
     logger.info('Verifying PayMongo session:', { sessionId });
 
     const session = await paymongoService.retrieveCheckoutSession(sessionId);
+
+    const derivedPaymentStatus =
+      session?.payment_status ||
+      session?.status ||
+      session?.payment_intent?.status ||
+      session?.payment_intent?.attributes?.status ||
+      session?.payments?.[0]?.status ||
+      session?.payments?.[0]?.attributes?.status;
+
+    const derivedMetadata =
+      session?.metadata ||
+      session?.payment_intent?.metadata ||
+      session?.payment_intent?.attributes?.metadata ||
+      session?.payments?.[0]?.metadata ||
+      session?.payments?.[0]?.attributes?.metadata;
     
     res.json({
       success: true,
       data: {
-        status: session.payment_status,
-        orderId: session.metadata?.order_id,
-        paymentMethod: session.payment_method_used?.type,
-        amount: session.amount,
-        currency: session.currency
+        status: derivedPaymentStatus || session.payment_status,
+        orderId: derivedMetadata?.order_id || derivedMetadata?.orderId,
+        paymentMethod: session.payment_method_used?.type || session.payment_method_used?.attributes?.type,
+        amount: session.amount || session.amount_total || session.total_amount,
+        currency: session.currency || session.currency_code
       }
     });
   } catch (error) {
@@ -483,98 +515,4 @@ router.get('/status', async (req, res) => {
  * Header: x-paymongo-test-override: true
  * Body: { orderId }
  */
-router.post('/test/override-paid', auth, async (req, res) => {
-  try {
-    const isTestMode = String(process.env.PAYMONGO_SECRET_KEY || '').startsWith('sk_test_');
-    if (!isTestMode) {
-      return res.status(403).json({
-        success: false,
-        message: 'Test override is only available in test mode'
-      });
-    }
-
-    const overrideHeader = String(req.headers['x-paymongo-test-override'] || '').toLowerCase();
-    if (overrideHeader !== 'true') {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing x-paymongo-test-override: true header'
-      });
-    }
-
-    const { orderId } = req.body || {};
-    if (!orderId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Order ID is required'
-      });
-    }
-
-    const order = await Order.findById(orderId);
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found'
-      });
-    }
-
-    const hasPayMongoSession = !!order.paymentGateway?.sessionId;
-    const isPayMongoIntent = order.paymentMethod === 'paymongo' || hasPayMongoSession;
-    if (!isPayMongoIntent) {
-      return res.status(400).json({
-        success: false,
-        message: 'Order is not a PayMongo order'
-      });
-    }
-
-    order.status = 'paymongo_verified';
-    order.paymentMethod = 'paymongo';
-    order.paymentGateway = {
-      ...(order.paymentGateway || {}),
-      provider: 'paymongo',
-      status: 'paid',
-      rawPaymentStatus: 'authorized_override',
-      paidAt: new Date(),
-      authorizedAt: new Date(),
-      webhookReceived: false
-    };
-
-    await order.save();
-
-    const io = req.app.get('io');
-    if (io) {
-      const eventData = {
-        orderId: order._id,
-        receiptNumber: order.receiptNumber,
-        paymentMethod: 'paymongo',
-        status: order.status,
-        transactionId: order.paymentGateway?.transactionId,
-        verifiedAt: new Date()
-      };
-
-      io.to('staff').emit('paymentVerified', eventData);
-      io.to(`order-${order._id}`).emit('paymentVerified', eventData);
-
-      SocketService.emitOrderUpdated(io, order.toObject(), {
-        changedFields: ['status', 'paymentMethod', 'paymentGateway'],
-        reason: 'paymongoTestOverridePaid'
-      });
-    }
-
-    return res.json({
-      success: true,
-      message: 'Order marked as paid (test override)'
-    });
-  } catch (error) {
-    logger.error('PayMongo test override error:', {
-      error: error.message,
-      stack: error.stack
-    });
-
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to apply test override'
-    });
-  }
-});
-
 module.exports = router;
