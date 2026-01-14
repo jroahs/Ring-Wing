@@ -211,9 +211,14 @@ router.post('/', validateOrder, criticalCheck, async (req, res, next) => {
       receiptNumber: order.receiptNumber
     });
     
+    // Emit staff-facing order events for true realtime POS updates
+    const io = req.app.get('io');
+    if (io) {
+      SocketService.emitOrderCreated(io, order.toObject());
+    }
+
     // Emit socket event for real-time updates (POS "Dine/Take-outs" tab)
     // Note: Only emit for orders that need manual payment verification.
-    const io = req.app.get('io');
     const isPayMongoOrder = order.paymentMethod === 'paymongo';
     const shouldEmitSocket = order.paymentMethod === 'e-wallet';
     
@@ -442,9 +447,17 @@ router.patch('/:id', async (req, res, next) => {
       });
     }
 
+    const io = req.app.get('io');
+
+    // Staff-facing realtime update for POS
+    if (io) {
+      SocketService.emitOrderUpdated(io, order.toObject(), {
+        changedFields: Object.keys(updateData)
+      });
+    }
+
     // 🔥 NEW: Emit Socket.io event for order status change (Phase 8: Customer Notifications)
     if (status && order.customerId) {
-      const io = req.app.get('io');
       if (io) {
         console.log(`[Socket] Emitting orderStatusChanged for order ${order._id} to customer ${order.customerId}`);
         
@@ -475,7 +488,6 @@ router.patch('/:id', async (req, res, next) => {
         const userId = req.user?.id || req.user?._id || req.body.userId || 'system';
         
         // 🔥 Get io instance for real-time socket emissions (Sprint 22)
-        const io = req.app.get('io');
         
         console.log(`Order ${order._id} completed - attempting to consume inventory reservations`);
         
@@ -520,6 +532,12 @@ router.delete('/:id', standardCheck, async (req, res, next) => {
         success: false,
         message: 'Order not found'
       });
+    }
+
+    // Staff-facing realtime delete for POS
+    const io = req.app.get('io');
+    if (io) {
+      SocketService.emitOrderDeleted(io, order._id, { receiptNumber: order.receiptNumber });
     }
 
     res.json({

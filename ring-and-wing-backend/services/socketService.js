@@ -307,6 +307,66 @@ class SocketService {
       room: 'staff' // Only send alerts to staff room
     });
   }
+
+  /**
+   * Emit staff-facing order created event
+   *
+   * @param {object} io - Socket.io instance
+   * @param {object} order - Full order object
+   */
+  static emitOrderCreated(io, order) {
+    const orderId = order?._id || order?.id;
+    return this.emit(io, 'orderCreated', {
+      orderId,
+      order,
+      timestamp: Date.now()
+    }, {
+      throttle: false,
+      room: 'staff',
+      log: true
+    });
+  }
+
+  /**
+   * Emit staff-facing order updated event
+   *
+   * @param {object} io - Socket.io instance
+   * @param {object} order - Full order object
+   * @param {object} meta - Optional metadata (e.g., changedFields)
+   */
+  static emitOrderUpdated(io, order, meta = {}) {
+    const orderId = order?._id || order?.id;
+    return this.emit(io, 'orderUpdated', {
+      orderId,
+      order,
+      changedFields: Array.isArray(meta.changedFields) ? meta.changedFields : [],
+      reason: meta.reason,
+      timestamp: Date.now()
+    }, {
+      throttle: false,
+      room: 'staff',
+      log: true
+    });
+  }
+
+  /**
+   * Emit staff-facing order deleted event
+   *
+   * @param {object} io - Socket.io instance
+   * @param {string} orderId - Order ID
+   * @param {object} meta - Optional metadata
+   */
+  static emitOrderDeleted(io, orderId, meta = {}) {
+    return this.emit(io, 'orderDeleted', {
+      orderId,
+      receiptNumber: meta.receiptNumber,
+      timestamp: Date.now()
+    }, {
+      throttle: false,
+      room: 'staff',
+      log: true
+    });
+  }
   
   /**
    * Emit new order created event (for self-checkout orders)

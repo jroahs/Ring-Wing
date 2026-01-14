@@ -171,7 +171,8 @@ const PointOfSale = () => {
   }, [windowWidth]);
   useEffect(() => {
     fetchActiveOrders();
-    const interval = setInterval(fetchActiveOrders, 5000);
+    // Fallback sync (sockets should keep UI realtime)
+    const interval = setInterval(fetchActiveOrders, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -264,6 +265,28 @@ const PointOfSale = () => {
       }
     });
 
+    // True realtime order list updates for POS (staff room)
+    socketConnection.on('orderCreated', (data) => {
+      console.log('[POS] Order created:', data);
+      fetchActiveOrders();
+    });
+
+    socketConnection.on('orderUpdated', (data) => {
+      console.log('[POS] Order updated:', data);
+      fetchActiveOrders();
+    });
+
+    socketConnection.on('orderDeleted', (data) => {
+      console.log('[POS] Order deleted:', data);
+      const orderId = data?.orderId;
+      if (orderId) {
+        setActiveOrders(prev => prev.filter(o => o._id !== orderId));
+        setTakeoutOrders(prev => prev.filter(o => o._id !== orderId));
+      } else {
+        fetchActiveOrders();
+      }
+    });
+
     socketConnection.on('paymentVerified', ({ orderId }) => {
       console.log('Payment verified:', orderId);
       // Remove from takeout orders
@@ -272,10 +295,29 @@ const PointOfSale = () => {
       fetchReadyOrders();
     });
 
+    // Manual verification flows emit these to staff room
+    socketConnection.on('orderVerified', (data) => {
+      console.log('[POS] Order verified:', data);
+      const orderId = data?.orderId;
+      if (orderId) {
+        setTakeoutOrders(prev => prev.filter(order => order._id !== orderId));
+      }
+      fetchActiveOrders();
+    });
+
     socketConnection.on('paymentRejected', ({ orderId }) => {
       console.log('Payment rejected:', orderId);
       // Remove from takeout orders
       setTakeoutOrders(prev => prev.filter(order => order._id !== orderId));
+    });
+
+    socketConnection.on('orderRejected', (data) => {
+      const orderId = data?.orderId;
+      console.log('[POS] Order rejected:', orderId);
+      if (orderId) {
+        setTakeoutOrders(prev => prev.filter(order => order._id !== orderId));
+      }
+      fetchActiveOrders();
     });
 
     // Listen for user logout events (multi-tab logout synchronization)

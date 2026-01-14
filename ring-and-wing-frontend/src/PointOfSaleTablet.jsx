@@ -126,6 +126,7 @@ const PointOfSaleTablet = () => {
   const orderClientRequestIdRef = useRef(null);
   const socketRef = useRef(null);
   const isConnectingRef = useRef(false);
+  const orderViewTypeRef = useRef('ready');
   
   // Cash float management
   const {
@@ -203,6 +204,11 @@ const PointOfSaleTablet = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Keep latest tab selection available to socket handlers
+  useEffect(() => {
+    orderViewTypeRef.current = orderViewType;
+  }, [orderViewType]);
+
   // === INITIALIZATION ===
   useEffect(() => {
     const initializeApp = async () => {
@@ -226,6 +232,19 @@ const PointOfSaleTablet = () => {
     };
 
     initializeApp();
+  }, []);
+
+  // Keep active orders fresh without requiring a full page refresh.
+  // Sockets should keep UI realtime; keep a low-frequency fallback sync.
+  useEffect(() => {
+    fetchActiveOrders();
+    const interval = setInterval(fetchActiveOrders, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Initial fetch for dine/takeout pending-verification orders (for badge counts and notifications).
+  useEffect(() => {
+    fetchTakeoutOrders();
   }, []);
 
   const initializeSocket = () => {
@@ -326,10 +345,75 @@ const PointOfSaleTablet = () => {
     globalSocket.on('paymentVerified', (data) => {
       console.log('[Socket] Payment verified:', data);
       fetchActiveOrders();
-      // Also refresh takeout orders to remove verified orders from pending list
-      if (orderViewType === 'dineTakeout') {
+      // Remove from takeout orders (real-time UI), and optionally refresh list if tab is open
+      const orderId = data?.orderId || data?.id || data;
+      if (orderId) {
+        setTakeoutOrders(prev => prev.filter(o => o._id !== orderId));
+      }
+      if (orderViewTypeRef.current === 'dineTakeout') {
         fetchTakeoutOrders();
       }
+    });
+
+    // Some backend paths emit these to the staff room instead of paymentVerified/paymentRejected.
+    globalSocket.on('orderVerified', (data) => {
+      console.log('[Socket] Order verified:', data);
+      fetchActiveOrders();
+      const orderId = data?.orderId || data?.id;
+      if (orderId) {
+        setTakeoutOrders(prev => prev.filter(o => o._id !== orderId));
+      }
+      if (orderViewTypeRef.current === 'dineTakeout') {
+        fetchTakeoutOrders();
+      }
+    });
+
+    globalSocket.on('paymentRejected', ({ orderId }) => {
+      console.log('[Socket] Payment rejected:', orderId);
+      if (orderId) {
+        setTakeoutOrders(prev => prev.filter(o => o._id !== orderId));
+      }
+    });
+
+    globalSocket.on('orderRejected', (data) => {
+      const orderId = data?.orderId || data?.id;
+      console.log('[Socket] Order rejected:', orderId);
+      if (orderId) {
+        setTakeoutOrders(prev => prev.filter(o => o._id !== orderId));
+      }
+      if (orderViewTypeRef.current === 'dineTakeout') {
+        fetchTakeoutOrders();
+      }
+    });
+
+    globalSocket.on('newPaymentOrder', (data) => {
+      console.log('[Socket] New payment order received:', data);
+      const order = data?.order || data;
+      if (!order?._id) return;
+
+      // Add to dine/takeout list for real-time badges + notifications
+      if (order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery' || order.fulfillmentType === 'dine_in') {
+        setTakeoutOrders(prev => {
+          const exists = prev.some(o => o._id === order._id);
+          if (exists) return prev;
+          return [order, ...prev];
+        });
+      }
+
+      // If the dine/takeout view is open, refresh to ensure we have full up-to-date data.
+      if (orderViewTypeRef.current === 'dineTakeout') {
+        fetchTakeoutOrders();
+      }
+    });
+
+    // Listen for user logout events (multi-tab logout synchronization)
+    globalSocket.on('userLoggedOut', (data) => {
+      console.log('[Socket] User logged out event received:', data);
+      localStorage.removeItem('token');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userPosition');
+      localStorage.removeItem('userRole');
+      window.location.href = '/';
     });
 
     socketRef.current = globalSocket;
@@ -499,9 +583,22 @@ const PointOfSaleTablet = () => {
       
       console.log('[TabletPOS] Takeout orders fetched:', ordersArray.length);
       
-      // Filter for takeout/delivery orders only
+      // Filter for takeout/delivery/dine_in orders
       const takeoutDeliveryOrders = ordersArray.filter(order => {
-        return order.fulfillmentType === 'takeout' || order.fulfillmentType === 'delivery';
+        const isTakeoutDeliveryOrDineIn =
+          order.fulfillmentType === 'takeout' ||
+          order.fulfillmentType === 'delivery' ||
+          order.fulfillmentType === 'dine_in';
+
+        // For manual payments, check if not expired
+        if (order.paymentMethod === 'e-wallet' && order.proofOfPayment?.expiresAt) {
+          const isExpired = new Date(order.proofOfPayment.expiresAt) < new Date();
+          if (isExpired) {
+            return false;
+          }
+        }
+
+        return isTakeoutDeliveryOrDineIn;
       });
       
       console.log('[TabletPOS] Filtered takeout/delivery orders:', takeoutDeliveryOrders.length);

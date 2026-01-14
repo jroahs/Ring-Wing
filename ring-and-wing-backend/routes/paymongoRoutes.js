@@ -4,6 +4,7 @@ const paymongoService = require('../services/paymongoService');
 const Order = require('../models/Order');
 const { auth } = require('../middleware/authMiddleware');
 const { logger } = require('../config/logger');
+const SocketService = require('../services/socketService');
 
 /**
  * Create PayMongo checkout session
@@ -254,6 +255,12 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         
         // Notify customer tracking this order
         io.to(`order-${order._id}`).emit('paymentVerified', eventData);
+
+        // Staff-facing realtime update for POS order lists
+        SocketService.emitOrderUpdated(io, order.toObject(), {
+          changedFields: ['status', 'paymentMethod', 'paymentGateway'],
+          reason: 'paymongoWebhookPaid'
+        });
 
         logger.info('Socket.IO events emitted for PayMongo payment verification:', {
           orderId: order._id,

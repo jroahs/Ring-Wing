@@ -3,6 +3,7 @@ const Order = require('../models/Order');
 const Settings = require('../models/Settings');
 const path = require('path');
 const { uploadFile, getPublicUrl, getSignedUrl, generateUniqueFilename } = require('../utils/supabaseStorage');
+const SocketService = require('../services/socketService');
 
 /**
  * Upload proof of payment for an order
@@ -215,6 +216,12 @@ exports.verifyPayment = async (req, res) => {
         receiptNumber: order.receiptNumber,
         status: order.status
       });
+
+      // Staff-facing realtime update for POS order lists
+      SocketService.emitOrderUpdated(io, order.toObject(), {
+        changedFields: ['status', 'proofOfPayment', 'processedBy'],
+        reason: 'verifyPayment'
+      });
     }
 
     res.json({
@@ -303,6 +310,12 @@ exports.rejectPayment = async (req, res) => {
         orderId: order._id,
         receiptNumber: order.receiptNumber,
         reason: reason
+      });
+
+      // Staff-facing realtime update for POS order lists
+      SocketService.emitOrderUpdated(io, order.toObject(), {
+        changedFields: ['status', 'proofOfPayment'],
+        reason: 'rejectPayment'
       });
     }
 
@@ -572,6 +585,12 @@ exports.processPayMongoOrder = async (req, res) => {
       };
       
       io.emit('orderProcessed', eventData);
+
+      // Staff-facing realtime update for POS order lists
+      SocketService.emitOrderUpdated(io, order.toObject(), {
+        changedFields: ['status', 'processedBy'],
+        reason: 'processPayMongoOrder'
+      });
     }
 
     res.json({
