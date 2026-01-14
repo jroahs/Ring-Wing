@@ -53,8 +53,9 @@ class PayMongoService {
               };
             }),
             payment_method_types: ['gcash', 'paymaya'], // Support both GCash and PayMaya
-            // Route must exist in the SPA; we use /self-checkout with query params.
-            success_url: `${process.env.FRONTEND_URL}/self-checkout?paymongo_success=true&session_id={CHECKOUT_SESSION_ID}`,
+            // Route must exist in the SPA; PayMongo does not substitute session ID placeholders in URLs.
+            // We store the session ID client-side before redirect and finalize using that value after redirect.
+            success_url: `${process.env.FRONTEND_URL}/self-checkout?paymongo_success=true`,
             cancel_url: `${process.env.FRONTEND_URL}/self-checkout?paymongo_cancel=true`,
             description: `Ring & Wing Order - ${orderData.orderType}`,
             reference_number: orderData.orderReference,

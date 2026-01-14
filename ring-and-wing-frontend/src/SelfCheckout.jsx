@@ -134,8 +134,16 @@ const SelfCheckoutContent = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const paymongoSuccess = urlParams.get('paymongo_success');
       const paymongoCancel = urlParams.get('paymongo_cancel');
-      const sessionId = urlParams.get('session_id');
+      const sessionIdParam = urlParams.get('session_id');
       const paymongoStatus = urlParams.get('payment_status');
+
+      const storedSessionId = localStorage.getItem('paymongo_last_session_id');
+      const storedOrderId = localStorage.getItem('paymongo_last_order_id');
+
+      const sessionId =
+        (sessionIdParam && sessionIdParam !== '{CHECKOUT_SESSION_ID}')
+          ? sessionIdParam
+          : storedSessionId;
 
       if (paymongoCancel === 'true') {
         addNotification({
@@ -143,6 +151,8 @@ const SelfCheckoutContent = () => {
           title: 'Payment Cancelled',
           message: 'You cancelled the payment. Your order was not submitted as paid.'
         });
+        localStorage.removeItem('paymongo_last_session_id');
+        localStorage.removeItem('paymongo_last_order_id');
         window.history.replaceState({}, document.title, window.location.pathname);
         return;
       }
@@ -154,7 +164,9 @@ const SelfCheckoutContent = () => {
         addNotification({
           type: NOTIFICATION_TYPES.PAYMENT_ERROR,
           title: 'Payment Confirmation Missing',
-          message: 'Missing PayMongo session ID. Please contact staff if you were charged.'
+          message: storedOrderId
+            ? 'Missing PayMongo session ID. Please contact staff and provide your order number.'
+            : 'Missing PayMongo session ID. Please contact staff if you were charged.'
         });
         window.history.replaceState({}, document.title, window.location.pathname);
         return;
@@ -176,6 +188,8 @@ const SelfCheckoutContent = () => {
 
         console.log('[PayMongo] Payment finalized - clearing cart');
         clearCart();
+        localStorage.removeItem('paymongo_last_session_id');
+        localStorage.removeItem('paymongo_last_order_id');
         window.history.replaceState({}, document.title, window.location.pathname);
       } catch (err) {
         console.error('[PayMongo] Finalize error:', err);
@@ -790,6 +804,14 @@ const SelfCheckoutContent = () => {
       if (checkoutResult.success && checkoutResult.data?.checkout_url) {
         // Store order info for tracking
         setCurrentOrder(orderResult);
+
+        // PayMongo does not inject sessionId into success_url; persist it before redirect.
+        if (checkoutResult.data?.session_id) {
+          localStorage.setItem('paymongo_last_session_id', String(checkoutResult.data.session_id));
+        }
+        if (orderId) {
+          localStorage.setItem('paymongo_last_order_id', String(orderId));
+        }
         
         // Redirect to PayMongo checkout page (isProcessingPayment stays true during redirect)
         window.location.href = checkoutResult.data.checkout_url;
